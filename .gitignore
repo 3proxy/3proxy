@@ -14,6 +14,8 @@ tmp/
 *.bat
 *.swp
 version.c
+doc/html/man3/
+doc/html/man8/
 verfile.sh
 Makefile
 copytgz.sh
