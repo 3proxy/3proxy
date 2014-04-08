@@ -1,0 +1,62 @@
+3proxy 0.7 Public License Agreement
+
+(c) 2000-2014 by 3APA3A (3APA3A@security.nnov.ru)
+(c) 2000-2014 by SecurityVulns.com (http://3proxy.ru/)
+(c) 2000-2014 by Vladimir Dubrovin (vlad@sandy.ru)
+
+This software uses:
+  RSA Data Security, Inc. MD4 Message-Digest Algorithm
+  RSA Data Security, Inc. MD5 Message-Digest Algorithm
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This software is FREEWARE. 
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that following conditions
+are met (BSD style license):
+
+    * Redistributions of source code must retain the above copyright notice,
+    this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+    * Neither the name of the SecurityVulns.COM nor the names of its
+    contributors may be used to endorse or promote products derived from this
+    software without specific prior written permission.
+
+
+Instead of this license, you can also use and redistribute this software under
+terms of compatible license, including:
+
+1. Apache License, Version 2.0
+   You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+2. GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   You may obtain a copy of the License at
+
+	http://www.gnu.org/licenses/gpl.txt
+
+3. GNU Lesser General Public License as published by the
+   Free Software Foundation; either version 2.1 of the License, or
+   (at your option) any later version.
+   You may obtain a copy of the License at
+
+	http://www.gnu.org/licenses/lgpl.txt
+
+
+$Id: License,v 1.3 2007/04/05 11:59:47 vlad Exp $

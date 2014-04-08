@@ -1,0 +1,76 @@
+.TH proxy "8" "July 2009" "3proxy 0.7" "Universal proxy server"
+.SH NAME
+.B proxy
+\- HTTP proxy gateway service
+.SH SYNOPSIS
+.BR "proxy " [ -d ][ -a ]
+.IB \fR[ -l \fR[ \fR[ @ \fR] logfile \fR]]
+.IB \fR[ -p port\fR]
+.IB \fR[ -i internal_ip\fR]
+.IB \fR[ -e external_ip\fR]
+.SH DESCRIPTION
+.B proxy
+is HTTP gateway service with HTTPS and FTP over HTTPS support.
+.SH OPTIONS
+.TP
+.B -I
+Inetd mode. Standalone service only.
+.TP
+.B -d
+Daemonise. Detach service from console and run in the background.
+.TP
+.B -t
+Be silenT. Do not log start/stop/accept error records.
+.TP
+.B -u
+Never ask for username authentication
+.TP
+.B -e
+External address. IP address of interface proxy should initiate connections
+from. 
+By default system will deside which address to use in accordance
+with routing table.
+.TP
+.B -i
+Internal address. IP address proxy accepts connections to.
+By default connection to any interface is accepted. It\'s usually unsafe.
+.TP
+.B -a
+Anonymous. Hide information about client.
+.TP
+.B -a1
+Anonymous. Show fake information about client.
+.TP
+.B -p
+Port. Port proxy listens for incoming connections. Default is 3128.
+.TP
+.B -l
+Log. By default logging is to stdout. If
+.I logfile
+is specified logging is to file. Under Unix, if
+.RI \' @ \'
+preceeds
+.IR logfile ,
+syslog is used for logging.
+.SH CLIENTS
+You should use client with HTTP proxy support or configure router to redirect
+HTTP traffic to proxy (transparent proxy). Configure client to connect to
+.I internal_ip
+and
+.IR port .
+HTTPS support allows to use almost any TCP based protocol. If you need to
+limit clients, use 
+.BR 3proxy (8)
+instead.
+.SH BUGS
+Report all bugs to
+.BR 3proxy@security.nnov.ru
+.SH SEE ALSO
+3proxy(8), ftppr(8), socks(8), pop3p(8), tcppm(8), udppm(8), syslogd(8),
+.br
+http://3proxy.ru/
+.SH AUTHORS
+3proxy is designed by 3APA3A
+.RI ( 3APA3A@security.nnov.ru ),
+Vladimir Dubrovin
+.RI ( vlad@sandy.ru )

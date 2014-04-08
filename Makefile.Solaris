@@ -1,0 +1,35 @@
+#$Id: Makefile.Solaris,v 1.18 2008/09/30 13:58:44 vlad Exp $
+#
+# 3 proxy Makefile for Solaris/SunCC
+#
+# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
+# libraries
+#
+# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
+# library support. Add -DSAFESQL for poorely written ODBC library / drivers.
+
+BUILDDIR =
+CC = cc
+CFLAGS = -xO3 -c -D_SOLARIS -D_THREAD_SAFE -DGETHOSTBYNAME_R -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+COUT = -o ./
+LN = cc
+LDFLAGS = -xO3
+DCFLAGS = -fpic
+DLFLAGS = -shared
+DLSUFFICS = .ld.so
+LIBS = -lpthread -lsocket -lnsl -lresolv -ldl
+LNOUT = -o ./
+EXESUFFICS =
+OBJSUFFICS = .o
+DEFINEOPTION = -D
+COMPFILES = *~
+REMOVECOMMAND = rm -f
+TYPECOMMAND = cat
+COMPATLIBS =
+MAKEFILE = Makefile.Solaris
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin
+
+include Makefile.inc
+
+allplugins:
+	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done

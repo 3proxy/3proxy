@@ -1,0 +1,153 @@
+.TH 3proxy "8" "July 2009" "3proxy 0.7" "Universal proxy server"
+.SH NAME
+.B 3proxy
+\- 3[APA3A] tiny proxy server, or trivial proxy server, or free proxy
+server
+.SH SYNOPSIS
+.B 3proxy
+.RI [ config_file ]
+.br
+.B 3proxy
+.RI [ \-\-install ]
+.br
+.B 3proxy
+.RI [ \-\-remove ]
+.SH DESCRIPTION
+.B 3proxy
+is universal proxy server. It can be used to provide internal users wuth
+fully controllable access to external resources or to provide external
+users with access to internal resources. 3proxy is not developed to replace
+.BR squid (8),
+but it can extend functionality of existing cashing proxy.
+It can be used to route requests between different types of clients and proxy
+servers. Think about it as application level
+gateway with configuration like hardware router has for network layer.
+It can establish multiple
+gateways with HTTP and HTTPS proxy with FTP over HTTP support, SOCKS v4,
+v4.5 and v5, POP3 proxy, UDP and TCP portmappers. Each gateway is started
+from configuration file like independant service 
+.BR proxy (8)
+.BR socks (8)
+.BR pop3p (8)
+.BR tcppm (8)
+.BR udppm (8)
+.BR ftppr (8)
+.BR dnspr
+but
+.BR 3proxy
+is not a kind of wrapper or superserver for this daemons. It just has same
+code compiled in, but provides much more functionality. SOCKSv5
+implementatation allows to use 3proxy with any UDP or TCP based client
+applications designed without
+proxy support (with
+.IR SocksCAP ,
+.I FreeCAP
+or another client-side redirector under Windows of with socksification library
+under Unix). So you can play your favourite games, listen music, exchange
+files and messages and even accept incoming connections behind proxy server.
+.PP
+.I dnspr
+does not exist as independant service. It\' DNS caching proxy (it requires
+.I nscache
+and
+.I nserver
+to be set in configuration. Only A-records are cached. Please note, the
+this caching is mostly a 'hack' and has nothing to do with real
+DNS server, but it works perfectly for SOHO networks.
+
+.PP
+3proxy supports access control lists (ACL) like network router. Source
+and destination networks and destination port can be specified. In addition,
+usernames and gateway action (for example GET or POST) can be used in ACLs.
+In order to filter request on username basis user must be authenticated somehow. There are few
+authentication types including password authentication and authentication by
+NetBIOS name for Windows clients (it\'s very like ident authentication).
+Depending on ACL action request can be allowed, denied or redirected to another
+host or to another proxy server or even to a chain of proxy servers.
+.PP
+It supports different types of logging: to logfiles, 
+.BR syslog (3)
+(only under Unix) or to ODBC database. Logging format is turnable to provide
+compatibility with existing log file parsers. It makes it possible to use
+3proxy with IIS, ISA, Apache or Squid log parsers.
+.SH OPTIONS
+.TP
+.B config_file
+Name of config file. See
+.BR 3proxy.cfg (3)
+for configuration file format. Under Windows, if config_file is not specified,
+.BR 3proxy
+looks for file named
+.I 3proxy.cfg
+in the default location (in same directory with executable file and in current
+directory). Under Unix, if no config file is specified, 3proxy reads
+configuration from stdin. It makes it possible to use 3proxy.cfg file as
+executable script just by setting +x mode and adding
+.br
+#!/usr/local/3proxy/3proxy
+.br
+as a first line in 3proxy.cfg
+.TP
+.B --install
+(Windows NT family only) install 
+.BR 3proxy
+as a system service
+.TP
+.B --remove
+(Windows NT family only) remove
+.BR 3proxy
+from system services
+.SH SIGNALS
+Under Unix there are few signals
+.BR 3proxy
+catches. See
+.BR kill (1).
+.TP
+.B SIGTERM
+cleanup connections and exit
+.TP
+.B SIGPAUSE
+stop to accept new connections, on second signal - start and re-read
+configuration
+.TP
+.B SIGCONT
+start to accept new conenctions
+.TP
+.B SIGUSR1
+reload configuration
+.PP
+Under Windows, if
+.BR 3proxy
+is installed as service you can standard service management to start, stop,
+pause and continue 3proxy service, for example:
+.br
+.BR "net start 3proxy"
+.br
+.BR "net stop 3proxy"
+.br
+.BR "net pause 3proxy"
+.br
+.BR "net continue 3proxy"
+.PP
+Web admin service can also be used to reload configuration. Use
+wget to automate this task.
+.SH FILES
+.TP
+.I "/usr/local/3proxy/3proxy.cfg (3proxy.cfg)"
+.BR 3proxy
+configuration file
+.SH BUGS
+Report all bugs to
+.BR 3proxy@security.nnov.ru
+.SH SEE ALSO
+3proxy.cfg(3), proxy(8), ftppr(8), socks(8), pop3p(8), tcppm(8), udppm(8),
+kill(1), syslogd(8),
+.br
+http://3proxy.ru/
+.SH TRIVIA
+3APA3A is pronounced as \`\`zaraza\'\'.
+.SH AUTHORS
+3proxy is designed by 3APA3A
+.RI ( 3APA3A@security.nnov.ru ),
+Vladimir Dubrovin
+.RI ( vlad@sandy.ru )

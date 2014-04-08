@@ -1,0 +1,27 @@
+#$Id: Makefile.debug,v 1.7 2007/04/18 05:33:19 vlad Exp $
+#
+# 3 proxy Makefile for Microsoft Visual C compiler (for both make and nmake)
+#
+# You can try to add /D "WITH_STD_MALLOC" to CFLAGS to use standard malloc
+# libraries
+
+BUILDDIR = ../bin/
+CC = cl
+CFLAGS = /FD /MDd /nologo /W3 /ZI /Wp64 /GS /Gs /RTCsu /EHs- /GA /GF /DEBUG /D "WITH_STD_MALLOC" /D "_DEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32"  /c
+COUT = /Fo
+LN = link
+LDFLAGS = /nologo /subsystem:console /machine:I386 /DEBUG
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib
+LNOUT = /out:
+EXESUFFICS = .exe
+OBJSUFFICS = .obj
+DEFINEOPTION = /D 
+COMPFILES = *.pch *.idb
+REMOVECOMMAND = del 2>NUL >NUL
+TYPECOMMAND = type
+COMPATLIBS =
+MAKEFILE = Makefile.debug
+
+include Makefile.inc
+
+allplugins:

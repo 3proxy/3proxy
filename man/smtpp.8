@@ -1,0 +1,82 @@
+.TH smtpp "8" "July 2009" "3proxy 0.7" "Universal proxy server"
+.SH NAME
+.B smtpp
+\- SMTP proxy gateway service
+.SH SYNOPSIS
+.BR "smtpp " [ -d ]
+.IB \fR[ -l \fR[ \fR[ @ \fR] logfile \fR]]
+.IB \fR[ -p port\fR]
+.IB \fR[ -i internal_ip\fR]
+.IB \fR[ -e external_ip\fR]
+.IB \fR[ -h default_ip[:port]\fR]
+.SH DESCRIPTION
+.B smtpp
+is SMTP gateway service to allow internal users to access external SMTP
+servers.
+.SH OPTIONS
+.TP
+.B -I
+Inetd mode. Standalone service only.
+.TP
+.B -d
+Daemonise. Detach service from console and run in the background.
+.TP
+.B -t
+Be silenT. Do not log start/stop/accept error records.
+.TP
+.B -u
+Never look for username authentication.
+.TP
+.B -e
+External address. IP address of interface proxy should initiate connections
+from. 
+By default system will deside which address to use in accordance
+with routing table.
+.TP
+.B -i
+Internal address. IP address proxy accepts connections to.
+By default connection to any interface is accepted. It\'s usually unsafe.
+.TP
+.B -p
+Port. Port proxy listens for incoming connections. Default is 25.
+.TP
+.B -h
+Default destination. It's used if targed address is not specified by user.
+.TP
+.B -l
+Log. By default logging is to stdout. If
+.I logfile
+is specified logging is to file. Under Unix, if
+.RI \' @ \'
+preceeds
+.IR logfile ,
+syslog is used for logging.
+.SH CLIENTS
+You can use any MUA (Mail User Agent) with SMTP authentication support.
+Set client to use
+.I internal_ip
+and
+.IR port
+as a SMTP server. Address of real SMTP server must be configured as a part of
+SMTP username. Format for username is
+.IR username \fB@ server ,
+where
+.I server
+is address of SMTP server and
+.I username
+is user\'s login on this SMTP server. Login itself may contain \'@\' sign.
+Only cleartext authentication is supported, because challenge-response
+authentication (CRAM-MD5, SPA, etc) requires challenge from server before
+we know which server to connect.
+.SH BUGS
+Report all bugs to
+.BR 3proxy@security.nnov.ru
+.SH SEE ALSO
+3proxy(8), ftppr(8), proxy(8), socks(8), tcppm(8), udppm(8), syslogd(8),
+.br
+http://3proxy.ru/
+.SH AUTHORS
+3proxy is designed by 3APA3A
+.RI ( 3APA3A@security.nnov.ru ),
+Vladimir Dubrovin
+.RI ( vlad@sandy.ru )

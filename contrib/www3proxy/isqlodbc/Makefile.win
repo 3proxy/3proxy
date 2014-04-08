@@ -1,0 +1,15 @@
+CC = gcc
+CFLAGS = -DWIN32
+COUT = -o 
+LN = gcc
+LDFLAGS =  
+LIBS = -lodbc32
+LNOUT = -o 
+EXESUFFICS =
+OBJSUFFICS = .o
+DEFINEOPTION = -D
+COMPFILES = *~
+REMOVECOMMAND = rm -f
+COMPATLIBS =
+
+include Makefile.inc

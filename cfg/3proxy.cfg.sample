@@ -1,0 +1,202 @@
+#!/usr/local/bin/3proxy
+# Yes, 3proxy.cfg can be executable, in this case you should place
+# something like
+#config /usr/local/3proxy/3proxy.cfg
+# to show which configuration 3proxy should re-read on realod.
+
+#system "echo Hello world!"
+# you may use system to execute some external command if proxy starts
+
+# We can configure nservers to avoid unsafe gethostbyname() usage
+nserver 10.1.2.1
+nserver 10.2.2.2
+# nscache is good to save speed, traffic and bandwidth
+nscache 65536
+
+#nsrecord porno.security.nnov.ru 0.0.0.0
+# nobody will be able to access porno.security.nnov.ru by the name.
+#nsrecord wpad.security.nnov.ru www.security.nnov.ru
+# wpad.security.nnov.ru will resolve to www.security.nnov.ru for
+# clients
+
+
+timeouts 1 5 30 60 180 1800 15 60
+# Here we can change timeout values
+
+users 3APA3A:CL:3apa3a "test:CR:$1$qwer$CHFTUFGqkjue9HyhcMHEe1"
+# note that "" required, overvise $... is treated as include file name.
+# $1$qwer$CHFTUFGqkjue9HyhcMHEe1 is 'test' in MD5 crypt format.
+#users $/usr/local/etc/3proxy/passwd
+# this example shows you how to include passwd file. For included files
+# <CR> and <LF> are treated as field separators.
+
+#daemon
+# now we will not depend on any console (daemonize). daemon must be given
+# before any significant command on *nix.
+
+service
+# service is required under NT if you want 3proxy to start as service
+
+#log /usr/local/etc/3proxy/logs/3proxy.log D
+log c:\3proxy\logs\3proxy.log D
+# log allows to specify log file location and rotation, D means logfile
+# is created daily
+
+#logformat "L%d-%m-%Y %H:%M:%S %z %N.%p %E %U %C:%c %R:%r %O %I %h %T"
+#logformat "Linsert into log (l_date, l_user, l_service, l_in, l_out, l_descr) values ('%d-%m-%Y %H:%M:%S', '%U', '%N', %I, %O, '%T')"
+#Compatible with Squid access.log:
+#
+#"- +_G%t.%. %D %C TCP_MISS/200 %I %1-1T %2-2T %U DIRECT/%R application/unknown"
+#or, more compatible format without %D
+#"- +_G%t.%.      1 %C TCP_MISS/200 %I %1-1T %2-2T %U DIRECT/%R application/unknown"
+#
+#Compatible with ISA 2000 proxy WEBEXTD.LOG (fields are TAB-delimited):
+#
+#"-	+ L%C	%U	Unknown	Y	%Y-%m-%d	%H:%M:%S	w3proxy	3PROXY	-	%n	%R	%r	%D	%O	%I	http	TCP	%1-1T	%2-2T	-	-	%E	-	-	-"
+#
+#Compatible with ISA 2004 proxy WEB.w3c
+#
+#"-	+ L%C	%U	Unknown	%Y-%m-%d	%H:%M:%S	3PROXY	-	%n	%R	%r	%D	%O	%I	http	%1-1T	%2-2T	-	%E	-	-	Internal	External	0x0	Allowed"
+#
+#Compatible with ISA 2000/2004 firewall FWSEXTD.log (fields are TAB-delimited):
+#
+#"-	+ L%C	%U	unnknown:0:0.0	N	%Y-%m-%d	%H:%M:%S	fwsrv	3PROXY	-	%n	%R	%r	%D	%O	%I	%r	TCP	Connect	-	-	-	%E	-	-	-	-	-"
+#
+#Compatible with HTTPD standard log (Apache and others)
+#
+#"-""+_L%C - %U [%d/%o/%Y:%H:%M:%S %z] ""%T"" %E %I"
+#or more compatible without error code
+#"-""+_L%C - %U [%d/%o/%Y:%H:%M:%S %z] ""%T"" 200 %I"
+
+# in log file we want to have underscores instead of spaces
+logformat "- +_L%t.%.  %N.%p %E %U %C:%c %R:%r %O %I %h %T"
+
+
+#archiver gz /bin/gzip %F
+#archiver zip zip -m -qq %A %F
+#archiver zip pkzipc -add -silent -move %A %F
+archiver rar rar a -df -inul %A %F
+# if archiver specified log file will be compressed after closing.
+# you should specify extension, path to archiver and command line, %A will be
+# substituted with archive file name, %f - with original file name.
+# Original file will not be removed, so archiver should care about it.
+
+rotate 30
+# We will keep last 30 log files
+
+auth iponly
+#auth nbname
+#auth strong
+# auth specifies type of user authentication. If you specify none proxy
+# will not do anything to check name of the user. If you specify
+# nbname proxy will send NetBIOS name request packet to UDP/137 of
+# client and parse request for NetBIOS name of messanger service.
+# Strong means that proxy will check password. For strong authentication
+# unknown user will not be allowed to use proxy regardless of ACL.
+# If you do not want username to be checked but wanna ACL to work you should
+# specify auth iponly.
+
+
+#allow ADMINISTRATOR,root
+#allow * 127.0.0.1,192.168.1.1 * *
+#parent 1000 http 192.168.1.2 80 * * * 80
+#allow * 192.168.1.0/24 * 25,53,110,20-21,1024-65535
+# we will allow everything if username matches ADMINISTRATOR or root or
+# client ip is 127.0.0.1 or 192.168.1.1. Overwise we will redirect any request
+# to port 80 to our Web-server 192.168.0.2.
+# We will allow any outgoing connections from network 192.168.1.0/24 to
+# SMTP, POP3, FTP, DNS and unprivileged ports.
+# Note, that redirect may also be used with proxy or portmapper. It will
+# allow you to redirect requests to different ports or different server
+# for different clients.
+
+#  sharing access to internet
+
+external 10.1.1.1
+# external is address 3proxy uses for outgoing connections. 0.0.0.0 means any
+# interface. Using 0.0.0.0 is not good because it allows to connect to 127.0.0.1
+
+internal 192.168.1.1
+# internal is address of interface proxy will listen for incoming requests
+# 127.0.0.1 means only localhost will be able to use this proxy. This is
+# address you should specify for clients as proxy IP.
+# You MAY use 0.0.0.0 but you shouldn't, because it's a chance for you to
+# have open proxy in your network in this case.
+
+auth none
+# no authentication is requires
+
+dnspr
+
+# dnsproxy listens on UDP/53 to answer client's DNS requests. It requires
+# nserver/nscache configuration.
+
+
+#external $./external.ip
+#internal $./internal.ip
+# this is just an alternative form fo giving external and internal address
+# allows you to read this addresses from files
+
+auth strong
+# We want to protect internal interface
+deny * * 127.0.0.1,192.168.1.1
+# and llow HTTP and HTTPS traffic.
+allow * * * 80-88,8080-8088 HTTP
+allow * * * 443,8443 HTTPS
+proxy -n
+
+auth none
+# pop3p will be used without any authentication. It's bad choice
+# because it's possible to use pop3p to access any port
+pop3p
+
+tcppm 25 mail.my.provider 25
+#udppm -s 53 ns.my.provider 53
+# we can portmap port TCP/25 to provider's SMTP server and UDP/53
+# to provider's DNS.
+# Now we can use our proxy as SMTP and DNS server.
+# -s switch for UDP means "single packet" service - instead of setting
+# association for period of time association will only be set for 1 packet.
+# It's very userfull for services like DNS but not for some massive services
+# like multimedia streams or online games.
+
+auth strong
+flush
+allow 3APA3A,test
+maxconn 20
+socks
+# for socks we will use password authentication and different access control -
+# we flush previously configured ACL list and create new one to allow users
+# test and 3APA3A to connect from any location
+
+
+auth strong
+flush
+internal 127.0.0.1
+allow 3APA3A 127.0.0.1
+maxconn 3
+admin
+#only allow acces to admin interface for user 3APA3A from 127.0.0.1 address
+#via 127.0.0.1 address.
+
+# map external 80 and 443 ports to internal Web server
+# examples below show how to use 3proxy to publish Web server in internal
+# network to Internet. We must switch internal and external addresses and
+# flush any ACLs
+
+#auth none
+#flush
+#external $./internal.ip
+#internal $./external.ip
+#maxconn 300
+#tcppm 80 websrv 80
+#tcppm 443 websrv 443
+
+
+#chroot /usr/local/jail
+#setgid 65535
+#setuid 65535
+# now we needn't any root rights. We can chroot and setgid/setuid.
+
+
+###$Id: 3proxy.cfg.sample,v 1.7 2006/11/18 14:37:06 vlad Exp $#######

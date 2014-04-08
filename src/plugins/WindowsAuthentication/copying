@@ -1,0 +1,31 @@
+3proxy 0.6 Windows Authentication Plugin Public License Agreement
+
+This software provided "as is" without any guaranties or support.
+
+This software is FREEWARE. You can use it under terms of current version
+of GNU GPL (General Public License) available from 
+http://www.gnu.org/licenses/gpl.txt or under conditions below:
+
+1. You are granted non-exclusive rights to compile, modify, use and
+re-distribute this program.
+2. In case this software is redistributed in binary form, source code
+MUST be available for user for free.
+3. In case this software redistributed embedded in hardware device or
+pre-installed version of operation system and source code is not available,
+documentation MUST refer to http://www.security.nnov.ru/ as a source of
+software.
+4. In case this software is modified or is used as a part of another project
+license MUST NOT be modified.
+5. Authors of this software MAY change terms of this license for future
+versions of this product.
+
+(c) 2000-2009 by 3APA3A (3APA3A@security.nnov.ru)
+(c) 2000-2009 by SECURITY.NNOV (http://www.security.nnov.ru)
+(c) 2000-2009 by Vladimir Dubrovin (vlad@sandy.ru)
+
+
+This software uses:
+  RSA Data Security, Inc. MD4 Message-Digest Algorithm
+  RSA Data Security, Inc. MD5 Message-Digest Algorithm
+
+$Id: copying,v 1.1 2006/02/13 16:08:03 vlad Exp $

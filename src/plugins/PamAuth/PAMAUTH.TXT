@@ -1,0 +1,30 @@
+Плагин PAM авторизации для 3proxy (ОС *NIX)
+(c)  Kirill Lopuchov lopuchov@mail.ru
+
+
+                              Описание
+Работает только на *NIX	системах . Работоспособность проверялась на  
+freebsd 5.2 и Linux Debian 4.
+
+
+                         Настройка PAM 
+
+Настраиваем PAM сервис для 3proxy  на примере для Linux debian 4 , создаем файл 
+/etc/pam.d/3proxy. Прописываем в нем следующую строку 
+
+@include common-auth
+                         Настройка плагина 
+
+----------------------------3proxy.cfg-------------------------------
+# start - имя процедуры инициализации плагина
+# 3proxy - имя сервиса PAM
+
+plugin "pamauth.so" start 3proxy
+
+# рекомендуется включать кеширование авторизации
+authcache user,password 60
+auth cache pam
+allow *
+proxy -p3128
+
+----------------------------3proxy.cfg-------------------------------			

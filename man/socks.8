@@ -1,0 +1,77 @@
+.TH socks "8" "July 2009" "3proxy 0.7" "Universal proxy server"
+.SH NAME
+.B socks
+\- SOCKS 4/4.5/5 gateway service
+.SH SYNOPSIS
+.BR "socks " [ -d ]
+.IB \fR[ -l \fR[ \fR[ @ \fR] logfile \fR]]
+.IB \fR[ -p port\fR]
+.IB \fR[ -i internal_ip\fR]
+.IB \fR[ -e external_ip\fR]
+.SH DESCRIPTION
+.B socks
+is SOCKS server. It supports SOCKSv4, SOCKSv4.5 (extension to v4 for
+server side name resolution) and SOCKSv5. SOCKSv5 specification allows both
+outgoing and reverse TCP connections and UDP portmapping.
+.SH OPTIONS
+.TP
+.B -I
+Inetd mode. Standalone service only.
+.TP
+.B -d
+Daemonise. Detach service from console and run in the background.
+.TP
+.B -t
+Be silenT. Do not log start/stop/accept error records.
+.TP
+.B -u
+Never ask for username authentication
+.TP
+.B -e
+External address. IP address of interface proxy should initiate connections
+from. External IP must be specified if you need incoming connections.
+By default system will deside which address to use in accordance
+with routing table.
+.TP
+.B -i
+Internal address. IP address proxy accepts connections to.
+By default connection to any interface is accepted. It\'s usually unsafe.
+.TP
+.B -p
+Port. Port proxy listens for incoming connections. Default is 1080.
+.TP
+.B -l
+Log. By default logging is to stdout. If
+.I logfile
+is specified logging is to file. Under Unix, if
+.RI \' @ \'
+preceeds
+.IR logfile ,
+syslog is used for logging.
+.SH CLIENTS
+You should use client with SOCKS support or use some socksification support
+(for example
+.I SocksCAP
+or
+.IR FreeCAP ).
+Configure client to use
+.I internal_ip
+and
+.IR port .
+SOCKS allows to use almost any application protocol without limitation. This
+implementation also allows to open priviledged port on server (if socks has
+sufficient privileges). If you need to control access use
+.BR 3proxy (8)
+instead.
+.SH BUGS
+Report all bugs to
+.BR 3proxy@security.nnov.ru
+.SH SEE ALSO
+3proxy(8), proxy(8), ftppr(8), pop3p(8), tcppm(8), udppm(8), syslogd(8),
+.br
+http://3proxy.ru/
+.SH AUTHORS
+3proxy is designed by 3APA3A
+.RI ( 3APA3A@security.nnov.ru ),
+Vladimir Dubrovin
+.RI ( vlad@sandy.ru )

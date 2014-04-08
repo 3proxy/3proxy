@@ -1,0 +1,2215 @@
+08.04.2014
+Releasing as 0.7
+Significant changes since 0.6.1:
+!! auth iponly by default
+! maxconn is 500 by default
+! Improved HTTP/1.1 compatibility
+! Functionality bugfixes
++ Few new plugins
+
+11.07.2012
+! fixed: counters over 4GB in webadmin
+
+26.06.2012
+! OpenSSL thread support functions added to SSL plugin
+
+10.05.2012
+! SSL plugin works. Commands to enable/disable SSL spoofing will be added later.
+
+25.04.2012
+! pcre_rewrite slash sequence logic corrected
+
+16.04.2012
++ Added: SSLPlugin for SSL decryption with certificates spoofing
+
+12.04.2012
++ Added: new filter callback function type (pre data filter) for things like SSL/TLS, gzip, etc.
+  WARNING: all plugins with filter functions need to be reviewed for compatibility
+
+06.02.2012
++ Added: transparent redirection plugin for linux. Automatically detects redirection
+  address if traffic is redirected via iptables
+
+15.08.2011
+! Fixed: 100% CPU because of usleep with large value on NetBSD
+
+11.06.2011
++ Support for extusername/extpassword added to smtpp
+
+04.06.2011
+! Fixed: web admin access
+! Fixed: wrong error code in logfile in some rare cases
+! Migrated to VC 9.0 compiler
+
+14.04.2011
+! Authentication: do not request username/password in mixed authentication
+  if all modules deny access.
+
+12.04.2011
+! Minor code cleanup
+
+17.12.2010
+- Debugging output to stdout removed
+
+09.12.2010
+! Code cleanup for sockets mapping and chunked encoding, 
+! Content-Length up to 4GB
+
+25.11.2010
++ System locale handling added for mixed case username in WindowAuthentication 
+
+13.11.2010
++ Plugin utf8tocp1251 added to automatically detect UTF-8 (used by Chrome and
+  Opera in username/password.
+
+  usage 
+
+  plugin "utf8tocp1251" utf8tocp1251
+  auth utf8tocp1251 strong
+
+  or
+
+  auth utf8tocp1251 cache windows
+
+
+11.11.2010
+! encoding paramter added to WWW-Authenticate and Proxy-Authenticate headers in
+  .3ps files according to
+  http://tools.ietf.org/id/draft-reschke-basicauth-enc-01.txt
+
+12.08.2010
+! Removed getservbyport() from webadmin to avoid potential race condition
+
+09.08.2010
+! Default .3ps files corrected
+
+26.06.2010
+! Fixed: keep-alive connections detection for HTTP/1.1
+
+10.12.2009
+! Fixed: external address may be incorrectly set if few requests are
+  received in single connection.
+
+02.12.2009
+! zero sockaddr before bind for some FreeBSD versions compatibity
+
+26.10.2009
+! Some changes for MD4/MD5 libraries 64-bit compatibility
+
+01.10.2009
+! Fixed: Content-Length is sent twice to server if there are content-handling
+  plugins.
+
+17.09.2009
+! Makefile.Linux: add3proxyuser.sh moved to INSTALL_CFG_OBJS
+  (thanks to Martin Wanicki)
++ Functionality added to intercept all socket-related calls for plugins
+
+03.09.2009
+! Fixed: client connection was not closed on removed Content-Length (may
+  cause connection hang for timeout at the end of large file transfer 
+  if filtering plugins are used).
+
+24.08.2009
++ Added transparent redirection to ICQ and MSN proxy
++ Added (untested) Last.fm ripper plugin - initial version, code needs to be
+  cleaned to work under *nix. Thanks to Denis Stanishevskiy.
+
+14.08.2009
++ WinCE (Windows Mobile) support added
+
+27.07.2009
+! Fixed: use authnserver for name match check if configured
+
+22.07.2009
++ authnserver command added (nserver to use only with auth dnsname)
+
+13.07.2009
++ man pages for smtpp and icqpr added
+! traffic correction plugin logics fixed
+
+10.07.2009
++ 3proxy configuration parser: support added for empty strings ("").
+
+09.07.2009
++ dnsname authentication added (auth dnsname) - puts validated reverse DNS
+  record (PTR) instead of username
++ PCREPlugin: Added: \r, \n support from pcre_rewrite rewrite string. Use \0
+  for empty string
++ PCREPlugin: Added: * may be used instead of regex (no regex is created
+  and checked in this case)
+
+24.06.2009
+! random redirections are really fixed (incomplete fix on 08.04.2009)
+! icqpr "Need recync" problem fixed
+! disable NTLM by default (because of Windows Vista) until NTLMv2 implemented
+! set auth iponly to be default
+
+
+08.04.2009
+! Fixed: distribution between parent proxies was not even because of
+  non-linear probability
+
+18.03.2009
+! Marking as 0.7-devel
+
+06.03.2009
+! Fixed: filters were applied in reverse order
+
+25.02.2009
+! Fixed: beginning of HTTP data may be not passed to filter
+
+22.02.2009
+! handle Content-Length as unsigned long to allow files > 2GB.
+
+10.02.2009
+! Ldapauth plugin corrected according to changes on 02.02.2009
+
+02.02.2009
++ countout / nocountout commands added
+! Added workaround for Mac OS X / iPhone OS poll() (mis)behaviour.
+
+30.01.2009
+! Flush buffer in case of POLLxxx - probably required for Mac OS X / iPhone OS
+
+24.01.2009
+! Changed WindowsAuthentication to convert username to lowercase
+
+10.12.2008
+! Fixed: login may hang in ftppr in case of large server banner
+
+30.10.2008
+! WindowsAuthentication plugin may sometimes fail with 100122 error
+  on startup because of uninitialized variable.
+
+30.09.2008
+! -lXXX moved to $LIBS in Makefiles for linkers compatibility 
++ 3proxy for Dummies v.1.2 by Kurmaeff Halit added (in Russian)
+
+26.08.2008
+! Fixed: end of chunked-encoded page may be incorrectly detected
+
+24.07.2008
+! Fixed: buffering problem on multiple chunks
+
+21.07.2008
+! Previous fix was incomplete
+
+13.07.2008
+  Thanks to Hostile Fork:
+! Fixed directory listing building for some rare FTP servers (e.g. HP)
+! Fixed (probably) chunked encoding should now work. REQUIRES TESTING.
+  please report, if you have problems with chunked. 
+
+
+11.05.2008
++ minor plugin interface additions
+
+03.05.2008
++ pcre_options implemented
+
+24.04.2008
+! Fixed: bandlimsout may not work if both bandlimsin and bandlimsout
+  are configured.
+
+01.04.2008
+! Fixed: chunked was actually converted to non-chunked
+
+25.03.2008
++ HTTP chunked support (hopefully) added, not tested yet
+
+13.02.2008
+! Do not shutdown listening socket
+! FTPPR was broken on 10.02 fix
+! ':' may be encoded in ftp:// URI's in proxy
+
+12.02.2008
+! LOGIN and PLAIN authentication were swapped in smtpp.
+
+10.02.2008
+! FTPPR: potential race condition on socket close fixed
+
+07.02.2008
+! MSN: message channels were not captured
+
+05.02.2008
+! Use CDATA for XML data in webadmin module
+
+03.02.2008
++ MSN / Live messenger proxy (msnpr) addded
+
+02.02.2008
+! Fixed: counters may be flushed on configureation reload
+
+01.02.2008
+! Work with counters with more safe way on configuration reload
+
+28.01.2008
+! Do not compile empty PCRE
+
+17.01.2008
++ APPE support added to ftppr
+! Fixed problem with counters dumping on reload
+
+16.01.2008
++ reqip/reqport added to XML data export
+
+15.01.2008
+! cache auth: set default cache type to user/password with 600 sec timeout
+
+14.01.2008
+! Fixed EAGAIN handling in sockmap
+! Fixed: plugins: some data may be sent to the filter functions more than once
+  on incomplete send.
+! int * offset_p  changed to  int offset  in plugins interface
+
+13.01.2008
+! icqpr: fixed new services request hijacking
+
+12.01.2008
++ icqpr: added support for ICQ 6.0 greeting
++ icqpr: added support for insecure authentication
++ icqpr: added support for server migration
+
+11.01.2008
++ Support for new service requests hijacking added to icqpr
+! Fixed: icqpr: sequence number can be > 0x8000 in current protocol verion
+
+10.01.2008
+! Fixed few rare cases where small amount of data may pass in/out statistics
+  (e.g parent proxy request/response).
+
+09.01.2008
++ Initial version of icqpr (ICQ proxy). Use it as portmapper to ICQ server:
+  You can also control access by UIN (use 'auth useronly'):
+	auth useronly
+	allow 1369139,1234567
+	icqpr 5190 login.icq.com 5190
+! Corrected seconds fractions calculation in poll() emulation code
+  (probably did not affected any functionality)
+! PCRE library updated to 7.4	
+
+07.01.2008
+!! Error code is now 5-digit
+
+
+27.12.2007
++ StringsPlugin now supports strings substitution for 'admin' service (Kirill Lopuchov)
++ PamAuth plugin added (Kirill Lopuchov)
++ LdapPlugin added (Kirill Lopuchov)
+
+19.12.2007
+ Copyright text fixed in source files
+
+18.12.2007
++ Export added for weadmin strings to use/replace in plugins
+
+17.12.2007
++ Proxy-support: Session-Based-Authentication added for compatibility
+  with NTLM/Negotiate authentication in IE7.
+
+03.12.2007
+! StringPlugin fixed
+
+23.11.2007
++ Developer's documentation added
+
+19.11.2007
+! StringPlugin fixes (by Kirill Lopuchov)
+
+09.11.2007
+! Fixed: SOCKS5 authentication was broken some time ago
+
+28.10.2007
+! Fixed: do flush() if logged to file given with -l
+
+25.10.2007
+! Improper extparam structure initialization fixed (caused invalid behavior
+smtpp/pop3p/ftppr if no 'delimchar' configured after 11.10.2007)
+
+19.10.2007
+! StringsPlugin cleanup
+
+11.10.2007
++ delimchar command added
+
+10.10.2007
+! Fixed: filters are lost on configuration reload
++ Added chkconfig support to rc.d script
+
+09.10.2007
+! Fixed double addition of authentication function on WindowsAuthentication
+  plugin
+
+25.09.2007
+! Outgoing AUTH LOGIN fixed for smtpp
+! Fixed multiline banners in smtpp
++ smtpp: default server (-h) may be used without authentication
+
+11.09.2007
+! Documentation corrections, thanx to Vladimir Fesko
+
+30.08.2007
+! Fixed PCRE filter behaviour on configuration reload
+
+29.08.2007
+! Support added for in-line auth plain SMTP authentication. Default parent
+  authentication is changed to LOGIN.
+
+25.08.2007
+! Fixed -h feature (double memory free after second connect)
++ smtpp (SMTP proxy added). Supports both PLAIN and LOGIN for both client
+  and server, supports default SMTP server.
+
+23.08.2007
++ %e format specificator added for exaternal IP logging.
+
+22.08.2007
+! dighost corrected to do not change file, if no replay from the server
+  received.
+
+20.08.2007
++ authcache password added
+! authcache user and user,ip corrected and crash fixed
+
+17.08.2007
++ Documentation added for authentication cache
+
+16.08.2007
++ Authentication cache created! New command:
+  authcache authtype time
+  e.g.
+  authcache ip 600
+  and new authentication type: cache, e.g.
+  auth iponly cache strong
+  Doesn't work with NTLM, Requires proxy -n!
+
+07.08.2007
+! define _MAX__TIME64_T, because Microsoft only mentions it in configuration
+  and never actually defines it. Prevents crash on malformed/older counter
+  file.
+
+03.08.2007
++ 'nolog' command added to extend allow/deny rules (prevent logging
+  for requests mathing allow/deny rules). nolog only affects last allow
+  or deny command.
++ 'weight' command added to extend allow/deny rules. E.g. 'weight 100'.
+  weight only affects last allow/deny rule.
+
+31.07.2007
+! Error code changed to 100 on failed SOCKSv5 name resolution
++ FAQ and documentation updates
++ New command 'logdump' added, to create intermediate log records then given
+  amount of data is archieved through connection
++ New command 'filtermaxsize' to prevent filtering if expected Content-Length
+  is greater than given value.
+
+21.07.2007
+! rm changed to del in Windows makefiles
+
+07.07.2007
++ HTTP proxy code fixed to pre-buffer traffic and fix Content-Length in case of
+  short files. For longer files Content-Length is not sent to client. It's safe
+  now to change HTTP content within plugin.
+  Result: pcre_rewrite works perfectly.
+
+05.07.2007
++ Documentation improved.
+
+28.06.2007
++ FTP server authentication fixed
+
+26.06.2007
++ Request authentication for FTP server in HTTP proxy if anonymous logon fails
+
+18.06.2007
+! Documentation fixes
+
+11.06.2007
+! Fixed: \r in *nix installation scripts
+
+31.05.2007
+! PCRE: Fixed: replace on the string of different size
+! PCRE: Fixed: replace only replaces first match
+? PCRE: known problem: in HTTP if size changes after replacement it doesn't
+  match Content-Length any more. Any workaround suggestions? Remove
+  Content-Length on HTTP requests?
+
+07.05.2007
+! PCRE plugin only used first rule
+
+21.04.2007
+! Avoid usage of large stack buffer in proxy
++ PCREPlugin is now somehow usefull
+
+20.04.2007
+! Minor code cleanup
+
+18.04.2007
+! Fixed: TraffCorrect plugin doesn't NULLify pointer after free()
+
+13.04.2007
+!! Potential buffer overflow fixed on transparent request handling
+   thanks to big_gad_(at)_mail.ru
+
+12.04.2007
+! missed authentication type check in Windows Authentication plugin
+! fixed minor memory leak in tcppm
+
+11.04.2007
+! Compilation issue for structures.h introduced on 09.04 fixed
+
+09.04.2007
+! Minor code cleanup, documentation fixes, rus-win1251.3ps grammatics fixed.
+! *nix plugins compilation issue fixed
+
+08.04.2007
+! Bug fixed on socket mapping (introduced 06.04)
+! Some internal code review without functional changes
+! "parent type IP 0" is now used to specify external IP
+  (like -eIP, but only for connections matching "allow")
+
+06.04.2007
++ PCREPlugin added. Still in development, not all functionality is implemented.
+
+05.04.2007
++ StringsPlugin by Kirill Lopuchov is imported
+
+21.03.07
+! Fixed: FTP listing is not shown on long FTP server greeting in HTTP proxy
+! Fixed: FTP listing may noy be shown on specific server timing in HTTP proxy
+
+19.03.07
+! TraffCorrect plugin NULL pointer fixed
+
+16.03.07
++ It's now possible to use hostnames and patterns in destination ACL. Hostname
+  is checked against requested hostname. Hostnames and networks may be mixed.
+  Example:
+  deny * * *sex*,*porn*,localhost,192.168.0.0/16
+  '*' can not be uses in the middle of the hostname. www*com is invalid
+  pattern.
+! BINDIR changed to BUILDDIR in Makefiles to avoid collision with install
+  on Linux.
+
+15.03.07
+! Documentation update
+
+13.03.07
++ It's possible to use hostnames in ACL, but it should not be dynamic or
+  multihomed host because hotname is translated to IP immediately.
+
+01.03.07
+! fixed: unnecessary mutex_unlock on trafcounter mutex
+! Cosmetic changes
+
+28.02.07
++ FTP put support added for HTTP proxy
+! Code cleanups (few warnings fixed)
+! Makefile.Linux changed (by request of Jari Aalto)
+
+22.02.07
+! fixed: ftppr may delay on file uploading
+
+20.02.07
++ Minor improvements in schedule-handling code
+
+14.02.07
+! Previous FTP (24.12.06) fix was ineffective (operation after break)
+
+01.02.07
+! Documentation typo with portnumber in fordummies.html fixed
+
+25.01.07
+! Typo fixed in gethostbyname_r
+
+23.01.07
+! Plugins are added to main code tree
+
+20.01.07
+! Use gethostbyname_r on Linux and Solaris
+
+18.01.07
+! Set reload flag on Web interface reload, but do not call reload() function.
+  to process reloads in uniform way.
+
+08.01.07
+! Rotate counters with '0' number
++ Scheduling interface added
+
+29.12.06
+! udppm code cleanup
+
+24.12.06
+! Point ident for openlog to saved copy of string to prevent garbage in syslog
+! Fixed: FTP though parent proxy
+! Fixed: problem fixed for final FTP server response received before data
+  (slow connection).
+
+22.12.06
+! socks4 parent redirection fixed
+! Makefile.Solaris and Makefile.Solaris-gcc are corrected against -o problem
+  in Solaris.
+
+21.12.06
++ FAQ additions
+
+19.12.06
+! Fixed: POST request problem with NTLM authentication
++ Access to reload / exit status and proxy stringtable from plugin API
+
+05.12.06
+! Fixed: imcomlete pages through HTTP proxy (Internet Explorer hangs)
+! Minor changes in trafcount/bandlimit for better plugin compatibility
+
+30.12.06
+! Fixed: two 3xx replies on USER command in ftppr.
+
+27.11.06
+! Changed to SAFESQL because actually only Microsoft and Oracle
+  seems to follow ODBC standards.
+
+19.11.06
++ SITE command support in addition to OPEN for ftppr
+
+18.11.06
++ -I added to standalone services to be executed from inetd.
+
+14.11.06
+! Fixed behaviour on failed ODBC log attempt
++ Filtering HTTP request API now works
+
+10.11.06
++ Try to fallback to stdlog if odbclog fails
+
+07.11.06
++ Filtering API is partially implemented
+
+01.11.06
++ -h option added to use as default hostname:port for ftppr/pop3pr.
+
+15.10.06
+! WindowsAuthentication.dll version updated to match current internal
+  structures and changes in plugins API.
+
+13.10.06
+! Exit service on non-recoverable service error
+
+11.10.06
+! Fixed: hostname:xx causes name resolution problem (introduced on 09.10).
+! Fixed: wrong target ports for tcppm/udppm (introduced on 09.10).
+
+09.10.06
+! %Q and %q added to track requested IP/port. Hopefully also problems with
+  ACL checks on redirected applications are finally fixed.
+
+06.10.06
+! WindowsAuthentication.dll replaced with static version in distro
+
+04.10.06
+! Some compilation warnings cleaned
+! Back to static linking
+! Errors introduced with filters corrected
+
+03.10.06
+! Add .manifest files to distribution
+
+28.09.06
+! Compile 3proxy with msvcr80.dll
++ include msvcr80.dll into distribution
+
+27.09.06
++ FAQ updated.
++ Filtering functionality added (incomplete yet).
+! SOCKS BIND/UDPASSOC problems fixed (based on Artem Rebrov's patch)
+
+25.09.06
+! Traffic report name is now generated based on 'last traffic in report'
+  date/time and is not overwritten on service startup. Today traffic report
+  will only be seen tomorrow, but counters may be checked with 'countersutil'
+  or web interface.
+
+13.09.06
++ Examples of compatible log formats added to 3proxy.cfg.sample
+
+11.09.06
+! Name hash length changed from 64 to 128 bits.
+
+06.09.06
+! Documentation regarding to Unix compilation corrected
+
+
+05.09.06
+! Fixed: buffered input may double some data on empty reads
++ FTP diagnostics improved for FTP login problems
++ Add ".." to directory listing
+
+25.08.06
+! Fixed: endless loop on configuration parsing if ACL weekdays are given as
+  a comma delimited list (reported Andrey S. Alexeenko).
+
+23.08.06
+! Fixed: compilation under Solaris
++ Solaris/gcc Makefile added
+
+17.08.06
+! Fixed: NTLM authentication doesn't work for NT-encoded passwords
+! Fixed: offer NTLM authentication before basic
+
+15.08.06
+! Reset client address after hostname parsing
+! Warn on counterfile time_t incompatibility
+
+10.08.06
+! Fixed: \r's in few Makefiles
+
+09.08.06
+! Documentation corrections.
+
+04.08.06
+! Documentation corrections.
+
+28.07.06
+! Fixed: invalid traffic prediction for large downloads on traffic limits over
+  4GB.
+
+26.07.06
+! nbname auth rejects, if no NetBIOS name determined. Use
+  auth nbname,iponly
+  to emulate old behaviour
+! It's now possible to use "-" in ACLs to match empty username.
+! No need to specify L/G for filename template in "log" (local time is
+  always used).
+
+25.07.06
++ "log" command now supports same format specifications for filename template
+  as "logformat" (if filename contains '%' sign it's believed to be template).
+  As with "logformat" filename must begin with "L" or "G".
+
+08.07.06
+! nreads/nwrites/nconnects fields added to internal client paramters structure
+  for plugin developments
+
+07.07.06
+! FTP_DATA operation added for FTP data connection ACLs.
+
+04.07.06
+! Scripts/Makefiles corrections
+
+03.07.06
+! Fixed: dnspr 822 error on Windows (seems like a bug with multithreading on
+  latest Visual C compiler, ioctlsocket() resets parameters of setsockopt().
+! Fixed: wrong limit and traffic on counters on the web
+
+30.06.06
+! Fixed: wrong traffic displayed on web for traffic > 4GB
+
+28.06.06
+! Fixed path to binary in scripts/rc.d/proxy.sh
+
+27.06.06
+! Fixed: limitations for traffic over 1GB work incorrectly
++ Start/stop script example added to distribution
+
+22.06.06
++ -u parameter added to services to avoid username authentication request/usage
+
+16.06.06
++ Windows authentication plugin added to binary Windows distribution
+
+14.06.06
+! Added workaround for broken HTTP client (e.g. SUM - SUN update manager) with
+  incomplete URI in HTTP request.
+
+11.06.06
+! bind FTP data connection socket to external interface
++ FTPPR fully supports parent proxy (SOCKS 4/5, HTTPS/CONNECT)
++ FTPPR supports FTP_GET/FTP_PUT/FTP_LIST ACL actions limitations
+
+09.06.06
++ 'auth' can be used with few authentication types now. It makes it possible
+   to request password only on demand with
+   auth ipony strong
+
+08.06.06
+! 'admin' redirect type added for redirection to local web administration
+  service (works like admin -s).
+
+31.05.06
+! Log '-' instead of username if username exists but is empty
+
+29.05.06
+!!!! Warning: counters file format changed on Windows since 0.5.2
+     because of different sizeof(time_t) on Visual C++ 2005 compiler.
++ countersutil utility added to manage counters. To convert 3proxy.exe
+  0.5.2 counter file to 3proxy.exe current run
+  countersutil oldexport counterfile tmpfile
+  countersutil import counterfile tmpfile
+
+
+25.05.2006
+! Fixed: dnspr command lost from command list
+
+17.05.2006
+! Fixed: nobandlimin actually works like nobandlimout
+
+16.05.2006
+!! Fixed: crash if more than one "users" command in configuration
+! Fixed: timezone display for FreeBSD and Windows
++ added %o format specification for 3-character mOnth abbriviation
+! Fixed: check EINTR on poll() (avoids "Interrupted system call" in logs
+  and broken connection on USR1 signal.
+
+12.05.2006
+! Fixed: log rotation was broken after client code rewrite
+
+11.05.2006
+! Cleaned: "mypoll" error if compiled with GCC withoout WITH_POLL
+
+10.05.2006
+! Use SO_REUSEPORT if defined
+
+06.05.06
+! Minor HTTP proxy redirections code cleanup
+
+03.05.06
++ socks error codes improved
+
+02.05.2006
+! Fixed: compilation for Unix (plugins)
+
+01.05.2006
+! Fixed: names for authentication types turned back for compatibility
+! Fixed: no warning given for unknown authentication type
+! Fixed: bandlimout doesn't work if bandlimin presents for same connection
+
+30.04.2006
+! Fixed: nobandlimin/nobandlimout commands missed
+++ plugin command added to load dynamic library
+
+25.04.06
+! Internal structures moved to diffent header file
+
+20.04.06
+! Fixed: few problems with logging after latest modification (out of memory
+  reference on hostname).
+  SQL injections now are filtered even if \' is not in filtered characters.
+
+17.04.06
+! Few bugs introduced on 13.04 (especially 'nocountin' crash) fixed
+! Significant changes to internal structures
+! Compilation problems under Linux/Unix fixed
+
+13.04.2006
+! 3proxy.c configuration reading major code rewrite
+! Fixed: memory leaks on configuration reload
+! Changed from CreateThread to _beginthreadex according to MS reccomendations
+! Changed: FTP start data transfer code from 101 to 125 in FTPPR
++ NLST support added to ftppr
+
+05.04.2006
++ Minor documentation and help screen updates
+
+30.03.2006
+!! Windows distribution compiler changed to MSVC 8.0
+++ bin64 (Windows XP/2003 64 bit edition x64) added
+	
+29.03.2006
+! Socket leak fixed on FTP data connection failure under Windows
+! minor 64 bit compatibility code cleanup
++ x64/amd64 Windows XP/2003 64 bit edition makefile added
+
+24.03.2006
+! Minor FAQ dummy compatibility updates
+
+18.03.2006
++ Parameters descriptions and XML stylesheet added to webadmin services view
+! Potential problem (wrong type dereference) fixed in webadmin services
+
+12.03.2006
+! Restore sasize after receivefrom
+
+10.03.2006
+! Fixed: CONNECT with http parent 
++ bandlimout / nobandlimout implemented
+! Copyrights and banners fixed
+
+08.03.2006
+! Minor poll() code cleanup
+
+06.03.2006
+! Socks 4a name resolution fixed
+! Name resolution function was not cleared after configuration reload
+
+03.03.06
+! Print comments in traffic report
+
+26.02.06
+! Check POLLERR / POLLHUP for revents
+
+21.02.06
++ "monitor" command added to reload 3proxy if monitored file changes
+
+13.02.06
+! Some files are renamed for autotools compatibility
+
+07.02.06
+! Fixed: insufficient timeout on buffers flushing, leads to loss
+  of data if connection to client is worse than connection to server.
+
+06.02.06
++ -b (bufsize) parameter added to every service
+! flushing improved to prevent data loss at the end of output 
+
+03.02.06
+! Documentation corrected
+
+10.01.06
++ Documentation updated
+! Buffered UDP data loss on exit is fixed for sockmap
+
+30.12.05
+! Minor interface fixes
+
+27.12.05
++ English FAQ added
+
+20.12.05
+! Fixed: crash on counters in webadmin if "NONE" counter rotation type
+  is used.
+
+09.12.05
+! Use bind port from BIND request for SOCKSv5 server
+
+30.11.05
+! Do not buffer UDP packets
+
+30.11.05
+! Do not drop connection on unknown command
+
+29.11.05
+! Do not drop connection on POP3 CAPA.
+
+28.11.05
+! Fixed: recv() may be called with small buffer on UDPPM
+
+23.11.05
+! Fixed: programming bug in $ file inclusing
+! Fixed: webadmin conter type uses stack for return value
+
+17.11.05
++ Makefile.Solaris added, thanks to 'pqr'.
+! Cleaned pointer conversion warnings
+
+15.11.05
+! define PTHREAD_STACK_MIN if not defined to compile under Solaris
+! S_NONE renamed to S_NOSERVICE to compile under Solaris
+
+14.11.05
+! Linger period is set to STRING_L (60 sec default)
+
+10.10.05
+! Add some grace period to shutdown services before exit
+
+03.10.05
+! Linger added to FTP socket to avoid data loss on socket close
+
+29.09.05
++ Added H (hour) and C (minute) routation support to countin
+
+22.08.05
+! Fixed: UDP resolver (nserver) fails to resolve name if reply contains
+  no additional records (for example dnscache from djbdns).
+
+06.08.05
+!!Workaround added for Windows XP SP2 / Windows 2003 SP1 problem with
+  2 selects on single datagram socket. udppm -s and dnspr hang on random
+  time while sending packets to client, sometimes causing client timeouts.
+
+
+05.08.05
+! Fixed problem with UDP mappings
+! Workaround for strange Windows XP bug with sendto() delay for 2 secs
+  if no select() was performed on socket
+
+30.07.05
+! Error handling on SOCKSv5 parent improved
+
+28.07.05
++ Support for parent SOCKS4b/SOCKS5b (broken implementation with shortened
+  server reply) added. I never saw such server by they say there are.
+  socks4b, socks5b options for parent proxy.
+
+22.07.05
++ Name resolution for parent CONNECT, SOCKSv5 and SOCKSv4a proxy server
+  added, should work with "fakeresolve" option (connect+, socks4+
+  socks5+ options for parent proxy).
+
+13.07.05
+! Fixed: reading behind allocated memory in myrand() entropy
+  gathering function (leads to occasional craches) intrdoduced
+  on June, 20.
+
+12.07.05
+! Use client port only for portmappers
+! Code reviewed for possible double close()
+
+10.07.05
+! Improved quote handling in config files. No any string can be quoted
+  (for example Thi"s is a test" is same as "This is a test", fixed a
+  problem with using quotes with $ macro.
+
+01.07.05
++ Added RSA copyright text to 'mycrypt' to allow binary redistribution
+  for this tool only.
+
+22.06.05
++ try to use same (unprivileged) port as client for outgoing connections
+  for portmappers
+! admin -s now only shows counters related to user
+! Fixed: impossible to set traffic limit to even number of GB
+
+20.06.05
+! -a option corrected again (had inverted action)
++ -a1 option added to report random information about client IP
++ -s option added to 'admin' to allow safe-only commands (user mode)
+
+26.05.2005
+! -a option corrected
+
+25.05.2005
++ 'Y' (annually) option added to counters, logfile rotations, etc
++ -a (anonymous) option added to proxy server
+
+21.05.2005
+! socks: only allow UDP mapping from same IP with control connection
+! socks: always log network parameters for control connection
+! check timeout to be below 2000000
+
+20.05.2005
+! invalid sendto() argument fixed (may affect UDP mapping and sometimes
+  TCP under very rare configurations)
+! set sasize before sendto
+! socks checks requested address to be non-zero
+! socks checks requested port to be non-zero
+! socks: do not change UDP client parameters before UDP packet received
+
+19.05.2005
++ 'include' command added to 3proxy (include one config file from another
+   config file)
+! handle EAGAIN on send()/recv()
+
+18.05.2005
+! More detailed problem code in mapping code
+
+17.05.2005
+! Fixed typo with dnspr logging
+
+16.05.2005
++ dnspr can now resolve records different from hostname (request is proxied to
+  first DNS server in the list, reply is not cached).
+
+14.05.2005
+! Fixed: mishandled socket error in dnspr code
+
+13.05.2005
+! Few minor fixes in HTTP proxy code (timeout in initial handshake lefts
+  some garbage in request buffer).
+! Fixed short timeout in FTP proxy code
+! Mapping code is changed to leave unsent data on buffer
+
+06.05.2005
+! Prevent race conditions with 100% CPU usage in socksmap (introduced 30.04)
+
+03.05.2005
+! Fixed: double free() in authentication (probably introduced on 04.04)
+! Changed to POLLIN/POLLOUT/POLLPRI for more compatibility
+
+30.04.2005
+! Fixed: double free() in FTP over HTTP (probably introduced on 04.04)
+! Fixed: in very rare situation may loose some data at the and of connection
+
+27.04.2005
+! stack size increased (reported problems under some OSs)
+! Fixed: -l option for service executable leads to NULL-pointer reference
+!!! Moved from select() to poll() on *nix. Please upgrade your Makefiles.
+
+25.04.2005
+! set thread stack size explicitly to prevent problems with some Linux 2.6
+  kernels.
+
+22.04.2005
+! Never fallback to gethostbyname() if nameservers are configured to prevent
+  locking on *nix platforms
+!!Fixed: name resolution is called while mutex is locked in HTTP proxy
+  leading to long lasting blocking.
+
+21.04.2005
+! Fixed: dnspr returns A record of invalid class (fails with some resolvers)
+!! Socket I/O  is now non-blocking
+
+19.04.2005
+! bandlimits changed to avoid floating point operations
+
+11.04.2005
++ Log if new connections delayed because of too many accepted connections
+
+04.04.2005
+! Fixed few minor rare memory leaks
+
+03.04.2005
+! Fixed: HTTP proxy should ignore Content-Length for 304 response
+
+14.03.2005
+! MD5 password hashin within mycrypt utility fixed
+! dnspr logging now shows DNS server IP instead of resolved IP, resolver IP
+  is shown in additional info
+
+11.02.2005
+! Configuration reload removed from signal handler
+
+31.01.2005
+! Limit for maximum log string size increased to ~4K
+! large FD_SETSIZE and FD_SETSIZE check is not required under Windows
+
+28.01.2005
+! Fixed: -s options for udppm
+
+17.01.2005
+! Fixed: invalid IP may appear in logs and bandlimits on redirection
+
+13.01.2005
++ fakeresolve option added
+
+21.12.2004
+! Fixed: traffic limits are set improperly for traffic over 1Gb
+
+11.12.2004
+! 0.6 development started
+
+11.12.2004
+Commited as 0.5b
+11/12/2004 3[APA3A]tiny proxy 0.5b
+New features marked with !.
+
+ Features:
+  1. General
+	+ HTTP/1.1 Proxy with keep-alive client and server support,
+          transparent proxy support.
+	+ FTP over HTTP support.
+	+ DNS caching with built-in resolver
+	+ HTTPS (CONNECT) proxy
+	+ SOCKSv4/4.5 Proxy
+	+ SOCKSv5 Proxy
+	! UDP and bind support for SOCKSv5 (fully compatible with
+	  SocksCAP/FreeCAP for UDP)
+	+ Transparent SOCKS->HTTP redirection
+	! Transparent SOCKS->FTP redirection
+	! Transparent SOCKS->POP3 redirection
+	+ POP3 Proxy
+	! FTP proxy
+	! DNS proxy
+	+ TCP port mapper
+	+ UDP port mapper
+	+ Threaded application (no child process).
+	! Web administration and statistics
+  2. Proxy chaining
+	+ Parent proxy support for any type of incoming connection
+	+ Username/password authentication for parent proxy(s).
+	+ HTTPS/SOCKS4/SOCKS5 and redirection parent support
+	+ Random parent selection
+	+ Chain building (multihop proxing)
+  3. Logging
+	+ turnable log format compatible with any log parser
+	+ stdout logging
+	+ file logging
+	+ syslog logging (Unix)
+	+ ODBC logging (Windows and Unix)
+	+ log file rotation (hourly, daily, weekly, monthly)
+	+ automatic log file comperssion with external archiver (for files)
+	+ automatic removal of older log files
+	! Character filtering for log files
+	! different log files for different servces are supported
+  4. Access control
+	+ ACL-driven (user/source/destination/protocol/weekday/daytime or
+	combined) bandwith limitation
+	+ ACL-driven (user/source/destination/protocol/weekday/daytime or
+	combined) traffic limitation per day, week or month
+	+ User authorization by NetBIOS messanger name
+	+ Access control by username, source IP, destination IP, destination
+	port and destination action (POST, PUT, GET, etc), weekday and daytime.
+	+ Access control by username/password for SOCKSv5 and HTTP/HTTPS/FTP
+	+ Cleartext or encrypted (crypt/MD5 or NT) passwords.
+	+ Connection redirection
+	+ Access control by requested action (CONNECT/BIND, 
+	  HTTP GET/POST/PUT/HEAD/OTHER).
+	! NTLM authentication for HTTP proxy access
+	! All access controle entries now support weekday and daytime
+	limitations.
+  5. Configuration
+	+ support for configuration files
+	+ support for includes in configuration files
+	+ interface binding
+	+ running as daemon process
+	+ utility for automated networks list building
+     Unix
+	+ support for chroot
+	+ support for setgid
+	+ support for setuid
+	! support for signals
+     Windows NT/2K/XP/2K3
+	+ support --install as service
+	+ support --remove as service
+	+ support for service START, STOP, PAUSE and CONTINUE commands (on
+	PAUSE no new connection accepted, but active connections still in
+	progress, on CONTINUE configuration is reloaded)
+     Windows 95/98/ME
+	! support --install as service
+	! support --remove as service
+  6. Compilation
+	+ MSVC (msvcrt.dll)
+	+ Intel Windows Compiler (msvcrt.dll)
+	+ Windows/gcc (msvcrt.dll)
+	+ Cygwin/gcc (cygwin.dll)
+	+ Unix/gcc
+	+ Unix/ccc
+
+ Known bugs:
+
+	report to 3proxy@security.nnov.ru
+
+ Planned for future (0.6) release:
+   - External modules API
+   - Addon URL, antiviral, HTTP cache filters modules, authentication
+     modules for different protocols (RADIUS, PAM, integrated system, etc).
+
+$Id: Changelog,v 1.154 2006/03/08 18:44:00 vlad Exp $
+
+11.12.2004
++ man page for 3proxy.cfg added
+
+09.12.2004
+! restarting SQL on reloading configuration
+
+08.12.2004
+! Typo fixed in sockmap preventing portmappers from functioning
+
+06.12.2004
++ Network input is now buffered, decreasing CPU usage
+- Debugging printf() removed from ftppr
+
+30.11.2004
+!! Fixed: memory content may be leaked on FTP error in HTTP proxy
+! Few race conditions with double socket closing fixed in FTP proxy
++ Content-Length is checked to do not allow traffic overdraft via HTTP proxy
++ Connection now can be aborted due to traffic limit (code 90)
+
+24.11.2004
+! 333 error removed - no longer required
+
+23.11.2004
+! Deadlock in checkACL() (introduced 18.11) fixed
+
+20.11.2004
+! All mutex operation are now atomic to prvent deadlocks
+! Race conditions with bamdlimits on reload fixed
+
+18.11.2004
+! Mutex logic overwritten, should clear reload races completely
+! Fixed socket leak on some failed FTP operations
+! FD_SETSIZE increased, check for FD_SETSIZE added
+
+04.11.2004
+! Fixed: Maxconn limitation doesn't work, may lead to resource exhaustion
+  attacks
+! Fixed: reference to unallocated memory if fails to create new thread
+  (may lead to crash together with previous bug).
+
+03.11.2004
+! Fixed: Wrong type for "ace.users" in datatypes.c
+! Partially fixed: race conditions on reload in alwaysauth()
+
+02.11.2004
+! race condition in sql_init on reload fixed
+! minor code cleanup
+! typo with SQL deadlock introduced on last fix fixed
+! checked few memory allocation calls missed with debug library (myalloc)
+
+30.10.2004
+! Fixed: minor memory leak on SQL error
+
+28.10.2004
++ HTTP parent redirection for FTP requests
+
+23.10.2004
+! Fixed: access to free()'d memory in ODBC functions after few 
+  configuration reloads
+! Configuration reload is more (but not yet completely) thread safe 
+  now.
+
+17.10.2004
+! Fixed: Content-Type: missed in web interface
+
+16.10.2004
+! Fixed: log may show invalid IP/port for parent proxy connection
+
+12.10.2004
+- Debug printing to stdout in webadmin removed
+
+11.10.2004
+! Race conditions fixed, could cause 3proxy to crash on configuration reload
+
+28.09.2004
+! Limitation for maximum string length in config file removed (for included files)
+
+26.09.2004
+! Typo corrected preventing compilation under *nix
+
+18.09.2004
+! URL decoding corrected (affect HTTP over FTP clients)
++ "writable" command added to allow config modification via Web interface
++ Config file can be edited via web interface
+
+14.09.2004
+! Crash on HTTP redirections introduced on 08.09 fixed.
+
+11.09.2004
++ Weekday based access control is now possible
++ Time based access control added
+! Speed improved in ACL checks
+
+08.09.2004
++ * can be used as external username with a meaning of username should be
+  requested from user.
++ %n1-n2T is now available in logformat to log only few field of service
+  specific text
++ -t (silent start) option added
+
+20.08.2004
+! Yesterday fix was broken, corrected.
+
+19.08.2004
+! Fixed: target address is logged instead of proxy address in a case
+  of redirection
+
+09.08.2004
+! Fixed: under *nix if service fails to bind() port for few hours it falls
+  into endless loop with logging and high CPU usage.
+
+03.08.2004
+! Fixed: select() changes tv value on some Linux kernels (100% CPU usage)
+
+02.08.2004
+! Fixed: wrong initialization for counter descriptor (causes some stdout
+  noise).
+! Fixed: no HTTP proxy diagnostic message if host name doesn't resolve
+! Fixed: NULL pointer crash if no format specified
+
+30.07.2004
+! Few bugs with counters and bandlimits introduced yesterday fixed
+
+29.07.2004
+! Fixed few memory leaks on restart
+! Some code cleanup for configuration information storing
++ Statistics extended
++ Added "Zombie" threads support (service thread waiting for child shutdown
+  to exit).
++ Every service can now have different log format and character filtering
++ It's now possible to set logformat for service from command line
+
+28.07.2004
+! Fixed: ACLs are not cleared on reload
+! Fixed: bind() warnings on reload under *nix
+!! Fixed potential race conditions DoS on some Unix systems with thread
+   exit on aborted connection (accept(): Software caused connection abort)
+
+24.07.2004
++ Web interface shows information about all currently running services and
+  clients (plain format just for debugging, will be rewrtitten later)
+
+23.07.2004
+! Fixed: wrong external ip/port in logs sometimes on internal redirection
++ HowTo and FAQ (Russian) added to documentation, documentation corrected
+
+22.07.2004
++ Added logging options for request duration and average send/recieve
+  speed per request
+
+20.07.2004
+! Changed default password for anonymous FTP
+! Improved diagnostic messages for FTP over HTTP errors
+
+19.07.2004
+! Changed FTP behaviour for some RFC ignorant sites
+
+17.07.2004
++ services and clients are now registered for future extensions
+! counters show wrong result problem introduced yesterday fixed
+! fixed descriptor leak on configuration reload
+! fixed theoretical problem with client number limitations
+! few theoretical mutex leaks fixed
+
+16.07.2004
++ 3proxy can now read configuration from stdin under *nix,
+  3proxy.cfg can be executable 
++ 'config' command added to allow 3proxy reload configuration in chroot'ed
+  environment or if configured from stdin.
++ 'end' command added
++ Man pages in HTML added
+
+14.07.2004
+! Minor casting issues, Unix compilation issues fixed
++ counters sample added
+
+13.07.2004
++ Configuration improved and repacked
+
+08.07.2004
+! Problem introduced yesteday (after rotation logs do not print to
+  logfile) fixed.
+
+07.07.2004
+! Fixed FTP behaviour on RFC ignoring FTP sites (ftp.drweb.ru).
+! Config file example updated with FTP proxy service configuration
++ Logging changed to allow personal log files for every service (without
+  rotation) and to work on older FreeBSD systems.
+
+05.07.2004
+! Fixed call to free'ed memory (could cause crash on reloading 3proxy
+  configuration in 0.5b-devel after 28.06.2004)
+
+30.06.2004
+! Fixed redirection crash if parent username/password is not specified
+! Fixed documentation buf (%h instead of %n for hostname in logformat)
+
+28.06.2004
+! Minor changes in error messages generation
+
+25.06.2004
+! distributive repacked, some Russian documentation by Kirill Lopuchov
+  added
+
+24.06.2004
+! realm sometimes is not shown in proxy-authentication
+
+23.06.2004
+! fixed maxconn parameter was not set to default value on proxy reload.
+! fixed typo in pop3p causing it to fail
+
+22.06.2004
+! ftppr.c typo corrected, preventing compilation under unix.
+
+19.06.2004
++ FTP proxy (compatible with both USER and OPEN mode). Redirection to
+  FTP proxy from SOCKS
+
+18.06.2004
++ Local redirection to POP3 proxy is now awailable.
+! Fixed race conditions with double socket closing in POP3 proxy
+
+17.06.2004
+!! Threading problem causing minor memory leak and preventing 3proxy
+   from functioning under few OS versions (including Linux) after
+   some number of requests fixed.
+
+16.06.2004
+! Authentication problem introduced on 05.06 fixed
+
+15.06.2004
+! FTP over HTTP proxy supports spaces, quotes and 0x255 in filenames.
+!! Potential security risk fixed: FTP password may appear in log if
+   URL ftp://user:password@server is used.
+
+09.06.2004
+! NTLM is enabled by default. Use proxy -n to disable NTLM for proxy service
+  (for example, if crypt passwords are used).
+
+05.06.2004
+!! Potential security leak fixed: POP3 proxy password can appear in log if
+   proxy username is configured as proxyuser:proxypassword:pop3user@pop3server
+   in POP3 client program
+! Child invocation code rewritten to avoid code dupclication.
+
+27.05.2004
+! Reloading is now fast (new thread starts before old one dies)
+! Milliseconds are printed as .3 (not .4) in logs
+
+22.05.2004
++ Reload command added to Web interface and SIGUSR1 handling
+! Problem fixed: no mode is given to open() with O_CREAT for counter files,
+  counter file can be created as read only under Windows or with invalid mask
+  under Unix.
+! Do not fail if bind() fails
+! Setsockopt for integer options corrected
+! REUSEADDR added to avoid "Address already in use" problem if restarted
+  under Unix
+
+18.05.2004
++ Installation/removal as a service under Windows 95/98/ME now supported.
+
+17.05.2004
+! Fixed: 3proxy hangs on socket error during config reading
+
+14.05.2004
+! For HTTP proxy NTLM authentication both ntlm and basic are now advertized
+  to client for compatibility
+! Optimization parameters are changed and stack protection is turned on for
+  MSVC (Windows default) compilation.
+! Fixed: exiting thread shows last client IP in log
+  
+
+27.04.2004
+! Fixed: Microsoft domain authentication to web server may fail via
+  transparent HTTP proxy with some IE versions.
+! HTTP HEAD now recognized
+
+23.04.2004
+! Fixed compilation issues under Unix
+
+22.04.2004
++ Configuration now can be dynamically reloaded with
+  net pause 3proxy / net continue 3proxy or by sending SIGPAUSE twice
+  without breaking connections
+! 3proxy is now distributed compiled with Microsoft Visual C++, thanx
+  to MS for releasing "Microsoft Visual C++ Toolkit 2003" for free.
+! Few bugs introduced in latest versions (username/password for parent proxy,
+  dnspr and single packet UDP are fixed)
+
+13.04.2004
++ NTLM authentication for proxy server (yes, it works under *nix). It will
+  not work with crypt password, only CL or NT. Use proxy -n to allow NTLM.
+! potential DoS (NULL pointer) condition fixed in configuration with crypted
+  passwords
+
+08.04.2004
++ %n (hostname) added to logformat
+
+05.04.04
+! compilation problem under Unix fixed
+
+01.04.04
+! problem with portmappers fixed (introduced on last modification)
+
+20.03.04
++ FTP messages are shown now
+! FTP problem with links with absolute paths fixed
+! No more authentication requested for user if ACL denies access to resource
+  in HTTP proxy.
+! ACLs are now stored in predefined container. It's required for future
+  improvement (Cisco-like ACL configuration and configuration reload without
+  restarting proxy). As a backside, number of ACLs is now limited to 256.
+! Function for configuration reading implemented for future improvements.
+
+12.03.2004
+! error text generation changed for pthread_create (use return code
+  instead of errno). Memory leak on failed pthread_create fixed.
+
+02.03.2004
+! Transparent proxy fixed to work with ports different from 80.
+! Workarond for Internet Explorer invalid Host: header bug
+
+28.02.2004
++ -+ options added to logformat for character filtering
+! ' character now filtered only if logged via ODBC
+! few bugs fixed in ODBC logging reliability code. Now 3proxy should better
+  handle broken database connections.
+
+26.02.2004
+! user32 added to library list for MSVC
+
+24.02.2004
+! Ask installation confirmation before installation
+
+23.02.2004
+! ttl now is real for DNS proxy proxy reply
+
+21.02.2004
++ dnspr - DNS caching proxy added to 3proxy module. Listens on UDP/53
+  and answers hostname requests. Requires nserver/nscache to be configured.
+! 3proxy wanrs user if installed as Windows service
+! 3proxy child threads are now started faster
+
+22.01.2004
+! mutex deadlock fixed if gethostbyname() is used under Unix
+
+19.01.2004
+! compilation issue fixed for MSVC (definition inside code)
+
+15.01.2004
+! bug fixed in configuration reading getip() called befor WSAStartup
+  (thanks to Kerd)
+! bug fixed with parent CONNECT proxy (thanks to Kerd)
+
+11.01.2003
++ Few man pages added
+
+06.01.2003
++ now it's possible to use "" inside quotation for double quote sign (for
+  example "say ""hello world"""
+
+04.01.2004
++ maxconn configuration option added
+
+19.12.2003
++ New "safe" memory allocation library implemented. It may slow down
+  performance but is thread safe and never cause memory fragmentation.
+! Memory leak in redirection SOCKS->HTTP fixed
+
+11.12.2003
+! Memory leak in UDPPM fixed
+
+29.11.2003
++ Copyrights added to banners
+!! Few signed/unsigned mismatches fixed (including potentially dangerous)
+
+27.11.2003
+! 'redirect' now can be used with hostname instead of ip address
+
+21.11.2003
+! POP3 proxy bug fixed
+
+04.11.2003
+! '@' situation in username for POP3 proxy corrected 
+  (pop3name@pop3realm@pop3server)
+
+03.11.2003
+! One more bug with 'archiver' causing 3proxy to crash on log archieving
+  fixed
+
+29.10.2003
+! Some threading safety is added for logging (inet_ntoa and ODBC
+  re-initialisation)
+
+28.10.2003
+! Bug causing daily log filename to work as weekly fixed
+! 'daemon' example moved to beginning of configuration file
+
+16.10.2003
++ pidfile configuration option added
++ processing for SIGCONT (pause/resume) and SIGTERM (termination) added
+  under Unix
+
+01.10.2003
+! Weekly log filename now is generated by the date of last Sunday.
+! Do not strip executable for Unix (must be stripped during installation).
+
+21.09.2003
+! Bug fixed in "log" command processing (wrong buffer was used
+  for filename generation)
+
+16.09.2003
+! socksmapping algorythm changed to handle incomlete send() (for *BSD).
+
+15.09.2003
+! mutex added to gethostbyname() to avoid thread unsafety. It slows
+  down proxy if no nserver configured (it MUST be for *nix!) but prevents
+  crashing on active usage.
+! signal() handling is added for SIGPIPE. It seems to be some race conditions
+  on FreeBSD between send() and gethostbyname() somewhere causing SIGPIPE on
+  gethostbyname().
+
+13.09.2003
+! NULL reference corrected if rotate is given without archiver
+
+11.09.2003
+! Few additional checks added for open()/fopen() to do not crash on invalid
+  files in config
+! Buffer moved from stack to heap in socks.c to eliminate crash on FreeBSD
+
+10.09.2003
+! Bug in SOCKSv5 UDP mapping corrected. Now it works fine (checked with
+  Unreal Tournament) with both SocksCAP and FreeCAP.
+
+06.08.2003
+! Algorithm for SOCKS5 bind/udp assoc port selection is now intellegent
+  enough to allow server applications to use same port number on socks
+  server if available and not denied by access list
+! SOCKS5 bind/udp assoc now matches incoming connections/packet
+  with IP address from request in accordance to RFC 1928 to improve
+  security
+
+04.08.2003
+!!! Bug fixed sometimes causing 3proxy to crash if parent proxy is used
+!!! UDP associate finaly completed and is fully functional
+    (tested with SocksCAP on Unreal Tournament). 
+!!! TCP bind code re-checked, and is probably working (doesn't work
+    on SocksCAP because of SocksCAP bug
+!!! Socket leak on nbname auth fixed
+
+21.07.03
++ Web administration module created
++ Dynamic enable/disable for counters now available via web interface
+
+19/07/2003 3[APA3A]tiny proxy 0.4
+New features marked with !.
+
+ Features:
+  1. General
+	+ HTTP/1.1 Proxy with keep-alive client and server support,
+          transparent proxy support.
+	! FTP over HTTP support.
+	! DNS caching
+	+ HTTPS (CONNECT) proxy
+	+ SOCKSv4 Proxy
+	+ SOCKSv5 Proxy (TCP only)
+	+ Transparent SOCKS->HTTP redirection
+	+ POP3 Proxy
+	+ TCP port mapper
+	+ UDP port mapper
+	+ Threaded application (no child process).
+  2. Proxy chaining
+	+ Parent proxy support for any type of incoming connection
+	+ Username/password authentication for parent proxy(s).
+	+ HTTPS/SOCKS4/SOCKS5 and redirection parent support
+	+ Random parent selecttion
+	+ Chain building (multihop proxing)
+  3. Logging
+	+ turnable log format
+	+ stdout logging
+	+ file logging
+	+ syslog logging (Unix)
+	+ ODBC logging (Windows and Unix)
+	+ log file rotation (hourly, daily, weekly, monthly)
+	+ automatic log file comperssion with external archiver (for files)
+	+ automatic removal of older log files
+  4. Access control
+	! ACL-driven (user/source/destination/protocol or combined) bandwith
+	limitation
+	! ACL-driven (user/source/destination/protocol or combined) traffic
+	limitation per day, week or month
+	+ User authorization by NetBIOS messanger name
+	+ Access control by username, source IP, destination IP, destination
+	port and destination action (POST, PUT, GET, etc).
+	+ Access control by username/password for SOCKSv5 and HTTP/HTTPS/FTP
+	+ Cleartext or encrypted (crypt/MD5 or NT) passwords.
+	+ Connection redirection
+	+ Access control by requested action (CONNECT/BIND, 
+	  HTTP GET/POST/PUT/HEAD/OTHER).
+  5. Configuration
+	+ support for configuration files
+	+ support for includes in configuration files
+	+ interface binding
+	+ running as daemon process
+	+ utility for automated networks list building
+     Unix
+	+ support for chroot
+	+ support for setgid
+	+ support for setuid
+     NT
+	+ support --install as service
+	+ support --remove as service
+	+ support for service START, STOP, PAUSE and CONTINUE commands (on
+	PAUSE no new connection accepted, but active connections still in
+	progress)
+  6. Compilation
+	+ MSVC (msvcrt.dll)
+	+ Intel Windows Compiler (msvcrt.dll)
+	+ Windows/gcc (msvcrt.dll)
+	+ Cygwin/gcc (cygwin.dll)
+	+ Unix/gcc
+	+ Unix/ccc
+
+ Known bugs:
+
+	- udppm doesn't work if compiled with cygwin. 
+
+	  Cygwin doesn't support recvfrom()/sendto() on connected socket, so
+	  recv/send is used instead... Not a big deal anyway.
+
+
+ Planned for future release:
+   - Web interface for configuration
+   - Signal handling on Unix (for stop/pause/resume/configuration change)
+   - External filter API
+   - Addon URL, antiviral, HTTP cache filters
+
+17.07.03
++ ODBC changed to re-establish broken connection
+
+11.06.03
+! #ifndef NOSQL changed to NOODBC
+
+22.05.03
++ strong auth now supported for POP3 proxy. Now, username can be in format
+  proxy_username:proxy_password:POP3_username@pop3server
+
+30.04.03
+! redirect function now do not change code of traffic limit error
+
+24.04.2003
+! -M changed to -D for *nix makefiles
+
+18.04.2003
+! HTTPS behaviour breaked by latest patches restored
+
+15.04.2003
+! fixed handling of special characters and non-existing files in
+  FTP over HTTP proxy.
+
+12.04.2003
+! fixed behaviour of HTTP proxy on RFC-incompatible web servers (banners
+  exchanges, price.ru, etc) - they terminate string with \n instead of
+  \r\n.
+
+10.04.2003
++ nsrecord and dialer commands added
+! Name resolution now occures right before authorization to prevent
+  unauthenticated users from performing NS lookups and demand dial.
+
+05.04.2003
++ N (Never) option value added for counters refreshing
+
+29.03.2003
++ !!! FTP support for HTTP proxy added. 
+
+25.03.2003
+! Socks 4 bug fixed (was visible in Netscape)
++ Socks 4.5 support added (not tested)
+! !! UDP portmapper code fixed
+
+24.03.2003
+! Timeout, close on closed socket and FD bugs fixed in UDPPM
+
+21.03.2003
++ Proxy-Authorization now works for CONNECT (HTTPS proxy).
+
+07.03.2003
+! counter command extended to allow traffic reports
+
+02.03.2003
+! Bandwidth/Traffic limiting problems fixed
+! gethostbyname() argument limited to 256 characters. It may be significant
+  for Windows
+
+27.02.2003
++ !!! Traffic limitting feature added (counter/countin/nocountin)
+
+26.02.2003
+! nobandlim processing changed
+! bandlim/nobamdlim commands renamed to bandlimin/nobandlimin
+
+22.02.2003
++ !!! Bandwidth limiting features added (bandlim and nobandlim commands)
+
+18.02.2003
++ Mutext support added for inter-thread data access. Should improve stability.
+- debugging printf() removed from proxy, typo fixed in auth.c
+
+10.02.2003
+! Changed to use WSASocket()/WSAAccept() instead of socket()/accept() under
+  Windows
+
+30.01.2003 
+! Version of gcc changed (3.2).
++ nscache option added to 3proxy configuration for DNS cache. For a while
+  caching is primitive (with no expiration).
+
+27.01.2003
+- \n removed from perror() calls
+
+27/01/2003 3[APA3A]tiny proxy 0.3b.
+New features are marked with !.
+
+ Features:
+  1. General
+	+ HTTP/1.1 Proxy with keep-alive client and server support,
+          transparent proxy support.
+	! HTTPS (CONNECT) proxy
+	+ SOCKSv4 Proxy
+	+ SOCKSv5 Proxy (TCP only)
+	! Transparent SOCKS->HTTP redirection
+	+ POP3 Proxy
+	+ TCP port mapper
+	+ UDP port mapper
+	+ Threaded application (no child process).
+  2. Proxy chaining
+	! Parent proxy support for any type of incoming connection
+	! Username/password authentication for parent proxy(s).
+	! HTTPS/SOCKS4/SOCKS5 and redirection parent support
+	! Random parent select
+	! Chain building (multihop proxing)
+  3. Logging
+	! turnable log format
+	+ stdout logging
+	+ file logging
+	+ syslog logging (Unix)
+	! ODBC logging (Windows)
+	+ log file rotation (hourly, daily, weekly, monthly)
+	+ automatic log file comperssion with external archiver (for files)
+	+ automatic removal of older log files
+  4. Access control
+	+ User authorization by NetBIOS messanger name
+	+ Access control by username, source IP, destination IP and destination
+	port
+	+ Access control by username/password for SOCKSv5 and HTTP
+	+ Cleartext or encrypted (crypt/MD5 or NT) passwords.
+	+ Connection redirection
+	! Access control by requested action (CONNECT/BIND, 
+	  HTTP GET/POST/PUT/HEAD/OTHER).
+  5. Configuration
+	+ support for configuration files
+	+ support for includes in configuration files
+	+ interface binding
+	+ running as daemon process
+	! utility for networks list building
+     Unix
+	+ support for chroot
+	+ support for setgid
+	+ support for setuid
+     NT
+	+ support --install as service
+	+ support --remove as service
+	+ support for service START, STOP, PAUSE and CONTINUE commands (on
+	PAUSE no new connection accepted, but active connections still in
+	progress)
+  6. Compilation
+	+ MSVC (msvcrt.dll)
+	! Intel Windows Compiler (msvcrt.dll)
+	+ Windows/gcc (msvcrt.dll)
+	+ Cygwin/gcc (cygwin.dll)
+	+ Unix/gcc
+	! Unix/ccc
+
+ Known bugs:
+
+	- udppm doesn't work if compiled with cygwin. 
+
+	  Cygwin doesn't support recvfrom()/sendto() on connected socket, so
+	  recv/send is used instead... Not a big deal anyway.
+
+
+ Planned for future release:
+   - FTP proxy support
+   - Web interface for configuration
+   - Signal handling on Unix (for stop/pause/resume/configuration change)
+   - External filter API
+   - Addon trafficshape, URL, antiviral, HTTP cache filters
+
+
+27.01.2003
+!!!!!!!!!!!!!!!!!!!
+! Tagging as 0.3b !
+!!!!!!!!!!!!!!!!!!!
+
+24.01.2003
+- Fixed to use INVALID_SOCKET instead of -1 (for Windows compatibility)
+- Fixed problem with threading support under gcc. Now ODBC logging seems
+  to work always.
+! strncasecmp removed. Changed to use strnicmp for Windows.
+
+21.01.2003
+! 0.3 development frozen to only bugfixes
+- bug fixed causing 3proxy to crash with NULL pointer reference on
+  transparent web redirection
+- SQL support removed from default (gcc) compilation
+
+20.01.2003
++ ODBC logging (yeah!). For a while it works stable only if compiled with
+  MSVC or Intel compiler.
+
+17.01.2003
+- bug introduced yesterday into CONNECT code cleaned
+
+16.01.2003
++ timeouts command added
+
+13.01.2003
+- daemonizing code changed to work correctly on buggy libc (FreeBSD)
+  (pthread_* doesn't work after daemon())
+- logging code changed to work correctly on buggy libc (FreeBSD 4.4)
+  (freopen "a" mode doesn't work as expected on stdout)
+
+12.01.2003
+! License is changed to prohibit modification and commercial use
+
+11.01.2003
+! All makefiles are made uniform
++ Makefiles for Compaq C complier (Makefile.ccc) and Intel C Compiler for
+  Windows (Makefile.intl) added
++ Makefile.msvc added for Microsoft Visual C Compiler
+! proxy.dsp removed
+
+10.01.2003
++ Now checked to compile with Compaq C Compiler under linux on alpha platform
++ logformat configuration command added for custom log entry format
+! Unix version changed to use gettimeofday instead of ftime to avoid -lcompat
+  issue.
+
+09.01.2003
+! Randomizer changed for proxy chaining
+! Code cleaned: Makefile, signed/unsigned conversions, etc.
+! Typo fixed preventing from compilation under *nix
+
+08.01.2003
++ dateformat command added
+! Log format changed!!!
++ Control for different operations (CONNECT,BIND,HTTP_*, etc) added to ACL,
+  see 3proxy.cfg.sample
+
+25.12.2002
++ Proxy chaining now is fully operational!!!!!
++ SOCKSv4 and SOCKSv5 client code added for chaining
++ HTTP connect authentication added for chaining
++ Parent authentication for HTTP proxy added
+- Problem with "Connection: close" resolved (if HTTP server time outs or closes
+  connection).
+
+24.12.2002
++ Proxy chaining works!!! (for a while only HTTP CONNECT proxies
+  are supported and no parent authentication). Logging is updated to
+  include number of redirections (parent proxies) in square brackets.
+  See config.sample for example of "parent" command.
+
+23.12.2002
+! Transparent proxy operations improved, logging corrected
++ Added base code for proxy chaining
+! Redirection code rewritten
+
+23.12.2002
++ UDP ASSOCIATE added (but not tested) to SOCKS.
+! Additional logging added to socks proxy
++ Local HTTP proxy redirection added (for SOCKS).
+
+01.12.2002
+! closesock() problem _finally_ patched...
+
+30.11.2002
+! Makefile.unix corrected
+! Do not process $ in included files for 3proxy.cfg
+! Common error codes are unified
+
+29.11.2002
++ nserver example added to 3proxy.cfg.sample
+
+28.11.2002
+- fixed closesock() instead of close() call on 3proxy.cfg included files
+  for native Windows.
+
+27.11.2002
+! Minor changes in docummentation
++ dighosts utility added
+
+22.11.2002
+- Few problems corrected in logfiles rotation
+
+20.11.2002
+- SOCKSv5 bind() reply corrected.
+
+19.11.2002
++ internal resolver added to avoid usage of thread unsafe gethostbyname().
+  nserver configuration option added to config file.
+! HTTP proxy behaviour slightly changed to be more compatible.
+
+06/11/2002 3[APA3A]tiny proxy 0.2b Initial release.
+
+ Features:
+  1. General
+	+ HTTP/1.1 Proxy with keep-alive client and server support,
+          transparent proxy support.
+	+ SOCKSv4 Proxy
+	+ SOCKSv5 Proxy (TCP only)
+	+ POP3 Proxy
+	+ TCP port mapper
+	+ UDP port mapper
+	+ Threaded application (no child process).
+  2. Logging
+	+ stdout logging
+	+ file logging
+	+ syslog logging (Unix)
+	+ log file rotation (hourly, daily, weekly, monthly)
+	+ automatic log file comperssion with external archiver (for files)
+	+ automatic removal of older log files
+  3. Access control
+	+ User authorization by NetBIOS messanger name
+	+ Access control by username, source IP, destination IP and destination
+	port
+	+ Access control by username/password for SOCKSv5 and HTTP
+	+ Cleartext or encrypted (crypt/MD5 or NT) passwords.
+  4. Configuration
+	+ support for configuration files
+	+ support for includes in configuration files
+	+ interface binding
+	+ running as daemon process
+     Unix
+	+ support for chroot
+	+ support for setgid
+	+ support for setuid
+     NT
+	+ support --install as service
+	+ support --remove as service
+	+ support for service START, STOP, PAUSE and CONTINUE commands (on
+	PAUSE no new connection accepted, but active connections still in
+	progress)
+  5. Compilation
+	+ Microsoft VC++ (msvcrt.dll)
+	+ Windows/gcc (msvcrt.dll)
+	+ Cygwin/gcc (cygwin.dll)
+	+ Unix/gcc
+
+ Known bugs:
+
+	- udppm doesn't work if compiled with cygwin. 
+
+	  Cygwin doesn't support recvfrom()/sendto() on connected socket, so
+	  recv/send is used instead... Not a big deal anyway.
+
+	- socks5 doesn't work with UDP
+
+	  Not implemented yet
+
+ Planned for future release:
+   - UDP implementation in SOCKSv5
+   - Signal handling on Unix (for pause/resume)
+   - External filter API
+   - Addon trafficshape, URL, antiviral, HTTP cache filters
+
+06.11.2002
+!!MARK IT 0.2beta
+! Using UPX to compress 3proxy.exe
+
+
+02.11.2002
++ HTTP proxy now supports kepp-alive connections to HTTP server or proxy.
+  It dramatically decreases number of outgoing connections and amount of DNS
+  traffic.
+
+01.11.2002
++ Now proxy can catch Web server style requests. It means proxy
+  may be used as a transparent proxy. Yes. It means you can redirect
+  SOCKS requests with target 80 to HTTP proxy.
+! Port check in ACL fixed
+! Now proxy catches redirection by changed destination IP or port. If
+  you redirect request to web server make sure it supports proxy style
+  requests (IIS and Apache do).
++ HTTP proxy supports keep-alive. Now number of threads required
+  significantly reduced.
++ HTTP CONNECT fully supported (both direct and redirected to another proxy).
+  Now you can use our proxy for HTTPs. Or for spam :) Don't forget to set ACL
+  for outgoing ports, cause now ports are not limited.
+
+26.10.2002
++ mycrypt utility added for making crypted passwords in NT and crypt/MD5
+! ACL check for strong auth corrected
++ HTTP proxy support for authentication (basic). Now you can use strong
+  username/password authentication with proxy module.
++ Error messages added for HTTP proxy
+
+25.10.2002
++ NT passwords are now supported in 3proxy.cfg
+! Public License Agreement changed to be more clear
+
+24.10.2002
+! Fixed handle leak because of missed CloseHandle for threads in Windows
+
+23.10.2002
+! Fixed POP3 proxy bug
+! Strong auth changed to allow rules with * for username
++ MD5 crypt format passwords is now supported... Do we ever need DES?
+  I will not implement blowfish - it's huge and rarely used.
++ More comments added to 3proxy.cfg.sample
+
+21.10.2002
+! Fixed strongauth problem - ACL was not checked for authenticated
+  SOCKSv5 users
+
+16.10.2002
++ Added support for SOCKSv5 cleartext password authentication
++ "strong" authentication is now OK (use it only for SOCKS)
++ added "users" config file command to specify username and password. Only
+  cleartext for a while.
+
+20.09.2002
+! Minor improvements in socket operations
+
+17.09.2002
+! HTTP proxy changed to do not strip hostname from URI if target port is not
+  80. It allows to redirect requests to another proxy as well as redirect to
+  different Web server via ACL. It will work for most servers (IIS, Apache)
+  if target redirected to non-standard port of Web server, but may fail in
+  some rare cases. Redirection to proxy should always work OK except if proxy
+  is on TCP/80.
++ Added "redirect" ACL command. You can redirect request to another destination
+  if ACL entry matches (that is by target or source IP, target port, username).
+! Fixed documentation bug in 3proxy.cfg.sample ("authtype" instead of "auth")
+! Fixed bug causing server to exit in native Win32 mode if "service"
+  configuration option is not configured
+! Outgoing SOCKS connections are handled in common way now.
+
+07.09.2002
++ added binding to external interface for outgoing connections
+! Fixed bug causing username check in ACL always fail
++ Added ACL check for UDP map
++ Added "Single packet" services to UDP portmap (-s switch). Allows unlimited
+  number of clients to be handled by portmapper for single-packet services
+  (like DNS).
+
+06.09.2002 3[APA3A]tiny proxy 0.1b initial release
+
+ Features:
+  1. General
+	+ HTTP/1.0 Proxy
+	+ SOCKSv4 Proxy
+	+ SOCKSv5 Proxy (TCP only)
+	+ POP3 Proxy
+	+ TCP port mapper
+	+ UDP port mapper
+	+ Threaded application (no child process).
+  2. Logging
+	+ stdout logging
+	+ file logging
+	+ syslog logging (Unix)
+	+ log file rotation (hourly, daily, weekly, monthly)
+	+ automatic log file comperssion with external archiver (for files)
+	+ automatic removal of older log files
+  3. Access control
+	+ User authorization by NetBIOS messanger name
+	+ Access control by username, source IP, destination IP and destination
+	port
+  4. Configuration
+	+ support for configuration files
+	+ support for includes in configuration files
+	+ interface binding
+	+ running as daemon process
+     Unix
+	+ support for chroot
+	+ support for setgid
+	+ support for setuid
+     NT
+	+ support --install as service
+	+ support --remove as service
+	+ support for service START, STOP, PAUSE and CONTINUE commands (on
+	PAUSE no new connection accepted, but active connections still in
+	progress)
+  5. Compilation
+	+ Microsoft VC++ (msvcrt.dll)
+	+ Windows/gcc (msvcrt.dll)
+	+ Cygwin/gcc (cygwin.dll)
+	+ Unix/gcc
+
+ Known bugs:
+
+	- udppm doesn't work if compiled with cygwin. 
+
+	  Cygwin doesn't support recvfrom()/sendto() on connected socket, so
+	  recv/send is used instead... Not a big deal anyway.
+
+	- udppm works without authentication
+
+	  Will be patched later.
+
+	- socks5 doesn't work with UDP
+
+	  Not implemented yet
+
+ Planned for future release:
+   - Improvements to UDP portmapping
+   - UDP implementation in SOCKSv5
+   - Ident authorization
+   - SOCKSv5 password authentication
+   - Signal handling on Unix (for pause/resume)
+   - External filter API
+   - Addon trafficshape, URL, antiviral, HTTP cache filters
+   - HTTP/1.1 support
+
+
+$Id: Changelog,v 1.154 2006/03/08 18:44:00 vlad Exp $

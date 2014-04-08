@@ -1,0 +1,158 @@
+<h3>Why ... doesn't work?</h3>
+
+<p><i>Q: Why does nothing work?</i></p>
+A: Valid configuration file is required.
+
+<p><i>Q: Why restrictions (redirections, limits, etc) do not work?</i></p>
+A: Most probable reasons: 'auth none' or no auth is used. For any ACL based feature one of 'iponly', 'nbname' or 'strong' auths required. Sequence of commands may be invalid. Commands are executed one-by-one and 'proxy', 'tcppm', 'socks' or another service commands must follow valid configuration. Invalid sequence of ACLs. First matching ACL is used (except of internal redirections, see below). If ACL contains at least one records last record is assumed to be 'deny *'.
+
+<p><i>Q: Why doesn't 3proxy work as service under Windows?</i></p>
+Possible reasons:
+<ul>
+<li>'service' command absents in configuration file. Command is required for
+3proxy.exe to behave as system service in 3proxy 0.5.2 and prior.
+<li>there are relative paths in configuration file for included files,
+log files, etc. Always use absolute paths. For example
+$"c:\3proxy\networks.local" instead of  $networks.local. For debugging remove
+'service' and 'daemon', log to stdout an try to execute 3proxy from command
+line from some different directory (for example from disk root).
+<li>SYSTEM account doesn't have access to executable file, configuration files,
+log files, etc.
+<li>configuration files is not located in default path (3proxy.cfg in same
+location with 3proxy.exe). For alternative configuration file location use
+<pre>
+3proxy --install full_path_to_configuration_file
+</pre>
+<li>user has no rights to install or start service
+<li>service is already installed and/or started
+
+</ul>
+
+<p><A NAME="INTEXT"><i>Q: Why doesn't internal and external commands work as expected</i></A></li></p>
+A: Check your expectations first.
+Both internal and external IPs are IPs of the host running 3proxy itself.
+This configuration option is usefull in situation 3proxy is running on the
+border host with 2 (or more) connections: e.g. LAN and WAN with different IPs
+<pre>
+     LAN connection +-------------+ Internet connection
+LAN <-------------->| 3proxy host |<-------------------> INTERNET
+                   ^+-------------+^
+	           |               |
+              Internal IP       External IP
+</pre>
+If 3proxy is used on the host with single connection, both internal and
+external are usually same IP.
+<br>Internal should exist and be UP on the moment 3proxy is started and
+should never be disconnected/DOWN. If this interface is periodically
+disconnected (e.g. direct link between 2 hosts), do not specify internal
+address or use 0.0.0.0 instead. In this case, if you have 2 or more
+interfaces you must use firewall (preferably) or 3proxy ACLs to avoid open
+proxy situation. 
+<br>
+External IP (if specified) must exist in the momet 3proxy
+serves client request. If external interface is no specified (or 0.0.0.0),
+system select external IP. It may be possible to access resources of internal
+network, to prevent this use ACLs. In addition, SOCKSv5 will not support BIND
+operation, required for incoming connections (this operation is quite rarely
+implemented in SOCKSv5 clients and usually is not required). In case of
+dynamic address, do not specify external or use external 0.0.0.0 or, if
+external address is required, create a script to determine current external
+IP and save it to file, and use external "$path_to_file" with "monitor" command
+to automatically reload configuration on address change.
+
+<p><i>Q: Why doesn't ODBC loggind work?</i></p>
+A: Check you use system DSN. 
+Check SQL request is valid. 
+The best way to check is to make file or stdout logging, get SQL request from log file or console and execute this request manually.
+
+<p><i>Q: Why doesn't APOP/CRAM-MD5 authentication work with POP3 proxy?</i></p>
+A: Any Challenge-response authentication require challenge to be transmitted from server. Pop3p doesn't know which server to use before authentication, it makes it impossible to obtain challenge. You can encrypt your POP3 communications with TLS (i.e. stunnel) or IPSec.
+
+<h3>Redirection to local proxy</h3>
+
+<p><i>Q: What is it for?</i></p>
+A: To have control based on request and to have URLs and another protocol specific parameters to be logged.
+
+<p><i>Q: What are restrictions?</i></p>
+A: It's hard to redirect services for non-default ports; Internet Explorer supports only SOCKSv4 with no password authentication (Internet Explorer sends username, but not password), for SOCKSv5 only cleartext password authentication is supported.
+
+<p><i>Q: What are advantages?</i></p>
+A: You need only to setup SOCKS proxy in browser settings. You can use socksifier, i.e. FreeCAP or SocksCAP with application which is not proxy aware.
+
+<p><i>Q: How to setup?</i></p>
+A: You should specify parent proxy with IP of 0.0.0.0 and port 0. Examples:
+<pre>
+auth iponly
+allow * * * 80,8080-8088
+parent 1000 http 0.0.0.0 0
+allow * * * 80,8080-8088
+#redirect ports 80 and 8080-8088 to local HTTP proxy
+#Second allow is required, because ACLs are checked
+#twice: first time by socks and second by http proxy.
+
+allow * * * 21,2121
+parent 1000 ftp 0.0.0.0 0
+allow * * * 21,2121
+#redirect ports 21 and 2121 to local 
+#ftp proxy
+
+
+allow *
+#allow rest of connections directly
+
+socks
+#now let socks server to start
+</pre>
+
+<p><i>Q: How it affects different ACL rules?</i></p>
+A: After local redirections rules are applied again to protocol-level request. Redirection rule itself is skipped. It makes it possible to redirect request again on the external proxy depending on request itself.
+<pre>
+allow * * * 80,8080-8088
+parent 1000 http 0.0.0.0 0
+#redirect http traffic to internal proxy
+
+allow * * $c:\3proxy\local.nets 80,8080-8088
+#allow direct access to local.nets networks
+allow * * * 80,8080-8088
+parent 1000 http proxy.sandy.ru 3128
+#use parent caching proxy for rest of the networks
+
+allow *
+#allow direct connections for rest of socks
+#requests
+</pre>
+
+<h3>Can I ...?</h3>
+
+<p><i>Q: Is it possible to resolve names through parent proxy?</i></p>
+A: Yes, use 'proxy', 'connect+', 'socks4+' or 'socks5+' as parent proxy type.
+3proxy itself requires name resolutions for ACL checks, so, if it's impossible
+to resolve names from 3proxy host, use
+<pre>
+fakeresolve
+</pre>
+command. Fakeresolve resolves any name to 127.0.0.2.
+
+
+<p><i>Q: Can I use 3proxy as FTP proxy?</i></p>
+A: There are two kinds of FTP proxy supported: FTP over HTTP support (known as FTP proxy inside Internet Explorer, Mozilla and another browsers) and real FTP proxy (usable in Far and different FTP clients). Both are supported in 3proxy: first one as a part of HTTP 'proxy' and second one as 'ftppr'.
+
+<p><i>Q: Can I bind any 3proxy service to non-default port?</i></p>
+A: proxy -p8080
+
+<h3>Why so ...?</h3>
+
+<p><i>Q: Why traffic accounting is incomplete? It differs for what my provider (or another accounting application) shows to me?</i></p>
+A: 3proxy accounts protocol level traffic. Provider counts channel or IP-level traffic with network and transport headers. In additions, 3proxy doesn't counts DNS resolutions, pings, floods, scans, etc. It makes approx. 10% of difference. That's why you should have 15% reserve if you use 3proxy to limit your traffic. If difference with your provider is significantly above 10% you should look for traffic avoiding proxy server, for example connections through NAT, traffic originated from the host with proxy installed, traffic from server applications, etc.
+
+<p><i>Q: Why configuration is so difficult and non-intuitive?</i></p>
+A: Configuration format is created in a way it's easy to parse and matches to internal 3proxy structures. In addition, there are some older things left for compatibility to be cleaned in 3proxy release. And last, I think it's easy and intuitive.
+
+<p><i>Q: Why the code is so difficult and non-intuitive?</i></p>
+A: First, I'm not programmer. Second, 3proxy was 'proof of concept' in reply for some conference post. Request was to write proxy server in 100 lines of code. First version of 3proxy had less, with HTTP and SOCKS support and portmappers. Third, there are peoples who want to use 3proxy code in trojans. I don't want to help them.  Fourth, the aim is to support different platforms. It's well known - the worse code is, the better it compiles.
+
+<p><i>Q: Why do you use insecure strcpy, sprintf, etc?</i></p>
+A: Why not? I try to use insecure function in secure manner. You're welcome to look for vulnerabilities.
+<pre>
+$Id: faqe.html,v 1.10 2007/07/31 08:42:38 vlad Exp $
+</pre>

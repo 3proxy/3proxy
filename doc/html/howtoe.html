@@ -1,0 +1,835 @@
+<ul>
+ <li>3APA3A 3proxy tiny proxy server HowTo
+ <br>Under construction, very incomplete
+ <ul>
+	<li><A HREF="#COMPILE">Compilation</A>
+	<ul>
+		<li><A HREF="#MSVC">How to compile 3proxy with Visual C++</A>
+		<li><A HREF="#INTL">How to compile 3proxy with Intel C Compiler under Windows</A>
+		<li><A HREF="#GCCWIN">How to compile 3proxy with GCC under Windows</A>
+		<li><A HREF="#GCCUNIX">How to compile 3proxy with GCC under Unix/Linux</A>
+		<li><A HREF="#CCCUNIX">How to compile 3proxy with Compaq C Compiler under Unix/Linux</A>
+	</ul>
+	<li><A HREF="#INSTALL">Proxy server installation and removal</A>
+	<ul>
+		<li><A HREF="#INSTNT">How to install/remove 3proxy under Windows NT/2000/XP</A>
+		<li><A HREF="#INST95">How to install/remove 3proxy under Windows 95/98/ME</A>
+		<li><A HREF="#INSTUNIX">How to install/remove 3proxy under Unix/Linux</A>
+	</ul>
+	<li><A HREF="#SERVER">Server configuration</A>
+	<ul>
+		<li><A HREF="#SAMPLE">Where to find configuration example</A>
+		<li><A HREF="#LOGGING">How to set up logging</A>
+		<li><A HREF="#LOGFORMAT">How to setup logging format</A>
+		<li><A HREF="#LOGANALIZERS">How to use log analizers with 3proxy</A>
+		<li><A HREF="#LAUNCH">How to start any of proxy services (HTTP, SOCKS etc)</A>
+		<li><A HREF="#BIND">How to bind service to specific interface and port?</A>
+		<li><A HREF="#AUTH">How to limit service access</A>
+		<li><A HREF="#USERS">How to create user list</A>
+		<li><A HREF="#ACL">How to limit user access to resources</A>
+		<li><A HREF="#REDIR">How to manage redirections</A>
+		<li><A HREF="#ROUNDROBIN">How to balance traffic between few external channgels?</A>
+		<li><A HREF="#CHAIN">How to manage proxy chains</A>
+		<li><A HREF="#BANDLIM">How to limit bandwidth</A>
+		<li><A HREF="#TRAFLIM">How to limit traffic amount</A>
+		<li><A HREF="#NETLIST">How to build network lists</A>
+	</ul>
+	<li><A HREF="#CLIENT">Client configuration</A>
+	<li><A HREF="#ADMIN">Administering and information analisys</A>
+	<ul>
+		<li><A HREF="#NEWVERSION">How to obtain latest 3proxy version</A>
+		<li><A HREF="#NTSERVICE">How to control 3proxy service under Windows NT/2000/XP</A>
+		<li><A HREF="#ERRORS">Log error codes reference</A>
+	</ul>
+	<li><A HREF="#QUEST">How To ask quiestion not in How To?</A>
+ </ul>
+<br>
+ <ul>
+<hr>
+	<li><A NAME="COMPILE">Compilation</A>
+<p>
+	<ul>
+		<li><A NAME="MSVC">How to compile 3proxy with Visual C++</A>
+<p>
+Extract source code files from 3proxy.tgz (with WinZip or another utility).
+Use nmake /f Makefile.msvc command
+</p>
+		<li><A NAME="INTL">How to compile 3proxy with Intel C Compiler under Windows</A>
+<p>
+See <A HREF="#MSVC">How to compile 3proxy with Visual C++</A>
+Use Makefile.intl instead of Makefile.msvc
+</p>
+		<li><A NAME="GCCWIN">How to compile 3proxy with GCC under Windows</A></li>
+<p>
+Extract source files from 3proxy.tgz (for example with tar -xzf 3proxy.tgz command if you have tar installed)
+Use make -f Makefile.win command. 
+If you want to use POSIX emulation Cygwin library (normally you shouldn't) - use make -f Makefile.unix instead.
+Windows specific things (like installing as service) will not be available if compiled with Cygwin emulation.
+</p>
+		<li><A NAME="GCCUNIX">How to compile 3proxy with GCC under Unix/Linux</A></li>
+<p>
+Use
+<pre>
+make -f Makefile.Linux
+</pre>
+for Linux or Cygwin, Makefile.Solaris* (depending on compiler version) for Solaris
+and Makefile.unix for different Unix-like OS. On BSD derivered systems make
+sure to use GNU make, sometimes it's called gmake instead of make.
+<br>Compilation is tested under FreeBSD/i386, NetBSD/i386, OpenBSD/i386, 
+RH Linux/Alpha, Debian/i386, Gentoo/i386, Gentoo/PPC, Solaris/x86 but you
+shouldn't have problems under different Solaris, BSD or linux compatible systems.
+For different systems you may be required to patch Makefile or even source codes.
+If you want to use ODBC support, make sure to install ODBC for unix, remove -DNOODBC
+option from makefile compiler options and add ODBC library to linker variable.
+</p>
+	</ul>
+<hr>
+		<li><A NAME="CCCUNIX">How to compile 3proxy with Compaq C Compiler under Unix/Linux</A></li>
+<p>
+See <A HREF="#GCCUNIX">How to compile 3proxy with GCC under Unix/Linux</A>, use Makefile.ccc instead of Makefile.unix.
+</p>
+	</ul>
+<hr>
+	<li><A NAME="INSTALL">Proxy server installation and removal</A>
+<p>
+	<ul>
+		<li><A NAME="INSTNT">How to install/remove 3proxy under Windows NT/2000/XP</A>
+<p>
+Unpack 3proxy.zip to any directory, for example
+c:\Program Files\3proxy. If needed, create directory for storing log files,
+ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (See <A HREF="#SERVER">Server configuration</A>).
+If you use 3proxy before 0.6 Add
+<pre>
+service
+</pre>
+string into 3proxy.cfg. Now, start command prompt (cmd.exe).
+Change directory to 3proxy installation and run 3proxy.exe --install:
+<pre>
+D:\>C:
+C:\>cd C:\Program Files\3proxy
+C:\Program Files\3proxy>3proxy.exe --install
+</pre>
+Now, you should have 3proxy service installed and running. If service is not
+started, remove "service" string from 3proxy.cfg, run 3proxy.exe manually
+and correct all errors.
+</p><p>
+To remove 3proxy run 3proxy --remove:
+<pre>
+D:\>C:
+C:\>cd C:\Program Files\3proxy
+C:\Program Files\3proxy>net stop 3proxy
+C:\Program Files\3proxy>3proxy.exe --remove
+</pre>
+Now you can simply remove 3proxy installation directory.
+</p>
+		<li><A NAME="INST95">How to install/remove 3proxy under Windows 95/98/ME</A>
+<p>
+Unpack 3proxy.zip to any directory, for example
+c:\Program Files\3proxy. If needed, create directory for storing log files,
+ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (See <A HREF="#SERVER">Server configuration</A>).
+Remove string
+<pre>
+service
+</pre>
+from 3proxy.cfg and add
+<pre>
+daemon
+</pre>
+if you want 3proxy to run in background.
+Create shortcut for 3proxy.exe and place it in autostart or add
+to registry with regedit.exe:
+<br>HKLM\Software\Microsoft\Windows\CurrentVersion\Run</br>
+Type: String
+<br>3proxy = "c:\Program Files\3proxy.exe" "C:\Program Files\3proxy.cfg"<br>
+You must use quotes if path contains space. If neccessary, restart Windows.
+If service is not started, check log. Remove "daemon" command from 3proxy.cfg,
+start 3proxy.exe manually and correct all errors.
+</p>
+		<li><A NAME="INSTUNIX">How to install/remove 3proxy under Unix/Linux</A>
+<p>
+Complie 3proxy (see <A HREF="#COMPILE">Compilation</A>). Copy
+executables to any appropriate location (for example /usr/local/3proxy/sbin
+for servers and /usr/local/3proxy/bin for utilities).
+Create /usr/local/etc/3proxy.cfg. 
+(see <A HREF="#SERVER">Server configuration</A>).
+You can change default configuration file location by specifing configuration file
+in 3proxy command line.
+Add 3proxy to system startup scripts.
+</p>
+	</ul>
+<hr>
+	<li><A NAME="SERVER">Server configuration</A>
+<p>
+	<ul>
+		<li><A NAME="SAMPLE">Where to find configuration example</A>
+<p>
+Server configuration example 3proxy.cfg.sample is in any 3proxy distribution.
+</p>
+		<li><A NAME="LOGGING">How to set up logging</A>
+<p>
+3proxy can log to stdout, file, ODBC datasource and
+syslog (Unix/Linux/Cygwin only). For using ODBC under Unix/Linux you must
+compile 3proxy with Unix ODBC libraries, see <A HREF="#COMPILE">Compilation</A>.
+You can control logging from 3proxy.cfg for all services or you can control
+logging of individual service, for example 
+/usr/local/sbin/socks -l/var/log/socks.log starts SOCKS proxy with logging to file.
+For universal proxy (3proxy) log file rotation and archiving is supported.
+Log type is defined with "log" configuration file command or with
+-l switch on individual service invokation. log or -l is stdout logging.
+<pre>
+	log filename
+</pre>
+and
+<pre>
+	-lfilename
+</pre>
+specify filename for logging
+<pre>
+	log @ident
+</pre>
+and
+<pre>
+	-l@ident
+</pre>
+specify ident for syslog logging. If filename within "log" command contains
+'%' characters, it's processes as format specificator (see "logformat"). E.g.
+log c:\3proxy\logs\%y%m%d.log D creates file like c:\3proxy\logs\060729.log,
+date is generated based on local time.
+<pre>
+	log &connstring
+</pre>
+
+specifies ODBC connection string, connstring is in format
+datasource,username,password (2 last are optional of
+datasource does not require or already has authentication information). 
+Also, you must specify logformat to build SQL query, to insert recod into
+log, see <A HREF="#LOGFORMAT">How to setup logging format</A>
+</p>
+<p>
+Rotation and archiving may be set up with log, rotate ¨ archiver commands
+<pre>
+	log filename LOGTYPE
+</pre>
+sets rotation type. LOGTYPE may be:
+<ul>
+	<li>M, monthely
+	<li>W, weekly
+	<li>D, daily
+	<li>H, hourly
+	<li>‘, minutely
+</ul>
+<pre>
+	rotate NUMBER
+</pre>
+	specifies number of files in rotation (that is how many files to keep).
+<pre>
+	archiver EXT COMMAND PARAMETERS
+</pre>
+	Sets external archiver. EXT is extention of archived files
+	(for example zip, gz, Z, rar etc) COMMAND and PARAMETERS are command
+	to execute and command line PARAMETERS. Originale file is not deleted by
+	3proxy, this work is left for archiver.
+	You can pass original filename to archiver with %F macro and archive filename with %A.
+	Examples are located in
+	3proxy.cfg.sample
+</p>
+		<li><A NAME="LOGFORMAT">How to setup logging format</A>
+<p>
+	Since 0.3 version log format may be set with "logformat" command.
+	First symbol of log format specifies format of date and time and
+	should be L (LOCAL) or G (GMT - Grinwitch Meridian Time). Format
+	string may contains some macro substitutions:
+	<ul>
+<li>	 %y - Year (2 digits)
+<li>	 %Y - Year (4 digits)
+<li>	 %m - Month (2 digits)
+<li>	 %o - mOnth (3 letter abbriviation)
+<li>	 %d - Day (2 digits)
+<li>	 %H - Hour (2 digits)
+<li>	 %M - Minute (2 digits)
+<li>	 %S - Second (2 digits)
+<li>	 %t - Timestamp (seconds since January, 1 1970 00:00:00 GMT)
+<li>	 %. - Milliseconds
+<li>	 %z - Timezone in mail format (from GMT, '+' east, '-' west HHMM), For example Moscow winter time is +0300.
+<li>	 %U - Username ('-' if unknown).
+<li>	 %N - Service name (PROXY, SOCKS, POP3P, etc)
+<li>	 %p - Service port
+<li>	 %E - Error code (see. <A HREF="#ERRORS">Log error codes reference</A>)
+<li>	 %C - client IP
+<li>	 %c - client port
+<li>	 %R - target IP
+<li>	 %r - target port
+<li>	 %e - external IP address used to establish connection
+<li>	 %Q - requested IP
+<li>	 %q - requested port
+<li>	 %I - bytes received from target
+<li>	 %O - bytes sent to target
+<li>	 %n - host name from request
+<li>	 %h - hops  before target (if redirection or chaning is used).
+	 see <A HREF="#CHAIN">How to use chains and parent proxies</A>)
+<li>	 %T - service specific text (for example URL requested). %X-YT
+	 where X and Y are positive numbers, only displays fields
+ 	 (space delimited) X to Y of the text. An example is %1-2T.
+	</ul>
+	Example:
+<pre>
+logformat "L%t.%. %N.%p %E %U %C:%c %R:%r %O %I %h %T"
+</pre>
+	generates something like
+<p><font face="courier">
+1042454727.0296 SOCK4.1080 000 3APA3A 127.0.0.1:4739 195.122.226.28:4739 505 18735 1 GET http://3proxy.ru/ HTTP/1.1
+</font>
+<br>(no line breaks)
+</p>
+<p>
+	If ODBC used, logformat should specify SQL command,
+	to insert record into log, for example
+<p><font face="courier">
+logformat "GINSERT INTO proxystat  VALUES (%t, '%c', '%U', %I)"
+</font>
+<br>(no line breaks)
+</p>
+		<li><A NAME="LOGANALIZERS">How to use log analizers with 3proxy</A>
+<p>
+Just make format of 3proxy logs compatible with format supported by your
+favourite log analizer. Examples of compatible logformats are:
+<br>
+For Squid access.log:
+<p><font face="courier">
+&quot;- +_G%t.%. %D %C TCP_MISS/200 %I %1-1T %2-2T %U DIRECT/%R application/unknown&quot;
+</p>
+or, more compatible format without %D
+<pre>
+&quot;- +_G%t.%.      1 %C TCP_MISS/200 %I %1-1T %2-2T %U
+ DIRECT/%R application/unknown&quot;
+</pre>
+ISA 2000 proxy WEBEXTD.LOG (fields are TAB-delimited):
+<pre>
+&quot;-	+ L%C	%U	Unknown	Y	%Y-%m-%d	%H:%M:%S
+	w3proxy	3PROXY	-	%n	%R	%r	%D
+	%O	%I	http	TCP	%1-1T	%2-2T	-	-
+	%E	-	-	-&quot;
+</pre>
+ISA 2004 proxy WEB.w3c (fields are TAB-delimited):
+<pre>
+&quot;-	+ L%C	%U	Unknown	%Y-%m-%d	%H:%M:%S
+	3PROXY	-	%n	%R	%r	%D	%O
+	%I	http	%1-1T	%2-2T	-	%E	-
+	-	Internal	External	0x0	Allowed&quot;
+</pre>
+ISA 2000/2004 firewall FWSEXTD.log (fields are TAB-delimited):
+<pre>
+&quot;-	+ L%C	%U	unnknown:0:0.0	N	%Y-%m-%d
+	%H:%M:%S	fwsrv	3PROXY	-	%n	%R	%r
+	%D	%O	%I	%r	TCP	Connect	-	-
+	-	%E	-	-	-	-	-&quot;
+</pre>
+HTTPD standard log (Apache and others):
+<p><font face="courier">
+&quot;-&quot;&quot;+_L%C - %U [%d/%o/%Y:%H:%M:%S %z] &quot;&quot;%T&quot;&quot; %E %I&quot;
+</p>
+or more compatible without error code
+<p><font face="courier">
+&quot;-&quot;&quot;+_L%C - %U [%d/%o/%Y:%H:%M:%S %z] &quot;&quot;%T&quot;&quot; 200 %I&quot;
+</p>
+		<li><A NAME="LAUNCH">How to start any of proxy services (HTTP, SOCKS etc)</A>
+<p>
+3proxy is distributed in 2 variants: as a set of standalone modules (proxy,
+socks, pop3p, tcppm, udppm) and as universal proxy server. These services are
+absolutely independant, and if you use 3proxy you needn't any of standalone
+modules.
+<br>Standalone modules are only configurable via command line interface while
+3proxy uses configuration file. Many functions, such as ODBC logging, log
+rotation, access control, etc are only available in 3proxy, not in standalone
+proxies.
+Standalone module may be started from command line, for example:
+<pre>
+$/sbin/socks -l/var/log/socks.log -i127.0.0.1
+</pre>
+Starts SOCKS server binded to localhost ip, port 1080 with logging to
+/var/log/socks.log.
+You can get help for any standalone service with -? command line option.
+</p><p>
+If 3proxy is used you should start all services in 3proxy.cfg file. 3proxy.cfg
+is executed by 3proxy as a batch file. Example of 3proxy.cfg and command syntaxys
+can be found in
+3proxy.cfg.sample.
+<pre>
+log /var/log/3proxy.log D
+rotate 30
+internal 127.0.0.1
+external 192.168.1.1
+proxy
+socks -p3129
+pop3p 
+</pre>
+Starts 3 services: HTTP PROXY, SOCKS and POP3 PROXY. Each listens localhost
+interface with default port (3128 for HTTP, 1080 for SOCKS and 110 for POP3P)
+except socks started with port 3129.
+All logs are in file /var/log/3proxy.log (with daily date modification and
+rotation). 30 last files are stored.
+</p>
+		<li><A NAME="BIND">How to bind service to specific interface and port?</A>
+<p>
+-i options specifies internal interface, -p - listening port. No space are
+allowed. To bind 'proxy' service to port 8080 on interfaces 192.168.1.1
+and 192.168.2.1 use
+<pre>
+proxy -p8080 -i192.168.1.1
+proxy -p8080 -i192.168.2.1
+</pre>
+</p>
+		<li><A NAME="AUTH">How to limit service access</A>
+<p>
+First, always specify internal interface to accept incoming connection with
+'internal' configuration command or '-i' service command. (See
+<A HREF="#LAUNCH">How to start any of proxy services (HTTP, SOCKS etc)</A>). If
+no internal interface is specified your proxy will act as open one.
+<p>It's also important to specify external interface to prevent access to
+internal network with 'external' or -e.
+<p>3proxy with configuration files allows to use authentication and
+authorization for user's access. Authentication is possible by
+username/password or user's NetBIOS name. Authentication type is specified by
+'auth' command.  
+<pre>
+auth none
+</pre>
+Disables both authentication and authorization. You can not use ACLs.
+<pre>
+auth iponly
+</pre>
+Specifies no authentication, ACLs authorization is used.
+<pre>
+auth nbname
+</pre>
+Authentication by NetBIOS name + ACLs. NetBIOS name of 'messenger' service
+is obrained before ACL validation. If no name is obtained it's assumed to be
+empty. Messenger is started by default in Windows NT/2000/XP. For Win9x
+WinPopUP need to be launched. This type of authentication may be spoofed
+by privileged local user.
+<pre>
+auth strong
+</pre>
+Authentication by username/password. If user is not registered his
+access is denied regardless of ACLs.
+<p>
+Different services can have different authentication levels.
+<pre>
+auth none
+pop3p
+auth iponly
+proxy
+auth strong
+socks
+</pre>
+
+It's possible to authorize access by client IP address, IP address or requested resource,
+target port, time, etc after authentication.
+(See <A HREF="#ACL">How to limit resource access</A>).
+</p><p>Since 0.6 version double authentication is possible, e.g.
+<pre>
+auth iponly strong
+allow * * 192.168.0.0/16
+allow user1,user2
+proxy
+</pre>
+strong authentication will only be used if ACL requires username to deside if
+access must be granted. That is, in example, strong username authentication
+is not required to access 192.168.0.0/16
+</p><p>0.6 version introduces authentication (username) caching to increase
+productivity. It's recommended to use authentication caching with resource
+or time consuming authentication types, such as nbname or external plugins
+(WindowsAuthentication).
+Caching can be set with 'authcache' command with 2 parameters: caching type
+and caching time (in seconds). Caching type defines the type of cached access:
+'ip' - after successful authentication all connections during caching time
+from same IP are assigned to the same user, username is not requested.
+"ip,user" - username is requested and all connections from the same IP are
+assigned to the same user without actual authentication. "user" - same as above,
+but IP is not checked. "user,password" - username and password are checked
+against cached ones. For authentication special authentication type 'cache'
+must be used.
+ Example:
+<pre>
+authcache ip 60
+auth cache strong windows
+proxy -n
+</pre>
+</p>
+Please note, that caching affects security. Never use caching for access to
+critical resources, such as web administration.
+
+		<li><A NAME="USERS">How to create user list</A>
+<p>
+Userslist is created with 'users' command.
+<pre>
+users USERDESC ...
+</pre>
+With a single command it's possible to define few users, or you
+can use few 'users' commands. USERDESC is user description. Description
+consists of three semicolon delimited parts - login, password type and
+<pre>
+users admin:CL:bigsecret test:CL:password test1:CL:password1
+users "test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49."
+users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63
+</pre>
+Please note the usage of quotation sign: it's required to comment out $ sign
+overwise used as a file inclusion macro.
+Next password types are available:
+<ul>
+	<li>No password type: use system authentication.
+	<li>CL - cleartext password
+	<li>CR - crypt password, only MD5 crypt passwords are supported
+	<li>NT - NT-hashed (MD4) passwords in hex, as used in pwdump or SAMBA
+</ul>
+NT and crypt passwords can be used to import accounts from Windows/SAMBA or
+Unix. For Windows you can use pwdump family of utilities.
+It's convenient to store accounts apart and include account file with $ macro.
+Because for included files newlines are treated as a space, it's possible to
+use atandard passwd file format:
+<pre>
+users $/etc/.3proxypasswd
+</pre>
+or
+<pre>
+users $"c:\Program Files\3proxy\passwords"
+</pre>
+It's possible to create NT and crypt passwords with mycrypt utility included
+in distribution.
+<br>Userlist is system-wide. To manage user access to specific service use ACLs.
+</p>
+		<li><A NAME="ACL">How to limit user access to resources</A>
+<p>
+Commands allow, deny and flush are used to manage ACLs:
+<p><font face="courier">
+allow &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt; &lt;weekdaylist&gt; &lt;timeperiodlist&gt;
+<br>deny &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;  &lt;weekdaylist&gt; &lt;timeperiodlist&gt;
+<br>flush
+</font>
+</p>
+'flush' command is used to finish with existing ACL and to start new one.
+It's required to have different ACLs for different services.
+'allow' is used to allow connection and 'deny' to deny connection. 'allow'
+command can be extended by 'parent' command to manage redirections (see <A NAME="REDIR">How to manage redirections</A>)). If ACL
+is empty it allow everything. If ACL is not empty, first matching ACL entry
+is searched for user request and ACL action (allow or deny) performed. If
+no matching record found, connection is denied and user will be asked to
+re-authenticate (requested for username/password). To prevent this request
+add 'deny *' to the end of list.
+<ul>
+	<li>&lt;userlist&gt; - comma delimited list of users
+	<li>&lt;sourcelist&gt; - comma delimited list of source (client) networks. 
+		Networks can be defined as single IP address or in CIDR form
+		xxx.yyy.zzz.mmm/l, where l - is the length of network mask
+		(a number of non-zero bits). 192.168.1.0/24
+		means network with 255.255.255.0 mask.
+	<li>&lt;targetlist&gt; - comma delimited list of target (server) networks.
+		In 3proxy 0.6 and above it's allowed to use hostnames with wildmasks
+		in targetlist. Wildmask may only present in the begginning or at the
+		end of the hostname, e.g. 
+		192.168.0.0/16,www.example.com,*wrongsite.com,*wrongcontent*.
+	<li>&lt;targetportlist&gt; - comma delimited list of ports. I
+		It's possible to define port ranges with -, e.g. 80,1024-65535
+		means port 80 and all unprivileged ports.
+	<li>&lt;commandlist&gt; - the list of allowed actions
+<br>		CONNECT	- establish outgoing TCP connection. e.g. POP3 or SOCKSv5
+<br>		BIND - allow incoming TCP connection (SOCKSv5)
+<br>		UDPASSOC - create UDP association (SOCKSv5)
+<br>		ICMPASSOC - create ICMP association (not implemented)
+<br>		HTTP_GET - HTTP GET request (HTTP proxy)
+<br>		HTTP_PUT - HTTP PUT request (HTTP proxy)
+<br>		HTTP_POST - HTTP POST request (HTTP proxy)
+<br>		HTTP_HEAD - HTTP HEAD request (HTTP proxy)
+<br>		HTTP_CONNECT - HTTP CONNECT, aka HTTPS request (HTTP proxy)
+<br>		HTTP_OTHER - another HTTP request (HTTP proxy)
+<br>		HTTP - any HTTP request except HTTP_CONNECT (HTTP proxy)
+<br>		HTTPS - alias to HTTP_CONNECT (HTTP proxy)
+<br>		FTP_GET - FTP get request (http, ftp proxy)
+<br>		FTP_PUT - FTP put request (ftp proxy)
+<br>		FTP_LIST - FTP list request (http, ftp proxy)
+<br>		FTP - any FTP request
+<br>		ADMIN - administration interface access
+<p>
+	<li>&lt;weeksdays&gt; - week days numbers or periods (0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday).
+	<li>&lt;timeperiodlists&gt; - a list of time periods in HH:MM:SS-HH:MM:SS format. For example,
+		00:00:00-08:00:00,17:00:00-24:00:00 lists non-working hours.
+		
+</ul>
+* in ACL means &quot;any&quot;.
+Usage examples could be found in 3proxy.cfg.sample.
+</p>
+		<li><A NAME="REDIR">How to manage redirections</A>
+<p>
+Redirections are usefull to e.g. forward requests from specific clients
+to different servers or proxy server. Additionally, redirections are usefull
+to convert proxy interface from ont format to another, e.g. requests from
+SOCKS proxy can be redirected to parent HTTP proxy, or SOCKSv5 client can be
+redirected to SOCKSv4 proxy.
+<br>Because 3proxy understand "transparent" web request, it can be used as an
+intermediate software between HTTP proxy and NAT server for transparent HTTP
+forwarding, because it can convert "Web server" request issued by client to
+"proxy request" required by proxy server. A simplest redirection is:
+<pre>
+auth iponly
+allow *
+parent 1000 http 192.168.1.1 3128
+proxy
+</pre>
+All trafiic of HTTP proxy is redirected to parent proxy 192.168.1.1 port 3128.
+<br>If port number is '0', IP address from 'parent' is used as external address
+for this connection (that is like -eIP, but only for connections matching
+'allow').
+<br>Special case of redirection are local redirections. In this case both IP is
+0.0.0.0 and port is 0. It's only usseful with SOCKS service. In this case no
+new connection is established, but request is parsed by corresponding local
+service. E.g.:
+<pre>
+auth iponly
+allow * * * 80
+parent 1000 http 0.0.0.0 0
+allow * * * 21
+parent 1000 ftp 0.0.0.0 0
+allow * * * 110
+parent 1000 pop3 0.0.0.0 0
+socks
+</pre>
+In this case all SOCKS traffic with destination port 80 is forwarded to local
+'proxy' service, destination port 21 to 'ftppr' and 110 to 'pop3pr'. There is
+no need to run these services expicitly. Local redirections are usefull if
+you want to see and control via ACLs protocol specific parameters, e.g.
+filenames requests thorugh FTP while clients are using SOCKS.
+</p>
+		<li><A NAME="ROUNDROBIN">How to balance traffic between few external channgels?</A>
+<p>
+Proxy itself doesn't manage network level routing. The only way to control
+outgoing channel is to select external interface. It's possible to make
+external interface (what is usually selected with 'external' command or
+'-e' option) random by using local redirection with external port 0.
+<pre>
+auth iponly
+allow *
+parent 500 http 10.1.1.101 0
+parent 500 http 10.2.1.102 0
+</pre>
+Now external interface is randomly selected with 0.5 probability between
+10.1.1.101 and 10.2.1.102. To work as expected, different default routes
+must between 2 interfaces.
+used
+<p>
+If both interface addresses are in same network, e.g. 10.1.1.101 and 10.1.1.102
+and you want to select random gateway between 10.1.1.1 and 10.1.1.2, you must
+control it by using routing table, in case there is no default gateway route
+for Windows:
+<pre>
+ route add -p 10.1.1.1 10.1.1.101
+ route add -p 10.1.1.2 10.1.1.102
+ route add -p 0.0.0.0 mask 0.0.0.0 192.168.1.1
+ route add -p 0.0.0.0 mask 0.0.0.0 192.168.1.2
+</pre>
+If you have no second address yet, just add it. Under Linux/Unix it's better
+to use source routing.
+</p>
+		<li><A NAME="CHAIN">How to manage proxy chains</A>
+<p>
+parent command may also be used to build a proxy chains. In this case
+few 'parent' commands are used for single 'allow' rule with different
+weights (first argument of parent command). Chain may contain any number
+of proxy servers, but it should be noted that every hope significantly
+reduces productivity. It's possible to mix different types of proxy within
+single chain: HTTPS (HTTP connect), SOCKS4, SOCKS5. Weight different from
+1000 is used to build random chains. if weight W is below 1000, this proxy
+will be used as a next chain hop with probability of W/1000. That is, if
+the weight is 250 probability this proxy will be used for the next hope is
+25%. 'parent' records with common weight of 1000 establish a group, one of
+these record will be used for the hop with probability according to weight.
+Warning: each group must have a weight even of 1000. As follows, common
+weight of all 'parent' records must also be even of 1000. If common weight
+of 'parent' records in te chain is 3000, chain has 3 hops and must be formed
+of 3 groups. Example:
+<pre>
+allow *
+parent 500 socks5 192.168.1.1 1080
+parent 500 connect 192.168.10.1 3128
+</pre>
+In this case we have 1 parent proxy (1 hop) which is randomely choosen between
+2 hosts: 192.168.1.1 and 192.168.10.1. 2 records form a single group.
+<pre>
+allow * * * 80
+parent 1000 socks5 192.168.10.1 1080
+parent 1000 connect 192.168.20.1 3128
+parent 300 socks4 192.168.30.1 1080
+parent 700 socks5 192.168.40.1 1080
+</pre>
+In this case we have 3 groups (3 hops in the chain). First hop is 192.168.10.1,
+second hop is 192.168.20.1 and 3rd one is either 192.168.30.1 with probability
+of 30% or 192.168.40.1 with probability of 70%.
+</p>
+
+		<li><A NAME="BANDLIM">How to limit bandwidth</A>
+<p>
+3proxy supports bandwidth filters. To manage filters bandlimin/bandlimout and
+nobandlimin/nobandlimout. 'in' means incoming and 'out' - outgoing traffic.
+<p><font face="courier">
+bandlimin &lt;bitrate&gt; &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
+<br>nobandlimin &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
+</font>
+</p>
+Commands are applied to all services. Imagine bandwidth filters as a series of
+pipes.  Bitrate is a pipe's width and ACLs controls the flow thorugh this pipe.
+<pre>
+  bandlimin 57600 * 192.168.10.16
+  bandlimin 57600 * 192.168.10.17
+  bandlimin 57600 * 192.168.10.18
+  bandlimin 57600 * 192.168.10.19
+</pre>
+Create 4 separete pipes for 4 client with emulation of modem connection.
+<pre>
+  bandlimin 57600 * 192.168.10.16/30
+</pre>
+Create single pipe for all 4 clients. That is 4 clients share modem connection.
+In this example:
+<pre>
+  nobandlimin * * * 110
+  bandlimin 57600 * 192.168.10.16/32
+</pre>
+mail traffic from POP3 servers bypasses the pipe and has no bandwidth
+limitation.
+</p>
+		<li><A NAME="TRAFLIM">How to limit traffic amount</A>
+<p>
+<p><font face="courier">
+counter &lt;filename&gt; &lt;type&gt; &lt;reportpath&gt;  
+<br>countin &lt;number&gt; &lt;type&gt; &lt;amount&gt; &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
+<br>nocountin &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
+<br>countout &lt;number&gt; &lt;type&gt; &lt;amount&gt; &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
+<br>nocountout &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
+</font>
+</p>
+<p>
+You can set traffic limit per day (D), week (W), month (M), year (Y) or
+absolute ('N'), as specified by 'type' argument of counterin command.
+Traffic information is stored in binary file specified by 'filename' argument.
+countersutil utility can be used to manage this file.
+reportpath specifies location of text reports, type parameter of 'counter'
+command controls how often text reports are created. amount is amount of
+allowed traffic in Megabytes (MB). nocountin allows you to set exclusions.
+</p>
+		<li><A NAME="NETLIST">How to build network lists</A>
+<p>Networks or users lists are often very huge. 3proxy doesn't currently
+supports user groups, but ones can be created by the means of include files.
+You can store comma-delimited lists of networks or users in the separate
+file and use $ macro to insert this list into 3proxy.cfg.
+3proxy comes with 'dighosts'
+utility. This utility helps to grab the list of the network from HTTP page.
+It may be usefull to e.g. obtain a regullary updated list of local networks
+from ISP's server. A network list can be either in form of NETWORK MASK,
+e.g. 192.168.1.0 255.255.255.0 or NETWORK/LENGTH, e.g. 192.168.1.0/24. You can
+launch dighosts from 3proxy.cfg to be executed on every 3proxy startup or
+configuration reload:
+<pre>
+system "dighosts http://provider/network.html local.networks"
+allow * * $local.networks
+allow *
+parent 1000 proxy.provider 3128 *
+proxy
+flush
+</pre>
+In this example we obtain list of local networks from provider's page to
+local.networks file, allow direct access to these networks and redirect all
+connection to external networks to provider's proxy.
+</p>
+	</ul>
+
+<hr>
+	<li><A NAME="CLIENT">Client configuration</A>
+<p>
+<hr>
+	<li><A NAME="ADMIN">Administering and information analisys</A>
+<p>
+	<ul>
+		<li><A NAME="NEWVERSION">How to obtain latest 3proxy version</A>
+<p>
+Latest version of 3proxy may be obtained
+<A HREF="http://3proxy.ru/">here</A>.
+New version may have changes and incompatibilities with previous one in files
+format or commands. Please, read CHANGELOG file and another documentation
+before installing new version.
+</p>
+		<li><A NAME="NTSERVICE">How to control 3proxy service under Windows NT/2000/XP</A>
+<p>
+If installed as system service, 3proxy understands Windows service commands
+for START, STOP, PAUSE and RESUME. If service is PAUSEd, no new connections
+are accepted while older connections are processed. Currently there is no
+support for dynamic configuration change, so, you have to restart service
+completely if you have changed any configuration.
+
+You can control 3proxy service via "Services" administration ot via "net" command:
+<pre>
+	net start 3proxy
+	net stop 3proxy
+	net pause 3proxy
+	net continue 3proxy
+</pre>
+</p>
+		<li><A NAME="ERRORS">Log error codes reference</A>
+<p>
+	<ul>
+		<li>0 - Operation successfully complited (connection
+			was closed by one of peers)
+		<li>1-9 - AUTHENTICATION ERRORS
+		<li>1 - Access denied by ACL (deny)
+		<li>2 - Redirection (should not appear)
+		<li>3 - No ACL found, denied by default
+		<li>4 - auth=strong and no username in request
+		<li>5 - auth=strong and no matching username in configuration
+		<li>6 - User found, wrong password (cleartext)
+		<li>7 - User found, wrong password (crypt)
+		<li>8 - User found, wrong password (NT)
+		<li>9 - Redirection data not found (should not appear)
+		<li>10 - Traffic limit exceeded
+		<li>11-19 - CONNECTION ERRORS
+		<li>11 - failed to create socket()
+		<li>12 - failed to bind()
+		<li>13 - failed to connect()
+		<li>14 - failed to getpeername()
+		<li>20-29 - COMMON ERRORS
+		<li>21 - memory allocation failed
+		<li>30-39 - CONNECT PROXY REDIRECTION ERRORS
+		<li>31 - failed to request HTTP CONNECT proxy
+		<li>32 - CONNECT proxy connection timed out or wrong reply
+		<li>33 - CONNECT proxy fails to establish connection
+		<li>34 - CONNECT proxy timed out or closed connection
+		<li>40-49 - SOCKS4 PROXY REDIRECTION ERRORS
+		<li>50-69 - SOCKS5 PROXY REDIRECTION ERRORS
+		<li>70-79 PARENT PROXY CONNECTION ERRORS (identical to 1x)
+		<li>90-99 - established connection errors
+		<li>90 - socket error or connection broken
+		<li>91 - TCP/IP common failure
+		<li>92 - connection timed out
+		<li>93 - error on reading data from server
+		<li>94 - error on reading data from client
+		<li>95 - timeout from bandlimin/bandlimout limitations
+		<li>96 - error on sending data to client
+		<li>97 - error on sending data to server
+		<li>98 - server data limit (should not appear)
+		<li>99 - client data limit (should not appear)
+		<li>100 - HOST NOT FOUND
+		<li>200-299 - UDP portmapper specific bugs
+		<li>300-399 - TCP portmapper specific bugs
+		<li>400-499 - SOCKS proxy specific bugs
+		<li>500-599 - HTTP proxy specific bugs
+		<li>600-699 - POP3 proxy specific bugs
+		<li>999 - NOT IMPLEMENTED
+	</ul>
+</p>
+	</ul>
+<hr>
+	<li><A NAME="QUEST">How To ask quiestion not in How To?</A>
+<p>
+	Ask it in <A HREF="http://3proxy.ru/board4.html">3proxy forum</A>.
+	Don't try to ask something before reading this document.
+ </ul>
+
+</ul>
+
+<pre>$Id: howtoe.html,v 1.41 2009/02/02 10:04:49 vlad Exp $</pre>
