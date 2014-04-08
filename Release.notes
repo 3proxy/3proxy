@@ -1,0 +1,107 @@
+08/04/2014 3[APA3A]tiny proxy 0.7
+
+ Features:
+  1. General
+	+ HTTP/1.1 Proxy with keep-alive client and server support,
+          transparent proxy support.
+	+ Anonymous and random client emulation HTTP proxy mode
+	+ FTP over HTTP support.
+	+ DNS caching with built-in resolver
+	+ HTTPS (CONNECT) proxy
+	+ SOCKSv4/4.5 Proxy
+	+ SOCKSv5 Proxy
+	+ UDP and bind support for SOCKSv5 (fully compatible with
+	  SocksCAP/FreeCAP for UDP)
+	+ Transparent SOCKS redirection for HTTP, POP3, FTP, SMTP, ICQ
+	+ POP3 Proxy
+	+ FTP proxy
+	+ DNS proxy
+	+ TCP port mapper
+	+ UDP port mapper
+	+ SMTP proxy
+	+ ICQ/AOL proxy
+	+ MSN proxy
+	+ Threaded application (no child process).
+	+ Web administration and statistics
+	+ Plugins for functionality extension
+	+ Native 64 bit application for 64 bit OS, including 64-bit editions of
+	  Windows XP, Vista, 2003, 2008.
+  2. Proxy chaining and network connections
+	+ Parent proxy support for any type of incoming connection
+	+ Username/password authentication for parent proxy(s).
+	+ HTTPS/SOCKS4/SOCKS5 and redirection parent support
+	+ Random parent selection
+	+ Chain building (multihop proxing)
+	+ Load balancing between few network connections by choosing network
+	  interface
+  3. Logging
+	+ turnable log format compatible with any log parser
+	+ stdout logging
+	+ file logging
+	+ syslog logging (Unix)
+	+ ODBC logging (Windows and Unix)
+	+ log file rotation (hourly, daily, weekly, monthly)
+	+ automatic log file comperssion with external archiver (for files)
+	+ automatic removal of older log files
+	+ Character filtering for log files
+	+ different log files for different servces are supported
+  4. Access control
+	+ ACL-driven (user/source/destination/protocol/weekday/daytime or
+	combined) bandwith limitation for incoming and (!)outgoing trafic.
+	+ ACL-driven (user/source/destination/protocol/weekday/daytime or
+	combined) traffic limitation per day, week or month for incoming and
+	  (!) outgoing traffic
+	+ User authorization by NetBIOS messanger name
+	+ Access control by username, source IP, destination IP, destination
+	port and destination action (POST, PUT, GET, etc), weekday and daytime.
+	+ Access control by username/password for SOCKSv5 and HTTP/HTTPS/FTP
+	+ Cleartext or encrypted (crypt/MD5 or NT) passwords.
+	+ Connection redirection
+	+ Access control by requested action (CONNECT/BIND, 
+	  HTTP GET/POST/PUT/HEAD/OTHER).
+	+ NTLM (v1 only) authentication for HTTP proxy access
+	+ All access control entries now support weekday and time limitations
+	+ Hostnames and * templates are supported instead of IP address
+  5. Extensions
+	+ Regular expression filtering (with PCRE) via PCREPlugin
+	  currently HTTP traffic only for URLs, HTTP headers and HTTP data.
+	+ Authentication with Windows username/password (cleartext only!)
+  6. Configuration
+	+ support for configuration files
+	+ support for includes in configuration files
+	+ interface binding
+	+ running as daemon process
+	+ utility for automated networks list building
+	+ configuration reload on any file change
+     Unix
+	+ support for chroot
+	+ support for setgid
+	+ support for setuid
+	+ support for signals
+     Windows NT/2K/XP/2K3
+	+ support --install as service
+	+ support --remove as service
+	+ support for service START, STOP, PAUSE and CONTINUE commands (on
+	PAUSE no new connection accepted, but active connections still in
+	progress, on CONTINUE configuration is reloaded)
+     Windows 95/98/ME
+	+ support --install as service
+	+ support --remove as service
+  6. Compilation
+	+ MSVC (static)
+	+ Intel Windows Compiler (msvcrt.dll)
+	+ Windows/gcc (msvcrt.dll)
+	+ Cygwin/gcc (cygwin.dll)
+	+ Unix/gcc
+	+ Unix/ccc
+	+ Solaris
+	+ Mac OS X, iPhone OS
+
+
+ Planned for future (0.8) release:
+   - SSL handling / SSL decryption by certificate spoofing
+   - NAT support under *nix
+   - Addon antiviral, HTTP cache filters modules, authentication
+     modules for different protocols (RADIUS, PAM etc).
+
+$Id: Release.notes,v 1.9 2014-04-07 21:24:42 vlad Exp $

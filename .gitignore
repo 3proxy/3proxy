@@ -6,10 +6,17 @@
 .project
 .metadata
 bin/
+bin64/
+dll/
 tmp/
 *.tmp
 *.bak
+*.bat
 *.swp
+version.c
+verfile.sh
+Makefile
+copytgz.sh
 *~.nib
 local.properties
 .classpath
