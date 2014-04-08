@@ -13,6 +13,11 @@ tmp/
 *.bak
 *.bat
 *.swp
+*.o
+3proxy.res
+*.idb
+src/version.h
+src/res
 version.c
 doc/html/man3/
 doc/html/man8/
