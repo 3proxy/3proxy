@@ -109,7 +109,11 @@ static void addbuffer(int increment, struct clientparam * param, unsigned char *
 	if(len > 0) {
 		*length_p += len;
 		param->nreads++;
+#ifndef NOPSTDINT
+		param->statssrv64 += len;
+#else
 		param->statssrv += len;
+#endif
 	}
 	return;
 }
@@ -437,18 +441,29 @@ void * icqprchild(struct clientparam* param) {
 
  if(greet){
 	if(socksend(param->remsock, tmpsend, 10, conf.timeouts[STRING_S])!=10) {RETURN (1105);}
+#ifndef NOPSTDINT
+	param->statscli64 += 10;
+#else
 	param->statscli += 10;
+#endif
  }
  if(readflap(param, SERVER, tmpsend, 1024)) {RETURN (1111);}
+#ifndef NOPSTDINT
+ param->statssrv64 += (ntohs(((struct flap_header *)tmpsend)->size) + 6);
+#else
  param->statssrv += (ntohs(((struct flap_header *)tmpsend)->size) + 6);
+#endif
  mystate.srvseq = ntohs(((struct flap_header *)tmpsend)->seq) + 1;
  mystate.seq = 1;
  len = ntohs(flap->size) + 6;
  if((res=handledatfltcli(param,  &buf, &buflen, offset, &len))!=PASS) RETURN(res);
  if(socksend(param->remsock, buf+offset, len, conf.timeouts[STRING_S])!=(ntohs(flap->size)+6)) {RETURN (1106);}
  offset = 0;
+#ifndef NOPSTDINT
+ param->statscli64 += len;
+#else
  param->statscli += len;
-
+#endif
 
 
 
@@ -466,7 +481,11 @@ void * icqprchild(struct clientparam* param) {
 	len = ntohs(flap->size) + 6;
 	if((res=handledatfltcli(param,  &buf, &buflen, offset, &len))!=PASS) RETURN(res);
 	if(socksend(param->remsock, buf+offset, len, conf.timeouts[STRING_S])!=len) {RETURN (1115);}
+#ifndef NOPSTDINT
+	param->statscli64 += len;
+#else
 	param->statscli += len;
+#endif
 	offset = 0;
  }
  if(logintype != ICQCOOKIE) {

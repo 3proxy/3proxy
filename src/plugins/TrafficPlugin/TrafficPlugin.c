@@ -179,7 +179,11 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 	int port;
 	int rule = 0;
 	struct trafcorrect * starttrafcorrect = firsttrafcorrect;
-	int statssrv_before, statscli_before;
+#ifndef NOPSTDINT
+	uint64_t  statssrv_before, statscli_before;
+#else
+	unsigned long statssrv_before, statscli_before;
+#endif
 	int ok = 0;
 	for (;starttrafcorrect != NULL; starttrafcorrect = starttrafcorrect->next) {
 		port = starttrafcorrect->port;
@@ -187,8 +191,13 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 		if (starttrafcorrect->p_service == S_NOSERVICE) g_s = param->service;
 		if (starttrafcorrect->port <= 0)  port = myhtons(param->sins.sin_port);
 		
+#ifndef NOPSTDINT
+		statssrv_before = param->statssrv64;
+		statscli_before = param->statscli64;
+#else
 		statssrv_before = param->statssrv;
 		statscli_before = param->statscli;
+#endif
 		rule++;
 		if (((g_s == param->service) && (port == myhtons(param->sins.sin_port))) || 
 			( ((starttrafcorrect->type == UDP) && 
@@ -201,21 +210,40 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 				/* фильтр подошёл. можно изменять значение траффика
 				   домножаем на число */
 				if (starttrafcorrect->type == MULTIPLAY) {
+#ifndef NOPSTDINT
+					param->statssrv64 = (unsigned)((double)param->statssrv64 *starttrafcorrect->coeff);
+					param->statscli64 = (unsigned)((double)param->statscli64 * starttrafcorrect->coeff);
+#else
 					param->statssrv = (unsigned)((double)param->statssrv *starttrafcorrect->coeff);
 					param->statscli = (unsigned)((double)param->statscli * starttrafcorrect->coeff);
+#endif
 				}
 				/* с учётом пакетов */
 				if (starttrafcorrect->type == IPCORRECT) {
 					if (starttrafcorrect->con_type == TCP) {
+#ifndef NOPSTDINT
+						param->statssrv64+=(param->nreads + 3*param->nconnects)*starttrafcorrect->psize;
+						param->statscli64+=(param->nwrites + 3*param->nconnects)*starttrafcorrect->psize;
+#else
 						param->statssrv+=(param->nreads + 3*param->nconnects)*starttrafcorrect->psize;
 						param->statscli+=(param->nwrites + 3*param->nconnects)*starttrafcorrect->psize;
+#endif
 					} else {
+#ifndef NOPSTDINT
+						param->statssrv64+=param->nreads*starttrafcorrect->psize;
+						param->statscli64+=param->nwrites*starttrafcorrect->psize; 
+#else
 						param->statssrv+=param->nreads*starttrafcorrect->psize;
 						param->statscli+=param->nwrites*starttrafcorrect->psize; 
+#endif
 					}
 				}
 				if (DBGLEVEL == 1) {
-					fprintf(stdout, "Port=%hd; Before: srv=%d, cli=%d; After:  srv=%ld, cli=%ld; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(param->sins.sin_port), statssrv_before, statscli_before, param->statssrv, param->statscli,param->nreads,param->nwrites,rule);
+#ifndef NOPSTDINT
+					fprintf(stdout, "Port=%hd; Before: srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; After:  srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(param->sins.sin_port), statssrv_before, statscli_before, param->statssrv64, param->statscli64,param->nreads,param->nwrites,rule);
+#else
+					fprintf(stdout, "Port=%hd; Before: srv=%lu, cli=%lu; After:  srv=%lu, cli=%lu; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(param->sins.sin_port), statssrv_before, statscli_before, param->statssrv, param->statscli,param->nreads,param->nwrites,rule);
+#endif
 				}
 				ok = 1;
 				break;

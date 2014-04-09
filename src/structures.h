@@ -6,6 +6,9 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef NOPSTDINT
+#include "pstdint.h"
+#endif
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -257,10 +260,15 @@ struct trafcount {
 	struct ace *ace;
 	unsigned number;
 	ROTATION type;
+#ifndef NOPSTDINT
+	uint64_t traf64;
+	uint64_t traflim64;
+#else
 	unsigned long traf;
 	unsigned long trafgb;
 	unsigned long traflim;
 	unsigned long traflimgb;
+#endif
 	char * comment;
 	int disabled;
 	time_t cleared;
@@ -377,8 +385,13 @@ struct clientparam {
 
 	int	res,
 		status;
+#ifndef NOPSTDINT
+	uint64_t	waitclient64,
+			waitserver64;
+#else
 	unsigned	waitclient,
 			waitserver;
+#endif
 	int	pwtype,
 		threadid,
 		weight,
@@ -402,16 +415,28 @@ struct clientparam {
 			srvoffset,
 			clibufsize,
 			srvbufsize,
-			msec_start,
+			msec_start;
+#ifndef NOPSTDINT
+	uint64_t
+			maxtrafin64,
+			maxtrafout64;
+#else
+	unsigned
 			maxtrafin,
 			maxtrafout;
-
+#endif
 	struct sockaddr_in	sinc,
 				sins,
 				req;
 
+#ifndef NOPSTDINT
+	uint64_t	statscli64,
+			statssrv64;
+#else
 	unsigned long	statscli,
-			statssrv,
+			statssrv;
+#endif
+	unsigned long
 			nreads,
 			nwrites,
 			nconnects,
@@ -634,6 +659,7 @@ typedef enum {
 	TYPE_SHORT,
 	TYPE_CHAR,
 	TYPE_UNSIGNED,
+	TYPE_UNSIGNED64,
 	TYPE_TRAFFIC,
 	TYPE_PORT,
 	TYPE_IP,

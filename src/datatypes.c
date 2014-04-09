@@ -8,6 +8,13 @@
 
 #include "proxy.h"
 
+#ifndef NOPSTDINT
+static void pr_unsigned64(struct node *node, CBFUNC cbf, void*cb){
+	char buf[32];
+	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%"PRINTF_INT64_MODIFIER"u", *(uint64_t *)node->value));
+}
+#endif
+
 static void pr_integer(struct node *node, CBFUNC cbf, void*cb){
 	char buf[16];
 	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%d", *(int *)node->value));
@@ -446,13 +453,55 @@ static void * ef_trafcounter_type(struct node * node){
 	return &((struct trafcount *)node->value) -> type;
 }
 
+#ifndef NOPSTDINT
+static void * ef_trafcounter_traffic64(struct node * node){
+	return &((struct trafcount *)node->value) -> traf64;
+}
+static void * ef_trafcounter_limit64(struct node * node){
+	return &((struct trafcount *)node->value) -> traflim64;
+}
+static void * ef_client_maxtrafin64(struct node * node){
+	return &((struct clientparam *)node->value) -> maxtrafin64;
+}
+
+static void * ef_client_maxtrafout64(struct node * node){
+	return &((struct clientparam *)node->value) -> maxtrafout64;
+}
+
+static void * ef_client_bytesin64(struct node * node){
+	return &((struct clientparam *)node->value) -> statssrv64;
+}
+
+static void * ef_client_bytesout64(struct node * node){
+	return &((struct clientparam *)node->value) -> statscli64;
+}
+
+#else
+
 static void * ef_trafcounter_traffic(struct node * node){
 	return &((struct trafcount *)node->value) -> traf;
 }
-
 static void * ef_trafcounter_limit(struct node * node){
 	return &((struct trafcount *)node->value) -> traflim;
 }
+static void * ef_client_maxtrafin(struct node * node){
+	return &((struct clientparam *)node->value) -> maxtrafin;
+}
+static void * ef_client_maxtrafout(struct node * node){
+	return &((struct clientparam *)node->value) -> maxtrafout;
+}
+
+static void * ef_client_bytesin(struct node * node){
+	return &((struct clientparam *)node->value) -> statssrv;
+}
+
+static void * ef_client_bytesout(struct node * node){
+	return &((struct clientparam *)node->value) -> statscli;
+}
+
+
+#endif
+
 
 static void * ef_trafcounter_cleared(struct node * node){
 	return &((struct trafcount *)node->value) -> cleared;
@@ -573,14 +622,6 @@ static void * ef_client_next(struct node * node){
 	return ((struct clientparam *)node->value) -> next;
 }
 
-static void * ef_client_maxtrafin(struct node * node){
-	return &((struct clientparam *)node->value) -> maxtrafin;
-}
-
-static void * ef_client_maxtrafout(struct node * node){
-	return &((struct clientparam *)node->value) -> maxtrafout;
-}
-
 static void * ef_client_type(struct node * node){
 	int service = ((struct clientparam *)node->value) -> service;
 	return (service>=0 && service < 15)? (void *)conf.stringtable[SERVICES + service] : (void *)"unknown";
@@ -639,14 +680,6 @@ static void * ef_client_srvport(struct node * node){
 
 static void * ef_client_cliport(struct node * node){
 	return &((struct clientparam *)node->value) -> sinc.sin_port;
-}
-
-static void * ef_client_bytesin(struct node * node){
-	return &((struct clientparam *)node->value) -> statssrv;
-}
-
-static void * ef_client_bytesout(struct node * node){
-	return &((struct clientparam *)node->value) -> statscli;
 }
 
 static void * ef_client_pwtype(struct node * node){
@@ -742,8 +775,15 @@ static struct property prop_trafcounter[] = {
 	{prop_trafcounter + 2, "ace", ef_trafcounter_ace, TYPE_ACE, "traffic to count"},
 	{prop_trafcounter + 3, "number", ef_trafcounter_number, TYPE_UNSIGNED, "counter number"},
 	{prop_trafcounter + 4, "type", ef_trafcounter_type, TYPE_ROTATION, "rotation type"},
+
+
+#ifndef NOPSTDINT
+	{prop_trafcounter + 5, "traffic", ef_trafcounter_traffic64, TYPE_UNSIGNED64, "counter value"},
+	{prop_trafcounter + 6, "limit", ef_trafcounter_limit64, TYPE_UNSIGNED64, "counter limit"},
+#else
 	{prop_trafcounter + 5, "traffic", ef_trafcounter_traffic, TYPE_TRAFFIC, "counter value"},
 	{prop_trafcounter + 6, "limit", ef_trafcounter_limit, TYPE_TRAFFIC, "counter limit"},
+#endif
 	{prop_trafcounter + 7, "cleared", ef_trafcounter_cleared, TYPE_DATETIME, "last rotated"},
 	{prop_trafcounter + 8, "updated", ef_trafcounter_updated, TYPE_DATETIME, "last updated"},
 	{prop_trafcounter + 9, "comment", ef_trafcounter_comment, TYPE_STRING, "counter comment"},
@@ -795,11 +835,18 @@ static struct property prop_client[] = {
 	{prop_client + 15, "srvport", ef_client_srvport, TYPE_PORT, "target server port"},
 	{prop_client + 16, "reqip", ef_client_reqip, TYPE_IP, "requested server ip"},
 	{prop_client + 17, "reqport", ef_client_reqport, TYPE_PORT, "requested server port"},
+#ifndef NOPSTDINT
+	{prop_client + 18, "bytesin", ef_client_bytesin64, TYPE_UNSIGNED64, "bytes from server to client"},
+	{prop_client + 19, "bytesout", ef_client_bytesout64, TYPE_UNSIGNED64, "bytes from client to server"},
+	{prop_client + 20, "maxtrafin", ef_client_maxtrafin64, TYPE_UNSIGNED64, "maximum traffic allowed for download"},
+	{prop_client + 21, "maxtrafout", ef_client_maxtrafout64, TYPE_UNSIGNED64, "maximum traffic allowed for upload"},
+#else
 	{prop_client + 18, "bytesin", ef_client_bytesin, TYPE_UNSIGNED, "bytes from server to client"},
 	{prop_client + 19, "bytesout", ef_client_bytesout, TYPE_UNSIGNED, "bytes from client to server"},
-	{prop_client + 20, "pwtype", ef_client_pwtype, TYPE_INTEGER, "type of client password"},
-	{prop_client + 21, "maxtrafin", ef_client_maxtrafin, TYPE_UNSIGNED, "maximum traffic allowed for download"},
-	{prop_client + 22, "maxtrafout", ef_client_maxtrafout, TYPE_UNSIGNED, "maximum traffic allowed for upload"},
+	{prop_client + 20, "maxtrafin", ef_client_maxtrafin, TYPE_UNSIGNED, "maximum traffic allowed for download"},
+	{prop_client + 21, "maxtrafout", ef_client_maxtrafout, TYPE_UNSIGNED, "maximum traffic allowed for upload"},
+#endif
+	{prop_client + 22, "pwtype", ef_client_pwtype, TYPE_INTEGER, "type of client password"},
 	{NULL, "next", ef_client_next, TYPE_CLIENT, "next"}
 
 	
@@ -810,6 +857,7 @@ struct datatype datatypes[64] = {
 	{"short", NULL, pr_short, NULL},
 	{"char", NULL, pr_char, NULL},
 	{"unsigned", NULL, pr_unsigned, NULL},
+	{"unsigned64", NULL, pr_unsigned64, NULL},
 	{"traffic", NULL, pr_traffic, NULL},
 	{"port", NULL, pr_port, NULL},
 	{"ip", NULL, pr_ip, NULL},

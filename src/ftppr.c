@@ -276,7 +276,11 @@ param->srv->logfunc(param,buf);
 		buf[i++] = '\r';
 		buf[i++] = '\n';
 		if(socksend(param->remsock, buf, i, conf.timeouts[STRING_S])!=i) {RETURN (811);}
-		param->statscli += i;
+#ifndef NOPSTDINT
+ param->statscli64+=(i);
+#else
+ param->statscli+=(i);
+#endif
 		param->nwrites++;
 		while((i = sockgetlinebuf(param, SERVER, buf, BUFSIZE, '\n', conf.timeouts[STRING_L])) > 0){
 			if(socksend(param->ctrlsock, buf, i, conf.timeouts[STRING_S])!=i) {RETURN (812);}
@@ -287,9 +291,15 @@ param->srv->logfunc(param,buf);
 	}
 	sasize = sizeof(struct sockaddr_in);
 	if(so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sinc, &sasize)){RETURN(819);}
+#ifndef NOPSTDINT
+	if(req && (param->statscli64 || param->statssrv64)){
+		(*param->srv->logfunc)(param, (unsigned char *)req);
+	}
+#else
 	if(req && (param->statscli || param->statssrv)){
 		(*param->srv->logfunc)(param, (unsigned char *)req);
 	}
+#endif
  }
 
 CLEANRET:
@@ -308,7 +318,11 @@ CLEANRET:
  }
  sasize = sizeof(struct sockaddr_in);
  so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sinc, &sasize);
+#ifndef NOPSTDINT
+ if(param->res != 0 || param->statscli64 || param->statssrv64 ){
+#else
  if(param->res != 0 || param->statscli || param->statssrv ){
+#endif
 	(*param->srv->logfunc)(param, (unsigned char *)((req && (param->res > 802))? req:NULL));
  }
  if(req) myfree(req);

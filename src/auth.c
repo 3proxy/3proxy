@@ -115,7 +115,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 			len += sprintf((char *)buf + len, "\r\n");
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != (int)strlen((char *)buf))
 				return 31;
+#ifndef NOPSTDINT
+			param->statssrv64+=len;
+#else
 			param->statssrv+=len;
+#endif
 			param->nwrites++;
 			if((res = sockgetlinebuf(param, SERVER,buf,13,'\n',conf.timeouts[CHAIN_TO])) < 13)
 				return 32;
@@ -152,7 +156,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) < len){
 				return 41;
 			}
+#ifndef NOPSTDINT
+			param->statssrv64+=len;
+#else
 			param->statssrv+=len;
+#endif
 			param->nwrites++;
 			if((len = sockgetlinebuf(param, SERVER, buf, (redir->type == R_SOCKS4B)? 3:8, EOF, conf.timeouts[CHAIN_TO])) != ((redir->type == R_SOCKS4B)? 3:8)){
 				return 42;
@@ -175,7 +183,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 			if(socksend(param->remsock, buf, 3, conf.timeouts[CHAIN_TO]) != 3){
 				return 51;
 			}
+#ifndef NOPSTDINT
+			param->statssrv64+=len;
+#else
 			param->statssrv+=len;
+#endif
 			param->nwrites++;
 			if(sockgetlinebuf(param, SERVER, buf, 2, EOF, conf.timeouts[CHAIN_TO]) != 2){
 				return 52;
@@ -197,7 +209,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 				if(socksend(param->remsock, buf, inbuf, conf.timeouts[CHAIN_TO]) != inbuf){
 					return 51;
 				}
+#ifndef NOPSTDINT
+				param->statssrv64+=inbuf;
+#else
 				param->statssrv+=inbuf;
+#endif
 				param->nwrites++;
 				if(sockgetlinebuf(param, SERVER, buf, 2, EOF, 60) != 2){
 					return 55;
@@ -227,7 +243,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != len){
 				return 51;
 			}
+#ifndef NOPSTDINT
+			param->statssrv64+=len;
+#else
 			param->statssrv+=len;
+#endif
 			param->nwrites++;
 			if(sockgetlinebuf(param, SERVER, buf, 4, EOF, conf.timeouts[CHAIN_TO]) != 4){
 				return 57;
@@ -553,9 +573,13 @@ void trafcountfunc(struct clientparam *param){
 				countout = 1;
 				continue;
 			}
+#ifndef NOPSTDINT
+			tc->traf64 += param->statssrv64;
+#else
 			val = tc->traf + param->statssrv;
 			if(val < tc->traf) tc->trafgb++;
 			tc->traf = val;
+#endif
 			time(&t);
 			tc->updated = t;
 		}
@@ -567,9 +591,13 @@ void trafcountfunc(struct clientparam *param){
 			if(tc->ace->action != COUNTOUT) {
 				continue;
 			}
+#ifndef NOPSTDINT
+			tc->traf64 += param->statscli64;
+#else
 			val = tc->traf + param->statscli;
 			if(val < tc->traf) tc->trafgb++;
 			tc->traf = val;
+#endif
 			time(&t);
 			tc->updated = t;
 		}
@@ -596,6 +624,11 @@ int alwaysauth(struct clientparam * param){
 					continue;
 				}
 			
+#ifndef NOPSTDINT
+				if(tc->traflim64 <= tc->traf64) return 10;
+				param->trafcountfunc = conf.trafcountfunc;
+				param->maxtrafin64 = tc->traflim64 - tc->traf64; 
+#else
 				if((tc->traflimgb < tc->trafgb) ||
 					((tc->traflimgb == tc->trafgb) && (tc->traflim < tc->traf))
 				) return 10;
@@ -605,6 +638,7 @@ int alwaysauth(struct clientparam * param){
 					if(!param->maxtrafin || param->maxtrafin > maxtraf) param->maxtrafin = maxtraf;
 				}
 				if((tc->trafgb > tc->traflimgb) || (tc->trafgb == tc->traflimgb && tc->traf >= tc->traflim)) param->maxtrafin = 1; 
+#endif
 			}
 		}
 		if(countout)for(tc = conf.trafcounter; tc; tc = tc->next) {
@@ -615,6 +649,11 @@ int alwaysauth(struct clientparam * param){
 					continue;
 				}
 			
+#ifndef NOPSTDINT
+				if(tc->traflim64 <= tc->traf64) return 10;
+				param->trafcountfunc = conf.trafcountfunc;
+				param->maxtrafout64 = tc->traflim64 - tc->traf64; 
+#else
 				if((tc->traflimgb < tc->trafgb) ||
 					((tc->traflimgb == tc->trafgb) && (tc->traflim < tc->traf))
 				) return 10;
@@ -624,6 +663,7 @@ int alwaysauth(struct clientparam * param){
 					if(!param->maxtrafout || param->maxtrafout > maxtraf) param->maxtrafout = maxtraf;
 				}
 				if((tc->trafgb > tc->traflimgb) || (tc->trafgb == tc->traflimgb && tc->traf >= tc->traflim)) param->maxtrafout = 1; 
+#endif
 			}
 		}
 
@@ -1089,12 +1129,20 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 			so._closesocket(sock);
 			continue;
 		}
+#ifndef NOPSTDINT
+		if(param) param->statscli64 += len;
+#else
 		if(param) param->statscli += len;
+#endif
 		len = sockrecvfrom(sock, sinsp, buf, 4096, 15000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
 		if(len <= 13) continue;
+#ifndef NOPSTDINT
+		if(param) param->statssrv64 += len;
+#else
 		if(param) param->statssrv += len;
+#endif
 		if(*(unsigned short *)buf != nquery)continue;
 		if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {
 			return 0;

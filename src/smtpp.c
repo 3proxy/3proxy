@@ -191,7 +191,11 @@ void * smtppchild(struct clientparam* param) {
  ul = param->extip;
  i = sprintf(buf, "EHLO [%lu.%lu.%lu.%lu]\r\n", ((ul&0xFF000000)>>24), ((ul&0x00FF0000)>>16), ((ul&0x0000FF00)>>8), ((ul&0x000000FF)));
  if(socksend(param->remsock, buf, i, conf.timeouts[STRING_S])!= i) {RETURN(673);}
+#ifndef NOPSTDINT
+ param->statscli64+=i;
+#else
  param->statscli+=i;
+#endif
  param->nwrites++;
  login = 0;
  do {
@@ -209,26 +213,42 @@ void * smtppchild(struct clientparam* param) {
 	}
 	if ((login & 1)) {
 		socksend(param->remsock, "AUTH LOGIN\r\n", 12, conf.timeouts[STRING_S]);
-		param->statscli+=12;
+#ifndef NOPSTDINT
+ param->statscli64+=12;
+#else
+ param->statscli+=12;
+#endif
 		param->nwrites++;
 		i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L]);
 		if(i<4 || strncasecmp((char *)buf, "334", 3)) {RETURN(680);}
 		en64(param->extusername, buf, (int)strlen(param->extusername));
 		socksend(param->remsock, buf, (int)strlen(buf), conf.timeouts[STRING_S]);
 		socksend(param->remsock, "\r\n", 2, conf.timeouts[STRING_S]);
-		param->statscli+=(i+2);
+#ifndef NOPSTDINT
+ param->statscli64+=(i+2);
+#else
+ param->statscli+=(i+2);
+#endif
 		param->nwrites+=2;
 		i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L]);
 		if(i<4 || strncasecmp((char *)buf, "334", 3)) {RETURN(681);}
 		en64(param->extpassword, buf, (int)strlen(param->extpassword));
 		socksend(param->remsock, buf, (int)strlen(buf), conf.timeouts[STRING_S]);
 		socksend(param->remsock, "\r\n", 2, conf.timeouts[STRING_S]);
-		param->statscli+=(i+2);
+#ifndef NOPSTDINT
+ param->statscli64+=(i+2);
+#else
+ param->statscli+=(i+2);
+#endif
 		param->nwrites+=2;
 	}
 	else if((login & 2)){
 		socksend(param->remsock, "AUTH PLAIN\r\n", 12, conf.timeouts[STRING_S]);
-		param->statscli+=12;
+#ifndef NOPSTDINT
+ param->statscli64+=(12);
+#else
+ param->statscli+=(12);
+#endif
 		param->nwrites++;
 		i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L]);
 		if(i<4 || strncasecmp((char *)buf, "334", 3)) {RETURN(682);}
@@ -243,7 +263,11 @@ void * smtppchild(struct clientparam* param) {
 		i = (int)strlen(buf);
 		socksend(param->remsock, buf, i, conf.timeouts[STRING_S]);
 		socksend(param->remsock, "\r\n", 2, conf.timeouts[STRING_S]);
-		param->statscli+=(i+2);
+#ifndef NOPSTDINT
+ param->statscli64+=(i+2);
+#else
+ param->statscli+=(i+2);
+#endif
 		param->nwrites+=2;
 	}
 	if(command) {

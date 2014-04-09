@@ -45,8 +45,12 @@ struct counter_header {
 } cheader = {"3CF", (time_t)0};
 
 struct counter_record {
+#ifndef NOPSTDINT
+	uint64_t traf64;
+#else
 	unsigned long traf;
 	unsigned long trafgb;
+#endif
 	time_t cleared;
 	time_t updated;
 } crecord;
@@ -465,7 +469,11 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
 				if(tl->type >= conf.countertype)
+#ifndef NOPSTDINT
+					fprintf(cfp, "%05d %020"PRINTF_INT64_MODIFIER"u%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
+#else
 					fprintf(cfp, "%05d %010lu %010lu%s%s\n", tl->number, tl->trafgb, tl->traf, tl->comment?" #" : "", tl->comment? tl->comment : "");
+#endif
 			}
 			fclose(cfp);
 		}
@@ -480,16 +488,24 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 			lseek(counterd, 
 				sizeof(struct counter_header) + (tl->number - 1) * sizeof(struct counter_record),
 				SEEK_SET);
+#ifndef NOPSTDINT
+			crecord.traf64 = tl->traf64;
+#else
 			crecord.traf = tl->traf;
 			crecord.trafgb = tl->trafgb;
+#endif
 			crecord.cleared = tl->cleared;
 			crecord.updated = tl->updated;
 			write(counterd, &crecord, sizeof(struct counter_record));
 		}
 		if(tl->type!=NEVER && timechanged(tl->cleared, conf.time, tl->type)){
 			tl->cleared = conf.time;
+#ifndef NOPSTDINT
+			tl->traf64 = 0;
+#else
 			tl->traf = 0;
 			tl->trafgb = 0;
+#endif
 		}
 	}
  }
@@ -1534,10 +1550,15 @@ static int h_ace(int argc, unsigned char **argv){
 
 			sscanf((char *)argv[1], "%u", &tl->number);
 			sscanf((char *)argv[3], "%lu", &lim);
+			tl->type = getrotate(*argv[2]);
+#ifndef NOPSTDINT
+			tl->traflim64 =  ((uint64_t)lim)*(1024*1024);
+			if(!tl->traflim64) {
+#else
 			tl->traflimgb = (lim/(1024*4));
 			tl->traflim = ((lim - (tl->traflimgb*(1024*4)))*(1024*1024));
-			tl->type = getrotate(*argv[2]);
 			if(!tl->traflim && !tl->traflimgb) {
+#endif
 				fprintf(stderr, "Wrong traffic limit specified, line %d\n", linenum);
 				return(6);
 			}
@@ -1547,8 +1568,12 @@ static int h_ace(int argc, unsigned char **argv){
 					SEEK_SET);
 				memset(&crecord, 0, sizeof(struct counter_record));
 				read(conf.counterd, &crecord, sizeof(struct counter_record));
+#ifndef NOPSTDINT
+				tl->traf64 = crecord.traf64;
+#else
 				tl->traf = crecord.traf;
 				tl->trafgb = crecord.trafgb;
+#endif
 				tl->cleared = crecord.cleared;
 				tl->updated = crecord.updated;
 #ifdef _MAX__TIME64_T
