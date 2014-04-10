@@ -355,7 +355,7 @@ for(;;){
  else param->operation = HTTP_OTHER;
  do {
 	buf[inbuf+i]=0;
-/* printf("Got: %s\n", buf+inbuf); */
+/*printf("Got: %s\n", buf+inbuf);*/
 #ifndef WITHMAIN
 	if(i > 25 && !param->srv->transparent && (!strncasecmp((char *)(buf+inbuf), "proxy-authorization", 19))){
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
@@ -393,8 +393,7 @@ for(;;){
 					if(i> 15 && (!strncasecmp((char *)(buf), "content-length", 14))){
 						buf[i]=0;
 #ifndef NOPSTDINT
-						res=sscanf((char *)buf + 15, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
-printf("cl: %d/%"PRINTF_INT64_MODIFIER"u\n", res, contentlength64);
+						sscanf((char *)buf + 15, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
 					}
 				}
 				while( contentlength64 > 0 && (i = sockgetlinebuf(param, CLIENT, buf, (BUFSIZE < contentlength64)? BUFSIZE - 1:(int)contentlength64, '\n', conf.timeouts[STRING_S])) > 0){
@@ -509,9 +508,7 @@ printf("cl: %d/%"PRINTF_INT64_MODIFIER"u\n", res, contentlength64);
 		++sb;
 		while(isspace(*sb))sb++;
 #ifndef NOPSTDINT
-		res=sscanf(sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
-printf("cl: %d/%"PRINTF_INT64_MODIFIER"u\n", res, contentlength64);
-
+		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
 		if(param->maxtrafout64 && (param->maxtrafout64 < param->statscli64 || contentlength64 > param->maxtrafout64 - param->statscli64)){
 			RETURN(10);
 		}
@@ -967,8 +964,7 @@ printf("cl: %d/%"PRINTF_INT64_MODIFIER"u\n", res, contentlength64);
 		++sb;
 		while(isspace(*sb))sb++;
 #ifndef NOPSTDINT
-		res=sscanf(sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
-printf("cl: %d/%"PRINTF_INT64_MODIFIER"u\n", res, contentlength64);
+		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
 #else
 		sscanf(sb, "%lu", &contentlength);
 #endif
