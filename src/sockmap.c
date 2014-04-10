@@ -6,6 +6,7 @@
 
    $Id: sockmap.c,v 1.64 2014-04-07 20:35:09 vlad Exp $
 */
+#define DEBUGLEVEL 3
 
 #include "proxy.h"
 
