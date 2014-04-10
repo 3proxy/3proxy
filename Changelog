@@ -1,3 +1,8 @@
+10.04.2014
+! switching to 64-bit integers where possible.
+  proxy should now support downloading for files > 4GB.
+
+
 08.04.2014
 Releasing as 0.7
 Significant changes since 0.6.1:
