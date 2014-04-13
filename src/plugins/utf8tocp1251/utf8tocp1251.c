@@ -18,15 +18,6 @@ extern "C" {
  __declspec(dllexport) int utf8tocp1251(struct pluginlink * pluginlink, 
 					 int argc, char** argv);
 
-
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-					 )
-{
-    return TRUE;
-}
-
 static struct auth alwaysauth;
 
 

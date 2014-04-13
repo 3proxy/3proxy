@@ -20,14 +20,6 @@ extern "C" {
 					 int argc, char** argv);
 
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-					 )
-{
-    return TRUE;
-}
-
 static struct auth alwaysauth;
 
 static char sidbuf[4096];

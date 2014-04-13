@@ -257,7 +257,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 
 #ifdef _WIN32
 
-BOOL APIENTRY DllMain( HANDLE hModule, 
+BOOL WINAPI DllMain( HINSTANCE hModule, 
                        DWORD  ul_reason_for_call, 
                        LPVOID lpReserved
 					 )
