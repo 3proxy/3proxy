@@ -18,6 +18,7 @@ tmp/
 src/version.h
 src/res
 version.c
+3proxy.res
 doc/html/man3/
 doc/html/man8/
 doc/html/index.html
