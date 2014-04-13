@@ -1,7 +1,6 @@
 #include "src/version.h"
-#include "afxres.h"
 
-LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
+LANGUAGE 0x09, 0x01
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION 0,7,0,0
@@ -18,9 +17,9 @@ BEGIN
             VALUE "FileDescription", "3proxy - tiny proxy server"
             VALUE "FileVersion", VERSION "-" BUILDDATE
             VALUE "InternalName", "3proxy"
-            VALUE "LegalCopyright", "Copyright (C) 2002-2009 Vladimir Dubrovin"
+            VALUE "LegalCopyright", "Copyright (C) 2002-2014 Vladimir Dubrovin"
             VALUE "OriginalFilename", "3proxy.exe"
-            VALUE "ProductName", "3proxy"
+            VALUE "ProductName", "3proxy - tiny proxy server"
             VALUE "ProductVersion", VERSION
         END
     END
@@ -29,4 +28,4 @@ BEGIN
         VALUE "Translation", 0x0, 1200
     END
 END
-
+0 ICON    DISCARDABLE     "3proxy.ico"
