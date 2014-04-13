@@ -644,6 +644,9 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 0;
 		childdef.service = S_PROXY;
 		childdef.helpmessage = " -n - no NTLM support\n";
+		if(!resolvfunc || (resolvfunc == myresolver && !dns_table->hashsize)){
+			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, proxy may run very slow\n", linenum);
+		}
 	}
 	else if(!strcmp((char *)argv[0], "pop3p")) {
 		childdef.pf = pop3pchild;
@@ -672,6 +675,9 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 0;
 		childdef.service = S_SOCKS;
 		childdef.helpmessage = " -n - no NTLM support\n";
+		if(!resolvfunc || (resolvfunc == myresolver && !dns_table->hashsize)){
+			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, socks may run very slow\n", linenum);
+		}
 	}
 	else if(!strcmp((char *)argv[0], "tcppm")) {
 		childdef.pf = tcppmchild;
@@ -712,6 +718,9 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.port = 53;
 		childdef.isudp = 1;
 		childdef.service = S_DNSPR;
+		if(!resolvfunc || (resolvfunc == myresolver && !dns_table->hashsize) || resolvfunc == fake_resolver){
+			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
+		}
 	}
 	return start_proxy_thread(&ch);
 }
@@ -951,6 +960,18 @@ static int h_maxconn(int argc, unsigned char **argv){
 	if(!conf.maxchild) {
 		return(1);
 	}
+#ifndef _WIN32
+	{
+		struct rlimit rl;
+		if(!getrlimit(RLIMIT_NOFILE, &rl)){
+			if((conf.maxchild<<1) > rl.rlim_cur)
+				fprintf(stderr, "[line %d] Warning: current open file ulimits are too low (cur: %d/max: %d),"
+						" maxconn requires at least %d for every running service."
+						" Configure ulimits according to system documentation\n",
+						  linenum, (int)rl.rlim_cur, (int)rl.rlim_max, (conf.maxchild<<1));
+		}
+	}
+#endif
 	return 0;
 }
 
