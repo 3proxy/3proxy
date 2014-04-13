@@ -147,21 +147,13 @@ void * dnsprchild(struct clientparam* param) {
 	if(socksendto(param->remsock, &param->sins, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
 		RETURN(820);
 	}
-#ifndef NOPSTDINT
 	param->statscli64 += i;
-#else
-	param->statscli += i;
-#endif
 	param->nwrites++;
 	len = sockrecvfrom(param->remsock, &param->sins, buf, BUFSIZE, 15000);
 	if(len <= 13) {
 		RETURN(821);
 	}
-#ifndef NOPSTDINT
 	param->statssrv64 += len;
-#else
-	param->statssrv += len;
-#endif
 	param->nreads++;
 	if(buf[6] || buf[7]){
 		if(socksendto(param->clisock, &param->sinc, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){

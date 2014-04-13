@@ -217,11 +217,7 @@ void * proxychild(struct clientparam* param) {
  unsigned char *ftpbase=NULL;
  unsigned char username[1024];
  int keepalive = 0;
-#ifndef NOPSTDINT
  uint64_t contentlength64 = 0;
-#else
- unsigned long contentlength = 0;
-#endif
  int hascontent =0;
  int isconnect = 0;
  int redirect = 0;
@@ -392,7 +388,6 @@ for(;;){
 				while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
 					if(i> 15 && (!strncasecmp((char *)(buf), "content-length", 14))){
 						buf[i]=0;
-#ifndef NOPSTDINT
 						sscanf((char *)buf + 15, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
 					}
 				}
@@ -401,16 +396,6 @@ for(;;){
 					contentlength64-=i;
 				}
 				contentlength64 = 0;
-#else
-						sscanf((char *)buf + 15, "%lu", &contentlength);
-					}
-				}
-				while( contentlength > 0 && (i = sockgetlinebuf(param, CLIENT, buf, (BUFSIZE < contentlength)? BUFSIZE - 1:contentlength, '\n', conf.timeouts[STRING_S])) > 0){
-					if ((unsigned long)i > contentlength) break;
-					contentlength-=i;
-				}
-				contentlength = 0;
-#endif
 				if(param->password)myfree(param->password);
 				param->password = myalloc(32);
 				param->pwtype = 2;
@@ -507,19 +492,11 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-#ifndef NOPSTDINT
 		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
 		if(param->maxtrafout64 && (param->maxtrafout64 < param->statscli64 || contentlength64 > param->maxtrafout64 - param->statscli64)){
 			RETURN(10);
 		}
 		if(param->ndatfilterscli > 0 && contentlength64 > 0) continue;
-#else
-		sscanf(sb, "%lu",&contentlength);
-		if(param->maxtrafout && (param->maxtrafout < param->statscli || (unsigned)contentlength > param->maxtrafout - param->statscli)){
-			RETURN(10);
-		}
-		if(param->ndatfilterscli > 0 && contentlength > 0) continue;
-#endif
 	}
 	inbuf += i;
 	if((bufsize - inbuf) < LINESIZE){
@@ -550,34 +527,19 @@ for(;;){
 	RETURN(0);
  }
  if(action != PASS) RETURN(517);
-#ifndef NOPSTDINT
  if(param->ndatfilterscli > 0 && contentlength64 > 0){
   uint64_t newlen64;
   newlen64 = sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
   if(newlen64 == contentlength64) {
-#else
- if(param->ndatfilterscli > 0 && contentlength > 0){
-  unsigned long newlen;
-  newlen = sockfillbuffcli(param, contentlength, CONNECTION_S);
-  if(newlen == contentlength) {
-#endif
 	action = handledatfltcli(param,  &param->clibuf, &param->clibufsize, 0, &param->cliinbuf);
 	if(action == HANDLED){
 		RETURN(0);
 	}
 	if(action != PASS) RETURN(517);
-#ifndef NOPSTDINT
 	contentlength64 = param->cliinbuf;
-#else
-	contentlength = param->cliinbuf;
-#endif
 	param->ndatfilterscli = 0;
   }
-#ifndef NOPSTDINT
   sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
-#else
-  sprintf((char*)buf+strlen((char *)buf), "Content-Length: %lu\r\n", contentlength);
-#endif
  }
 
 #endif
@@ -657,11 +619,7 @@ for(;;){
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 		s = param->remsock;
 		param->remsock = ftps;
-#ifndef NOPSTDINT
 		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
-#else
-		if((param->operation == FTP_PUT) && (contentlength > 0)) param->waitclient = contentlength;
-#endif
 		res = sockmap(param, conf.timeouts[CONNECTION_L]);
 		if (res == 99) res = 0;
 		so._closesocket(ftps);
@@ -863,11 +821,7 @@ for(;;){
 	 if(socksend(param->remsock, req , (res = (int)strlen((char *)req)), conf.timeouts[STRING_L]) != res) {
 		RETURN(518);
 	 }
-#ifndef NOPSTDINT
 	 param->statscli64 += res;
-#else
-	 param->statscli += res;
-#endif
 	 param->nwrites++;
  }
  inbuf = 0;
@@ -899,16 +853,11 @@ for(;;){
  if ((res = socksend(param->remsock, buf+reqlen, (int)strlen((char *)buf+reqlen), conf.timeouts[STRING_S])) != (int)strlen((char *)buf+reqlen)) {
 	RETURN(518);
  }
-#ifndef NOPSTDINT
  param->statscli64 += res;
-#else
- param->statscli += res;
-#endif
  param->nwrites++;
  if(param->bandlimfunc) {
 	sleeptime = param->bandlimfunc(param, 0, (int)strlen((char *)buf));
  }
-#ifndef NOPSTDINT
  if(contentlength64 > 0){
 	 param->nolongdatfilter = 0;
 	 param->waitclient64 = contentlength64;
@@ -919,18 +868,6 @@ for(;;){
 	}
  }
  contentlength64 = 0;
-#else
- if(contentlength > 0){
-	 param->nolongdatfilter = 0;
-	 param->waitclient = contentlength;
-	 res = sockmap(param, conf.timeouts[CONNECTION_S]);
-	 param->waitclient = 0;
-	 if(res != 99) {
-		RETURN(res);
-	}
- }
- contentlength = 0;
-#endif
  inbuf = 0;
  ckeepalive = keepalive;
  res = 0; 
@@ -963,21 +900,13 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-#ifndef NOPSTDINT
 		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
-#else
-		sscanf(sb, "%lu", &contentlength);
-#endif
 		hascontent = 1;
 		if(param->unsafefilter && param->ndatfilterssrv > 0) {
 			hascontent = 2;
 			continue;
 		}
-#ifndef NOPSTDINT
 		if(param->maxtrafin64 && (param->maxtrafin64 < param->statssrv64 || contentlength64 + param->statssrv64 > param->maxtrafin64)){
-#else
-		if(param->maxtrafin && (param->maxtrafin < param->statssrv || (unsigned)contentlength > param->maxtrafin - param->statssrv)){
-#endif
 			RETURN(10);
 		}
 	}
@@ -1006,11 +935,7 @@ for(;;){
  }
  if((res == 304 || res == 204) && !hascontent){
 	hascontent = 1;
-#ifndef NOPSTDINT
 	contentlength64 = 0;
-#else
-	contentlength = 0;
-#endif
  }
  if(param->bandlimfunc) {
 	int st1;
@@ -1034,7 +959,6 @@ for(;;){
  param->nolongdatfilter = 0;
 
  
-#ifndef NOPSTDINT
  if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
 	param->nolongdatfilter = 1;
  }
@@ -1055,27 +979,6 @@ for(;;){
  }
  if (contentlength64 > 0 && hascontent != 1) ckeepalive = 0;
 #else
- if (conf.filtermaxsize && contentlength > (unsigned long)conf.filtermaxsize) {
-	param->nolongdatfilter = 1;
- }
- else if(param->unsafefilter && param->ndatfilterssrv > 0 && contentlength > 0 && param->operation != HTTP_HEAD && res != 204 && res != 304){
-  unsigned long newlen;
-  newlen = sockfillbuffsrv(param, (unsigned long) contentlength, CONNECTION_S);
-  if(newlen == contentlength) {
-	action = handledatfltsrv(param,  &param->srvbuf, &param->srvbufsize, 0, &param->srvinbuf);
-	param->nolongdatfilter = 1;
-	if(action == HANDLED){
-		RETURN(0);
-	}
-	if(action != PASS) RETURN(517);
-	contentlength = param->srvinbuf;
-	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %lu\r\n", contentlength);
-	hascontent = 1;
-  }
- }
- if (contentlength > 0 && hascontent != 1) ckeepalive = 0;
-#endif
-#else
 #endif
  if(!isconnect || param->operation){
 	 if(authenticate && !param->transparent) sprintf((char*)buf+strlen((char *)buf), 
@@ -1093,11 +996,7 @@ for(;;){
 		RETURN(521);
 	 }
  }
-#ifndef NOPSTDINT
  if((param->chunked || contentlength64 > 0) && param->operation != HTTP_HEAD && res != 204 && res != 304) {
-#else
- if((param->chunked || contentlength > 0) && param->operation != HTTP_HEAD && res != 204 && res != 304) {
-#endif
  	do {
 		if(param->chunked){
 			char smallbuf[32];
@@ -1122,32 +1021,18 @@ for(;;){
 				break;
 			}
 			smallbuf[i] = 0;
-#ifndef NOPSTDINT
 			contentlength64 = 0;
 			sscanf(smallbuf, "%"PRINTF_INT64_MODIFIER"x", &contentlength64);
 			if(contentlength64 == 0) {
-#else
-			contentlength = 0;
-			sscanf(smallbuf, "%lx", &contentlength);
-			if(contentlength == 0) {
-#endif
 				param->chunked = 2;
 			}
 		}
 		if(param->chunked != 2){
-#ifndef NOPSTDINT
 			param->waitserver64 = contentlength64;
-#else
-			param->waitserver = contentlength;
-#endif
 		 	if((res = sockmap(param, conf.timeouts[CONNECTION_S])) != 98){
 				RETURN(res);
 			}
-#ifndef NOPSTDINT
 	 		param->waitserver64 = 0;
-#else
-	 		param->waitserver = 0;
-#endif
 		}
         } while(param->chunked);
  }
@@ -1160,11 +1045,7 @@ for(;;){
  else if(!hascontent && !param->chunked) {
 	RETURN(sockmap(param, conf.timeouts[CONNECTION_S]));
  }
-#ifndef NOPSTDINT
  contentlength64 = 0;
-#else
- contentlength = 0;
-#endif
 REQUESTEND:
 
  if((!ckeepalive || !keepalive) && param->remsock != INVALID_SOCKET){

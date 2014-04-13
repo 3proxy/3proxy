@@ -475,7 +475,6 @@ void * adminchild(struct clientparam* param) {
 				 );
 			 }
 			 else {
-#ifndef NOPSTDINT
 			  inbuf += sprintf(buf+inbuf,	
 					"</td><td>%"PRINTF_INT64_MODIFIER"u</td>"
 					"<td>MB%s</td>"
@@ -486,18 +485,6 @@ void * adminchild(struct clientparam* param) {
 				 cp->traf64,
 				 cp->cleared?ctime(&cp->cleared):"never"
 				);
-#else
-			  inbuf += sprintf(buf+inbuf,	
-					"</td><td>%.3f</td>"
-					"<td>MB%s</td>"
-					"<td>%.3f MB</td>"
-					"<td>%s</td>",
-				 (1024.0 * (float)cp->traflimgb) + (float)cp->traflim/1048576.0,
-				 rotations[cp->type],
-				 (1024.0 * (float)cp->trafgb) + (float)cp->traf/1048576.0,
-				 cp->cleared?ctime(&cp->cleared):"never"
-				);
-#endif
 			 inbuf += sprintf(buf + inbuf,
 					"<td>%s</td>"
 					"<td>%i</td>"

@@ -339,11 +339,7 @@ fflush(stderr);
 								param->res = 467;
 								break;
 							}
-#ifndef NOPSTDINT
 							param->statscli64+=(len - i);
-#else
-							param->statscli+=(len - i);
-#endif
 							param->nwrites++;
 #if SOCKSTRACE > 1
 fprintf(stderr, "UDP packet relayed from client to %s:%hu size %d, header %d\n",
@@ -370,11 +366,7 @@ fflush(stderr);
 							param->res = 468;
 							break;
 						}
-#ifndef NOPSTDINT
 						param->statssrv64+=len;
-#else
-						param->statssrv+=len;
-#endif
 						param->nreads++;
 						memcpy(buf+4, &tsin.sin_addr.s_addr, 4);
 						memcpy(buf+8, &tsin.sin_port, 2);

@@ -287,11 +287,7 @@ void clearstat(struct clientparam * param) {
 	param->time_start = (time_t)tv.tv_sec;
 	param->msec_start = (tv.tv_usec / 1000);
 #endif
-#ifndef NOPSTDINT
 	param->statscli64 = param->statssrv64 = param->nreads = param->nwrites =
-#else
-	param->statscli = param->statssrv = param->nreads = param->nwrites =
-#endif
 		param->nconnects = 0;
 }
 
@@ -382,17 +378,10 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i+=10;
 				 break;
 				case 'b':
-#ifndef NOPSTDINT
 				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statscli64 * 1000./delay):0);
 				 break;
 				case 'B':
 				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statssrv64 * 1000./delay):0);
-#else
-				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statscli * 1000./delay):0);
-				 break;
-				case 'B':
-				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statssrv * 1000./delay):0);
-#endif
 				 break;				 
 				case 'D':
 				 i+=sprintf((char *)buf+i, "%u", delay);
@@ -489,19 +478,11 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'I':
-#ifndef NOPSTDINT
 				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->statssrv64);
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'O':
 				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->statscli64);
-#else
-				 sprintf((char *)buf+i, "%lu", param->statssrv);
-				 i += (int)strlen((char *)buf+i);
-				 break;
-				case 'O':
-				 sprintf((char *)buf+i, "%lu", param->statscli);
-#endif
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'h':

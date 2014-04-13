@@ -173,22 +173,14 @@ void * msnprchild(struct clientparam* param) {
  if(!sec){
 	len = (int)strlen(verstr);
 	if(socksend(param->remsock, verstr, len, conf.timeouts[STRING_S])!= len) {RETURN (1207);}
-#ifndef NOPSTDINT
 	param->statscli64 += len;
-#else
-	param->statscli += len;
-#endif
 
 	myfree(verstr);
 	verstr = mystrdup(buf);
 
 	len = sockgetlinebuf(param, SERVER, buf, 240, '\n', conf.timeouts[STRING_S]);
 	if(len < 10) RETURN(1208);
-#ifndef NOPSTDINT
 	param->statssrv64 += len;
-#else
-	param->statssrv += len;
-#endif
 
 	strcpy(buf, verstr);
  }
@@ -198,11 +190,7 @@ void * msnprchild(struct clientparam* param) {
  if(socksend(param->remsock, buf, len, conf.timeouts[STRING_S])!= len) {RETURN (1207);}
 
 
-#ifndef NOPSTDINT
  param->statscli64 += len;
-#else
- param->statscli += len;
-#endif
 
  if(sec){
 	RETURN(sockmap(param, conf.timeouts[CONNECTION_L]));

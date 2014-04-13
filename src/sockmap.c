@@ -13,11 +13,7 @@
 
 int sockmap(struct clientparam * param, int timeo){
  int res=0;
-#ifndef NOPSTDINT
  uint64_t sent=0, received=0;
-#else
- unsigned sent=0, received=0;
-#endif
  SASIZETYPE sasize;
  struct pollfd fds[2];
  int sleeptime = 0, stop = 0;
@@ -36,20 +32,12 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Starting sockets mapping");
 #endif
-#ifndef NOPSTDINT
  if(!param->waitclient64){
-#else
- if(!param->waitclient){
-#endif
 	if(!param->srvbuf && (!(param->srvbuf=myalloc(bufsize)) || !(param->srvbufsize = bufsize))){
 		return (21);
 	}
  }
-#ifndef NOPSTDINT
  if(!param->waitserver64){
-#else
- if(!param->waitserver){
-#endif
 	if(!param->clibuf && (!(param->clibuf=myalloc(bufsize)) || !(param->clibufsize = bufsize))){
 		return (21);
 	}
@@ -81,7 +69,6 @@ int sockmap(struct clientparam * param, int timeo){
 
  while (!stop&&!conf.timetoexit){
 	sasize = sizeof(struct sockaddr_in);
-#ifndef NOPSTDINT
 	if((param->maxtrafin64 && param->statssrv64 >= param->maxtrafin64) || (param->maxtrafout64 && param->statscli64 >= param->maxtrafout64)){
 		return (10);
 	}
@@ -90,47 +77,25 @@ int sockmap(struct clientparam * param, int timeo){
 			(*param->srv->logfunc)(param, NULL);
 	fds[0].events = fds[1].events = 0;
 	if(param->srvinbuf > param->srvoffset && !param->waitclient64) {
-#else
-	if((param->maxtrafin && param->statssrv >= param->maxtrafin) || (param->maxtrafout && param->statscli >= param->maxtrafout)){
-		return (10);
-	}
-	if((param->srv->logdumpsrv && (param->statssrv > param->srv->logdumpsrv)) ||
-		(param->srv->logdumpcli && (param->statscli > param->srv->logdumpcli)))
-			(*param->srv->logfunc)(param, NULL);
-	fds[0].events = fds[1].events = 0;
-	if(param->srvinbuf > param->srvoffset && !param->waitclient) {
-#endif
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "will send to client");
 #endif
 		fds[0].events |= POLLOUT;
 	}
-#ifndef NOPSTDINT
 	if((param->srvbufsize - param->srvinbuf) > minsize && !param->waitclient64 && (!param->waitserver64 ||(received + param->srvinbuf - param->srvoffset < param->waitserver64))) {
-#else
-	if((param->srvbufsize - param->srvinbuf) > minsize && !param->waitclient && (!param->waitserver ||(received + param->srvinbuf - param->srvoffset < param->waitserver))) {
-#endif
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Will recv from server");
 #endif
 		fds[1].events |= POLLIN;
 	}
 
-#ifndef NOPSTDINT
 	if(param->cliinbuf > param->clioffset && !param->waitserver64) {
-#else
-	if(param->cliinbuf > param->clioffset && !param->waitserver) {
-#endif
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Will send to server");
 #endif
 		fds[1].events |= POLLOUT;
 	}
-#ifndef NOPSTDINT
     	if((param->clibufsize - param->cliinbuf) > minsize  && !param->waitserver64 &&(!param->srv->singlepacket || param->service != S_UDPPM) ) {
-#else
-    	if((param->clibufsize - param->cliinbuf) > minsize  && !param->waitserver &&(!param->srv->singlepacket || param->service != S_UDPPM) ) {
-#endif
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Will recv from client");
 #endif
@@ -163,11 +128,7 @@ int sockmap(struct clientparam * param, int timeo){
 		if(param->bandlimfunc) {
 			sleeptime = (*param->bandlimfunc)(param, param->srvinbuf - param->srvoffset, 0);
 		}
-#ifndef NOPSTDINT
 		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sinc, sasize);
-#else
-		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver || ((unsigned)param->waitserver - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : param->waitserver - received, 0, (struct sockaddr*)&param->sinc, sasize);
-#endif
 		if(res < 0) {
 			if(errno != EAGAIN) return 96;
 			continue;
@@ -175,11 +136,7 @@ int sockmap(struct clientparam * param, int timeo){
 		param->srvoffset += res;
 		received += res;
 		if(param->srvoffset == param->srvinbuf) param->srvoffset = param->srvinbuf = 0;
-#ifndef NOPSTDINT
 		if(param->waitserver64 && param->waitserver64<= received){
-#else
-		if(param->waitserver && param->waitserver<= received){
-#endif
 			return (98);
 		}
 		if(param->service == S_UDPPM && param->srv->singlepacket) {
@@ -196,11 +153,7 @@ int sockmap(struct clientparam * param, int timeo){
 			sl1 = (*param->bandlimfunc)(param, 0, param->cliinbuf - param->clioffset);
 			if(sl1 > sleeptime) sleeptime = sl1;
 		}
-#ifndef NOPSTDINT
 		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sins, sasize);
-#else
-		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient || ((unsigned)param->waitclient - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : param->waitclient - sent, 0, (struct sockaddr*)&param->sins, sasize);
-#endif
 		if(res < 0) {
 			if(errno != EAGAIN) return 97;
 			continue;
@@ -209,13 +162,8 @@ int sockmap(struct clientparam * param, int timeo){
 		if(param->clioffset == param->cliinbuf) param->clioffset = param->cliinbuf = 0;
 		sent += res;
 		param->nwrites++;
-#ifndef NOPSTDINT
 		param->statscli64 += res;
 		if(param->waitclient64 && param->waitclient64<= sent) {
-#else
-		param->statscli += res;
-		if(param->waitclient && param->waitclient<= sent) {
-#endif
 			return (99);
 		}
 	}
@@ -267,11 +215,7 @@ int sockmap(struct clientparam * param, int timeo){
 			}
 			param->srvinbuf += res;
 			param->nreads++;
-#ifndef NOPSTDINT
 			param->statssrv64 += res;
-#else
-			param->statssrv += res;
-#endif
 			if(!param->nolongdatfilter){
 				action = handledatfltsrv(param,  &param->srvbuf, &param->srvbufsize, param->srvinbuf - res, &param->srvinbuf);
 				if(action == HANDLED){
@@ -293,42 +237,26 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "finished with mapping");
 #endif
-#ifndef NOPSTDINT
  while(!param->waitclient64 && param->srvinbuf > param->srvoffset && param->clisock != INVALID_SOCKET){
-#else
- while(!param->waitclient && param->srvinbuf > param->srvoffset && param->clisock != INVALID_SOCKET){
-#endif
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "flushing buffer to client");
 #endif
 	res = socksendto(param->clisock, &param->sinc, param->srvbuf + param->srvoffset, param->srvinbuf - param->srvoffset, conf.timeouts[STRING_S] * 1000);
 	if(res > 0){
 		param->srvoffset += res;
-#ifndef NOPSTDINT
 		param->statssrv64 += res;
-#else
-		param->statssrv += res;
-#endif
 		if(param->srvoffset == param->srvinbuf) param->srvoffset = param->srvinbuf = 0;
 	}
 	else break;
  } 
-#ifndef NOPSTDINT
  while(!param->waitserver64 && param->cliinbuf > param->clioffset && param->remsock != INVALID_SOCKET){
-#else
- while(!param->waitserver && param->cliinbuf > param->clioffset && param->remsock != INVALID_SOCKET){
-#endif
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "flushing buffer to server");
 #endif
 	res = socksendto(param->remsock, &param->sins, param->clibuf + param->clioffset, param->cliinbuf - param->clioffset, conf.timeouts[STRING_S] * 1000);
 	if(res > 0){
 		param->clioffset += res;
-#ifndef NOPSTDINT
 		param->statscli64 += res;
-#else
-		param->statscli += res;
-#endif
 		if(param->cliinbuf == param->clioffset) param->cliinbuf = param->clioffset = 0;
 	}
 	else break;

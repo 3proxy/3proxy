@@ -43,11 +43,7 @@ void * pop3pchild(struct clientparam* param) {
 	socksend(param->remsock, param->extusername, (int)strlen((char *)param->extusername), conf.timeouts[STRING_S]) <= 0 ||
 	socksend(param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
 		{RETURN(623);}
-#ifndef NOPSTDINT
  param->statscli64 += (uint64_t)(strlen((char *)param->extusername) + 7);
-#else
- param->statscli += (int)(strlen((char *)param->extusername) + 7);
-#endif
  param->nwrites++;
  RETURN (sockmap(param, 180));
 CLEANRET:
