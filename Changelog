@@ -1,3 +1,6 @@
+15.04.2014
+! adding warnings for most common misconfigurations
+
 10.04.2014
 ! switching to 64-bit integers where possible.
   proxy should now support downloading for files > 4GB.
