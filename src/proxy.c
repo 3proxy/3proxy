@@ -377,7 +377,7 @@ for(;;){
 			continue;
 		}
 #ifndef NOCRYPT
-		if(!strncasecmp((char *)sb, "ntlm", 4)){
+		if(param->srv->usentlm && !strncasecmp((char *)sb, "ntlm", 4)){
 			sb+=4;
 			while(isspace(*sb))sb++;
 			i = de64(sb, username, 1023);
