@@ -15,6 +15,7 @@ tmp/
 *.swp
 *.o
 *.idb
+Changelog
 src/version.h
 src/res
 version.c
