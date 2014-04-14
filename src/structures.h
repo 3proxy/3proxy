@@ -530,6 +530,22 @@ struct child {
 	unsigned char **argv;
 };
 
+struct hashentry {
+	unsigned char hash[sizeof(unsigned)*4];
+	unsigned long value;
+	time_t expires;
+	struct hashentry *next;
+};
+
+struct hashtable {
+	unsigned hashsize;
+	struct hashentry ** hashtable;
+	struct hashentry * hashvalues;
+	struct hashentry * hashempty;
+};
+
+extern struct hashtable dns_table;
+
 struct sockfuncs {
 #ifdef _WIN32
 	SOCKET (WINAPI *_socket)(int domain, int type, int protocol);
