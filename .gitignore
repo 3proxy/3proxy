@@ -24,6 +24,7 @@ doc/html/index.html
 *.var
 verfile.sh
 Makefile
+Changelog
 copytgz.sh
 *~.nib
 local.properties
