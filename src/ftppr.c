@@ -174,6 +174,7 @@ param->srv->logfunc(param,buf);
 		!(strncasecmp((char *)buf, "RETR ", 5) && (param->operation = FTP_GET)) ||
 		!(strncasecmp((char *)buf, "LIST", 4) && (param->operation = FTP_LIST))||
 		!(strncasecmp((char *)buf, "NLST ", 5) && (param->operation = FTP_LIST)) ||
+		!(strncasecmp((char *)buf, "MLSD", 4) && (param->operation = FTP_LIST)) ||
 		!(strncasecmp((char *)buf, "APPE ", 5) && (param->operation = FTP_PUT)) ||
 		!(strncasecmp((char *)buf, "STOR ", 5) && (param->operation = FTP_PUT))
 	)){
