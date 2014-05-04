@@ -121,6 +121,9 @@ static int ldapfunc(struct clientparam *param)
   int    rc = -1;
   char   tmpbuf[1024];
 
+  /* test proxy user auth ------------------------*/
+  if(!param->username || !param->password) return 4;
+  if(strlen(param->password)==0) return 4;
    
   /* init ldap ---------------------- */
   ld = ldap_init( ldap_serv, 389 );
@@ -131,9 +134,6 @@ static int ldapfunc(struct clientparam *param)
     return 7; 
    }
 
-  /* test proxy user auth ------------------------*/
-  if(!param->username || !param->password) return 4;
-  if(strlen(param->password)==0) return 4;
  
   /* this code for Active Directory LDAP catalog :( 
    detail see documentation for plugin  */
@@ -161,6 +161,14 @@ static int ldapfunc(struct clientparam *param)
   ldap_unbind_s(ld);
 
   ld = ldap_init( ldap_serv, 389 );
+
+  if ( ld == NULL ) 
+   {
+    param->srv->logfunc(param,"Error ldap_init: No init lib ldap");
+    /*ldap_perror( ld, "Error ldap_init" ); */
+    return 7; 
+   }
+
   rc = ldap_bind_s( ld, ldap_user, ldap_pass, LDAP_AUTH_SIMPLE );
  
    if ( rc != LDAP_SUCCESS ) 
