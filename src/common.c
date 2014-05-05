@@ -688,9 +688,8 @@ unsigned long getip(unsigned char *name){
 		if(name[i] <'0' || name[i] >'9') break;
 	}
 	if(!name[i] && ndots == 3){
-		unsigned long ip;
-		if(scanaddr(name, &ip, NULL) == 4){
-			return ip;
+		if(scanaddr(name, &retval, NULL) == 4){
+			return retval;
 		}
 	}
 	if(resolvfunc){
@@ -718,4 +717,62 @@ unsigned long getip(unsigned char *name){
 #undef gethostbyname
 #endif
 	return retval;
+}
+
+#ifdef NOIPV6
+unsigned long getip46(int family, unsigned char *name,  struct sockaddr_in *sa){
+#else
+unsigned long getip46(int family, unsigned char *name,  struct sockaddr_storage *sa){
+	int ndots=0, ncols=0;
+	struct addrinfo *ai, *iter;
+	struct sockaddr *sa4, *sa6;
+	int i;
+
+	if(!sa) return 0;
+	if(!family) {
+#endif
+		memset(sa, 0, sizeof(struct sockaddr_in));
+		((struct sockaddr_in *)sa)->sin_family = AF_INET;
+		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getip(name))? AF_INET:0;
+#ifndef NOIPV6
+	}
+	for(i=0; name[i]; i++){
+		if(name[i] == '.'){
+			if(++ndots > 3) break;
+			continue;
+		}
+		else if(name[i] == ':'){
+			if(++ndots > 7) break;
+			continue;
+		}
+		if(name[i] <'0' || name[i] >'9') break;
+	}
+	if(!name[i]){
+		if(ndots == 3 && ncols == 0){
+			return inet_pton(AF_INET, name, sa)? AF_INET : 0; 
+		}
+		if(ncols >= 2) {
+			return inet_pton(AF_INET6, name, sa)? AF_INET6 : 0;
+		}
+	}
+	if (getaddrinfo(name, NULL, NULL, &ai)) return 0;
+	for(iter = ai; iter; iter = iter->ai_next){
+		if(!sa4 && iter->ai_addr->sa_family == AF_INET) sa4 = iter->ai_addr;
+		if(!sa6 && iter->ai_addr->sa_family == AF_INET) sa6 = iter->ai_addr;
+	}
+	if(sa6 && ((family == 6) || (family == 64) || (family == 46 && !sa4))){
+		memcpy(sa, sa6, sizeof(struct sockaddr_in6));
+		freeaddrinfo(ai);
+		return AF_INET6;
+	}
+	else if(sa4 && family != 6){
+		memcpy(sa, sa4, sizeof(struct sockaddr_in));
+		freeaddrinfo(ai);
+		return AF_INET;
+	}	
+	else {
+		freeaddrinfo(ai);
+		return 0;
+	}	
+#endif
 }

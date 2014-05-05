@@ -47,6 +47,10 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#ifndef NOIPV6
+#include <Ws2tcpip.h>
+
+#endif
 #ifndef _WINCE
 #include <io.h>
 #else
@@ -188,6 +192,11 @@ int myinet_ntoa(struct in_addr in, char * buf);
 extern unsigned long nservers[MAXNSERVERS];
 extern unsigned long authnserver;
 unsigned long getip(unsigned char *name);
+#ifdef NOIPV6
+unsigned long getip46(int family, unsigned char *name,  struct sockaddr_in *sa){
+#else
+unsigned long getip46(int family, unsigned char *name,  struct sockaddr_storage *sa){
+#endif
 unsigned long myresolver(unsigned char *);
 unsigned long fakeresolver (unsigned char *name);
 int initdnshashtable(unsigned nhashsize);
