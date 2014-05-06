@@ -42,8 +42,6 @@ void * ftpprchild(struct clientparam* param) {
 	if (req) myfree (req);
 	req = NULL;
 
-(*param->srv->logfunc)(param, buf);
-
 	if (!strncasecmp((char *)buf, "OPEN ", 5)){
 		if(parsehostname((char *)buf+5, param, 21)){RETURN(803);}
 		if(param->remsock != INVALID_SOCKET) {
@@ -123,10 +121,10 @@ void * ftpprchild(struct clientparam* param) {
 		}
 		if ((clidatasock=socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN(821);}
 		sasize = sizeof(struct sockaddr_in);
+		if(so._getsockname(param->ctrlsock, (struct sockaddr *)&param->sinc, &sasize)){RETURN(824);}
+		param->sinc.sin_port = 0;
+		if(so._bind(clidatasock, (struct sockaddr *)&param->sinc, sasize)){RETURN(822);}
 		if (pasv) {
-			if(so._getsockname(param->ctrlsock, (struct sockaddr *)&param->sinc, &sasize)){RETURN(824);}
-			param->sinc.sin_port = 0;
-			if(so._bind(clidatasock, (struct sockaddr *)&param->sinc, sasize)){RETURN(822);}
 			if(so._listen(clidatasock, 1)) {RETURN(823);}
 			if(so._getsockname(clidatasock, (struct sockaddr *)&param->sinc, &sasize)){RETURN(824);}
 			sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
@@ -137,7 +135,6 @@ void * ftpprchild(struct clientparam* param) {
 				 (unsigned)(((unsigned char *)(&param->sinc.sin_port))[0]),
 				 (unsigned)(((unsigned char *)(&param->sinc.sin_port))[1])
 				);
-param->srv->logfunc(param,buf);
 		}
 		else {
 			unsigned long b1, b2, b3, b4;
