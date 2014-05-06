@@ -545,7 +545,8 @@ for(;;){
 #endif
 
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
- if (param->sins.sin_addr.s_addr == param->srv->intip && param->sins.sin_port == param->srv->intport) {
+ if (param->srv->intsa.ss_family == AF_INET &&
+	(param->sins.sin_addr.s_addr == ((struct sockaddr_in *)&param->srv->intsa)->sin_addr.s_addr && param->sins.sin_port == param->srv->intport)) {
 	RETURN(519);
  }
  sasize = sizeof(struct sockaddr_in);

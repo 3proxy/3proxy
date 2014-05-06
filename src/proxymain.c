@@ -173,7 +173,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			break;
 		 case 'i':
-			srv.intip = getip((unsigned char *)argv[i]+2);
+			getip46(46, argv[i]+2, &srv.intsa);
 			break;
 		 case 'e':
 			srv.extip = getip((unsigned char *)argv[i]+2);
@@ -535,8 +535,8 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 	else srv->logformat = (unsigned char *)mystrdup((char *)srv->logformat);
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
- if(!srv->intip) srv->intip = conf.intip;
- param->sinc.sin_addr.s_addr = srv->intip;
+ if(!srv->intsa.ss_family) memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
+ param->sinc.sin_addr.s_addr = ((struct sockaddr_in *)&srv->intsa)->sin_addr.s_addr;
  param->sinc.sin_port = srv->intport;
  if(!srv->extip) srv->extip = conf.extip;
  param->sins.sin_addr.s_addr = param->extip = srv->extip;
@@ -843,7 +843,9 @@ void freeconf(struct extparam *confp){
  confp->logtype = NONE;
  confp->authfunc = ipauth;
  confp->bandlimfunc = NULL;
- confp->intip = confp->extip = 0;
+ memset(&confp->intsa, 0, sizeof(confp->intsa));
+ confp->intsa.ss_family = AF_INET;
+ confp->extip = 0;
  confp->intport = confp->extport = 0;
  confp->singlepacket = 0;
  confp->maxchild = 100;

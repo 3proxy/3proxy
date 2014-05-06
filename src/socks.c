@@ -178,7 +178,7 @@ fflush(stderr);
 		param->clisock = so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = param->srv->intip;
+		sin.sin_addr.s_addr = ((struct sockaddr_in *)&param->srv->intsa)->sin_addr.s_addr;
 		sin.sin_port = htons(0);
 		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(struct sockaddr_in))) {RETURN (12);}
 #if SOCKSTRACE > 0

@@ -727,7 +727,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 }
 
 static int h_internal(int argc, unsigned char ** argv){
-	conf.intip = getip(argv[1]);
+	getip46(46, argv[1], &conf.intsa);
 	return 0;
 }
 

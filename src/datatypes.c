@@ -72,6 +72,17 @@ static void pr_ip(struct node *node, CBFUNC cbf, void*cb){
 	if(node->value)(*cbf)(cb, buf, ipprint(buf, *(unsigned *)node -> value));
 }
 
+static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
+#ifdef NOIPV6
+	if(node->value)return pr_ip(node, &((struct sockaddr_in *)node->value)->sin_addr.s_addr)
+#else
+	char buf[64];
+	*buf = 0;
+	inet_ntop(((struct sockaddr *)node -> value)->sa_family, node->value, buf, sizeof(buf));
+	if(node->value)(*cbf)(cb, buf, strlen(buf));
+#endif
+}
+
 static void pr_wdays(struct node *node, CBFUNC cbf, void*cb){
 	char buf[16];
 	int i, found = 0;
@@ -555,8 +566,8 @@ static void * ef_server_targetport(struct node * node){
 	return &((struct srvparam *)node->value) -> targetport;
 }
 
-static void * ef_server_intip(struct node * node){
-	return &((struct srvparam *)node->value) -> intip;
+static void * ef_server_intsa(struct node * node){
+	return &((struct srvparam *)node->value) -> intsa;
 }
 
 static void * ef_server_extip(struct node * node){
@@ -763,7 +774,7 @@ static struct property prop_server[] = {
 	{prop_server + 2, "target", ef_server_target, TYPE_STRING, "portmapper target ip"},
 	{prop_server + 3, "targetport", ef_server_targetport, TYPE_PORT, "portmapper target port"},
 	{prop_server + 4, "starttime", ef_server_starttime, TYPE_DATETIME, "service started seconds"},
-	{prop_server + 5, "intip", ef_server_intip, TYPE_IP, "ip address of internal interface"},
+	{prop_server + 5, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
 	{prop_server + 6, "extip", ef_server_extip, TYPE_IP, "ip address of external interface"},
 	{prop_server + 7, "intport", ef_server_intport, TYPE_PORT, "port to listen"},
 	{prop_server + 8, "extport", ef_server_extport, TYPE_PORT, "port to use for outgoing connection"},
@@ -819,6 +830,7 @@ struct datatype datatypes[64] = {
 	{"traffic", NULL, pr_traffic, NULL},
 	{"port", NULL, pr_port, NULL},
 	{"ip", NULL, pr_ip, NULL},
+	{"sa", NULL, pr_sa, NULL},
 	{"cidr", NULL, pr_cidr, NULL},
 	{"string", NULL, pr_string, NULL},
 	{"datetime", NULL, pr_datetime, NULL},

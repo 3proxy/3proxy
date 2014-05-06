@@ -47,10 +47,6 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
-#ifndef NOIPV6
-#include <Ws2tcpip.h>
-
-#endif
 #ifndef _WINCE
 #include <io.h>
 #else
@@ -319,7 +315,6 @@ extern pthread_mutex_t odbc_mutex;
 #endif
 
 extern struct hashtable dns_table;
-
 extern struct datatype datatypes[64];
 
 extern struct commands commandhandlers[];

@@ -28,6 +28,9 @@ extern "C" {
 #define INVALID_SOCKET  (-1)
 #else
 #include <winsock2.h>
+#ifndef NOIPV6
+#include <Ws2tcpip.h>
+#endif
 #define pthread_mutex_t CRITICAL_SECTION
 #define pthread_mutex_init(x, y) InitializeCriticalSection(x)
 #define pthread_mutex_lock(x) EnterCriticalSection(x)
@@ -330,7 +333,7 @@ struct srvparam {
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
-	unsigned long intip;
+	struct sockaddr_storage intsa;
 	unsigned long extip;
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
@@ -451,7 +454,8 @@ struct extparam {
 	unsigned char *logname, **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;
-	unsigned long intip, extip;
+	struct sockaddr_storage intsa;
+	unsigned long extip;
 	unsigned short intport, extport;
 	struct passwords *pwl;
 	struct auth * authenticate;
@@ -659,6 +663,7 @@ typedef enum {
 	TYPE_TRAFFIC,
 	TYPE_PORT,
 	TYPE_IP,
+	TYPE_SA,
 	TYPE_CIDR,
 	TYPE_STRING,
 	TYPE_DATETIME,
