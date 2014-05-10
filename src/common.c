@@ -22,13 +22,22 @@ int randomizer = 1;
 
 unsigned char **stringtable = NULL;
 
-int myinet_ntoa(struct in_addr in, char * buf){
- unsigned u = ntohl(in.s_addr);
- return sprintf(buf, "%u.%u.%u.%u", 
-	((u&0xFF000000)>>24), 
-	((u&0x00FF0000)>>16),
-	((u&0x0000FF00)>>8),
-	((u&0x000000FF)));
+int myinet_ntop(int af, const void *src, char *dst, socklen_t size){
+#ifndef NOIPV6
+ if(af != AF_INET6){
+#endif 
+	unsigned u = ntohl(((struct in_addr *)src)->s_addr);
+ 	return sprintf(dst, "%u.%u.%u.%u", 
+		((u&0xFF000000)>>24), 
+		((u&0x00FF0000)>>16),
+		((u&0x0000FF00)>>8),
+		((u&0x000000FF)));
+#ifndef NOIPV6
+ }
+ *dst = 0;
+ inet_ntop(af, src, dst, size);
+ return strlen(dst);
+#endif 
 }
 
 char *rotations[] = {
@@ -421,7 +430,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 							i++;
 						}
 					}
-					else i += myinet_ntoa(param->sins.sin_addr, (char *)buf + i);
+					else i += myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf + i, 64);
 					break;
 
 				case 'N':
@@ -451,16 +460,16 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 break;
 				case 'e':
 				 tmpia.s_addr = param->extip;
-				 i += myinet_ntoa(tmpia, (char *)buf + i);
+				 i += myinet_ntop(AF_INET, &tmpia, (char *)buf + i, 64);
 				 break;
 				case 'C':
-				 i += myinet_ntoa(param->sinc.sin_addr, (char *)buf + i);
+				 i += myinet_ntop(*SAFAMILY(&param->sinc), SAADDR(&param->sinc), (char *)buf + i, 64);
 				 break;
 				case 'R':
-				 i += myinet_ntoa(param->sins.sin_addr, (char *)buf + i);
+				 i += myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf + i, 64);
 				 break;
 				case 'Q':
-				 i += myinet_ntoa(param->req.sin_addr, (char *)buf + i);
+				 i += myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + i, 64);
 				 break;
 				case 'p':
 				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->srv->intsa)));

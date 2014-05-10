@@ -100,7 +100,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 				len = 8 + sprintf((char *)buf + 8, "%.256s", param->hostname);
 			}
 			else {
-				len = 8 + myinet_ntoa(ina, (char *)buf+8);
+				len = 8 + myinet_ntop(AF_INET, &ina, (char *)buf+8, 256);
 			}
 			len += sprintf((char *)buf + len,
 				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(port));

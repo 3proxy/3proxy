@@ -70,7 +70,7 @@ static FILTER_ACTION msn_srv(void *fc, struct clientparam * param, unsigned char
 	len = (int)strlen(tmpbuf);
 	tmpbuf[len++] = ' ';
 
-	len+=myinet_ntoa(sa.sin_addr, tmpbuf+len);
+	len+=myinet_ntop(*SAFAMILY(&sa), SAADDR(&sa), tmpbuf+len, 64);
 	sprintf(tmpbuf+len, ":%hu %s", ntohs(sa.sin_port), sp3 + 1);
 	len = (int)strlen(tmpbuf);
 	memcpy(*buf_p + offset, tmpbuf, len);

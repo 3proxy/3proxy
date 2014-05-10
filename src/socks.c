@@ -96,7 +96,7 @@ void * sockschild(struct clientparam* param) {
 		if(command==1 && !param->req.sin_addr.s_addr) {
 			RETURN(422);
 		}
-		myinet_ntoa(param->sins.sin_addr, (char *)buf);
+		myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf + strlen((char *)buf), 64);
 		break;
 	case 3:
 		if ((size = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
@@ -400,7 +400,8 @@ fflush(stderr);
 	 if(param->hostname){
 	  sprintf((char *)buf + strlen((char *)buf), "%.265s", param->hostname);
 	 }
-	 else myinet_ntoa(param->req.sin_addr, (char *)buf+strlen((char *)buf));
+	 else 
+		myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + strlen((char *)buf), 64);
          sprintf((char *)buf+strlen((char *)buf), ":%hu", ntohs(param->req.sin_port));
 	 (*param->srv->logfunc)(param, buf);
 	 myfree(buf);

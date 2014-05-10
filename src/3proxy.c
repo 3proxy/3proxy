@@ -727,7 +727,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 }
 
 static int h_internal(int argc, unsigned char ** argv){
-	getip46(46, argv[1], &conf.intsa);
+	getip46(46, argv[1], (struct sockaddr *)&conf.intsa);
 	return 0;
 }
 

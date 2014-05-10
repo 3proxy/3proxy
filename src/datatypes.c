@@ -77,7 +77,7 @@ static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
 	if(node->value)return pr_ip(node, &((struct sockaddr_in *)node->value)->sin_addr.s_addr)
 #else
 	char buf[64];
-	buf[0] = '['
+	buf[0] = '[';
 	buf[1] = 0;
 	inet_ntop(*SAFAMILY(node->value), node->value, buf+1, sizeof(buf)-10);
 	sprintf(buf + strlen(buf), "]:hu", (unsigned short)*SAPORT(node->value));

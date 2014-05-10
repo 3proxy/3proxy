@@ -118,7 +118,7 @@ static void addbuffer(int increment, struct clientparam * param, unsigned char *
 
 static int searchcookie(struct clientparam *param, struct flap_header * flap, int len, int * dif, struct tlv_header *tlv, int extra){
  struct icq_cookie *ic;
- char smallbuf[32];
+ char smallbuf[64];
  struct tlv_header *bostlv = NULL;
  struct sockaddr_in sa;
  SASIZETYPE size = sizeof(sa);
@@ -165,7 +165,7 @@ static int searchcookie(struct clientparam *param, struct flap_header * flap, in
 	pthread_mutex_unlock(&icq_cookie_mutex);
 	if(bostlv){
 		if(so._getsockname(param->clisock, (struct sockaddr *)&sa, &size)==-1) return 1;
-		len = myinet_ntoa(sa.sin_addr, smallbuf);
+		len = myinet_ntop(*SAFAMILY(&sa),SAADDR(&sa), smallbuf, 64);
 		if(strchr(ic->connectstring, ':'))sprintf(smallbuf+len, ":%hu", ntohs(sa.sin_port));
 		len = (int)strlen(smallbuf);
 		*dif = len - (int)ntohs(bostlv->size);
