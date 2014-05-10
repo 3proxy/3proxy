@@ -173,13 +173,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			break;
 		 case 'i':
-			getip46(46, argv[i]+2, &srv.intsa);
+			getip46(46, argv[i]+2, (struct sockaddr *)&srv.intsa);
 			break;
 		 case 'e':
 			srv.extip = getip((unsigned char *)argv[i]+2);
 			break;
 		 case 'p':
-			srv.intport = htons(atoi(argv[i]+2));
+			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
 			break;
 		 case 'b':
 			srv.bufsize = atoi(argv[i]+2);
@@ -259,7 +259,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  else {
 #endif
 #ifndef NOPORTMAP
-	if (error || argc != i+3 || *argv[i]=='-'|| (srv.intport = htons((unsigned short)atoi(argv[i])))==0 || (srv.targetport = htons((unsigned short)atoi(argv[i+2])))==0) {
+	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv.intsa) = htons((unsigned short)atoi(argv[i])))==0 || (srv.targetport = htons((unsigned short)atoi(argv[i+2])))==0) {
 #ifndef STDMAIN
 		haveerror = 1;
 		conf.threadinit = 0;
@@ -311,7 +311,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
  
  srvinit2(&srv, &defparam);
- if(!srv.intport) srv.intport = htons(childdef.port);
+ if(!*SAPORT(&srv.intsa)) *SAPORT(&srv.intsa) = htons(childdef.port);
  if(!defparam.sinc.sin_port) defparam.sinc.sin_port = htons(childdef.port);
  if(hostname)parsehostname(hostname, &defparam, childdef.port);
 
@@ -329,7 +329,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(!isudp){
 		lg.l_onoff = 1;
 		lg.l_linger = conf.timeouts[STRING_L];
-		sock=so._socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+		sock=so._socket(SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
 	}
 	else {
 		sock=so._socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -350,8 +350,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
  }
 
- size = sizeof(defparam.sinc);
- for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&defparam.sinc, size)==-1; usleep(sleeptime)) {
+ size = sizeof(srv.intsa);
+ for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&srv.intsa, size)==-1; usleep(sleeptime)) {
 	sprintf((char *)buf, "bind(): %s", strerror(errno));
 	if(!srv.silent)(*srv.logfunc)(&defparam, buf);	
 	sleeptime = (sleeptime<<1);	
@@ -374,8 +374,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 	sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
 	(*srv.logfunc)(&defparam, buf);
  }
- defparam.sinc.sin_addr.s_addr = defparam.sins.sin_addr.s_addr = 0;
- defparam.sinc.sin_port = defparam.sins.sin_port = 0;
+ memset(&defparam.sinc, 0, sizeof(defparam.sinc));
+ memset(&defparam.sins, 0, sizeof(defparam.sins));
+ *SAFAMILY(&defparam.sinc) = AF_INET;
+ *SAFAMILY(&defparam.sins) = AF_INET;
 
  srv.fds.fd = sock;
  srv.fds.events = POLLIN;
@@ -519,7 +521,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  param->req.sin_family = param->sins.sin_family = param->sinc.sin_family = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
-
+ memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
 }
 
 void srvinit2(struct srvparam * srv, struct clientparam *param){
@@ -535,9 +537,9 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 	else srv->logformat = (unsigned char *)mystrdup((char *)srv->logformat);
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
- if(!srv->intsa.ss_family) memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
+ if(!*SAFAMILY(&srv->intsa)) *SAFAMILY(&srv->intsa) = AF_INET;
  param->sinc.sin_addr.s_addr = ((struct sockaddr_in *)&srv->intsa)->sin_addr.s_addr;
- param->sinc.sin_port = srv->intport;
+ param->sinc.sin_port = *SAPORT(&srv->intsa);
  if(!srv->extip) srv->extip = conf.extip;
  param->sins.sin_addr.s_addr = param->extip = srv->extip;
  if(!srv->extport) srv->extport = htons(conf.extport);
@@ -844,9 +846,9 @@ void freeconf(struct extparam *confp){
  confp->authfunc = ipauth;
  confp->bandlimfunc = NULL;
  memset(&confp->intsa, 0, sizeof(confp->intsa));
- confp->intsa.ss_family = AF_INET;
+ *SAFAMILY(&confp->intsa) = AF_INET;
  confp->extip = 0;
- confp->intport = confp->extport = 0;
+ *SAPORT(&confp->intsa) = confp->extport = 0;
  confp->singlepacket = 0;
  confp->maxchild = 100;
  resolvfunc = NULL;

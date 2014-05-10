@@ -101,6 +101,21 @@ int
 #define IM_MSN		0x00400000
 #define ADMIN		0x01000000
 
+
+#define SAFAMILY(sa) (&(((struct sockaddr_in *)sa)->sin_family))
+
+#ifndef NOIPV6
+#define SAPORT(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? &((struct sockaddr_in6 *)sa)->sin6_port : &((struct sockaddr_in *)sa)->sin_port)
+#define SAADDR(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)((struct sockaddr_in6 *)sa)->sin6_addr.s6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDRLEN(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
+#define SASOCK(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
+#else
+#define SAPORT(sa)  (&((struct sockaddr_in *)sa)->sin_port)
+#define SAADDR(sa)  ((unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.a_addr)
+#define SAADDRLEN(sa) (4)
+#define SASOCK(sa) (PF_INET)
+#endif
+
 typedef enum {
 	CLIENT,
 	SERVER
@@ -333,7 +348,11 @@ struct srvparam {
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
-	struct sockaddr_storage intsa;
+#ifndef NOIPV6
+	struct sockaddr_in6 intsa;
+#else
+	struct sockaddr_in intsa
+#endif
 	unsigned long extip;
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
@@ -347,7 +366,6 @@ struct srvparam {
 	unsigned char * logformat;
 	unsigned char * logtarget;
 	unsigned char * nonprintable;
-	unsigned short intport;
 	unsigned short extport;
 	unsigned short targetport;
 	unsigned char replace;
@@ -454,9 +472,13 @@ struct extparam {
 	unsigned char *logname, **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;
-	struct sockaddr_storage intsa;
+#ifndef NOIPV6
+	struct sockaddr_in6 intsa;
+#else
+	struct sockaddr_in intsa
+#endif
 	unsigned long extip;
-	unsigned short intport, extport;
+	unsigned short extport;
 	struct passwords *pwl;
 	struct auth * authenticate;
 	AUTHFUNC authfunc;

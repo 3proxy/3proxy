@@ -545,8 +545,8 @@ for(;;){
 #endif
 
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
- if (param->srv->intsa.ss_family == AF_INET &&
-	(param->sins.sin_addr.s_addr == ((struct sockaddr_in *)&param->srv->intsa)->sin_addr.s_addr && param->sins.sin_port == param->srv->intport)) {
+ if (*SAFAMILY(&param->srv->intsa) == AF_INET &&
+	(param->sins.sin_addr.s_addr == ((struct sockaddr_in *)&param->srv->intsa)->sin_addr.s_addr && param->sins.sin_port == *SAPORT(&param->srv->intsa))) {
 	RETURN(519);
  }
  sasize = sizeof(struct sockaddr_in);
@@ -830,7 +830,7 @@ for(;;){
  if(anonymous!=1){
 		sprintf((char*)buf+strlen((char *)buf), "Via: 1.1 ");
 		gethostname((char *)(buf+strlen((char *)buf)), 256);
-		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(param->srv->intport), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
+		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
 		if(!anonymous)myinet_ntoa(param->sinc.sin_addr, (char *)buf + strlen((char *)buf));
 		else {
 			unsigned long tmp;

@@ -107,7 +107,7 @@ void * dnsprchild(struct clientparam* param) {
 	unsigned a, b, c, d;
 	sscanf(host, "%u.%u.%u.%u", &a, &b, &c, &d);
 	ip = htonl((d<<24) ^ (c<<16) ^ (b<<8) ^ a);
-	if(param->srv->intsa.ss_family == AF_INET &&  ip == ((struct sockaddr_in *)&param->srv->intsa)->sin_addr.s_addr){
+	if(*SAFAMILY(&param->srv->intsa) == AF_INET &&  ip == *(unsigned long*)SAADDR(&param->srv->intsa)){
 		buf[2] = 0x85;
 		buf[3] = 0x80;
 		buf[6] = 0;

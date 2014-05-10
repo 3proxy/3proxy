@@ -58,7 +58,7 @@ struct extparam conf = {
 	NULL,
 	{AF_INET}, 
 	INADDR_ANY, 
-	0, 0,
+	0,
 	NULL,
 	NULL,
 	doconnect,
@@ -463,7 +463,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i += myinet_ntoa(param->req.sin_addr, (char *)buf + i);
 				 break;
 				case 'p':
-				 sprintf((char *)buf+i, "%hu", ntohs(param->srv->intport));
+				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->srv->intsa)));
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'c':
@@ -720,60 +720,66 @@ unsigned long getip(unsigned char *name){
 	return retval;
 }
 
-#ifdef NOIPV6
-unsigned long getip46(int family, unsigned char *name,  struct sockaddr_in *sa){
-#else
-unsigned long getip46(int family, unsigned char *name,  struct sockaddr_storage *sa){
-	int ndots=0, ncols=0;
+unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
+#ifndef NOIPV6
+	int ndots=0, ncols=0, nhex=0;
 	struct addrinfo *ai, *iter;
-	struct sockaddr *sa4, *sa6;
+	struct sockaddr *sa4=NULL, *sa6=NULL;
 	int i;
 
 	if(!sa) return 0;
 	if(!family) {
 #endif
-		memset(sa, 0, sizeof(struct sockaddr_in));
 		((struct sockaddr_in *)sa)->sin_family = AF_INET;
 		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getip(name))? AF_INET:0;
 #ifndef NOIPV6
 	}
 	for(i=0; name[i]; i++){
 		if(name[i] == '.'){
-			if(++ndots > 3) break;
-			continue;
+			if(++ndots > 3) {
+				break;
+			}
 		}
 		else if(name[i] == ':'){
-			if(++ndots > 7) break;
-			continue;
+			if(++ncols > 7) {
+				break;
+			}
 		}
-		if(name[i] <'0' || name[i] >'9') break;
+		else if(name[i] == '%' || (name[i] >= 'a' && name[i] <= 'f') || (name[i] >= 'A' && name[i] <= 'F')){
+			nhex++;
+		}
+		else if(name[i] <'0' || name[i] >'9') {
+			break;
+		}
 	}
 	if(!name[i]){
-		if(ndots == 3 && ncols == 0){
-			return inet_pton(AF_INET, name, sa)? AF_INET : 0; 
+		if(ndots == 3 && ncols == 0 && nhex == 0){
+			*SAFAMILY(sa)=AF_INET;
+			return inet_pton(AF_INET, name, SAADDR(sa))? AF_INET : 0; 
 		}
 		if(ncols >= 2) {
-			return inet_pton(AF_INET6, name, sa)? AF_INET6 : 0;
+			*SAFAMILY(sa)=AF_INET6;
+			return inet_pton(AF_INET6, name, SAADDR(sa))? AF_INET6 : 0;
 		}
 	}
 	if (getaddrinfo(name, NULL, NULL, &ai)) return 0;
 	for(iter = ai; iter; iter = iter->ai_next){
 		if(!sa4 && iter->ai_addr->sa_family == AF_INET) sa4 = iter->ai_addr;
-		if(!sa6 && iter->ai_addr->sa_family == AF_INET) sa6 = iter->ai_addr;
+		if(!sa6 && iter->ai_addr->sa_family == AF_INET6) sa6 = iter->ai_addr;
 	}
 	if(sa6 && ((family == 6) || (family == 64) || (family == 46 && !sa4))){
-		memcpy(sa, sa6, sizeof(struct sockaddr_in6));
+		*SAFAMILY(sa)=AF_INET6;
+		memcpy(SAADDR(sa), SAADDR(sa6), SAADDRLEN(sa));
 		freeaddrinfo(ai);
 		return AF_INET6;
 	}
 	else if(sa4 && family != 6){
-		memcpy(sa, sa4, sizeof(struct sockaddr_in));
+		*SAFAMILY(sa)=AF_INET;
+		memcpy(SAADDR(sa), SAADDR(sa4), SAADDRLEN(sa));
 		freeaddrinfo(ai);
 		return AF_INET;
 	}	
-	else {
-		freeaddrinfo(ai);
-		return 0;
-	}	
+	freeaddrinfo(ai);
+	return 0;
 #endif
 }

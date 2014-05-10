@@ -77,8 +77,10 @@ static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
 	if(node->value)return pr_ip(node, &((struct sockaddr_in *)node->value)->sin_addr.s_addr)
 #else
 	char buf[64];
-	*buf = 0;
-	inet_ntop(((struct sockaddr *)node -> value)->sa_family, node->value, buf, sizeof(buf));
+	buf[0] = '['
+	buf[1] = 0;
+	inet_ntop(*SAFAMILY(node->value), node->value, buf+1, sizeof(buf)-10);
+	sprintf(buf + strlen(buf), "]:hu", (unsigned short)*SAPORT(node->value));
 	if(node->value)(*cbf)(cb, buf, strlen(buf));
 #endif
 }
@@ -574,10 +576,6 @@ static void * ef_server_extip(struct node * node){
 	return &((struct srvparam *)node->value) -> extip;
 }
 
-static void * ef_server_intport(struct node * node){
-	return &((struct srvparam *)node->value) -> intport;
-}
-
 static void * ef_server_extport(struct node * node){
 	return &((struct srvparam *)node->value) -> extport;
 }
@@ -776,19 +774,18 @@ static struct property prop_server[] = {
 	{prop_server + 4, "starttime", ef_server_starttime, TYPE_DATETIME, "service started seconds"},
 	{prop_server + 5, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
 	{prop_server + 6, "extip", ef_server_extip, TYPE_IP, "ip address of external interface"},
-	{prop_server + 7, "intport", ef_server_intport, TYPE_PORT, "port to listen"},
-	{prop_server + 8, "extport", ef_server_extport, TYPE_PORT, "port to use for outgoing connection"},
-	{prop_server + 9, "auth", ef_server_auth, TYPE_STRING, "service authentication type"},
-	{prop_server + 10, "acl", ef_server_acl, TYPE_ACE, "access control list"},
-	{prop_server + 11, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},
-	{prop_server + 12, "usentlm", ef_server_usentlm, TYPE_INTEGER, "allow NTLM authentication"},
-	{prop_server + 13, "log", ef_server_log, TYPE_STRING, "type of logging"},
-	{prop_server + 14, "logtarget", ef_server_logtarget, TYPE_STRING, "log target options"},
-	{prop_server + 15, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
-	{prop_server + 16, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
-	{prop_server + 17, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
-	{prop_server + 18, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
-	{prop_server + 19, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
+	{prop_server + 7, "extport", ef_server_extport, TYPE_PORT, "port to use for outgoing connection"},
+	{prop_server + 8, "auth", ef_server_auth, TYPE_STRING, "service authentication type"},
+	{prop_server + 9, "acl", ef_server_acl, TYPE_ACE, "access control list"},
+	{prop_server + 10, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},
+	{prop_server + 11, "usentlm", ef_server_usentlm, TYPE_INTEGER, "allow NTLM authentication"},
+	{prop_server + 12, "log", ef_server_log, TYPE_STRING, "type of logging"},
+	{prop_server + 13, "logtarget", ef_server_logtarget, TYPE_STRING, "log target options"},
+	{prop_server + 14, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
+	{prop_server + 15, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
+	{prop_server + 16, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
+	{prop_server + 17, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
+	{prop_server + 18, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
 	{NULL, "next", ef_server_next, TYPE_SERVER, "next"}
 };
 
