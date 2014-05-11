@@ -1149,6 +1149,47 @@ static int h_nolog(int argc, unsigned char **argv){
 	return 0;
 }
 
+int scanipl(unsigned char *arg, struct iplist *dst){
+#ifndef NOIPV6
+	struct sockaddr_in6 sa;
+#else
+	struct sockaddr_in sa;
+#endif
+        char * slash, *dash;
+	int masklen, addrlen;
+	if((slash = strchr(arg, '/'))) *slash = 0;
+	if((dash = strchr(arg,'-'))) *dash = 0;
+	
+	if(!getip46(46, arg, (struct sockaddr *)&sa)) return 1;
+	memcpy(&dst->ip_from, SAADDR(&sa), SAADDRLEN(&sa));
+	dst->family = *SAFAMILY(&sa);
+	if(dash){
+		if(!getip46(46, dash+1, (struct sockaddr *)&sa)) return 2;
+		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
+		return 0;
+	}
+	if(slash){
+		addrlen = SAADDRLEN(&sa);
+		masklen = atoi(slash+1);
+		if(masklen >= 0 && masklen<(addrlen*8)){
+			int i, nbytes = masklen / 8, nbits = masklen % 8;
+			
+			for(i = addrlen; i; i--){
+				((unsigned char *)&dst->ip_from)[i-1] = 0x00;
+				((unsigned char *)&dst->ip_to)[i-1] = 0xff;
+			}
+			memcpy(&dst->ip_to, &dst->ip_from, addrlen - i);
+			for(;nbits;nbits--){
+				((unsigned char *)&dst->ip_from)[i-1] &= (0x01<<(nbits-1));
+				((unsigned char *)&dst->ip_to)[i-1] |= (0x01<<(nbits-1));
+			}
+			return 0;
+		}
+	}		
+	memcpy(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa));
+	return 0;
+}
+
 struct ace * make_ace (int argc, unsigned char ** argv){
 	struct ace * acl;
 	unsigned char *arg;
@@ -1195,12 +1236,9 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					return(NULL);
 				}
 				memset(ipl, 0, sizeof(struct iplist));
-				if (!scanaddr(arg, &ipl->ip, &ipl->mask)) {
-					if((ipl->ip = getip(arg)) == 0){
-						fprintf(stderr, "Invalid IP or CIDR, line %d\n", linenum);
-						return(NULL);
-					}
-					ipl->mask = 0xFFFFFFFF;
+				if (scanipl(arg, ipl)) {
+					fprintf(stderr, "Invalid IP or CIDR, line %d\n", linenum);
+					return(NULL);
 				}
 			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
 		}
@@ -1256,7 +1294,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					return(NULL);
 				}
 				memset(ipl, 0, sizeof(struct iplist));
-				if (!scanaddr(arg, &ipl->ip, &ipl->mask)) {
+				if (scanipl(arg, ipl)) {
 						fprintf(stderr, "Invalid IP or CIDR, line %d\n", linenum);
 						return(NULL);
 				}

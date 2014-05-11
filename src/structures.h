@@ -170,8 +170,14 @@ struct auth {
 
 struct iplist {
 	struct iplist *next;
-	unsigned long ip;
-	unsigned long mask;
+	int family;
+#ifndef NOIPV6
+	struct in6_addr ip_from;
+	struct in6_addr ip_to;
+#else
+	struct in_addr ip_from;
+	struct in_addr ip_to;
+#endif
 };
 
 struct portlist {

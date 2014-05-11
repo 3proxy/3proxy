@@ -319,21 +319,15 @@ static int printuserlist(char *buf, int bufsize, struct userlist* ul, char * del
 	return printed;
 }
 
+
+int printiple(char *buf, struct iplist* ipl);
+
 static int printiplist(char *buf, int bufsize, struct iplist* ipl, char * delim){
 	int printed = 0;
 	for(; ipl; ipl = ipl->next){
-		if(printed > (bufsize - 64)) break;
-		printed += sprintf(buf+printed, "%u.%u.%u.%u mask %u.%u.%u.%u%s",
-			(unsigned)(ntohl(ipl->ip)&0xff000000)>>24,
-			(unsigned)(ntohl(ipl->ip)&0x00ff0000)>>16,
-			(unsigned)(ntohl(ipl->ip)&0x0000ff00)>>8,
-			(unsigned)(ntohl(ipl->ip)&0x000000ff),
-			(unsigned)(ntohl(ipl->mask)&0xff000000)>>24,
-			(unsigned)(ntohl(ipl->mask)&0x00ff0000)>>16,
-			(unsigned)(ntohl(ipl->mask)&0x0000ff00)>>8,
-			(unsigned)(ntohl(ipl->mask)&0x000000ff),
-			ipl->next?delim:"");
-		if(printed > (bufsize - 64)) {
+		if(printed > (bufsize - 128)) break;
+		printed += printiple(buf+printed, ipl);
+		if(printed > (bufsize - 128)) {
 			printed += sprintf(buf+printed, "...");
 			break;
 		}

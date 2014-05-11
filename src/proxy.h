@@ -174,7 +174,6 @@ int init_sql(char * s);
 void close_sql();
 #endif
 int doconnect(struct clientparam * param);
-int nbnameauth(struct clientparam * param);
 int alwaysauth(struct clientparam * param);
 int ipauth(struct clientparam * param);
 int doauth(struct clientparam * param);

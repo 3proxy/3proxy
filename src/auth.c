@@ -12,62 +12,6 @@
 #define HEADERSIZE 57
 #define RECORDSIZE  18
 
-unsigned char request[] = {	
-		0xa2, 0x48, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x20, 0x43, 0x4b, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x00, 0x00, 0x21, 
-		0x00, 0x01};
-
-unsigned char * getNetBIOSnamebyip(unsigned long ip){
- unsigned char buf[1024];
- struct sockaddr_in sins;
- int res;
- SOCKET sock;
- unsigned char * username = NULL;
- int i;
- int j;
- int nnames;
- int type;
-
- if ( (sock=so._socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP)) == INVALID_SOCKET) return NULL;
- memset(&sins, 0, sizeof(sins));
- sins.sin_family = AF_INET;
- sins.sin_port = htons(0);
- sins.sin_addr.s_addr = INADDR_ANY;
- if(so._bind(sock,(struct sockaddr *)&sins,sizeof(sins))) {
-	so._closesocket(sock);
-	return NULL;
- }
- sins.sin_family = AF_INET;
- sins.sin_addr.s_addr = ip;
- sins.sin_port = htons(137);
- res=socksendto(sock, (struct sockaddr*)&sins, request, sizeof(request), conf.timeouts[SINGLEBYTE_L]*1000);
- if(res <= 0) {
-	so._closesocket(sock);
-	return NULL;
- }
- res = sockrecvfrom(sock, (struct sockaddr*)&sins, buf, sizeof(buf), conf.timeouts[SINGLEBYTE_L]*1000);
- so._closesocket(sock);
- if(res < (HEADERSIZE + RECORDSIZE)) {
-	return NULL;
- }
- nnames = buf[HEADERSIZE-1];
- if (res < (HEADERSIZE + (nnames * RECORDSIZE))) return NULL;
- for (i = 0; i < nnames; i++){
-	type = buf[HEADERSIZE + (i*RECORDSIZE) + 15];
-	if( type == 3) {
-		for(j = 14; j && buf[HEADERSIZE + (i*RECORDSIZE) + j] == ' '; j--)
-			buf[HEADERSIZE + (i*RECORDSIZE) + j] = 0;
-		if(username)myfree(username);
-		username = (unsigned char *)mystrdup((char *)buf + HEADERSIZE + i*RECORDSIZE);
-	}
-	buf[HEADERSIZE + (i*RECORDSIZE) + 15] = 0;
- }
- return username;
-} 
 
 int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned long ip, unsigned short port){
 	unsigned char buf[1024];
@@ -362,6 +306,18 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	return redir?clientnegotiate(redir, param, targetip, targetport):0;
 }
 
+int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
+	int i, addrlen;
+	unsigned char *ip, *ipf, *ipt;
+	ip = (unsigned char *)SAADDR(sa);
+	ipf = (unsigned char *)&ipentry->ip_from;
+	ipt = (unsigned char *)&ipentry->ip_to;
+	if(!sa || ! ipentry || *SAFAMILY(sa) != ipentry->family) return 0;
+	addrlen = SAADDRLEN(sa);
+	for(i=0; i<addrlen; i++) if(ip[i]<ipf[i] || ip[i]>ipt[i]) return 0;
+	return 1;
+	
+}
 
 int ACLmatches(struct ace* acentry, struct clientparam * param){
 	struct userlist * userentry;
@@ -376,15 +332,14 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	username = param->username?param->username:(unsigned char *)"-";
 	if(acentry->src) {
 	 for(ipentry = acentry->src; ipentry; ipentry = ipentry->next)
-/* FIX IT !*/
-		if(ipentry->ip == (*(unsigned long *)SAADDR(&param->sincr) & ipentry->mask)) {
+		if(IPInentry((struct sockaddr *)&param->sincr, ipentry)) {
 			break;
 		}
-		if(!ipentry) return 0;
+	 if(!ipentry) return 0;
 	}
 	if((acentry->dst && param->req.sin_addr.s_addr) || (acentry->dstnames && param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
-		if(ipentry->ip == (param->req.sin_addr.s_addr & ipentry->mask)) {
+		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
 		}
 	 if(!ipentry) {
@@ -647,7 +602,11 @@ struct authcache {
 	char * username;
 	char * password;
 	time_t expires;
-	unsigned long ip;	
+#ifndef NOIPV6
+	struct sockaddr_in6 sa;
+#else
+	struct sockaddr_in sa;
+#endif
 	struct authcache *next;
 } *authc = NULL;
 
@@ -674,8 +633,7 @@ int cacheauth(struct clientparam * param){
 			
 		}
 		if(((!(conf.authcachetype&2)) || (param->username && ac->username && !strcmp(ac->username, param->username))) &&
-/* FIX IT */
-		   ((!(conf.authcachetype&1)) || ac->ip == *(unsigned long *)SAADDR(&param->sincr)) && 
+		   ((!(conf.authcachetype&1)) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa)))) && 
 		   (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, param->password)))) {
 			if(param->username){
 				myfree(param->username);
@@ -709,8 +667,7 @@ int doauth(struct clientparam * param){
 				pthread_mutex_lock(&hash_mutex);
 				for(ac = authc; ac; ac = ac->next){
 					if((!(conf.authcachetype&2) || !strcmp(ac->username, param->username)) &&
-/* FIX IT */
-					   (!(conf.authcachetype&1) || ac->ip == *(unsigned long *)SAADDR(&param->sincr))  &&
+					   (!(conf.authcachetype&1) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa))))  &&
 					   (!(conf.authcachetype&4) || (ac->password && !strcmp(ac->password, param->password)))) {
 						ac->expires = conf.time + conf.authcachetime;
 						if(strcmp(ac->username, param->username)){
@@ -723,8 +680,7 @@ int doauth(struct clientparam * param){
 							ac->password = mystrdup(param->password);
 							myfree(tmp);
 						}
-/* FIX IT */
-						ac->ip = *(unsigned long *)SAADDR(&param->sincr);
+						memcpy(&ac->sa, &param->sincr, SASIZE(&param->sincr));
 						break;
 					}
 				}
@@ -733,8 +689,7 @@ int doauth(struct clientparam * param){
 					if(ac){
 						ac->expires = conf.time + conf.authcachetime;
 						ac->username = mystrdup(param->username);
-/* FIX IT */
-						ac->ip = *(unsigned long *)SAADDR(&param->sincr);
+						memcpy(&ac->sa, &param->sincr, SASIZE(&param->sincr));
 						ac->password = NULL;
 						if((conf.authcachetype&4) && param->password) ac->password = mystrdup(param->password);
 					}
@@ -767,15 +722,6 @@ int ipauth(struct clientparam * param){
 
 int userauth(struct clientparam * param){
 	return (param->username)? 0:4;
-}
-
-int nbnameauth(struct clientparam * param){
-/* FIX IT */
-	unsigned char * name = getNetBIOSnamebyip(*(unsigned long *)SAADDR(&param->sincr));
-
-	if (param->username) myfree (param->username);
-	param->username = name;
-	return name? 0:4;
 }
 
 int dnsauth(struct clientparam * param){
@@ -862,11 +808,10 @@ struct auth authfuncs[] = {
 	{authfuncs+1, NULL, NULL, ""},
 	{authfuncs+2, ipauth, NULL, "iponly"},
 	{authfuncs+3, userauth, checkACL, "useronly"},
-	{authfuncs+4, nbnameauth, checkACL, "nbname"},
-	{authfuncs+5, dnsauth, checkACL, "dnsname"},
-	{authfuncs+6, strongauth, checkACL, "strong"},
-	{authfuncs+7, cacheauth, checkACL, "cache"},
-	{authfuncs+8, NULL, NULL, "none"},
+	{authfuncs+4, dnsauth, checkACL, "dnsname"},
+	{authfuncs+5, strongauth, checkACL, "strong"},
+	{authfuncs+6, cacheauth, checkACL, "cache"},
+	{authfuncs+7, NULL, NULL, "none"},
 
 	{NULL, NULL, NULL, ""}
 };

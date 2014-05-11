@@ -57,19 +57,14 @@ static void pr_datetime(struct node *node, CBFUNC cbf, void*cb){
 	}
 }
 
-int ipprint(char *buf, unsigned uu){
-	unsigned u = ntohl(uu);
-
-	return sprintf(buf, "%u.%u.%u.%u", 
-		((u&0xFF000000)>>24), 
-		((u&0x00FF0000)>>16),
-		((u&0x0000FF00)>>8),
-		((u&0x000000FF)));
-}
-
 static void pr_ip(struct node *node, CBFUNC cbf, void*cb){
 	char buf[16];
-	if(node->value)(*cbf)(cb, buf, ipprint(buf, *(unsigned *)node -> value));
+	if(node->value)(*cbf)(cb, buf, myinet_ntop(AF_INET, node -> value, buf, 4));
+}
+
+static void pr_ip6(struct node *node, CBFUNC cbf, void*cb){
+	char buf[64];
+	if(node->value)(*cbf)(cb, buf, myinet_ntop(AF_INET6, node -> value, buf, 16));
 }
 
 static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
@@ -243,9 +238,22 @@ static void pr_userlist(struct node *node, CBFUNC cbf, void*cb){
 	}
 }
 
+int printiple(char *buf, struct iplist* ipl){
+	 int addrlen = (ipl->family == AF_INET6)?16:4, i;
+	 i = myinet_ntop(ipl->family, &ipl->ip_from, buf, addrlen);
+	 if(memcmp(&ipl->ip_from, &ipl->ip_to, addrlen)){
+		buf[i++] = '-';
+		i += myinet_ntop(ipl->family, &ipl->ip_from, buf+i, addrlen);
+	 }
+	 if(ipl->next){
+		buf[i++] = ',';
+		buf[i++] = ' ';
+	}
+	return i;
+}
+
 static void pr_iplist(struct node *node, CBFUNC cbf, void*cb){
-	char buf[20];
-	int i;
+	char buf[128];
 	struct iplist *il = (struct iplist *)node->value;
 
 	if(!il) {
@@ -253,10 +261,7 @@ static void pr_iplist(struct node *node, CBFUNC cbf, void*cb){
 		return;
 	}
 	for(; il; il = il->next){
-	 i = ipprint(buf, il->ip);
-	 i += cidrprint(buf+i, il->mask);
-	 if(il->next)buf[i++] = ',';
-	 (*cbf)(cb, buf, i);
+	 (*cbf)(cb, buf, printiple(buf, il));
 	}
 }
 
@@ -275,18 +280,6 @@ static void * ef_portlist_end(struct node *node){
 
 static void * ef_iplist_next(struct node *node){
 	return (((struct iplist *)node->value) -> next);
-}
-
-static void * ef_iplist_ip(struct node *node){
-	return &(((struct iplist *)node->value) -> ip);
-}
-
-static void * ef_iplist_cidr(struct node *node){
-	return &(((struct iplist *)node->value) -> mask);
-}
-
-static void * ef_iplist_mask(struct node *node){
-	return &(((struct iplist *)node->value) -> mask);
 }
 
 static void * ef_userlist_next(struct node * node){
@@ -519,7 +512,6 @@ static void * ef_server_auth(struct node * node){
 	AUTHFUNC af = ((struct srvparam *)node->value) -> authfunc;
 
 	if(af == alwaysauth) return "none";
-	if(af == nbnameauth) return "nbname";
 	if(af == ipauth) return "iponly";
 	if(af == strongauth) return "strong";
 	return "uknown";
@@ -703,13 +695,6 @@ static struct property prop_pwlist[] = {
 	{NULL, "next", ef_pwlist_next, TYPE_PWLIST, "next"}
 };
 
-static struct property prop_iplist[] = {
-	{prop_iplist + 1, "ip", ef_iplist_ip, TYPE_IP, "ip address"},
-	{prop_iplist + 2, "cidr", ef_iplist_cidr, TYPE_CIDR, "ip mask length"},
-	{prop_iplist + 3, "mask", ef_iplist_mask, TYPE_IP, "ip mask"},
-	{NULL, "next", ef_iplist_next, TYPE_IPLIST, "next"}
-};
-
 static struct property prop_chain[] = {
 	{prop_chain + 1, "ip", ef_chain_ip, TYPE_IP, "parent ip address"},
 	{prop_chain + 2, "port", ef_chain_port, TYPE_PORT, "parent port"},
@@ -829,7 +814,7 @@ struct datatype datatypes[64] = {
 	{"operations", NULL, pr_operations, NULL},
 	{"rotation", NULL, pr_rotation, NULL},
 	{"portlist", ef_portlist_next, pr_portlist, prop_portlist},
-	{"iplist", ef_iplist_next, pr_iplist, prop_iplist},
+	{"iplist", ef_iplist_next, pr_iplist, NULL},
 	{"userlist", ef_userlist_next, pr_userlist, prop_userlist},
 	{"pwlist", ef_pwlist_next, NULL, prop_pwlist},
 	{"chain", ef_chain_next, NULL, prop_chain},
