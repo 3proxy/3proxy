@@ -190,9 +190,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef STDMAIN
 #ifndef _WIN32
 		 case 'I':
-			size = sizeof(defparam.sinc);
-			if(so._getsockname(0, (struct sockaddr*)&defparam.sinc, &size) ||
-				defparam.sinc.sin_family != AF_INET) error = 1;
+			size = sizeof(defparam.sincl);
+			if(so._getsockname(0, (struct sockaddr*)&defparam.sincl, &size) ||
+				defparam.sincl.sin_family != AF_INET) error = 1;
 
 			else inetd = 1;
 			break;
@@ -311,8 +311,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 
  
  srvinit2(&srv, &defparam);
+ if(!*SAFAMILY(&srv.intsa)) *SAFAMILY(&srv.intsa) = AF_INET;
  if(!*SAPORT(&srv.intsa)) *SAPORT(&srv.intsa) = htons(childdef.port);
- if(!defparam.sinc.sin_port) defparam.sinc.sin_port = htons(childdef.port);
  if(hostname)parsehostname(hostname, &defparam, childdef.port);
 
 
@@ -374,9 +374,11 @@ int MODULEMAINFUNC (int argc, char** argv){
 	sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
 	(*srv.logfunc)(&defparam, buf);
  }
- memset(&defparam.sinc, 0, sizeof(defparam.sinc));
+ memset(&defparam.sincr, 0, sizeof(defparam.sincr));
+ memset(&defparam.sincl, 0, sizeof(defparam.sincl));
  memset(&defparam.sins, 0, sizeof(defparam.sins));
- *SAFAMILY(&defparam.sinc) = AF_INET;
+ *SAFAMILY(&defparam.sincr) = AF_INET;
+ *SAFAMILY(&defparam.sincl) = AF_INET;
  *SAFAMILY(&defparam.sins) = AF_INET;
 
  srv.fds.fd = sock;
@@ -413,10 +415,16 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 	if((conf.paused != srv.version) || (error < 0)) break;
 	if(!isudp){
-		size = sizeof(defparam.sinc);
-		new_sock = so._accept(sock, (struct sockaddr*)&defparam.sinc, &size);
+		size = sizeof(defparam.sincr);
+		new_sock = so._accept(sock, (struct sockaddr*)&defparam.sincr, &size);
 		if(new_sock == INVALID_SOCKET){
 			sprintf((char *)buf, "accept(): %s", strerror(errno));
+			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+			continue;
+		}
+		size = sizeof(defparam.sincl);
+		if(so._getsockname(new_sock, (struct sockaddr *)&defparam.sincl, &size)){
+			sprintf((char *)buf, "getsockname(): %s", strerror(errno));
 			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
 			continue;
 		}
@@ -482,7 +490,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #endif
 	pthread_mutex_unlock(&srv.counter_mutex);
-	memset(&defparam.sinc, 0, sizeof(defparam.sinc));
+	memset(&defparam.sincl, 0, sizeof(defparam.sincl));
+	memset(&defparam.sincr, 0, sizeof(defparam.sincr));
 	if(isudp) while(!srv.fds.events)usleep(SLEEPTIME);
  }
 
@@ -519,7 +528,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
- param->req.sin_family = param->sins.sin_family = param->sinc.sin_family = AF_INET;
+ *SAFAMILY(&param->req) = *SAFAMILY(&param->sins) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
  memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
 }
@@ -538,8 +547,7 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
  if(!*SAFAMILY(&srv->intsa)) *SAFAMILY(&srv->intsa) = AF_INET;
- param->sinc.sin_addr.s_addr = ((struct sockaddr_in *)&srv->intsa)->sin_addr.s_addr;
- param->sinc.sin_port = *SAPORT(&srv->intsa);
+ memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
  if(!srv->extip) srv->extip = conf.extip;
  param->sins.sin_addr.s_addr = param->extip = srv->extip;
  if(!srv->extport) srv->extport = htons(conf.extport);

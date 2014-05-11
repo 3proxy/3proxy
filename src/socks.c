@@ -28,7 +28,11 @@ void * sockschild(struct clientparam* param) {
  struct pollfd fds[3];
  int ver=0;
  int havepass = 0;
+#ifndef NOIPV6
+ struct sockaddr_in6 sin;
+#else
  struct sockaddr_in sin;
+#endif
  int len;
 
 
@@ -171,20 +175,18 @@ fprintf(stderr, "%s:%hu binded to communicate with server\n",
 fflush(stderr);
 #endif
 	}
-	sasize = sizeof(struct sockaddr_in);
+	sasize = sizeof(param->sins);
 	so._getsockname(param->remsock, (struct sockaddr *)&param->sins,  &sasize);
 	if(command == 3) {
 		param->ctrlsock = param->clisock;
-		param->clisock = so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		param->clisock = so._socket(SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
-		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = ((struct sockaddr_in *)&param->srv->intsa)->sin_addr.s_addr;
-		sin.sin_port = htons(0);
-		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(struct sockaddr_in))) {RETURN (12);}
+		memcpy(&sin, &param->sincl, sizeof(&sin));
+		*SAPORT(&sin) = htons(0);
+		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(sin))) {RETURN (12);}
 #if SOCKSTRACE > 0
-fprintf(stderr, "%s:%hu binded to communicate with client\n",
-			inet_ntoa(sin.sin_addr),
-			ntohs(sin.sin_port)
+fprintf(stderr, "%hu binded to communicate with client\n",
+			ntohs(*SAPORT(&sin))
 	);
 fflush(stderr);
 #endif
@@ -195,7 +197,7 @@ fflush(stderr);
 CLEANRET:
 
  if(param->clisock != INVALID_SOCKET){
-	sasize = sizeof(struct sockaddr_in);
+	sasize = sizeof(sin);
 	if(command != 3) so._getsockname(param->remsock, (struct sockaddr *)&sin,  &sasize);
 	else so._getsockname(param->clisock, (struct sockaddr *)&sin,  &sasize);
 #if SOCKSTRACE > 0
@@ -212,15 +214,15 @@ fflush(stderr);
 		buf[1] = param->res%10;
 		buf[2] = 0;
 		buf[3] = 1;
-		memcpy(buf+4, &sin.sin_addr.s_addr, 4);
-		memcpy(buf+8, &sin.sin_port, 2);
+		memcpy(buf+4, SAADDR(&sin), 4);
+		memcpy(buf+8, SAPORT(&sin), 2);
 		socksend((command == 3)?param->ctrlsock:param->clisock, buf, 10, conf.timeouts[STRING_S]);
 	}
 	else{
 		buf[0] = 0;
 		buf[1] = 90 + (param->res%10);
-		memcpy(buf+2, &sin.sin_port, 2);
-		memcpy(buf+4, &sin.sin_addr.s_addr, 4);
+		memcpy(buf+2, SAPORT(&sin), 2);
+		memcpy(buf+4, SAADDR(&sin), 4);
 		socksend(param->clisock, buf, 8, conf.timeouts[STRING_S]);
 	}
 
@@ -300,12 +302,12 @@ fflush(stderr);
 						break;
 					}
 					if (fds[1].revents) {
-						sasize = sizeof(struct sockaddr_in);
+						sasize = sizeof(sin);
 						if((len = so._recvfrom(param->clisock, buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
 							param->res = 464;
 							break;
 						}
-						if(sin.sin_addr.s_addr != param->sinc.sin_addr.s_addr){
+						if(SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) || memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin))){
 							param->res = 465;
 							break;
 						}
@@ -335,7 +337,7 @@ fflush(stderr);
 
 						sasize = sizeof(param->sins);
 						if(len > (int)i){
-							if(socksendto(param->remsock, &param->sins, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000) <= 0){
+							if(socksendto(param->remsock, (struct sockaddr *)&param->sins, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000) <= 0){
 								param->res = 467;
 								break;
 							}
@@ -371,7 +373,7 @@ fflush(stderr);
 						memcpy(buf+4, &tsin.sin_addr.s_addr, 4);
 						memcpy(buf+8, &tsin.sin_port, 2);
 						sasize = sizeof(param->sins);
-						if(socksendto(param->clisock, &sin, buf, len + 10, conf.timeouts[SINGLEBYTE_L]*1000) <=0){
+						if(socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 10, conf.timeouts[SINGLEBYTE_L]*1000) <=0){
 							param->res = 469;
 							break;
 						}

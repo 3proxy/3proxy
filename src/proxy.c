@@ -831,14 +831,12 @@ for(;;){
 		sprintf((char*)buf+strlen((char *)buf), "Via: 1.1 ");
 		gethostname((char *)(buf+strlen((char *)buf)), 256);
 		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
-		if(!anonymous)myinet_ntop(*SAFAMILY(&param->sinc), SAADDR(&param->sinc), (char *)buf + strlen((char *)buf), 64);
+		if(!anonymous)myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 64);
 		else {
 			unsigned long tmp;
 
-			tmp = param->sinc.sin_addr.s_addr;
-			param->sinc.sin_addr.s_addr = ((unsigned long)myrand(param, sizeof(struct clientparam))<<16)^(unsigned long)rand();
-			myinet_ntop(*SAFAMILY(&param->sinc), SAADDR(&param->sinc), (char *)buf + strlen((char *)buf), 64);
-			param->sinc.sin_addr.s_addr = tmp;
+			tmp = ((unsigned long)myrand(param, sizeof(struct clientparam))<<16)^(unsigned long)rand();
+			myinet_ntop(AF_INET, &tmp, (char *)buf + strlen((char *)buf), 64);
 		}
 		sprintf((char*)buf+strlen((char *)buf), "\r\n");
  }

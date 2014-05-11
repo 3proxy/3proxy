@@ -105,7 +105,7 @@ static void addbuffer(int increment, struct clientparam * param, unsigned char *
 		*buf_p = newbuf;
 		*bufsize_p = bufsize;
 	}
-	if(increment) len = sockrecvfrom(param->remsock, &param->sins, *buf_p + *length_p, increment, conf.timeouts[STRING_S]*1000);
+	if(increment) len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sins, *buf_p + *length_p, increment, conf.timeouts[STRING_S]*1000);
 	if(len > 0) {
 		*length_p += len;
 		param->nreads++;

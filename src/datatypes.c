@@ -637,8 +637,8 @@ static void * ef_client_extpassword(struct node * node){
 	return ((struct clientparam *)node->value) -> extpassword;
 }
 
-static void * ef_client_cliip(struct node * node){
-	return &((struct clientparam *)node->value) -> sinc.sin_addr.s_addr;
+static void * ef_client_clisa(struct node * node){
+	return &((struct clientparam *)node->value) -> sincr;
 }
 
 static void * ef_client_srvip(struct node * node){
@@ -655,10 +655,6 @@ static void * ef_client_reqport(struct node * node){
 
 static void * ef_client_srvport(struct node * node){
 	return &((struct clientparam *)node->value) -> sins.sin_port;
-}
-
-static void * ef_client_cliport(struct node * node){
-	return &((struct clientparam *)node->value) -> sinc.sin_port;
 }
 
 static void * ef_client_pwtype(struct node * node){
@@ -802,17 +798,16 @@ static struct property prop_client[] = {
 	{prop_client + 9, "extpassword", ef_client_extpassword, TYPE_STRING, "password for requested host"},
 	{prop_client + 10, "username", ef_client_username, TYPE_STRING, "client username"},
 	{prop_client + 11, "password", ef_client_password, TYPE_STRING, "client password"},
-	{prop_client + 12, "cliip", ef_client_cliip, TYPE_IP, "client ip"},
-	{prop_client + 13, "cliport", ef_client_cliport, TYPE_PORT, "client port"},
-	{prop_client + 14, "srvip", ef_client_srvip, TYPE_IP, "target server ip"},
-	{prop_client + 15, "srvport", ef_client_srvport, TYPE_PORT, "target server port"},
-	{prop_client + 16, "reqip", ef_client_reqip, TYPE_IP, "requested server ip"},
-	{prop_client + 17, "reqport", ef_client_reqport, TYPE_PORT, "requested server port"},
-	{prop_client + 18, "bytesin", ef_client_bytesin64, TYPE_UNSIGNED64, "bytes from server to client"},
-	{prop_client + 19, "bytesout", ef_client_bytesout64, TYPE_UNSIGNED64, "bytes from client to server"},
-	{prop_client + 20, "maxtrafin", ef_client_maxtrafin64, TYPE_UNSIGNED64, "maximum traffic allowed for download"},
-	{prop_client + 21, "maxtrafout", ef_client_maxtrafout64, TYPE_UNSIGNED64, "maximum traffic allowed for upload"},
-	{prop_client + 22, "pwtype", ef_client_pwtype, TYPE_INTEGER, "type of client password"},
+	{prop_client + 12, "clisa", ef_client_clisa, TYPE_SA, "client sa"},
+	{prop_client + 13, "srvip", ef_client_srvip, TYPE_IP, "target server ip"},
+	{prop_client + 14, "srvport", ef_client_srvport, TYPE_PORT, "target server port"},
+	{prop_client + 15, "reqip", ef_client_reqip, TYPE_IP, "requested server ip"},
+	{prop_client + 16, "reqport", ef_client_reqport, TYPE_PORT, "requested server port"},
+	{prop_client + 17, "bytesin", ef_client_bytesin64, TYPE_UNSIGNED64, "bytes from server to client"},
+	{prop_client + 18, "bytesout", ef_client_bytesout64, TYPE_UNSIGNED64, "bytes from client to server"},
+	{prop_client + 19, "maxtrafin", ef_client_maxtrafin64, TYPE_UNSIGNED64, "maximum traffic allowed for download"},
+	{prop_client + 20, "maxtrafout", ef_client_maxtrafout64, TYPE_UNSIGNED64, "maximum traffic allowed for upload"},
+	{prop_client + 21, "pwtype", ef_client_pwtype, TYPE_INTEGER, "type of client password"},
 	{NULL, "next", ef_client_next, TYPE_CLIENT, "next"}
 
 	

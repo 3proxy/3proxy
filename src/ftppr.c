@@ -119,32 +119,35 @@ void * ftpprchild(struct clientparam* param) {
 			so._closesocket(clidatasock);
 			clidatasock = INVALID_SOCKET;
 		}
-		if ((clidatasock=socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN(821);}
-		sasize = sizeof(struct sockaddr_in);
-		if(so._getsockname(param->ctrlsock, (struct sockaddr *)&param->sinc, &sasize)){RETURN(824);}
-		param->sinc.sin_port = 0;
-		if(so._bind(clidatasock, (struct sockaddr *)&param->sinc, sasize)){RETURN(822);}
+		if ((clidatasock=socket(SASOCK(&param->sincl), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN(821);}
+		sasize = sizeof(param->sincl);
+		*SAPORT(&param->sincl) = 0;
+		if(so._bind(clidatasock, (struct sockaddr *)&param->sincl, sasize)){RETURN(822);}
 		if (pasv) {
 			if(so._listen(clidatasock, 1)) {RETURN(823);}
-			if(so._getsockname(clidatasock, (struct sockaddr *)&param->sinc, &sasize)){RETURN(824);}
-			sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
-				 (unsigned)(((unsigned char *)(&param->sinc.sin_addr.s_addr))[0]),
-				 (unsigned)(((unsigned char *)(&param->sinc.sin_addr.s_addr))[1]),
-				 (unsigned)(((unsigned char *)(&param->sinc.sin_addr.s_addr))[2]),
-				 (unsigned)(((unsigned char *)(&param->sinc.sin_addr.s_addr))[3]),
-				 (unsigned)(((unsigned char *)(&param->sinc.sin_port))[0]),
-				 (unsigned)(((unsigned char *)(&param->sinc.sin_port))[1])
-				);
+			if(so._getsockname(clidatasock, (struct sockaddr *)&param->sincl, &sasize)){RETURN(824);}
+			if(*SAFAMILY(&param->sincl) == AF_INET)
+				sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
+					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[0]),
+					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[1]),
+					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[2]),
+					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[3]),
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3]),
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3])
+					);
+			else sprintf((char *)buf, "227 OK (127,0,0,1,%u,%u)\r\n", 
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3]),
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3])
+					);			
 		}
 		else {
 			unsigned long b1, b2, b3, b4;
 			unsigned short b5, b6;
 
 			if(sscanf((char *)buf+5, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) {RETURN(828);}
-			param->sinc.sin_family = AF_INET;
-			param->sinc.sin_port = htons((unsigned short)((b5<<8)^b6));
-			param->sinc.sin_addr.s_addr = htonl((b1<<24)^(b2<<16)^(b3<<8)^b4);
-			if(so._connect(clidatasock, (struct sockaddr *)&param->sinc, sasize)) {
+			*SAPORT(&param->sincr) = htons((unsigned short)((b5<<8)^b6));
+			sasize = sizeof(param->sincr);
+			if(so._connect(clidatasock, (struct sockaddr *)&param->sincr, sasize)) {
 				so._closesocket(clidatasock);
 				clidatasock = INVALID_SOCKET;
 				RETURN(826);
@@ -203,8 +206,8 @@ void * ftpprchild(struct clientparam* param) {
 			if(res != 1) {
 				RETURN(857);
 			}
-			sasize = sizeof(struct sockaddr_in);
-			ss = so._accept(clidatasock, (struct sockaddr *)&param->sinc, &sasize);
+			sasize = sizeof(param->sincr);
+			ss = so._accept(clidatasock, (struct sockaddr *)&param->sincr, &sasize);
 			if (ss == INVALID_SOCKET) { RETURN (858);}
 			so._shutdown(clidatasock, SHUT_RDWR);
 			so._closesocket(clidatasock);
@@ -283,8 +286,8 @@ void * ftpprchild(struct clientparam* param) {
 		if(status == 5) {RETURN (0);}
 		if(i < 3) {RETURN (813);}
 	}
-	sasize = sizeof(struct sockaddr_in);
-	if(so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sinc, &sasize)){RETURN(819);}
+	sasize = sizeof(param->sincr);
+	if(so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize)){RETURN(819);}
 	if(req && (param->statscli64 || param->statssrv64)){
 		(*param->srv->logfunc)(param, (unsigned char *)req);
 	}
@@ -304,8 +307,8 @@ CLEANRET:
 	so._shutdown(clidatasock, SHUT_RDWR);
 	so._closesocket(clidatasock);
  }
- sasize = sizeof(struct sockaddr_in);
- so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sinc, &sasize);
+ sasize = sizeof(param->sincr);
+ so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize);
  if(param->res != 0 || param->statscli64 || param->statssrv64 ){
 	(*param->srv->logfunc)(param, (unsigned char *)((req && (param->res > 802))? req:NULL));
  }

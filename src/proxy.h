@@ -148,8 +148,8 @@ extern struct extparam conf;
 
 int sockmap(struct clientparam * param, int timeo);
 int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to);
-int socksendto(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to);
-int sockrecvfrom(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to);
+int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);

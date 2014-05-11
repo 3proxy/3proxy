@@ -128,7 +128,7 @@ int sockmap(struct clientparam * param, int timeo){
 		if(param->bandlimfunc) {
 			sleeptime = (*param->bandlimfunc)(param, param->srvinbuf - param->srvoffset, 0);
 		}
-		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sinc, sasize);
+		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sincr, sasize);
 		if(res < 0) {
 			if(errno != EAGAIN) return 96;
 			continue;
@@ -171,7 +171,7 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "recv from client");
 #endif
-		res = so._recvfrom(param->clisock, param->clibuf + param->cliinbuf, param->clibufsize - param->cliinbuf, 0, (struct sockaddr *)&param->sinc, &sasize);
+		res = so._recvfrom(param->clisock, param->clibuf + param->cliinbuf, param->clibufsize - param->cliinbuf, 0, (struct sockaddr *)&param->sincr, &sasize);
 		if (res==0) {
 			so._shutdown(param->clisock, SHUT_RDWR);
 			so._closesocket(param->clisock);
@@ -241,7 +241,7 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "flushing buffer to client");
 #endif
-	res = socksendto(param->clisock, &param->sinc, param->srvbuf + param->srvoffset, param->srvinbuf - param->srvoffset, conf.timeouts[STRING_S] * 1000);
+	res = socksendto(param->clisock, (struct sockaddr *)&param->sincr, param->srvbuf + param->srvoffset, param->srvinbuf - param->srvoffset, conf.timeouts[STRING_S] * 1000);
 	if(res > 0){
 		param->srvoffset += res;
 		param->statssrv64 += res;
@@ -253,7 +253,7 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "flushing buffer to server");
 #endif
-	res = socksendto(param->remsock, &param->sins, param->clibuf + param->clioffset, param->cliinbuf - param->clioffset, conf.timeouts[STRING_S] * 1000);
+	res = socksendto(param->remsock, (struct sockaddr *)&param->sins, param->clibuf + param->clioffset, param->cliinbuf - param->clioffset, conf.timeouts[STRING_S] * 1000);
 	if(res > 0){
 		param->clioffset += res;
 		param->statscli64 += res;

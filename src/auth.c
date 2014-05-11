@@ -44,12 +44,12 @@ unsigned char * getNetBIOSnamebyip(unsigned long ip){
  sins.sin_family = AF_INET;
  sins.sin_addr.s_addr = ip;
  sins.sin_port = htons(137);
- res=socksendto(sock, &sins, request, sizeof(request), conf.timeouts[SINGLEBYTE_L]*1000);
+ res=socksendto(sock, (struct sockaddr*)&sins, request, sizeof(request), conf.timeouts[SINGLEBYTE_L]*1000);
  if(res <= 0) {
 	so._closesocket(sock);
 	return NULL;
  }
- res = sockrecvfrom(sock, &sins, buf, sizeof(buf), conf.timeouts[SINGLEBYTE_L]*1000);
+ res = sockrecvfrom(sock, (struct sockaddr*)&sins, buf, sizeof(buf), conf.timeouts[SINGLEBYTE_L]*1000);
  so._closesocket(sock);
  if(res < (HEADERSIZE + RECORDSIZE)) {
 	return NULL;
@@ -376,7 +376,8 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	username = param->username?param->username:(unsigned char *)"-";
 	if(acentry->src) {
 	 for(ipentry = acentry->src; ipentry; ipentry = ipentry->next)
-		if(ipentry->ip == (param->sinc.sin_addr.s_addr & ipentry->mask)) {
+/* FIX IT !*/
+		if(ipentry->ip == (*(unsigned long *)SAADDR(&param->sincr) & ipentry->mask)) {
 			break;
 		}
 		if(!ipentry) return 0;
@@ -673,7 +674,8 @@ int cacheauth(struct clientparam * param){
 			
 		}
 		if(((!(conf.authcachetype&2)) || (param->username && ac->username && !strcmp(ac->username, param->username))) &&
-		   ((!(conf.authcachetype&1)) || ac->ip == param->sinc.sin_addr.s_addr) && 
+/* FIX IT */
+		   ((!(conf.authcachetype&1)) || ac->ip == *(unsigned long *)SAADDR(&param->sincr)) && 
 		   (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, param->password)))) {
 			if(param->username){
 				myfree(param->username);
@@ -707,7 +709,8 @@ int doauth(struct clientparam * param){
 				pthread_mutex_lock(&hash_mutex);
 				for(ac = authc; ac; ac = ac->next){
 					if((!(conf.authcachetype&2) || !strcmp(ac->username, param->username)) &&
-					   (!(conf.authcachetype&1) || ac->ip == param->sinc.sin_addr.s_addr)  &&
+/* FIX IT */
+					   (!(conf.authcachetype&1) || ac->ip == *(unsigned long *)SAADDR(&param->sincr))  &&
 					   (!(conf.authcachetype&4) || (ac->password && !strcmp(ac->password, param->password)))) {
 						ac->expires = conf.time + conf.authcachetime;
 						if(strcmp(ac->username, param->username)){
@@ -720,7 +723,8 @@ int doauth(struct clientparam * param){
 							ac->password = mystrdup(param->password);
 							myfree(tmp);
 						}
-						ac->ip = param->sinc.sin_addr.s_addr;
+/* FIX IT */
+						ac->ip = *(unsigned long *)SAADDR(&param->sincr);
 						break;
 					}
 				}
@@ -729,7 +733,8 @@ int doauth(struct clientparam * param){
 					if(ac){
 						ac->expires = conf.time + conf.authcachetime;
 						ac->username = mystrdup(param->username);
-						ac->ip = param->sinc.sin_addr.s_addr;
+/* FIX IT */
+						ac->ip = *(unsigned long *)SAADDR(&param->sincr);
 						ac->password = NULL;
 						if((conf.authcachetype&4) && param->password) ac->password = mystrdup(param->password);
 					}
@@ -765,7 +770,8 @@ int userauth(struct clientparam * param){
 }
 
 int nbnameauth(struct clientparam * param){
-	unsigned char * name = getNetBIOSnamebyip(param->sinc.sin_addr.s_addr);
+/* FIX IT */
+	unsigned char * name = getNetBIOSnamebyip(*(unsigned long *)SAADDR(&param->sincr));
 
 	if (param->username) myfree (param->username);
 	param->username = name;
@@ -774,7 +780,8 @@ int nbnameauth(struct clientparam * param){
 
 int dnsauth(struct clientparam * param){
         char buf[32];
-	unsigned u = ntohl(param->sinc.sin_addr.s_addr);
+/* FIX IT */
+	unsigned u = ntohl(*(unsigned long *)SAADDR(&param->sincr));
 
 	sprintf(buf, "%u.%u.%u.%u.in-addr.arpa", 
 
@@ -784,8 +791,8 @@ int dnsauth(struct clientparam * param){
 	((u&0x00FF0000)>>16),
 	((u&0xFF000000)>>24));
 	
-
-	if(param->sinc.sin_addr.s_addr != udpresolve(buf, NULL, param, 1)) return 6;
+/* FIX IT */
+	if(*(unsigned long *)SAADDR(&param->sincr) != udpresolve(buf, NULL, param, 1)) return 6;
 
 	return param->username? 0:4;
 }
@@ -1054,13 +1061,13 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		buf[len++] = (makeauth == 1)? 0x0c : 0x01;	/* PTR:host address */
 		buf[len++] = 0;
 		buf[len++] = 1;			/* INET */
-		if(socksendto(sock, sinsp, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(sock, (struct sockaddr *)sinsp, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			continue;
 		}
 		if(param) param->statscli64 += len;
-		len = sockrecvfrom(sock, sinsp, buf, 4096, 15000);
+		len = sockrecvfrom(sock, (struct sockaddr *) sinsp, buf, 4096, 15000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
 		if(len <= 13) continue;

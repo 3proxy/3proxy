@@ -36,8 +36,8 @@ void * dnsprchild(struct clientparam* param) {
 	param->srv->fds.events = POLLIN;
 	RETURN (21);
  }
- size = sizeof(struct sockaddr_in);
- i = so._recvfrom(param->srv->srvsock, buf, BUFSIZE, 0, (struct sockaddr *)&param->sinc, &size); 
+ size = sizeof(param->sincr);
+ i = so._recvfrom(param->srv->srvsock, buf, BUFSIZE, 0, (struct sockaddr *)&param->sincr, &size); 
 #ifdef _WIN32
 	if((param->clisock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
@@ -144,19 +144,19 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	param->sins.sin_addr.s_addr = nservers[0];
 	param->sins.sin_port = htons(53);
-	if(socksendto(param->remsock, &param->sins, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
+	if(socksendto(param->remsock, (struct sockaddr *)&param->sins, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
 		RETURN(820);
 	}
 	param->statscli64 += i;
 	param->nwrites++;
-	len = sockrecvfrom(param->remsock, &param->sins, buf, BUFSIZE, 15000);
+	len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sins, buf, BUFSIZE, 15000);
 	if(len <= 13) {
 		RETURN(821);
 	}
 	param->statssrv64 += len;
 	param->nreads++;
 	if(buf[6] || buf[7]){
-		if(socksendto(param->clisock, &param->sinc, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			RETURN(822);
 		}
 		RETURN(0);
@@ -168,7 +168,7 @@ void * dnsprchild(struct clientparam* param) {
 	buf[3] = 0x83;
  }
  usleep(SLEEPTIME);
- res = socksendto(param->clisock, &param->sinc, buf, len, conf.timeouts[SINGLEBYTE_L]*1000); 
+ res = socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000); 
  if(res != len){RETURN(819);}
  if(!ip) {RETURN(888);}
 

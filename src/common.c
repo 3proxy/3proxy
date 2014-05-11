@@ -22,7 +22,7 @@ int randomizer = 1;
 
 unsigned char **stringtable = NULL;
 
-int myinet_ntop(int af, const void *src, char *dst, socklen_t size){
+int myinet_ntop(int af, void *src, char *dst, socklen_t size){
 #ifndef NOIPV6
  if(af != AF_INET6){
 #endif 
@@ -463,7 +463,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i += myinet_ntop(AF_INET, &tmpia, (char *)buf + i, 64);
 				 break;
 				case 'C':
-				 i += myinet_ntop(*SAFAMILY(&param->sinc), SAADDR(&param->sinc), (char *)buf + i, 64);
+				 i += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + i, 64);
 				 break;
 				case 'R':
 				 i += myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf + i, 64);
@@ -476,7 +476,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'c':
-				 sprintf((char *)buf+i, "%hu", ntohs(param->sinc.sin_port));
+				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->sincr)));
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'r':
@@ -612,7 +612,7 @@ int doconnect(struct clientparam * param){
 	bindsa.sin_family = AF_INET;
 	bindsa.sin_port = param->extport;
 	bindsa.sin_addr.s_addr = param->extip;
-	if (param->srv->targetport && !bindsa.sin_port && ntohs(param->sinc.sin_port) > 1023) bindsa.sin_port = param->sinc.sin_port;
+	if (param->srv->targetport && !bindsa.sin_port && ntohs(*SAPORT(&param->sincr)) > 1023) bindsa.sin_port = *SAPORT(&param->sincr);
 	if(so._bind(param->remsock, (struct sockaddr*)&bindsa, sizeof(bindsa))==-1) {
 		memset(&bindsa, 0, sizeof(bindsa));
 		bindsa.sin_family = AF_INET;
