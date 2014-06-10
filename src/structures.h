@@ -637,7 +637,7 @@ struct pluginlink {
 	int (*sockgetcharcli)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetcharsrv)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetlinebuf)(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
-	int (*myinet_ntop)(int af, const void *src, char *dst, socklen_t size);
+	int (*myinet_ntop)(int af, void *src, char *dst, socklen_t size);
 	int (*dobuf)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 	int (*dobuf2)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 	int (*scanaddr)(const unsigned char *s, unsigned long * ip, unsigned long * mask);

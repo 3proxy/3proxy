@@ -183,7 +183,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 
 
 int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask);
-int myinet_ntop(int af, const void *src, char *dst, socklen_t size);
+int myinet_ntop(int af, void *src, char *dst, socklen_t size);
 extern unsigned long nservers[MAXNSERVERS];
 extern unsigned long authnserver;
 unsigned long getip(unsigned char *name);

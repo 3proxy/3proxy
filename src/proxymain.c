@@ -192,7 +192,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'I':
 			size = sizeof(defparam.sincl);
 			if(so._getsockname(0, (struct sockaddr*)&defparam.sincl, &size) ||
-				defparam.sincl.sin_family != AF_INET) error = 1;
+				SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
 
 			else inetd = 1;
 			break;
