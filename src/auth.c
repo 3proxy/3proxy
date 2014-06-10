@@ -882,20 +882,6 @@ struct auth authfuncs[] = {
 };
 
 
-struct hashentry {
-	unsigned char hash[sizeof(unsigned)*4];
-	unsigned long value;
-	time_t expires;
-	struct hashentry *next;
-};
-
-struct hashtable {
-	unsigned hashsize;
-	struct hashentry ** hashtable;
-	struct hashentry * hashvalues;
-	struct hashentry * hashempty;
-};
-
 struct hashtable dns_table = {0, NULL, NULL, NULL};
 
 

@@ -339,7 +339,7 @@ for(;;){
 	if(!isconnect){
 		if(se==sg)*se-- = ' ';
 		*se = '/';
-		memcpy(ss, se, i - (se - sb) + 1);
+		memmove(ss, se, i - (se - sb) + 1);
 	}
  }
  reqlen = i = (int)strlen((char *)buf);
