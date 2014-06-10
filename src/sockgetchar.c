@@ -47,7 +47,7 @@ int socksendto(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int b
 	if(res < 1) break;
 	res = so._sendto(sock, buf + sent, bufsize - sent, 0,  (struct sockaddr *)sin, sizeof(struct sockaddr_in));
 	if(res < 0) {
-		if(errno !=  EAGAIN) break;
+		if(errno !=  EAGAIN && errno != EINTR) break;
 		continue;
 	}
 	sent += res;

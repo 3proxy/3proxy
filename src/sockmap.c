@@ -130,7 +130,8 @@ int sockmap(struct clientparam * param, int timeo){
 		}
 		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver || ((unsigned)param->waitserver - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : param->waitserver - received, 0, (struct sockaddr*)&param->sinc, sasize);
 		if(res < 0) {
-			if(errno != EAGAIN) return 96;
+			if(errno != EAGAIN && errno != EINTR) return 96;
+			if(errno == EINTR) usleep(SLEEPTIME);
 			continue;
 		}
 		param->srvoffset += res;
@@ -155,7 +156,8 @@ int sockmap(struct clientparam * param, int timeo){
 		}
 		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient || ((unsigned)param->waitclient - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : param->waitclient - sent, 0, (struct sockaddr*)&param->sins, sasize);
 		if(res < 0) {
-			if(errno != EAGAIN) return 97;
+			if(errno != EAGAIN && errno != EINTR) return 97;
+			if(errno == EINTR) usleep(SLEEPTIME);
 			continue;
 		}
 		param->clioffset += res;
@@ -180,7 +182,8 @@ int sockmap(struct clientparam * param, int timeo){
 		}
 		else {
 			if (res < 0){
-				if( errno != EAGAIN) return (94);
+				if(errno != EAGAIN && errno != EINTR) return 94;
+				if(errno == EINTR) usleep(SLEEPTIME);
 				continue;
 			}
 			param->cliinbuf += res;
@@ -210,7 +213,8 @@ int sockmap(struct clientparam * param, int timeo){
 		}
 		else {
 			if (res < 0){
-				if( errno != EAGAIN) return (93);
+				if(errno != EAGAIN && errno != EINTR) return 93;
+				if(errno == EINTR) usleep(SLEEPTIME);
 				continue;
 			}
 			param->srvinbuf += res;
