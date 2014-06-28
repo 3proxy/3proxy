@@ -15,7 +15,6 @@ tmp/
 *.swp
 *.o
 *.idb
-src/version.h
 src/res
 version.c
 3proxy.res
