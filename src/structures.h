@@ -112,7 +112,7 @@ int
 #define SASIZE(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
 #else
 #define SAPORT(sa)  (&((struct sockaddr_in *)sa)->sin_port)
-#define SAADDR(sa)  ((unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.a_addr)
+#define SAADDR(sa)  ((unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
 #define SAADDRLEN(sa) (4)
 #define SASOCK(sa) (PF_INET)
 #define SASIZE(sa) (sizeof(struct sockaddr_in))
@@ -359,7 +359,7 @@ struct srvparam {
 #ifndef NOIPV6
 	struct sockaddr_in6 intsa;
 #else
-	struct sockaddr_in intsa
+	struct sockaddr_in intsa;
 #endif
 	unsigned long extip;
 	pthread_mutex_t counter_mutex;
@@ -487,7 +487,7 @@ struct extparam {
 #ifndef NOIPV6
 	struct sockaddr_in6 intsa;
 #else
-	struct sockaddr_in intsa
+	struct sockaddr_in intsa;
 #endif
 	unsigned long extip;
 	unsigned short extport;
