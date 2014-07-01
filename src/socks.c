@@ -100,7 +100,7 @@ void * sockschild(struct clientparam* param) {
 		if(command==1 && !param->req.sin_addr.s_addr) {
 			RETURN(421);
 		}
-		myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf + strlen((char *)buf), 64);
+		myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf, 64);
 		break;
 	case 3:
 		if ((size = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
