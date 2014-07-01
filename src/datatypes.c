@@ -69,7 +69,7 @@ static void pr_ip6(struct node *node, CBFUNC cbf, void*cb){
 
 static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
 #ifdef NOIPV6
-	if(node->value)return pr_ip(node, &((struct sockaddr_in *)node->value)->sin_addr.s_addr)
+	if(node->value)return pr_ip(node, cbf, cb);
 #else
 	char buf[64];
 	buf[0] = '[';
