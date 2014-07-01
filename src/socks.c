@@ -48,29 +48,29 @@ void * sockschild(struct clientparam* param) {
  if(ver == 5){
 	 if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);} /* nmethods */
 	 for (; i; i--) {
-		if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(442);}
+		if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 		if (res == 2 && !param->srv->nouser) {
 			havepass = res;
 		}
 	 }
 	 buf[0] = 5;
 	 buf[1] = havepass;
-	 if(socksend(param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(402);}
+	 if(socksend(param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(401);}
 	 if (havepass) {
 		if (((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_L], 0))) != 1) {
 			RETURN(412);
 		}
-		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(443);}
-		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(444);};
+		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
+		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(441);};
 		buf[i] = 0;
 		if(!param->username)param->username = (unsigned char *)mystrdup((char *)buf);
 		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(445);}
-		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(446);};
+		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(441);};
 		buf[i] = 0;
 		if(!param->password)param->password = (unsigned char *)mystrdup((char *)buf);
 		buf[0] = 1;
 		buf[1] = 0;
-		if(socksend(param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(402);}
+		if(socksend(param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(481);}
 	 }
 	 if ((c = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_L], 0)) != 5) {
 		RETURN(421);
@@ -82,9 +82,9 @@ void * sockschild(struct clientparam* param) {
 	 c = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0); /* atype */
  }
  else {
-	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(448);}
+	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	buf[0] = (unsigned char) res;
-	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(449);}
+	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	buf[1] = (unsigned char) res;
 	param->sins.sin_port = param->req.sin_port = *(unsigned short*)buf;
 	c = 1;
@@ -93,19 +93,19 @@ void * sockschild(struct clientparam* param) {
  switch(c) {
 	case 1:
 		for (i = 0; i<4; i++){
-			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(450);}
+			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 			buf[i] = (unsigned char)res;
 		}
 		param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr = *(unsigned long *)buf;
 		if(command==1 && !param->req.sin_addr.s_addr) {
-			RETURN(422);
+			RETURN(421);
 		}
 		myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf + strlen((char *)buf), 64);
 		break;
 	case 3:
 		if ((size = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
 		for (i=0; i<size; i++){ /* size < 256 */
-			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(452);}
+			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
 			buf[i] = (unsigned char)res;
 		}
 		buf[i] = 0;
@@ -115,14 +115,14 @@ void * sockschild(struct clientparam* param) {
 		}
 		break;
 	default:
-		RETURN(998);
+		RETURN(997);
  }
  if(param->hostname)myfree(param->hostname);
  param->hostname = (unsigned char *)mystrdup((char *)buf);
  if (ver == 5) {
-	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(453);}
+	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	 buf[0] = (unsigned char) res;
-	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(454);}
+	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	 buf[1] = (unsigned char) res;
 	 param->sins.sin_port = param->req.sin_port = *(unsigned short*)buf;
  }
@@ -139,7 +139,7 @@ void * sockschild(struct clientparam* param) {
 		param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr = getip(buf);
 	}
  }
- if(command == 1 && !param->req.sin_port) {RETURN(424);}
+ if(command == 1 && !param->req.sin_port) {RETURN(421);}
  param->sins.sin_family = AF_INET;
  switch(command) { 
 	case 1:
@@ -161,12 +161,38 @@ void * sockschild(struct clientparam* param) {
 	 RETURN(997);
  }
 
- if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
+ errno = 0;
+ if((res = (*param->srv->authfunc)(param))) {
+	res *= 10;
+	switch (errno) {
+		/* If authfunc failed but errno stays intacts we assume ACL denied the access,
+		 * otherwise we do our best to pick a good error code for SOCKSv5. */
+		case 0:
+			res += 2; /* connection not allowed by ruleset */
+			break;
+		case ENETUNREACH:
+			res += 3; /* Network unreachable */
+			break;
+		case EHOSTUNREACH:
+			res += 4; /* Host unreachable */
+			break;
+		case ECONNREFUSED:
+			res += 5; /* Connection refused */
+			break;
+		case EPFNOSUPPORT:
+		case EAFNOSUPPORT:
+			res += 8; /* Address type not supported */
+			break;
+		default:
+			res += 1;
+	}
+	RETURN(res);
+ }
 
  if(command > 1) {
 	if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins))) {
 		param->sins.sin_port = 0;
-		if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins)))RETURN (12);
+		if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins)))RETURN (11);
 #if SOCKSTRACE > 0
 fprintf(stderr, "%s:%hu binded to communicate with server\n",
 			inet_ntoa(param->sins.sin_addr),
@@ -183,7 +209,7 @@ fflush(stderr);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 		memcpy(&sin, &param->sincl, sizeof(&sin));
 		*SAPORT(&sin) = htons(0);
-		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(sin))) {RETURN (12);}
+		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(sin))) {RETURN (11);}
 #if SOCKSTRACE > 0
 fprintf(stderr, "%hu binded to communicate with client\n",
 			ntohs(*SAPORT(&sin))
@@ -220,7 +246,7 @@ fflush(stderr);
 	}
 	else{
 		buf[0] = 0;
-		buf[1] = 90 + (param->res%10);
+		buf[1] = 90 + !!(param->res%10);
 		memcpy(buf+2, SAPORT(&sin), 2);
 		memcpy(buf+4, SAADDR(&sin), 4);
 		socksend(param->clisock, buf, 8, conf.timeouts[STRING_S]);
@@ -329,7 +355,7 @@ fflush(stderr);
 								param->sins.sin_addr.s_addr = getip(buf+4);
 								break;
 							default:
-								RETURN(996);
+								RETURN(997);
 						 }
 
 						memcpy(&param->sins.sin_port, buf+i, 2);
