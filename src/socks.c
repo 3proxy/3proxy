@@ -192,7 +192,7 @@ void * sockschild(struct clientparam* param) {
  if(command > 1) {
 	if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins))) {
 		param->sins.sin_port = 0;
-		if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins)))RETURN (11);
+		if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins)))RETURN (12);
 #if SOCKSTRACE > 0
 fprintf(stderr, "%s:%hu binded to communicate with server\n",
 			inet_ntoa(param->sins.sin_addr),
@@ -209,7 +209,7 @@ fflush(stderr);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 		memcpy(&sin, &param->sincl, sizeof(&sin));
 		*SAPORT(&sin) = htons(0);
-		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(sin))) {RETURN (11);}
+		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(sin))) {RETURN (12);}
 #if SOCKSTRACE > 0
 fprintf(stderr, "%hu binded to communicate with client\n",
 			ntohs(*SAPORT(&sin))
