@@ -9,6 +9,7 @@
 
 #include "proxy.h"
 #ifndef _WIN32
+#include <sys/resource.h>
 #ifndef NOPLUGINS
 #include <dlfcn.h>
 #endif

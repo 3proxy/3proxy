@@ -19,7 +19,9 @@ LDFLAGS = -Wall -O2 -pthread
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
-LIBS = -lcrypto -lssl -ldl 
+#LIBS = -lcrypto -lssl -ldl 
+# libcrypto and libssl are required for SSLPlugin
+LIBS = -ldl 
 LNOUT = -o 
 EXESUFFICS =
 OBJSUFFICS = .o
@@ -29,7 +31,9 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.Linux
-PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+#PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+# SSLPlugin is not built by default because of external dependencies
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
 
 include Makefile.inc
 
