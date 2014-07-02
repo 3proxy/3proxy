@@ -28,9 +28,7 @@ extern "C" {
 #define INVALID_SOCKET  (-1)
 #else
 #include <winsock2.h>
-#ifndef NOIPV6
 #include <Ws2tcpip.h>
-#endif
 #define pthread_mutex_t CRITICAL_SECTION
 #define pthread_mutex_init(x, y) InitializeCriticalSection(x)
 #define pthread_mutex_lock(x) EnterCriticalSection(x)

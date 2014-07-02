@@ -161,31 +161,7 @@ void * sockschild(struct clientparam* param) {
 	 RETURN(997);
  }
 
- errno = 0;
  if((res = (*param->srv->authfunc)(param))) {
-	res *= 10;
-	switch (errno) {
-		/* If authfunc failed but errno stays intacts we assume ACL denied the access,
-		 * otherwise we do our best to pick a good error code for SOCKSv5. */
-		case 0:
-			res += 2; /* connection not allowed by ruleset */
-			break;
-		case ENETUNREACH:
-			res += 3; /* Network unreachable */
-			break;
-		case EHOSTUNREACH:
-			res += 4; /* Host unreachable */
-			break;
-		case ECONNREFUSED:
-			res += 5; /* Connection refused */
-			break;
-		case EPFNOSUPPORT:
-		case EAFNOSUPPORT:
-			res += 8; /* Address type not supported */
-			break;
-		default:
-			res += 1;
-	}
 	RETURN(res);
  }
 
@@ -223,6 +199,8 @@ fflush(stderr);
 CLEANRET:
 
  if(param->clisock != INVALID_SOCKET){
+	int repcode;
+
 	sasize = sizeof(sin);
 	if(command != 3) so._getsockname(param->remsock, (struct sockaddr *)&sin,  &sasize);
 	else so._getsockname(param->clisock, (struct sockaddr *)&sin,  &sasize);
@@ -235,9 +213,16 @@ fprintf(stderr, "Sending confirmation to client with code %d for %s with %s:%hu\
 	);
 fflush(stderr);
 #endif
+	if(!param->res) repcode = 0;
+	else if(param->res <= 10) repcode = 2;
+	else if (param->res < 20) repcode = 5;
+	else if (param->res < 30) repcode = 1;
+	else if (param->res < 100) repcode = 4;
+	else repcode = param->res%10;
+
 	if(ver == 5){
 		buf[0] = 5;
-		buf[1] = param->res%10;
+		buf[1] = repcode;
 		buf[2] = 0;
 		buf[3] = 1;
 		memcpy(buf+4, SAADDR(&sin), 4);
@@ -246,7 +231,7 @@ fflush(stderr);
 	}
 	else{
 		buf[0] = 0;
-		buf[1] = 90 + !!(param->res%10);
+		buf[1] = 90 + !!(repcode);
 		memcpy(buf+2, SAPORT(&sin), 2);
 		memcpy(buf+4, SAADDR(&sin), 4);
 		socksend(param->clisock, buf, 8, conf.timeouts[STRING_S]);
