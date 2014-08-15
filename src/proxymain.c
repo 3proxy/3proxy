@@ -470,22 +470,26 @@ int MODULEMAINFUNC (int argc, char** argv){
 #else
 	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)32768, (BEGINTHREADFUNC)srv.pf, (void *) newparam, 0, &thread);
 #endif
-	newparam->threadid = (unsigned)thread;
+	srv.childcount++;
 	if (h) {
-		srv.childcount++;
+		newparam->threadid = (unsigned)thread;
 		CloseHandle(h);
 	}
 	else {
-		myfree(newparam);
+		sprintf((char *)buf, "_beginthreadex(): %s", _strerror(NULL));
+		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+		freeparam(newparam);
 	}
 #else
-	if((error = pthread_create(&thread, &pa, (PTHREADFUNC)srv.pf, (void *)newparam))){
+
+	error = pthread_create(&thread, &pa, (PTHREADFUNC)srv.pf, (void *)newparam);
+	srv.childcount++;
+	if(error){
 		sprintf((char *)buf, "pthread_create(): %s", strerror(error));
 		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
 		freeparam(newparam);
 	}
 	else {
-		srv.childcount++;
 		newparam->threadid = (unsigned)thread;
 	}
 #endif
