@@ -22,6 +22,7 @@ void * sockschild(struct clientparam* param) {
  SOCKET s;
  unsigned size;
  SASIZETYPE sasize;
+ unsigned short port = 0;
  unsigned char * buf=NULL;
  unsigned char c;
  unsigned char command=0;
@@ -29,14 +30,13 @@ void * sockschild(struct clientparam* param) {
  int ver=0;
  int havepass = 0;
 #ifndef NOIPV6
- struct sockaddr_in6 sin;
+ struct sockaddr_in6 sin = {AF_INET6};
 #else
- struct sockaddr_in sin;
+ struct sockaddr_in sin = {AF_INET};
 #endif
  int len;
 
 
- param->req.sin_addr.s_addr = 0;
  param->service = S_SOCKS;
 
  if(!(buf = myalloc(BUFSIZE))) {RETURN(21);}
@@ -86,21 +86,26 @@ void * sockschild(struct clientparam* param) {
 	buf[0] = (unsigned char) res;
 	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	buf[1] = (unsigned char) res;
-	param->sins.sin_port = param->req.sin_port = *(unsigned short*)buf;
+	port = *(unsigned short*)buf;
 	c = 1;
  }
  
+ size = 4;
  switch(c) {
+	case 4:
+		size = 16;
 	case 1:
-		for (i = 0; i<4; i++){
+		for (i = 0; i<size; i++){
 			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 			buf[i] = (unsigned char)res;
 		}
-		param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr = *(unsigned long *)buf;
-		if(command==1 && !param->req.sin_addr.s_addr) {
+		*SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req) = (c == 1)? AF_INET:AF_INET6;
+		memcpy(SAADDR(&param->sinsr), buf, size);
+		memcpy(SAADDR(&param->req), buf, size);
+		if(command==1 && !memcmp(SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", size)) {
 			RETURN(421);
 		}
-		myinet_ntop(*SAFAMILY(&param->sins), SAADDR(&param->sins), (char *)buf, 64);
+		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);
 		break;
 	case 3:
 		if ((size = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
@@ -109,10 +114,8 @@ void * sockschild(struct clientparam* param) {
 			buf[i] = (unsigned char)res;
 		}
 		buf[i] = 0;
-		param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr = getip(buf);
-		if(command==1 && !param->req.sin_addr.s_addr) {
-			RETURN(100);
-		}
+		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
+		memcpy(&param->sinsr, &param->req, sizeof(&param->req));
 		break;
 	default:
 		RETURN(997);
@@ -124,39 +127,39 @@ void * sockschild(struct clientparam* param) {
 	 buf[0] = (unsigned char) res;
 	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	 buf[1] = (unsigned char) res;
-	 param->sins.sin_port = param->req.sin_port = *(unsigned short*)buf;
+	 port = *(unsigned short*)buf;
+
  }
  else {
 	sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]);
 	buf[127] = 0;
 	if(!param->srv->nouser && *buf && !param->username)param->username = (unsigned char *)mystrdup((char *)buf);
-	if(param->sins.sin_addr.s_addr && ntohl(param->sins.sin_addr.s_addr)<256){
+	if(!memcmp(SAADDR(&param->req), "\0\0\0", 3)){
 		param->service = S_SOCKS45;
 		sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]);
 		buf[127] = 0;
 		if(param->hostname)myfree(param->hostname);
 		param->hostname = (unsigned char *)mystrdup((char *)buf);
-		param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr = getip(buf);
+		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
+		memcpy(&param->sinsr, &param->req, sizeof(&param->req));
 	}
  }
- if(command == 1 && !param->req.sin_port) {RETURN(421);}
- param->sins.sin_family = AF_INET;
+
+ *SAPORT(&param->sinsr) = *SAPORT(&param->req) = port;
+ if(command == 1 && !*SAPORT(&param->sinsr)) {RETURN(421);}
  switch(command) { 
 	case 1:
 	 param->operation = CONNECT;
 	 break;
  	case 2:
-	 param->sins.sin_addr.s_addr = param->extip;
-	 param->sins.sin_port = param->extport?param->extport:param->req.sin_port;
-	 if ((param->remsock=so._socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN (11);}
-	 param->operation = BIND;
-	 break;
 	case 3:
-	 param->sins.sin_port = param->extport?param->extport:param->req.sin_port;
-	 param->sins.sin_addr.s_addr = param->extip;
-	 if ((param->remsock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
-	 param->operation = UDPASSOC;
+	 
+	 memcpy(&param->sinsl, *SAFAMILY(&param->req)==AF_INET6? (struct sockaddr *)&param->srv->extsa6:(struct sockaddr *)&param->srv->extsa, SASIZE(&param->req)); 
+	 if(!*SAPORT(&param->sinsl))*SAPORT(&param->sinsl) = port;
+	 if ((param->remsock=so._socket(*SAFAMILY(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+	 param->operation = command == 2?BIND:UDPASSOC;
 	 break;
+
 	default:
 	 RETURN(997);
  }
@@ -166,25 +169,22 @@ void * sockschild(struct clientparam* param) {
  }
 
  if(command > 1) {
-	if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins))) {
-		param->sins.sin_port = 0;
-		if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins)))RETURN (12);
+	if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
+		*SAPORT(&param->sinsl) = 0;
+		if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
 #if SOCKSTRACE > 0
-fprintf(stderr, "%s:%hu binded to communicate with server\n",
-			inet_ntoa(param->sins.sin_addr),
-			ntohs(param->sins.sin_port)
-	);
+fprintf(stderr, "%hu binded to communicate with server\n", *SAPORT(&param->sins));
 fflush(stderr);
 #endif
 	}
-	sasize = sizeof(param->sins);
-	so._getsockname(param->remsock, (struct sockaddr *)&param->sins,  &sasize);
+	sasize = SASIZE(&param->sinsl);
+	so._getsockname(param->remsock, (struct sockaddr *)&param->sinsl,  &sasize);
 	if(command == 3) {
 		param->ctrlsock = param->clisock;
 		param->clisock = so._socket(SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 		memcpy(&sin, &param->sincl, sizeof(&sin));
-		*SAPORT(&sin) = htons(0);
+		*SAPORT(&sin) = 0;
 		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(sin))) {RETURN (12);}
 #if SOCKSTRACE > 0
 fprintf(stderr, "%hu binded to communicate with client\n",
@@ -224,10 +224,10 @@ fflush(stderr);
 		buf[0] = 5;
 		buf[1] = repcode;
 		buf[2] = 0;
-		buf[3] = 1;
-		memcpy(buf+4, SAADDR(&sin), 4);
-		memcpy(buf+8, SAPORT(&sin), 2);
-		socksend((command == 3)?param->ctrlsock:param->clisock, buf, 10, conf.timeouts[STRING_S]);
+		buf[3] = (*SAFAMILY(&sin) == AF_INET)?1:4;
+		memcpy(buf+4, SAADDR(&sin), SAADDRLEN(&sin));
+		memcpy(buf+4+SAADDRLEN(&sin), SAPORT(&sin), 2);
+		socksend((command == 3)?param->ctrlsock:param->clisock, buf, 6+SAADDRLEN(&sin), conf.timeouts[STRING_S]);
 	}
 	else{
 		buf[0] = 0;
@@ -252,48 +252,48 @@ fflush(stderr);
 				fds[0].fd = param->remsock;
 				fds[1].fd = param->clisock;
 				fds[0].events = fds[1].events = POLLIN;
-				res = so._poll(fds, 2, conf.timeouts[(param->req.sin_addr.s_addr)?CONNECTION_S:CONNECTION_L] * 1000);
+				res = so._poll(fds, 2, conf.timeouts[CONNECTION_L] * 1000);
 				if (res < 1 || fds[1].revents) {
 					res = 460;
 					break;
 				}
-				sasize = sizeof(param->sins);
-				s = so._accept(param->remsock, (struct sockaddr *)&param->sins, &sasize);
+				sasize = sizeof(param->sinsr);
+				s = so._accept(param->remsock, (struct sockaddr *)&param->sinsr, &sasize);
 				so._closesocket(param->remsock);
 				param->remsock = s;
 				if(s == INVALID_SOCKET) {
 					param->res = 462;
 					break;
 				}
-				if(param->req.sin_addr.s_addr && param->req.sin_addr.s_addr != param->sins.sin_addr.s_addr) {
+				if(!memcmp(SAADDR(&param->req),"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",SAADDRLEN(&param->req)) &&
+				 memcmp(SAADDR(&param->req),SAADDR(&param->sinsr),SAADDRLEN(&param->req))) {
 					param->res = 470;
 					break;
 				}
 #if SOCKSTRACE > 0
-fprintf(stderr, "Sending incoming connection to client with code %d for %s with %s:%hu\n",
+fprintf(stderr, "Sending incoming connection to client with code %d for %s with %hu\n",
 			param->res,
 			commands[command],
-			inet_ntoa(param->sins.sin_addr),
-			ntohs(param->sins.sin_port)
+			*SAPORT(param->sins);
 	);
 fflush(stderr);
 #endif
 				if(ver == 5){
-					memcpy (buf+4, &param->sins.sin_addr, 4);
-					memcpy (buf+8, &param->sins.sin_port, 2);
-					socksend(param->clisock, buf, 10, conf.timeouts[STRING_S]);
+					buf[3] = (*SAFAMILY(&param->sinsr) == AF_INET)?1:4;
+					memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
+					memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
+					socksend(param->clisock, buf, 6+SAADDRLEN(&param->sinsr), conf.timeouts[STRING_S]);
 				}
 				else {
-					memcpy (buf+2, &param->sins.sin_port, 2);
-					memcpy (buf+4, &param->sins.sin_addr, 4);
+					memcpy (buf+2, SAPORT(&param->sinsr), 2);
+					memcpy (buf+4, SAADDR(&param->sinsr), 4);
 					socksend(param->clisock, buf, 8, conf.timeouts[STRING_S]);
 				}
 
 				param->res = sockmap(param, conf.timeouts[CONNECTION_S]);
 				break;
 			case 3:
-				param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr;
-				param->sins.sin_port = param->req.sin_port;
+				memcpy(&param->sinsr, &param->req, sizeof(param->sinsr));
 				myfree(buf);
 				if(!(buf = myalloc(LARGEBUFSIZE))) {RETURN(21);}
 
@@ -326,10 +326,14 @@ fflush(stderr);
 							param->res = 466;
 							break;
 						}
+						size = 4;
 						switch(buf[3]) {
+							case 4:
+								size = 16;
 							case 1:
-								i = 8;
-								memcpy(&param->sins.sin_addr.s_addr, buf+4, 4);
+								i = 4+size;
+								memcpy(SAADDR(&param->sinsr), buf+4, size);
+								*SAFAMILY(&param->sinsr) = (size == 4)?AF_INET:AF_INET6;
 								break;
 							case 3:
 								size = buf[4];
@@ -337,18 +341,18 @@ fflush(stderr);
 									buf[i] = buf[i+1];
 								}
 								buf[i++] = 0;
-								param->sins.sin_addr.s_addr = getip(buf+4);
+								if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->sinsr)) RETURN(100);
 								break;
 							default:
 								RETURN(997);
 						 }
 
-						memcpy(&param->sins.sin_port, buf+i, 2);
+						memcpy(SAPORT(&param->sinsr), buf+i, 2);
 						i+=2;
 
-						sasize = sizeof(param->sins);
+						sasize = sizeof(param->sinsr);
 						if(len > (int)i){
-							if(socksendto(param->remsock, (struct sockaddr *)&param->sins, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000) <= 0){
+							if(socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000) <= 0){
 								param->res = 467;
 								break;
 							}
@@ -371,27 +375,25 @@ fflush(stderr);
 
 					}
 					if (fds[0].revents) {
-						struct sockaddr_in tsin;
-						sasize = sizeof(tsin);
+						sasize = sizeof(param->sinsr);
 						buf[0]=buf[1]=buf[2]=0;
-						buf[3]=1;
-						if((len = so._recvfrom(param->remsock, buf+10, 65535 - 10, 0, (struct sockaddr *)&tsin, &sasize)) <= 0) {
+						buf[3]=(*SAFAMILY(&param->sinsl) == AF_INET)?1:4;
+						if((len = so._recvfrom(param->remsock, buf+6+SAADDRLEN(&param->sinsl), 65535 - 10, 0, (struct sockaddr *)&param->sinsr, &sasize)) <= 0) {
 							param->res = 468;
 							break;
 						}
 						param->statssrv64+=len;
 						param->nreads++;
-						memcpy(buf+4, &tsin.sin_addr.s_addr, 4);
-						memcpy(buf+8, &tsin.sin_port, 2);
-						sasize = sizeof(param->sins);
-						if(socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 10, conf.timeouts[SINGLEBYTE_L]*1000) <=0){
+						memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
+						memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
+						sasize = sizeof(sin);
+						if(socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 6 + SAADDRLEN(&param->sinsr), conf.timeouts[SINGLEBYTE_L]*1000) <=0){
 							param->res = 469;
 							break;
 						}
 #if SOCKSTRACE > 1
-fprintf(stderr, "UDP packet relayed to client from %s:%hu size %d\n",
-			inet_ntoa(tsin.sin_addr),
-			ntohs(tsin.sin_port),
+fprintf(stderr, "UDP packet relayed to client from %hu size %d\n",
+			ntohs(*SAPORT(&param->sinsr)),
 			len
 	);
 fflush(stderr);
@@ -415,7 +417,7 @@ fflush(stderr);
 	 }
 	 else 
 		myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + strlen((char *)buf), 64);
-         sprintf((char *)buf+strlen((char *)buf), ":%hu", ntohs(param->req.sin_port));
+         sprintf((char *)buf+strlen((char *)buf), ":%hu", ntohs(*SAPORT(&param->req)));
 	 (*param->srv->logfunc)(param, buf);
 	 myfree(buf);
  }

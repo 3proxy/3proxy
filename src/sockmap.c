@@ -154,7 +154,7 @@ int sockmap(struct clientparam * param, int timeo){
 			sl1 = (*param->bandlimfunc)(param, 0, param->cliinbuf - param->clioffset);
 			if(sl1 > sleeptime) sleeptime = sl1;
 		}
-		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sins, sasize);
+		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sinsr, sasize);
 		if(res < 0) {
 			if(errno != EAGAIN && errno != EINTR) return 97;
 			if(errno == EINTR) usleep(SLEEPTIME);
@@ -257,7 +257,7 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "flushing buffer to server");
 #endif
-	res = socksendto(param->remsock, (struct sockaddr *)&param->sins, param->clibuf + param->clioffset, param->cliinbuf - param->clioffset, conf.timeouts[STRING_S] * 1000);
+	res = socksendto(param->remsock, (struct sockaddr *)&param->sinsr, param->clibuf + param->clioffset, param->cliinbuf - param->clioffset, conf.timeouts[STRING_S] * 1000);
 	if(res > 0){
 		param->clioffset += res;
 		param->statscli64 += res;

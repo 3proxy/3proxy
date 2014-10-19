@@ -694,6 +694,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_ICQPR;
 		childdef.helpmessage = "";
 	}
+/*
 	else if(!strcmp((char *)argv[0], "msnpr")) {
 		childdef.pf = msnprchild;
 		childdef.port = 0;
@@ -701,6 +702,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_MSNPR;
 		childdef.helpmessage = "";
 	}
+*/
 	else if(!strcmp((char *)argv[0], "udppm")) {
 		childdef.pf = udppmchild;
 		childdef.port = 0;

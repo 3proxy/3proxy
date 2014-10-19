@@ -71,7 +71,7 @@ void * ftpprchild(struct clientparam* param) {
 		param->res = res;
 		if(inbuf && inbuf != BUFSIZE && socksend(param->ctrlsock, buf, inbuf, conf.timeouts[STRING_S])!=inbuf) {RETURN (807);}
 		if(!res) status = 3;
-		sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(param->sins.sin_port)==21)?0:':', ntohs(param->sins.sin_port));
+		sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(*SAPORT(&param->sinsr))==21)?0:':', ntohs(*SAPORT(&param->sinsr)));
 		req = mystrdup((char *)buf);
 #ifndef WITHMAIN
 		{

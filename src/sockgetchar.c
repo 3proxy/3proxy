@@ -123,7 +123,7 @@ int sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec
 	}
 	if(size <= param->srvinbuf) return size;
 	size -= param->srvinbuf;
-	if((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sins, param->srvbuf + param->srvinbuf, (param->srvbufsize - param->srvinbuf) < size? param->srvbufsize - param->srvinbuf:size, timeosec*1000)) > 0){
+	if((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf + param->srvinbuf, (param->srvbufsize - param->srvinbuf) < size? param->srvbufsize - param->srvinbuf:size, timeosec*1000)) > 0){
 		param->srvinbuf += len;
 		param->nreads++;
 		param->statssrv64 += len;
@@ -148,7 +148,7 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec){
 		return (int)param->srvbuf[param->srvoffset++];
 	}
 	param->srvoffset = param->srvinbuf = 0;
-	if ((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sins, param->srvbuf, param->srvbufsize, timeosec*1000 + timeousec))<=0) return EOF;
+	if ((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf, param->srvbufsize, timeosec*1000 + timeousec))<=0) return EOF;
 	param->srvinbuf = len;
 	param->srvoffset = 1;
 	param->nreads++;

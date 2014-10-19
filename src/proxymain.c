@@ -388,10 +388,14 @@ int MODULEMAINFUNC (int argc, char** argv){
  }
  memset(&defparam.sincr, 0, sizeof(defparam.sincr));
  memset(&defparam.sincl, 0, sizeof(defparam.sincl));
- memset(&defparam.sins, 0, sizeof(defparam.sins));
+ memset(&defparam.sinsl, 0, sizeof(defparam.sinsl));
+ memset(&defparam.sinsr, 0, sizeof(defparam.sinsr));
+ memset(&defparam.req, 0, sizeof(defparam.req));
  *SAFAMILY(&defparam.sincr) = AF_INET;
  *SAFAMILY(&defparam.sincl) = AF_INET;
- *SAFAMILY(&defparam.sins) = AF_INET;
+ *SAFAMILY(&defparam.sinsl) = AF_INET;
+ *SAFAMILY(&defparam.sinsr) = AF_INET;
+ *SAFAMILY(&defparam.req) = AF_INET;
 
  srv.fds.fd = sock;
  srv.fds.events = POLLIN;
@@ -544,7 +548,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
- *SAFAMILY(&param->req) = *SAFAMILY(&param->sins) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
+ *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
  memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
  memcpy(&srv->extsa, &conf.extsa, sizeof(srv->extsa));
@@ -567,8 +571,7 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
  memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
-/* FIX ME */
- memcpy(&param->sins, &srv->extsa, sizeof(param->sins));
+ memcpy(&param->sinsl, &srv->extsa, sizeof(param->sinsl));
 }
 
 void srvfree(struct srvparam * srv){

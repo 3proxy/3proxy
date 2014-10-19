@@ -83,7 +83,7 @@ int readdata (struct clientparam* param) {
 		return -1;
 	}
 #endif
-	socksendto(param->remsock, (struct sockaddr *)&param->sins, buf, i, conf.timeouts[STRING_S]);	
+	socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf, i, conf.timeouts[STRING_S]);	
  } 
  if(i < 1) {
 	myfree(buf);
@@ -99,7 +99,6 @@ void * smtppchild(struct clientparam* param) {
  int i=0, res;
  unsigned char buf[320];
  unsigned char username[256];
- unsigned long ul;
  char * command = NULL;
  int login = 0;
 
@@ -188,8 +187,9 @@ void * smtppchild(struct clientparam* param) {
  if( i < 3 ) {RETURN(671);}
  buf[i] = 0;
  if(strncasecmp((char *)buf, "220", 3)||!strncasecmp((char *)buf+4, "PROXY", 5)){RETURN(672);}
- ul = param->extip;
- i = sprintf(buf, "EHLO [%lu.%lu.%lu.%lu]\r\n", ((ul&0xFF000000)>>24), ((ul&0x00FF0000)>>16), ((ul&0x0000FF00)>>8), ((ul&0x000000FF)));
+ i = sprintf(buf, "EHLO [");
+ i += myinet_ntop(*SAFAMILY(&param->sinsl), SAADDR(&param->sinsl), buf+strlen(buf), 64);
+ i += sprintf(buf+strlen(buf), "]\r\n");
  if(socksend(param->remsock, buf, i, conf.timeouts[STRING_S])!= i) {RETURN(673);}
  param->statscli64+=i;
  param->nwrites++;
@@ -292,7 +292,7 @@ void * smtppchild(struct clientparam* param) {
 CLEANRET:
 
  if(param->hostname&&param->extusername) {
-	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(param->sins.sin_port)==25)?0:':', ntohs(param->sins.sin_port));
+	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(*SAPORT(&param->sinsr))==25)?0:':', *SAPORT(&param->sinsr));
 	 (*param->srv->logfunc)(param, buf);
  }
  else (*param->srv->logfunc)(param, NULL);

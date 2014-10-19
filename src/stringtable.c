@@ -30,8 +30,9 @@ unsigned char * strings[] = {
 /* 16 */	(unsigned char *)"FTPPR",
 /* 17 */	(unsigned char *)"SMTPP",
 /* 18 */	(unsigned char *)"ICQPR",
-/* 19 */	(unsigned char *)"MSNPR",
-/* 20 */	(unsigned char *)"ZOMBIE",
+/* 19 	(unsigned char *)"MSNPR", */
+/* 19 */	(unsigned char *)"ZOMBIE",
+/* 20 */	NULL,
 /* 21 */	NULL,
 /* 22 */	NULL,
 /* 23 */	NULL,

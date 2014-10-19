@@ -49,7 +49,7 @@ void * pop3pchild(struct clientparam* param) {
 CLEANRET:
 
  if(param->hostname&&param->extusername) {
-	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(param->sins.sin_port)==110)?0:':', ntohs(param->sins.sin_port));
+	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (*SAPORT(&param->sinsr)==110)?0:':', ntohs(*SAPORT(&param->sinsr)));
 	 (*param->srv->logfunc)(param, buf);
  }
  else (*param->srv->logfunc)(param, NULL);

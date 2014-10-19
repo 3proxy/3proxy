@@ -260,9 +260,11 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					case R_ICQ:
 						param->redirectfunc = icqprchild;
 						break;
+/*
 					case R_MSN:
 						param->redirectfunc = msnprchild;
 						break;
+*/
 					default:
 						param->redirectfunc = proxychild;
 				}

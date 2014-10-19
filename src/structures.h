@@ -137,7 +137,9 @@ typedef enum {
 	S_FTPPR,
 	S_SMTPP,
 	S_ICQPR,
+/*
 	S_MSNPR,
+*/
 	S_ZOMBIE
 }PROXYSERVICE;
 
@@ -352,6 +354,7 @@ struct srvparam {
 	int silent;
 	int transparent;
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
+	int family;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
 #ifndef NOIPV6
@@ -438,25 +441,20 @@ struct clientparam {
 			maxtrafin64,
 			maxtrafout64;
 #ifndef NOIPV6
-	struct sockaddr_in6	sincl, sincr;
+	struct sockaddr_in6	sincl, sincr, sinsl, sinsr, req;
 #else
-	struct sockaddr_in	sincl, sincr;
+	struct sockaddr_in	sincl, sincr, sinsl, sinsr, req;
 #endif
-	struct sockaddr_in	sins,
-				req;
 
 	uint64_t	statscli64,
 			statssrv64;
 	unsigned long
 			nreads,
 			nwrites,
-			nconnects,
-			extip;
+			nconnects;
 
 	struct bandlim	*bandlims[MAXBANDLIMS],
 			*bandlimsout[MAXBANDLIMS];
-
-	unsigned short extport;
 
 	time_t time_start;
 };
@@ -485,10 +483,11 @@ struct extparam {
 #ifndef NOIPV6
 	struct sockaddr_in6 intsa;
 	struct sockaddr_in6 extsa6;
+	struct sockaddr_in extsa;
 #else
 	struct sockaddr_in intsa;
-#endif
 	struct sockaddr_in extsa;
+#endif
 	struct passwords *pwl;
 	struct auth * authenticate;
 	AUTHFUNC authfunc;

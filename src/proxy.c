@@ -229,7 +229,6 @@ void * proxychild(struct clientparam* param) {
  int authenticate;
  struct pollfd fds[2];
  SOCKET ftps;
- SASIZETYPE sasize;
 #ifndef WITHMAIN
  FILTER_ACTION action;
 #endif
@@ -260,8 +259,6 @@ for(;;){
 		ckeepalive = 0;
 		so._shutdown(param->remsock, SHUT_RDWR);
 		so._closesocket(param->remsock);
-		param->sins.sin_addr.s_addr = 0;
-		param->sins.sin_port = 0;
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
@@ -282,8 +279,6 @@ for(;;){
 			so._shutdown(param->remsock, SHUT_RDWR);
 			so._closesocket(param->remsock);
 		}
-		param->sins.sin_addr.s_addr = 0;
-		param->sins.sin_port = 0;
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
@@ -545,14 +540,6 @@ for(;;){
 #endif
 
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
- if (*SAFAMILY(&param->srv->intsa) == AF_INET &&
-	(param->sins.sin_addr.s_addr == ((struct sockaddr_in *)&param->srv->intsa)->sin_addr.s_addr && param->sins.sin_port == *SAPORT(&param->srv->intsa))) {
-	RETURN(519);
- }
- sasize = sizeof(struct sockaddr_in);
- if(so._getpeername(param->remsock, (struct sockaddr *)&param->sins, &sasize)){
-	RETURN(520);
- }
 #define FTPBUFSIZE 1536
 
  if(ftp && param->redirtype != R_HTTP){

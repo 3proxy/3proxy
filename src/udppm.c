@@ -40,7 +40,7 @@ void * udppmchild(struct clientparam* param) {
 
 
  if(!param->hostname)parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport));
- if (!param->req.sin_addr.s_addr) {
+ if (!memcmp(SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SAADDRLEN(&param->req))) {
 	param->srv->fds.events = POLLIN;
 	RETURN (100);
  }
@@ -62,27 +62,25 @@ void * udppmchild(struct clientparam* param) {
 	}
 	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
 	ioctlsocket(param->clisock, FIONBIO, &ul);
-	size = sizeof(param->sins);
-	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sins, &size)) {RETURN(21);};
-	if(so._bind(param->clisock,(struct sockaddr *)&param->sins,sizeof(struct sockaddr_in))) {
+	size = sizeof(param->sinsl);
+	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};
+	if(so._bind(param->clisock,(struct sockaddr *)&param->sinsl,sizeof(struct sockaddr_in))) {
 		RETURN(822);
 	}
 #else
 	param->clisock = param->srv->srvsock;
 #endif
 
- param->sins.sin_family = AF_INET;
- param->sins.sin_port = htons(0);
- param->sins.sin_addr.s_addr = param->extip;
- if ((param->remsock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
- if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins))) {RETURN (12);}
+ memcpy(&param->sinsl, *SAFAMILY(&param->req) == AF_INET? (struct sockaddr *)&param->srv->extsa : (struct sockaddr *)&param->srv->extsa6, SASIZE(&param->req));
+ *SAPORT(&param->sinsl) = 0;
+ if ((param->remsock=so._socket(*SAFAMILY(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+ if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {RETURN (12);}
 #ifdef _WIN32
 	ioctlsocket(param->remsock, FIONBIO, &ul);
 #else
 	fcntl(param->remsock,F_SETFL,O_NONBLOCK);
 #endif
- param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr;
- param->sins.sin_port = param->req.sin_port;
+ memcpy(&param->sinsr, &param->req, sizeof(param->req));
 
  param->operation = UDPASSOC;
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}

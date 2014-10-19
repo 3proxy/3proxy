@@ -597,6 +597,10 @@ void logsyslog(struct clientparam * param, const unsigned char *s) {
 int doconnect(struct clientparam * param){
  SASIZETYPE size = sizeof(param->sins);
  struct sockaddr_in bindsa;
+
+ if (*SAFAMILY(&param->sincr) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincr), SAADDR(&param->req), SASIZE(param->req)) &&
+	*SAPORT(&param->sincr) == *SAPORT(&param->req)) return 519;
+
  if (param->operation == ADMIN || param->operation == DNSRESOLVE || param->operation == BIND || param->operation == UDPASSOC)
 	return 0;
  if (param->remsock != INVALID_SOCKET){
