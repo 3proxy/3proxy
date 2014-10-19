@@ -73,7 +73,11 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -bBUFSIZE size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
 	" -t be silent (do not log service start/stop)\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
-	" -eIP ip address or external interface (outgoing connection will have this)\n";
+	" -eIP ip address or external interface (outgoing connection will have this)\n"
+	" -4 Use IPv4 for outgoing connections\n"
+	" -6 Use IPv6 for outgoing connections\n"
+	" -46 Prefer IPv4 for outgoing connections, use both IPv4 and IPv6\n"
+	" -64 Prefer IPv6 for outgoing connections, use both IPv4 and IPv6\n";
 
 #ifdef _WIN32
  unsigned long ul = 1;
@@ -188,6 +192,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case 'p':
 			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
+			break;
+		 case '4':
+		 case '6':
+			srv.family = atoi(argv[i]);
 			break;
 		 case 'b':
 			srv.bufsize = atoi(argv[i]+2);
