@@ -65,9 +65,11 @@ struct extparam conf = {
 	NULL, NULL,
 	NONE, NONE,
 	NULL,
-	{AF_INET}, 
-	INADDR_ANY, 
-	0,
+#ifndef NOIPV6
+	{AF_INET},{AF_INET6},{AF_INET}, 
+#else
+	{AF_INET},{AF_INET}, 
+#endif
 	NULL,
 	NULL,
 	doconnect,

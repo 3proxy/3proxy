@@ -564,12 +564,12 @@ static void * ef_server_intsa(struct node * node){
 	return &((struct srvparam *)node->value) -> intsa;
 }
 
-static void * ef_server_extip(struct node * node){
-	return &((struct srvparam *)node->value) -> extip;
+static void * ef_server_extsa(struct node * node){
+	return &((struct srvparam *)node->value) -> extsa;
 }
 
-static void * ef_server_extport(struct node * node){
-	return &((struct srvparam *)node->value) -> extport;
+static void * ef_server_extsa6(struct node * node){
+	return &((struct srvparam *)node->value) -> extsa6;
 }
 
 static void * ef_server_acl(struct node * node){
@@ -754,8 +754,8 @@ static struct property prop_server[] = {
 	{prop_server + 3, "targetport", ef_server_targetport, TYPE_PORT, "portmapper target port"},
 	{prop_server + 4, "starttime", ef_server_starttime, TYPE_DATETIME, "service started seconds"},
 	{prop_server + 5, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
-	{prop_server + 6, "extip", ef_server_extip, TYPE_IP, "ip address of external interface"},
-	{prop_server + 7, "extport", ef_server_extport, TYPE_PORT, "port to use for outgoing connection"},
+	{prop_server + 6, "extsa", ef_server_extsa, TYPE_SA, "ip address of external interface"},
+	{prop_server + 7, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
 	{prop_server + 8, "auth", ef_server_auth, TYPE_STRING, "service authentication type"},
 	{prop_server + 9, "acl", ef_server_acl, TYPE_ACE, "access control list"},
 	{prop_server + 10, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},

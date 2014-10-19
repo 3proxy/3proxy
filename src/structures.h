@@ -356,10 +356,11 @@ struct srvparam {
 	unsigned logdumpsrv, logdumpcli;
 #ifndef NOIPV6
 	struct sockaddr_in6 intsa;
+	struct sockaddr_in6 extsa6;
 #else
 	struct sockaddr_in intsa;
 #endif
-	unsigned long extip;
+	struct sockaddr_in extsa;
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
 	FILE *stdlog;
@@ -372,7 +373,6 @@ struct srvparam {
 	unsigned char * logformat;
 	unsigned char * logtarget;
 	unsigned char * nonprintable;
-	unsigned short extport;
 	unsigned short targetport;
 	unsigned char replace;
 	time_t time_start;
@@ -484,11 +484,11 @@ struct extparam {
 	char * counterfile;
 #ifndef NOIPV6
 	struct sockaddr_in6 intsa;
+	struct sockaddr_in6 extsa6;
 #else
 	struct sockaddr_in intsa;
 #endif
-	unsigned long extip;
-	unsigned short extport;
+	struct sockaddr_in extsa;
 	struct passwords *pwl;
 	struct auth * authenticate;
 	AUTHFUNC authfunc;

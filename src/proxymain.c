@@ -176,7 +176,15 @@ int MODULEMAINFUNC (int argc, char** argv){
 			getip46(46, argv[i]+2, (struct sockaddr *)&srv.intsa);
 			break;
 		 case 'e':
-			srv.extip = getip((unsigned char *)argv[i]+2);
+			{
+#ifndef NOIPV6
+				struct sockaddr_in6 sa6;
+				error = !getip46(46, argv[i]+2, (struct sockaddr *)&sa6);
+				if(!error) memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&srv.extsa:(void *)&srv.extsa6, &sa6, SASIZE(&sa6)); 
+#else
+				error = !getip46(46, argv[i]+2, (struct sockaddr *)&srv.extsa);
+#endif
+			}
 			break;
 		 case 'p':
 			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
@@ -313,6 +321,10 @@ int MODULEMAINFUNC (int argc, char** argv){
  srvinit2(&srv, &defparam);
  if(!*SAFAMILY(&srv.intsa)) *SAFAMILY(&srv.intsa) = AF_INET;
  if(!*SAPORT(&srv.intsa)) *SAPORT(&srv.intsa) = htons(childdef.port);
+ *SAFAMILY(&srv.extsa) = AF_INET;
+#ifndef NOIPV6
+ *SAFAMILY(&srv.extsa6) = AF_INET6;
+#endif
  if(hostname)parsehostname(hostname, &defparam, childdef.port);
 
 
@@ -535,6 +547,10 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sins) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
  memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
+ memcpy(&srv->extsa, &conf.extsa, sizeof(srv->extsa));
+#ifndef NOIPV6
+ memcpy(&srv->extsa6, &conf.extsa6, sizeof(srv->extsa6));
+#endif
 }
 
 void srvinit2(struct srvparam * srv, struct clientparam *param){
@@ -550,12 +566,9 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 	else srv->logformat = (unsigned char *)mystrdup((char *)srv->logformat);
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
- if(!*SAFAMILY(&srv->intsa)) *SAFAMILY(&srv->intsa) = AF_INET;
  memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
- if(!srv->extip) srv->extip = conf.extip;
- param->sins.sin_addr.s_addr = param->extip = srv->extip;
- if(!srv->extport) srv->extport = htons(conf.extport);
- param->sins.sin_port = param->extport = srv->extport;
+/* FIX ME */
+ memcpy(&param->sins, &srv->extsa, sizeof(param->sins));
 }
 
 void srvfree(struct srvparam * srv){
@@ -858,9 +871,13 @@ void freeconf(struct extparam *confp){
  confp->authfunc = ipauth;
  confp->bandlimfunc = NULL;
  memset(&confp->intsa, 0, sizeof(confp->intsa));
+ memset(&confp->extsa, 0, sizeof(confp->extsa));
+#ifndef NOIPV6
+ memset(&confp->extsa6, 0, sizeof(confp->extsa6));
+ *SAFAMILY(&confp->extsa6) = AF_INET6;
+#endif
  *SAFAMILY(&confp->intsa) = AF_INET;
- confp->extip = 0;
- *SAPORT(&confp->intsa) = confp->extport = 0;
+ *SAFAMILY(&confp->extsa) = AF_INET;
  confp->singlepacket = 0;
  confp->maxchild = 100;
  resolvfunc = NULL;
