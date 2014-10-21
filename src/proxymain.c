@@ -195,7 +195,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case '4':
 		 case '6':
-			srv.family = atoi(argv[i]);
+			srv.family = atoi(argv[i]+1);
 			break;
 		 case 'b':
 			srv.bufsize = atoi(argv[i]+2);
@@ -579,7 +579,7 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
  memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
- memcpy(&param->sinsl, &srv->extsa, sizeof(param->sinsl));
+ memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsl));
 }
 
 void srvfree(struct srvparam * srv){

@@ -189,7 +189,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 		port = starttrafcorrect->port;
 		g_s = starttrafcorrect->p_service;
 		if (starttrafcorrect->p_service == S_NOSERVICE) g_s = param->service;
-		if (starttrafcorrect->port <= 0)  port = myhtons(param->sins.sin_port);
+		if (starttrafcorrect->port <= 0)  port = myhtons(*SAPORT(&param->sinsr));
 		
 #ifndef NOPSTDINT
 		statssrv_before = param->statssrv64;
@@ -199,7 +199,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 		statscli_before = param->statscli;
 #endif
 		rule++;
-		if (((g_s == param->service) && (port == myhtons(param->sins.sin_port))) || 
+		if (((g_s == param->service) && (port == myhtons(*SAPORT(&param->sinsr)))) || 
 			( ((starttrafcorrect->type == UDP) && 
 				((param->operation == UDPASSOC)||
 				 (param->operation == DNSRESOLVE)||
@@ -240,7 +240,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 				}
 				if (DBGLEVEL == 1) {
 #ifndef NOPSTDINT
-					fprintf(stdout, "Port=%hd; Before: srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; After:  srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(param->sins.sin_port), statssrv_before, statscli_before, param->statssrv64, param->statscli64,param->nreads,param->nwrites,rule);
+					fprintf(stdout, "Port=%hd; Before: srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; After:  srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(*SAPORT(&param->sinsr)), statssrv_before, statscli_before, param->statssrv64, param->statscli64,param->nreads,param->nwrites,rule);
 #else
 					fprintf(stdout, "Port=%hd; Before: srv=%lu, cli=%lu; After:  srv=%lu, cli=%lu; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(param->sins.sin_port), statssrv_before, statscli_before, param->statssrv, param->statscli,param->nreads,param->nwrites,rule);
 #endif
@@ -250,7 +250,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 		}
 	}
 	if ((!ok) && (DBGLEVEL == 1)) {
-		fprintf(stdout, "No rules specifed: service=%d, port=%d, operation=%d", param->service, param->sins.sin_port,param->operation);
+		fprintf(stdout, "No rules specifed: service=%d, port=%d, operation=%d", param->service, *SAPORT(&param->sinsr),param->operation);
 	}
 	origlogfunc(param, pz);
 }

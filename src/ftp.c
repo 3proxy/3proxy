@@ -190,12 +190,14 @@ SOCKET ftpdata(struct clientparam *param){
 	if(sscanf(sb+1, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) return INVALID_SOCKET;
 	rem = param->remsock;
 	param->remsock = INVALID_SOCKET;
-	param->req.sin_family = AF_INET;
-	param->req.sin_port = param->sins.sin_port = htons((unsigned short)((b5<<8)^b6));
-	param->req.sin_addr.s_addr = param->sins.sin_addr.s_addr = htonl((b1<<24)^(b2<<16)^(b3<<8)^b4);
+	memcpy(&param->req,&param->sinsr,sizeof(param->req));
+	*SAPORT(&param->req) = *SAPORT(&param->sinsr) = htons((unsigned short)((b5<<8)^b6));
 	i = param->operation;
 	param->operation = FTP_DATA;
-	if((param->res = (*param->srv->authfunc)(param))) return INVALID_SOCKET;
+	if((param->res = (*param->srv->authfunc)(param))) {
+		param->remsock = rem;
+		return INVALID_SOCKET;
+	}
 	param->operation = i;
 	s = param->remsock;
 	param->remsock = rem;

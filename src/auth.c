@@ -205,16 +205,12 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	int done = 0;
 	struct chain * cur;
 	struct chain * redir = NULL;
-	unsigned long targetip;
-	unsigned short targetport;
 	int r2;
 
 	if(param->remsock != INVALID_SOCKET) {
 		return 0;
 	}
-	targetip = param->req.sin_addr.s_addr;
-	targetport = param->req.sin_port;
-	if(!targetip || !targetport) return 100;
+	if(!memcmp(SAADDR(&param->req),"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",SAADDRLEN(&param->req)) || !*SAPORT(&param->req)) return 100;
 
 	r2 = (myrand(param, sizeof(struct clientparam))%1000);
 
@@ -270,11 +266,16 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				}
 				return 0;
 			}
-			else if(!cur->redirip && cur->redirport) param->extport = cur->redirport;
-			else if(!cur->redirport && cur->redirip) param->extip = cur->redirip;
-			else {
-				param->sins.sin_port = cur->redirport;
-				param->sins.sin_addr.s_addr = cur->redirip;
+			else if(!cur->redirport && cur->redirip) {
+				unsigned short port = *SAPORT(&param->sinsl);
+				*SAFAMILY(&param->sinsl) = AF_INET;
+				*(unsigned long *)SAADDR(&param->sinsl) = cur->redirip;
+				*SAPORT(&param->sinsl) = port;
+			}
+			else if(!cur->redirip && cur->redirport) *SAPORT(&param->sinsl) = cur->redirport;
+			else if(*SAFAMILY(&param->req) == AF_INET){
+				*(unsigned long *)SAADDR(&param->sinsr) = cur->redirip;
+				*SAPORT(&param->sinsr) = cur->redirport;
 			}
 
 			if((res = alwaysauth(param))){
@@ -282,7 +283,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 		}
 		else {
-			res = redir?clientnegotiate(redir, param, cur->redirip, cur->redirport):0;
+			res = (redir && *SAFAMILY(&param->req) == AF_INET)?clientnegotiate(redir, param, cur->redirip, cur->redirport):0;
 			if(res) return res;
 		}
 		redir = cur;
@@ -305,7 +306,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	}
 
 	if(!connected) return 9;
-	return redir?clientnegotiate(redir, param, targetip, targetport):0;
+	return (redir && *SAFAMILY(&param->req) == AF_INET)?clientnegotiate(redir, param, *(unsigned long *)SAADDR(&param->req), *SAPORT(&param->req)):0;
 }
 
 int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
@@ -339,7 +340,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 		}
 	 if(!ipentry) return 0;
 	}
-	if((acentry->dst && param->req.sin_addr.s_addr) || (acentry->dstnames && param->hostname)) {
+	if((acentry->dst && memcmp(SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SAADDRLEN(&param->req))) || (acentry->dstnames && param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
 		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
@@ -374,10 +375,10 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	 }
 	 if(!ipentry && !hstentry) return 0;
 	}
-	if(acentry->ports && param->req.sin_port) {
+	if(acentry->ports && *SAPORT(&param->req)) {
 	 for (portentry = acentry->ports; portentry; portentry = portentry->next)
-		if(ntohs(param->req.sin_port) >= portentry->startport &&
-			   ntohs(param->req.sin_port) <= portentry->endport) {
+		if(ntohs(*SAPORT(&param->req)) >= portentry->startport &&
+			   ntohs(*SAPORT(&param->req)) <= portentry->endport) {
 			break;
 		}
 		if(!portentry) return 0;
@@ -970,7 +971,7 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		struct sockaddr_in sin, *sinsp;
 
 		memset(&sin, 0, sizeof(sin));
-		sinsp = (param && !makeauth)? &param->sins : &sin;
+		sinsp = (param && !makeauth && *SAFAMILY(&param->sinsr) == AF_INET)? (struct sockaddr_in *)&param->sinsr : &sin;
 		
 
 		if((sock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) break;

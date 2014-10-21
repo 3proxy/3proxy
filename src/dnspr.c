@@ -43,10 +43,10 @@ void * dnsprchild(struct clientparam* param) {
 		RETURN(818);
 	}
 	ioctlsocket(param->clisock, FIONBIO, &ul);
-	size = sizeof(struct sockaddr_in);
-	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sins, &size)) {RETURN(21);};
+	size = sizeof(param->sinsl);
+	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};
 	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
-	if(so._bind(param->clisock,(struct sockaddr *)&param->sins,sizeof(struct sockaddr_in))) {
+	if(so._bind(param->clisock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {
 		RETURN(822);
 	}
 
@@ -136,20 +136,21 @@ void * dnsprchild(struct clientparam* param) {
 #else
 	fcntl(param->remsock,F_SETFL,O_NONBLOCK);
 #endif
-	param->sins.sin_family = AF_INET;
-	param->sins.sin_port = htons(0);
-	param->sins.sin_addr.s_addr = htonl(0);
-	if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(struct sockaddr_in))) {
+	*SAFAMILY(&param->sinsl) = AF_INET;
+	*SAPORT(&param->sinsl) = htons(0);
+	*(unsigned long*)SAADDR(&param->sinsl) = htonl(0);
+	if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {
 		RETURN(819);
 	}
-	param->sins.sin_addr.s_addr = nservers[0];
-	param->sins.sin_port = htons(53);
-	if(socksendto(param->remsock, (struct sockaddr *)&param->sins, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
+	*SAFAMILY(&param->sinsr) = AF_INET;
+	*(unsigned long*)SAADDR(&param->sinsr) = nservers[0];
+	*SAPORT(&param->sinsr) = htons(53);
+	if(socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
 		RETURN(820);
 	}
 	param->statscli64 += i;
 	param->nwrites++;
-	len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sins, buf, BUFSIZE, 15000);
+	len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, buf, BUFSIZE, 15000);
 	if(len <= 13) {
 		RETURN(821);
 	}
