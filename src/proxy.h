@@ -42,7 +42,7 @@
 #define NOCOUNTOUT	8
 
 #define UDPBUFSIZE 16384
-#define TCPBUFSIZE  4096
+#define TCPBUFSIZE  8192
 
 
 #ifdef _WIN32

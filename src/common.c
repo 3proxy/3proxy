@@ -599,7 +599,7 @@ void logsyslog(struct clientparam * param, const unsigned char *s) {
 int doconnect(struct clientparam * param){
  SASIZETYPE size = sizeof(param->sinsr);
 
- if (*SAFAMILY(&param->sincr) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincr), SAADDR(&param->req), SASIZE(&param->req)) &&
+ if (*SAFAMILY(&param->sincr) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincr), SAADDR(&param->req), SAADDRLEN(&param->req)) &&
 	*SAPORT(&param->sincr) == *SAPORT(&param->req)) return 519;
 
  if (param->operation == ADMIN || param->operation == DNSRESOLVE || param->operation == BIND || param->operation == UDPASSOC)

@@ -292,7 +292,7 @@ void * smtppchild(struct clientparam* param) {
 CLEANRET:
 
  if(param->hostname&&param->extusername) {
-	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(*SAPORT(&param->sinsr))==25)?0:':', *SAPORT(&param->sinsr));
+	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, *SAPORT(&param->sinsr)==25?0:':',ntohs(*SAPORT(&param->sinsr)));
 	 (*param->srv->logfunc)(param, buf);
  }
  else (*param->srv->logfunc)(param, NULL);

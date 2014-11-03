@@ -268,6 +268,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 			else if(!cur->redirport && cur->redirip) {
 				unsigned short port = *SAPORT(&param->sinsl);
+				memset(&param->sinsl, 0, sizeof(param->sinsl));
 				*SAFAMILY(&param->sinsl) = AF_INET;
 				*(unsigned long *)SAADDR(&param->sinsl) = cur->redirip;
 				*SAPORT(&param->sinsl) = port;

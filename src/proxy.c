@@ -132,8 +132,8 @@ char * proxy_stringtable[] = {
 	NULL
 };
 
-#define BUFSIZE 4096
-#define LINESIZE 2048
+#define BUFSIZE 8192
+#define LINESIZE 4096
 
 static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
  char *sb;
