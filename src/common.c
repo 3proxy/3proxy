@@ -214,7 +214,7 @@ int ceparseargs(const char *str){
 #endif
 
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port){
-	char *sp,*se;
+	char *sp=NULL,*se=NULL;
 
 	if(!hostname || !*hostname)return 1;
 	if(*hostname == '[') se=strchr(hostname, ']');
@@ -228,10 +228,10 @@ int parsehostname(char *hostname, struct clientparam *param, unsigned short port
 	}
 	if(sp){
 		port = atoi(sp+1);
-		*sp = ':';
 	}
-	if(se) *se = ']';
 	getip46(param->srv->family, param->hostname + (se!=0), (struct sockaddr *)&param->req);
+	if(se) *se = ']';
+	if(sp) *sp = ':';
 	*SAPORT(&param->req) = htons(port);
 	memset(&param->sinsr, 0, sizeof(param->sinsr));
 	return 0;

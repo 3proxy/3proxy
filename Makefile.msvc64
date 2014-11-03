@@ -28,15 +28,15 @@ TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.msvc64
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
-VERFILE = 3proxyres.obj $(VERFILE)
+VERFILE = $(VERFILE)
+
+#../3proxy.res:
+#	rc /fo../3proxy.res ../3proxy.rc
+
+#3proxyres.obj: ../3proxy.res
+#	cvtres /out:3proxyres.obj /MACHINE:X64 ../3proxy.res
 
 include Makefile.inc
-
-../3proxy.res:
-	rc /fo../3proxy.res ../3proxy.rc
-
-3proxyres.obj: ../3proxy.res
-	cvtres /out:3proxyres.obj /MACHINE:X64 ../3proxy.res
 
 allplugins:
 	for /D %%i in ($(PLUGINS)) do (copy Makefile plugins\%%i && copy Makefile.var plugins\%%i && cd plugins\%%i && nmake && del *.obj *.idb &&cd ..\..)
