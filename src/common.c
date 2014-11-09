@@ -618,12 +618,22 @@ int doconnect(struct clientparam * param){
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
 	if ((param->remsock=so._socket(*SAFAMILY(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
 	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
-	if(*SAFAMILY(&param->sinsr) == AF_INET)	memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
+#ifndef NOIPV6
+	if(*SAFAMILY(&param->sinsr) == AF_INET)	
+#endif
+		memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
+#ifndef NOIPV6
 	else memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
+#endif
 	if (param->srv->targetport && !*SAPORT(&param->sinsl) && ntohs(*SAPORT(&param->sincr)) > 1023) *SAPORT(&param->sinsl) = *SAPORT(&param->sincr);
 	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
-		if(*SAFAMILY(&param->sinsr) == AF_INET)	memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
+#ifndef NOIPV6
+		if(*SAFAMILY(&param->sinsr) == AF_INET)	
+#endif
+			memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
+#ifndef NOIPV6
 		else memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
+#endif
 		if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
 			return 12;
 		}

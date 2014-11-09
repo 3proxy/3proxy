@@ -153,8 +153,12 @@ void * sockschild(struct clientparam* param) {
 	 break;
  	case 2:
 	case 3:
-	 
+
+#ifndef NOIPV6	 
 	 memcpy(&param->sinsl, *SAFAMILY(&param->req)==AF_INET6? (struct sockaddr *)&param->srv->extsa6:(struct sockaddr *)&param->srv->extsa, SASIZE(&param->req)); 
+#else
+	 memcpy(&param->sinsl, &param->srv->extsa, SASIZE(&param->req)); 
+#endif
 	 if(!*SAPORT(&param->sinsl))*SAPORT(&param->sinsl) = port;
 	 if ((param->remsock=so._socket(*SAFAMILY(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;

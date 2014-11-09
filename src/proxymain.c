@@ -579,7 +579,11 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
  memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
+#ifndef NOIPV6
  memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsl));
+#else
+ memcpy(&param->sinsr, &srv->extsa, sizeof(param->sinsl));
+#endif
 }
 
 void srvfree(struct srvparam * srv){

@@ -71,7 +71,11 @@ void * udppmchild(struct clientparam* param) {
 	param->clisock = param->srv->srvsock;
 #endif
 
+#ifndef NOIPV6
  memcpy(&param->sinsl, *SAFAMILY(&param->req) == AF_INET? (struct sockaddr *)&param->srv->extsa : (struct sockaddr *)&param->srv->extsa6, SASIZE(&param->req));
+#else
+ memcpy(&param->sinsl, &param->srv->extsa, SASIZE(&param->req));
+#endif
  *SAPORT(&param->sinsl) = 0;
  if ((param->remsock=so._socket(*SAFAMILY(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
  if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {RETURN (12);}

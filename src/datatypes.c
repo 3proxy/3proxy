@@ -568,9 +568,11 @@ static void * ef_server_extsa(struct node * node){
 	return &((struct srvparam *)node->value) -> extsa;
 }
 
+#ifndef NOIPV6
 static void * ef_server_extsa6(struct node * node){
 	return &((struct srvparam *)node->value) -> extsa6;
 }
+#endif
 
 static void * ef_server_acl(struct node * node){
 	return ((struct srvparam *)node->value) -> acl;
@@ -747,18 +749,20 @@ static struct property prop_server[] = {
 	{prop_server + 4, "starttime", ef_server_starttime, TYPE_DATETIME, "service started seconds"},
 	{prop_server + 5, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
 	{prop_server + 6, "extsa", ef_server_extsa, TYPE_SA, "ip address of external interface"},
+	{prop_server + 7, "auth", ef_server_auth, TYPE_STRING, "service authentication type"},
+	{prop_server + 8, "acl", ef_server_acl, TYPE_ACE, "access control list"},
+	{prop_server + 9, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},
+	{prop_server + 10, "usentlm", ef_server_usentlm, TYPE_INTEGER, "allow NTLM authentication"},
+	{prop_server + 11, "log", ef_server_log, TYPE_STRING, "type of logging"},
+	{prop_server + 12, "logtarget", ef_server_logtarget, TYPE_STRING, "log target options"},
+	{prop_server + 13, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
+	{prop_server + 14, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
+	{prop_server + 15, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
+	{prop_server + 16, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
+	{prop_server + 17, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
+#ifndef NOIPV6
 	{prop_server + 7, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
-	{prop_server + 8, "auth", ef_server_auth, TYPE_STRING, "service authentication type"},
-	{prop_server + 9, "acl", ef_server_acl, TYPE_ACE, "access control list"},
-	{prop_server + 10, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},
-	{prop_server + 11, "usentlm", ef_server_usentlm, TYPE_INTEGER, "allow NTLM authentication"},
-	{prop_server + 12, "log", ef_server_log, TYPE_STRING, "type of logging"},
-	{prop_server + 13, "logtarget", ef_server_logtarget, TYPE_STRING, "log target options"},
-	{prop_server + 14, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
-	{prop_server + 15, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
-	{prop_server + 16, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
-	{prop_server + 17, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
-	{prop_server + 18, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
+#endif
 	{NULL, "next", ef_server_next, TYPE_SERVER, "next"}
 };
 
