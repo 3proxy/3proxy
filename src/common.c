@@ -734,8 +734,7 @@ unsigned long getip(unsigned char *name){
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
 	int ndots=0, ncols=0, nhex=0;
-	struct addrinfo *ai, *iter;
-	struct sockaddr *sa4=NULL, *sa6=NULL;
+	struct addrinfo *ai, hint;
 	int i;
 
 	if(!sa) return 0;
@@ -766,31 +765,31 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 	if(!name[i]){
 		if(ndots == 3 && ncols == 0 && nhex == 0){
 			*SAFAMILY(sa)=AF_INET;
-			return inet_pton(AF_INET, name, SAADDR(sa))? AF_INET : 0; 
+			return inet_pton(AF_INET, name, SAADDR(sa))? (family==6? 0:AF_INET) : 0; 
 		}
 		if(ncols >= 2) {
 			*SAFAMILY(sa)=AF_INET6;
-			return inet_pton(AF_INET6, name, SAADDR(sa))? AF_INET6 : 0;
+			return inet_pton(AF_INET6, name, SAADDR(sa))?(family==4? 0:AF_INET6) : 0;
 		}
 	}
-	if (getaddrinfo(name, NULL, NULL, &ai)) return 0;
-	for(iter = ai; iter; iter = iter->ai_next){
-		if(!sa4 && iter->ai_addr->sa_family == AF_INET) sa4 = iter->ai_addr;
-		if(!sa6 && iter->ai_addr->sa_family == AF_INET6) sa6 = iter->ai_addr;
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_family = (family == 6 || family == 64)?AF_INET6:AF_INET;
+	if (getaddrinfo(name, NULL, &hint, &ai)) {
+		if(family == 64 || family == 46){
+			hint.ai_family = (family == 64)?AF_INET:AF_INET6;
+			if (getaddrinfo(name, NULL, &hint, &ai)) return 0;
+		}
+		else return 0;
 	}
-	if(sa6 && ((family == 6) || (family == 64) || (family == 46 && !sa4))){
-		*SAFAMILY(sa)=AF_INET6;
-		memcpy(SAADDR(sa), SAADDR(sa6), SAADDRLEN(sa));
+	if(ai){
+		if(ai->ai_addr->sa_family == AF_INET || ai->ai_addr->sa_family == AF_INET6){
+			*SAFAMILY(sa)=ai->ai_addr->sa_family;
+			memcpy(SAADDR(sa), SAADDR(ai->ai_addr), SAADDRLEN(ai->ai_addr));
+			freeaddrinfo(ai);
+			return *SAFAMILY(sa);
+		}
 		freeaddrinfo(ai);
-		return AF_INET6;
 	}
-	else if(sa4 && family != 6){
-		*SAFAMILY(sa)=AF_INET;
-		memcpy(SAADDR(sa), SAADDR(sa4), SAADDRLEN(sa));
-		freeaddrinfo(ai);
-		return AF_INET;
-	}	
-	freeaddrinfo(ai);
 	return 0;
 #endif
 }

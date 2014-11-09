@@ -104,7 +104,7 @@ int
 
 #ifndef NOIPV6
 #define SAPORT(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? &((struct sockaddr_in6 *)sa)->sin6_port : &((struct sockaddr_in *)sa)->sin_port)
-#define SAADDR(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)((struct sockaddr_in6 *)sa)->sin6_addr.s6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDR(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)((struct sockaddr_in6 *)sa)->sin6_addr.u.Byte : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
 #define SAADDRLEN(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
 #define SASOCK(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
 #define SASIZE(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
