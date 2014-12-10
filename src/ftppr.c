@@ -132,12 +132,12 @@ void * ftpprchild(struct clientparam* param) {
 					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[1]),
 					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[2]),
 					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[3]),
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3]),
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3])
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[0]),
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[1])
 					);
 			else sprintf((char *)buf, "227 OK (127,0,0,1,%u,%u)\r\n", 
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3]),
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[3])
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[0]),
+					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[1])
 					);			
 		}
 		else {

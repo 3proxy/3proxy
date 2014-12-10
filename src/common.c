@@ -276,6 +276,7 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 	if(!username || !*username) return 1;
         if ((sb=strchr(username, conf.delimchar)) == NULL){
 		if(!param->hostname && param->remsock == INVALID_SOCKET) return 2;
+		if(param->hostname)parsehostname(param->hostname, param, port);
 		return parseusername(username, param, extpasswd);
 	}
 	while ((se=strchr(sb+1, conf.delimchar)))sb=se;
