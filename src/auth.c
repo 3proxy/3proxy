@@ -973,6 +973,7 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		time_t t;
 		struct sockaddr_in sin, *sinsp;
 		int usetcp = 0;
+		unsigned short serial = 1;
 
 		buf = b+2;
 
@@ -1010,7 +1011,9 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 			}
 		}
 		len = (int)strlen((char *)name);
-		*(unsigned short*)buf = htons(i+1); /* query id */
+		
+		serial = myrand(name,len);
+		*(unsigned short*)buf = serial; /* query id */
 		buf[2] = 1; 			/* recursive */
 		buf[3] = 0;
 		buf[4] = 0;
@@ -1054,7 +1057,7 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 			buf+=2;
 			len-=2;
 		}
-		if(*(unsigned short *)buf != htons(i+1))continue;
+		if(*(unsigned short *)buf != serial)continue;
 		if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {
 			return 0;
 		}
