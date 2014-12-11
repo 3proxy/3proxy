@@ -1003,10 +1003,17 @@ static int h_flushusers(int argc, unsigned char **argv){
 
 static int h_nserver(int argc, unsigned char **argv){
   int res;
+  char *str;
 
-	for(res = 0; nservers[res] && res < MAXNSERVERS; res++);
+	for(res = 0; nservers[res].ip && res < MAXNSERVERS; res++);
 	if(res < MAXNSERVERS) {
-		nservers[res] = getip(argv[1]);
+		if((str = strchr((char *)argv[1], '/')))
+			*str = 0;
+		nservers[res].ip = getip(argv[1]);
+		if(str) {
+			nservers[res].usetcp = strstr(str + 1, "tcp")? 1:0;
+			*str = '/';
+		}
 	}
 	resolvfunc = myresolver;
 	return 0;

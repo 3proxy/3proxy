@@ -297,6 +297,11 @@ struct trafcount {
 	time_t updated;
 };
 
+struct nserver {
+	unsigned long ip;
+	int usetcp;
+};
+
 typedef void * (* PROXYFUNC)(struct clientparam *);
 
 typedef enum {
@@ -623,7 +628,7 @@ extern struct sockfuncs so;
 struct pluginlink {
 	struct symbol symbols;
 	struct extparam *conf;
-	unsigned long *nservers;
+	struct nserver *nservers;
 	int * linenum;
 	struct auth *authfuncs;
 	struct commands * commandhandlers;

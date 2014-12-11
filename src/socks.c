@@ -160,7 +160,7 @@ void * sockschild(struct clientparam* param) {
 	 memcpy(&param->sinsl, &param->srv->extsa, SASIZE(&param->req)); 
 #endif
 	 if(!*SAPORT(&param->sinsl))*SAPORT(&param->sinsl) = port;
-	 if ((param->remsock=so._socket(*SAFAMILY(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+	 if ((param->remsock=so._socket(SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;
 	 break;
 

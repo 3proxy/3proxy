@@ -950,7 +950,8 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 	return 0;
 }
 
-unsigned long nservers[MAXNSERVERS] = {0, 0, 0, 0, 0};
+struct nserver nservers[MAXNSERVERS] = {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}};
+int tcpresolve = 0;
 
 unsigned long authnserver;
 
@@ -964,34 +965,53 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		return retval;
 	}
 	
-	for(i=0; (i<(makeauth && authnserver)? 1 : MAXNSERVERS) && ((makeauth && authnserver) || nservers[i]); i++){
+	for(i=0; (i<(makeauth && authnserver)? 1 : MAXNSERVERS) && ((makeauth && authnserver) || nservers[i].ip); i++){
 		unsigned short nquery, nq, na;
-		unsigned char buf[4096], *s1, *s2;
+		unsigned char b[4098], *buf, *s1, *s2;
 		int j, k, len, flen;
 		SOCKET sock;
 		unsigned ttl;
 		time_t t;
 		struct sockaddr_in sin, *sinsp;
+		int usetcp = 0;
 
-		memset(&sin, 0, sizeof(sin));
-		sinsp = (param && !makeauth && *SAFAMILY(&param->sinsr) == AF_INET)? (struct sockaddr_in *)&param->sinsr : &sin;
+		buf = b+2;
+
+		sinsp = (param && !makeauth)? (struct sockaddr_in *)&param->sinsr : &sin;
+		memset(sinsp, 0, sizeof(struct sockaddr_in));
 		
 
-		if((sock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) break;
+		if(makeauth && authnserver){
+			if((sock=so._socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) break;
+		}
+		else {
+			usetcp = nservers[i].usetcp;
+			if((sock=so._socket(PF_INET, usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
+		}
 		sinsp->sin_family = AF_INET;
 		sinsp->sin_port = htons(0);
 		sinsp->sin_addr.s_addr = htonl(0);
-		if(so._bind(sock,(struct sockaddr *)sinsp,sizeof(struct sockaddr_in))) {
+		if(so._bind(sock,(struct sockaddr *)sinsp,sizeof(struct sockaddr_in))){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			break;
 		}
-		sinsp->sin_addr.s_addr = (makeauth && authnserver)?authnserver : nservers[i];
+		if(makeauth && authnserver){
+			sinsp->sin_addr.s_addr = authnserver;
+		}
+		else {
+			sinsp->sin_addr.s_addr = nservers[i].ip;
+		}
 		sinsp->sin_port = htons(53);
-
+		if(usetcp){
+			if(so._connect(sock,(struct sockaddr *)sinsp,sizeof(struct sockaddr_in))) {
+				so._shutdown(sock, SHUT_RDWR);
+				so._closesocket(sock);
+				break;
+			}
+		}
 		len = (int)strlen((char *)name);
-		nquery = myrand(name, len);
-		*(unsigned short*)buf = nquery; /* query id */
+		*(unsigned short*)buf = htons(i+1); /* query id */
 		buf[2] = 1; 			/* recursive */
 		buf[3] = 0;
 		buf[4] = 0;
@@ -1012,6 +1032,12 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		buf[len++] = (makeauth == 1)? 0x0c : 0x01;	/* PTR:host address */
 		buf[len++] = 0;
 		buf[len++] = 1;			/* INET */
+		if(usetcp){
+			buf-=2;
+			*(unsigned short*)buf = htons(len);
+			len+=2;
+		}
+
 		if(socksendto(sock, (struct sockaddr *)sinsp, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
@@ -1021,9 +1047,15 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		len = sockrecvfrom(sock, (struct sockaddr *) sinsp, buf, 4096, 15000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
-		if(len <= 13) continue;
+		if(len <= 13) {
+			continue;
+		}
 		if(param) param->statssrv64 += len;
-		if(*(unsigned short *)buf != nquery)continue;
+		if(usetcp){
+			buf+=2;
+			len-=2;
+		}
+		if(*(unsigned short *)buf != htons(i+1))continue;
 		if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {
 			return 0;
 		}

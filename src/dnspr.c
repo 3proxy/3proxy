@@ -14,11 +14,12 @@
 #endif
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
-#define BUFSIZE 4096
+#define BUFSIZE 16384
 
 
 void * dnsprchild(struct clientparam* param) {
  unsigned long ip = 0;
+ unsigned char *bbuf;
  unsigned char *buf, *s1, *s2;
  char * host = NULL;
  unsigned char c;
@@ -32,10 +33,11 @@ void * dnsprchild(struct clientparam* param) {
 #endif
 
 
- if(!(buf = myalloc(BUFSIZE))){
+ if(!(bbuf = myalloc(BUFSIZE+2))){
 	param->srv->fds.events = POLLIN;
 	RETURN (21);
  }
+ buf = bbuf+2;
  size = sizeof(param->sincr);
  i = so._recvfrom(param->srv->srvsock, buf, BUFSIZE, 0, (struct sockaddr *)&param->sincr, &size); 
 #ifdef _WIN32
@@ -44,9 +46,9 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	ioctlsocket(param->clisock, FIONBIO, &ul);
 	size = sizeof(param->sinsl);
-	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};
+	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sincl, &size)) {RETURN(21);};
 	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
-	if(so._bind(param->clisock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {
+	if(so._bind(param->clisock,(struct sockaddr *)&param->sincl,sizeof(param->sincl))) {
 		RETURN(822);
 	}
 
@@ -103,7 +105,7 @@ void * dnsprchild(struct clientparam* param) {
 	memcpy(buf+len+12,(void *)&ip,4);
 	len+=16;
  }
- if(type == 0x0c) {
+ else if(type == 0x0c) {
 	unsigned a, b, c, d;
 	sscanf(host, "%u.%u.%u.%u", &a, &b, &c, &d);
 	ip = htonl((d<<24) ^ (c<<16) ^ (b<<8) ^ a);
@@ -127,15 +129,10 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	else ip = 0;
  }
- if(!ip && nservers[0] && type!=1){
-	if((param->remsock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
+ if(!ip && nservers[0].ip && type!=1){
+	if((param->remsock=so._socket(PF_INET, nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
-#ifdef _WIN32
-	ioctlsocket(param->remsock, FIONBIO, &ul);
-#else
-	fcntl(param->remsock,F_SETFL,O_NONBLOCK);
-#endif
 	*SAFAMILY(&param->sinsl) = AF_INET;
 	*SAPORT(&param->sinsl) = htons(0);
 	*(unsigned long*)SAADDR(&param->sinsl) = htonl(0);
@@ -143,8 +140,22 @@ void * dnsprchild(struct clientparam* param) {
 		RETURN(819);
 	}
 	*SAFAMILY(&param->sinsr) = AF_INET;
-	*(unsigned long*)SAADDR(&param->sinsr) = nservers[0];
+	*(unsigned long*)SAADDR(&param->sinsr) = nservers[0].ip;
 	*SAPORT(&param->sinsr) = htons(53);
+	if(nservers[0].usetcp) {
+		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,sizeof(param->sinsr))) RETURN(830);
+		buf-=2;
+		*(unsigned short*)buf = htons(i);
+		i+=2;
+	}
+	else {
+#ifdef _WIN32
+/*		ioctlsocket(param->remsock, FIONBIO, &ul); */
+#else
+/*		fcntl(param->remsock,F_SETFL,O_NONBLOCK);  */
+#endif
+	}
+
 	if(socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
 		RETURN(820);
 	}
@@ -156,6 +167,10 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	param->statssrv64 += len;
 	param->nreads++;
+	if(nservers[0].usetcp) {
+		buf += 2;
+		len -= 2;
+	}
 	if(buf[6] || buf[7]){
 		if(socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			RETURN(822);
@@ -168,7 +183,7 @@ void * dnsprchild(struct clientparam* param) {
 	buf[2] = 0x85;
 	buf[3] = 0x83;
  }
- usleep(SLEEPTIME);
+ /* usleep(SLEEPTIME); */
  res = socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000); 
  if(res != len){RETURN(819);}
  if(!ip) {RETURN(888);}
@@ -186,7 +201,7 @@ CLEANRET:
 	);
 	(*param->srv->logfunc)(param, buf);
  }
- if(buf)myfree(buf);
+ if(bbuf)myfree(bbuf);
  if(host)myfree(host);
 #ifndef _WIN32
  param->clisock = INVALID_SOCKET;
