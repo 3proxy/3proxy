@@ -951,7 +951,6 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 }
 
 struct nserver nservers[MAXNSERVERS] = {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}};
-int tcpresolve = 0;
 
 unsigned long authnserver;
 
@@ -966,7 +965,7 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 	}
 	
 	for(i=0; (i<(makeauth && authnserver)? 1 : MAXNSERVERS) && ((makeauth && authnserver) || nservers[i].ip); i++){
-		unsigned short nquery, nq, na;
+		unsigned short nq, na;
 		unsigned char b[4098], *buf, *s1, *s2;
 		int j, k, len, flen;
 		SOCKET sock;
