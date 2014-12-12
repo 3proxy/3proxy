@@ -82,7 +82,7 @@ void * dnsprchild(struct clientparam* param) {
  *s2 = (len - (int)(s2 - buf)) - 1;
 
  type = ((unsigned)buf[len+1])*256 + (unsigned)buf[len+2];
- if(type==1){
+ if(type==1 && !param->srv->singlepacket){
  	 ip = udpresolve((unsigned char *)host, &ttl, param, 0);
  }
 
@@ -129,7 +129,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	else ip = 0;
  }
- if(!ip && nservers[0].ip && type!=1){
+ if(!ip && nservers[0].ip){
 	if((param->remsock=so._socket(PF_INET, nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}

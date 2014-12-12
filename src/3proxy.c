@@ -721,6 +721,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.port = 53;
 		childdef.isudp = 1;
 		childdef.service = S_DNSPR;
+		childdef.helpmessage = " -s - simple DNS forwarding - do not use 3proxy resolver / name cache\n";
 		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.hashsize) || resolvfunc == fakeresolver){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
 		}
