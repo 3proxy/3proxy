@@ -88,6 +88,8 @@ struct extparam conf = {
 	'@'
 };
 
+int numservers=0;
+
 int myrand(void * entropy, int len){
 	int i;
 	unsigned short init;

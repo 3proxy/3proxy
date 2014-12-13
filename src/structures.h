@@ -298,9 +298,14 @@ struct trafcount {
 };
 
 struct nserver {
-	unsigned long ip;
+#ifndef NOIPV6
+	struct sockaddr_in6 addr;
+#else
+	struct sockaddr_in addr;
+#endif
 	int usetcp;
 };
+extern int numservers;
 
 typedef void * (* PROXYFUNC)(struct clientparam *);
 

@@ -950,61 +950,68 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 	return 0;
 }
 
-struct nserver nservers[MAXNSERVERS] = {{0,0}, {0,0}, {0,0}, {0,0}, {0,0}};
-
+struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0},0}};
 unsigned long authnserver;
 
 
 unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientparam* param, int makeauth){
 
-	int i;
+	int i,n;
 	unsigned long retval;
 
 	if((retval = hashresolv(&dns_table, name, retttl))) {
 		return retval;
 	}
-	
-	for(i=0; (i<(makeauth && authnserver)? 1 : MAXNSERVERS) && ((makeauth && authnserver) || nservers[i].ip); i++){
+	n = (makeauth && authnserver)? 1 : numservers;
+	for(i=0; i<n; i++){
 		unsigned short nq, na;
 		unsigned char b[4098], *buf, *s1, *s2;
 		int j, k, len, flen;
 		SOCKET sock;
 		unsigned ttl;
 		time_t t;
-		struct sockaddr_in sin, *sinsp;
+#ifndef NOIPV6
+		struct sockaddr_in6 addr;
+#else
+		struct sockaddr_in addr;
+#endif
+		struct sockaddr *sinsr, *sinsl;
 		int usetcp = 0;
 		unsigned short serial = 1;
 
 		buf = b+2;
 
-		sinsp = (param && !makeauth)? (struct sockaddr_in *)&param->sinsr : &sin;
-		memset(sinsp, 0, sizeof(struct sockaddr_in));
+		sinsl = (param && !makeauth)? (struct sockaddr *)&param->sinsl : (struct sockaddr *)&addr;
+		sinsr = (param && !makeauth)? (struct sockaddr *)&param->sinsr : (struct sockaddr *)&addr;
+		memset(sinsl, 0, sizeof(addr));
+		memset(sinsr, 0, sizeof(addr));
 		
 
 		if(makeauth && authnserver){
 			if((sock=so._socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) break;
+			*SAFAMILY(sinsl) = AF_INET;
+			*SAFAMILY(sinsr) = AF_INET;
 		}
 		else {
 			usetcp = nservers[i].usetcp;
-			if((sock=so._socket(PF_INET, usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
+			if((sock=so._socket(SASOCK(&nservers[i].addr), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
+			*SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
+
 		}
-		sinsp->sin_family = AF_INET;
-		sinsp->sin_port = htons(0);
-		sinsp->sin_addr.s_addr = htonl(0);
-		if(so._bind(sock,(struct sockaddr *)sinsp,sizeof(struct sockaddr_in))){
+		if(so._bind(sock,sinsl,sizeof(addr))){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			break;
 		}
 		if(makeauth && authnserver){
-			sinsp->sin_addr.s_addr = authnserver;
+			((struct sockaddr_in *)sinsr)->sin_addr.s_addr = authnserver;
+			((struct sockaddr_in *)sinsr)->sin_port = htons(53);
 		}
 		else {
-			sinsp->sin_addr.s_addr = nservers[i].ip;
+			memcpy(sinsr, &nservers[i].addr, sizeof(addr));
 		}
-		sinsp->sin_port = htons(53);
 		if(usetcp){
-			if(so._connect(sock,(struct sockaddr *)sinsp,sizeof(struct sockaddr_in))) {
+			if(so._connect(sock,sinsr,sizeof(addr))) {
 				so._shutdown(sock, SHUT_RDWR);
 				so._closesocket(sock);
 				break;
@@ -1040,13 +1047,13 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 			len+=2;
 		}
 
-		if(socksendto(sock, (struct sockaddr *)sinsp, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(sock, sinsr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			continue;
 		}
 		if(param) param->statscli64 += len;
-		len = sockrecvfrom(sock, (struct sockaddr *) sinsp, buf, 4096, 15000);
+		len = sockrecvfrom(sock, sinsr, buf, 4096, 15000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
 		if(len <= 13) {
@@ -1054,8 +1061,13 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		}
 		if(param) param->statssrv64 += len;
 		if(usetcp){
-			buf+=2;
+			unsigned short us;
+			us = ntohs(*(unsigned short*)buf);
 			len-=2;
+			buf+=2;
+			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, sinsr, buf+len, us-len, 15000) != us-len)) {
+				continue;
+			}
 		}
 		if(*(unsigned short *)buf != serial)continue;
 		if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {

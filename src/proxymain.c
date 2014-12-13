@@ -460,8 +460,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 		so._setsockopt(new_sock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
 		so._setsockopt(new_sock, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
 	}
-	else 
+	else {
 		srv.fds.events = 0;
+	}
 	if(! (newparam = myalloc (sizeof(defparam)))){
 		if(!isudp) so._closesocket(new_sock);
 		defparam.res = 21;
@@ -896,6 +897,7 @@ void freeconf(struct extparam *confp){
  confp->singlepacket = 0;
  confp->maxchild = 100;
  resolvfunc = NULL;
+ numservers = 0;
  acl = confp->acl;
  confp->acl = NULL;
  confp->logtime = confp->time = 0;
@@ -927,6 +929,7 @@ void freeconf(struct extparam *confp){
 	for(i = 0; i < archiverc; i++) myfree(archiver[i]);
 	myfree(archiver);
  }
+
 }
 
 FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){

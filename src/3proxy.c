@@ -1003,18 +1003,19 @@ static int h_flushusers(int argc, unsigned char **argv){
 */
 
 static int h_nserver(int argc, unsigned char **argv){
-  int res;
   char *str;
 
-	for(res = 0; nservers[res].ip && res < MAXNSERVERS; res++);
-	if(res < MAXNSERVERS) {
+	if(numservers < MAXNSERVERS) {
 		if((str = strchr((char *)argv[1], '/')))
 			*str = 0;
-		nservers[res].ip = getip(argv[1]);
+		if(!getip46(46, argv[1], (struct sockaddr *)&nservers[numservers].addr)) return 1;
+		*SAPORT(&nservers[numservers].addr) = htons(53);
 		if(str) {
-			nservers[res].usetcp = strstr(str + 1, "tcp")? 1:0;
+			nservers[numservers].usetcp = strstr(str + 1, "tcp")? 1:0;
 			*str = '/';
 		}
+		numservers++;
+
 	}
 	resolvfunc = myresolver;
 	return 0;

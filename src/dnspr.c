@@ -40,13 +40,13 @@ void * dnsprchild(struct clientparam* param) {
  buf = bbuf+2;
  size = sizeof(param->sincr);
  i = so._recvfrom(param->srv->srvsock, buf, BUFSIZE, 0, (struct sockaddr *)&param->sincr, &size); 
+ size = sizeof(param->sinsl);
+ getsockname(param->srv->srvsock, (struct sockaddr *)&param->sincl, &size);
 #ifdef _WIN32
 	if((param->clisock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
 	ioctlsocket(param->clisock, FIONBIO, &ul);
-	size = sizeof(param->sinsl);
-	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sincl, &size)) {RETURN(21);};
 	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
 	if(so._bind(param->clisock,(struct sockaddr *)&param->sincl,sizeof(param->sincl))) {
 		RETURN(822);
@@ -109,7 +109,7 @@ void * dnsprchild(struct clientparam* param) {
 	unsigned a, b, c, d;
 	sscanf(host, "%u.%u.%u.%u", &a, &b, &c, &d);
 	ip = htonl((d<<24) ^ (c<<16) ^ (b<<8) ^ a);
-	if(*SAFAMILY(&param->srv->intsa) == AF_INET &&  ip == *(unsigned long*)SAADDR(&param->srv->intsa)){
+	if(*SAFAMILY(&param->sincl) == AF_INET &&  ip == *(unsigned long*)SAADDR(&param->sincl)){
 		buf[2] = 0x85;
 		buf[3] = 0x80;
 		buf[6] = 0;
@@ -129,19 +129,16 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	else ip = 0;
  }
- if(!ip && nservers[0].ip){
-	if((param->remsock=so._socket(PF_INET, nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
+ if(!ip && numservers){
+	if((param->remsock=so._socket(SASOCK(&nservers[0].addr), nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
-	*SAFAMILY(&param->sinsl) = AF_INET;
-	*SAPORT(&param->sinsl) = htons(0);
-	*(unsigned long*)SAADDR(&param->sinsl) = htonl(0);
+	memset(&param->sinsl, 0, sizeof(param->sinsl));
+	*SAFAMILY(&param->sinsl) = *SAFAMILY(&nservers[0].addr);
 	if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {
 		RETURN(819);
 	}
-	*SAFAMILY(&param->sinsr) = AF_INET;
-	*(unsigned long*)SAADDR(&param->sinsr) = nservers[0].ip;
-	*SAPORT(&param->sinsr) = htons(53);
+	memcpy(&param->sinsr, &nservers[0].addr, sizeof(param->sinsr));
 	if(nservers[0].usetcp) {
 		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,sizeof(param->sinsr))) RETURN(830);
 		buf-=2;
@@ -168,8 +165,13 @@ void * dnsprchild(struct clientparam* param) {
 	param->statssrv64 += len;
 	param->nreads++;
 	if(nservers[0].usetcp) {
+		unsigned short us;
+		us = ntohs(*(unsigned short *)buf);
+		if(us > 4096) RETURN(833);
 		buf += 2;
 		len -= 2;
+		if(len < us) len += sockgetlinebuf(param, SERVER, buf+len, us - len, 0, conf.timeouts[SINGLEBYTE_L]);
+		if(len != us) RETURN(832);
 	}
 	if(buf[6] || buf[7]){
 		if(socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
@@ -183,7 +185,6 @@ void * dnsprchild(struct clientparam* param) {
 	buf[2] = 0x85;
 	buf[3] = 0x83;
  }
- /* usleep(SLEEPTIME); */
  res = socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000); 
  if(res != len){RETURN(819);}
  if(!ip) {RETURN(888);}
