@@ -736,8 +736,12 @@ int userauth(struct clientparam * param){
 
 int dnsauth(struct clientparam * param){
         char buf[32];
+
 /* FIX IT */
-	unsigned u = ntohl(*(unsigned long *)SAADDR(&param->sincr));
+	unsigned u ;
+
+	if(*SAFAMILY(&param->sincr)!=AF_INET) return 6;
+	u = ntohl(*(unsigned long *)SAADDR(&param->sincr));
 
 	sprintf(buf, "%u.%u.%u.%u.in-addr.arpa", 
 
