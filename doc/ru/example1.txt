@@ -96,4 +96,3 @@ setuid 65534
 После того как мы создали конфигурационный файл сервера, запускаем 3proxy командой:
 /usr/local/3proxy/3proxy /usr/local/3proxy/3proxy.cfg
 
-$Id: example1.txt,v 1.7 2007/04/20 19:58:42 vlad Exp $

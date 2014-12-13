@@ -3,7 +3,6 @@
  *
  * please read License Agreement
  *
- * $Id: base64.c,v 1.6 2008/01/08 21:46:36 vlad Exp $
  */
 
 #include <string.h>

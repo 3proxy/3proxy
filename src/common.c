@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: common.c,v 1.94 2014-04-07 21:24:45 vlad Exp $
 */
 
 

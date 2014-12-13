@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: proxy.h,v 1.92 2012-04-11 23:01:20 vlad Exp $
 */
 
 #define COPYRIGHT "(c)2000-2009 3APA3A, Vladimir Dubrovin & 3proxy.ru\n"\

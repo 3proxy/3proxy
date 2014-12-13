@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: common.c,v 1.81 2007/12/18 09:26:44 vlad Exp $
 */
 
 #include "proxy.h"

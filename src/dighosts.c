@@ -3,7 +3,6 @@
  *
  * please read License Agreement
  *
- * $Id: dighosts.c,v 1.10 2009/10/06 08:38:00 v.dubrovin Exp $
  */
 
 #include "proxy.h"

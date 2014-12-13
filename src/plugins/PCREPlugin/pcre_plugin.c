@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: pcre_plugin.c,v 1.11 2012-04-25 18:17:22 vlad Exp $
 */
 
 #include "../../structures.h"

@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: auth.c,v 1.108 2012-04-11 23:01:18 vlad Exp $
 */
 
 #include "proxy.h"

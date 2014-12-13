@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: ntlm.c,v 1.9 2008/01/08 21:46:38 vlad Exp $
 */
 
 #include "proxy.h"

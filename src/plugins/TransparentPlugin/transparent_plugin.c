@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: transparent_plugin.c,v 1.9 2010-11-11 11:32:33 v.dubrovin Exp $
 */
 
 #include <sys/utsname.h>

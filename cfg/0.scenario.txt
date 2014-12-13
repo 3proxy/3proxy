@@ -15,4 +15,3 @@ on the provider's Web server.
 Provider has proxy server 10.1.2.5. Traffic from proxy server is not free, but
 is cheaper than traffic from non-free networks.
 
-$Id: 0.scenario.txt,v 1.2 2004/07/23 13:33:39 vlad Exp $

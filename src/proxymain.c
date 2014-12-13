@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: proxymain.c,v 1.85 2012-04-15 22:46:09 vlad Exp $
 */
 
 #include "proxy.h"

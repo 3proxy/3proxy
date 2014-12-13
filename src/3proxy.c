@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: 3proxy.c,v 1.132 2011-08-15 19:52:26 vlad Exp $
 */
 
 #include "proxy.h"

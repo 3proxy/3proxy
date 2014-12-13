@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: msnpr.c,v 1.3 2012-04-11 23:01:19 vlad Exp $
 */
 
 #include "proxy.h"

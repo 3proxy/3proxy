@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: webadmin.c,v 1.44 2014-04-07 20:35:12 vlad Exp $
 */
 
 #include "proxy.h"

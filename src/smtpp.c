@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: smtpp.c,v 1.13 2011-06-10 20:48:46 vlad Exp $
 */
 
 #include "proxy.h"

@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: socks.c,v 1.34 2009/09/17 12:21:09 v.dubrovin Exp $
 */
 
 #include "proxy.h"

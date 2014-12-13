@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: FilePlugin.c,v 1.8 2012-04-11 23:01:22 vlad Exp $
 */
 
 #include "../../structures.h"

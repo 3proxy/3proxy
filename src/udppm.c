@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: udppm.c,v 1.27 2012-02-05 22:29:03 vlad Exp $
 */
 
 #include "proxy.h"

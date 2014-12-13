@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: ftppr.c,v 1.45 2011-08-15 19:52:27 vlad Exp $
 */
 
 #include "proxy.h"

@@ -199,4 +199,3 @@ admin
 # now we needn't any root rights. We can chroot and setgid/setuid.
 
 
-###$Id: 3proxy.cfg.sample,v 1.7 2006/11/18 14:37:06 vlad Exp $#######

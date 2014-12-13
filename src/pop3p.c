@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: pop3p.c,v 1.17 2008/01/08 21:46:38 vlad Exp $
 */
 
 #include "proxy.h"

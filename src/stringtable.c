@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: stringtable.c,v 1.16 2009/07/20 18:16:03 v.dubrovin Exp $
 */
 
 #include <stdio.h>

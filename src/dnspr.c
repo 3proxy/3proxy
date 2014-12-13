@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: dnspr.c,v 1.22 2009/09/17 12:21:05 v.dubrovin Exp $
 */
 
 #include "proxy.h"

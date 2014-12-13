@@ -1,4 +1,3 @@
-#$Id: Makefile.inc,v 1.19 2008/12/10 13:12:10 vlad Exp $
 #
 # 3 proxy common Makefile
 #

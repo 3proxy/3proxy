@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: sockmap.c,v 1.64 2014-04-07 20:35:09 vlad Exp $
 */
 
 #include "proxy.h"

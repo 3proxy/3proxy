@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: WindowsAuthentication.c,v 1.12 2011-04-12 13:05:58 v.dubrovin Exp $
 */
 
 #include "../../structures.h"

@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: icqpr.c,v 1.30 2012-04-11 23:01:19 vlad Exp $
 */
 
 #include "proxy.h"

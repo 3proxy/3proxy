@@ -3,7 +3,6 @@
  *
  * please read License Agreement
  *
- * $Id: ftp.c,v 1.34 2009/09/17 12:21:06 v.dubrovin Exp $
  */
 
 #include "proxy.h"

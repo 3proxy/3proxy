@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: proxy.c,v 1.107 2014-04-07 20:35:07 vlad Exp $
 */
 
 

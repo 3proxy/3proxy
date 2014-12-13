@@ -3,7 +3,6 @@
  *
  * please read License Agreement
  *
- * $Id: datatypes.c,v 1.28 2009/08/14 09:56:21 v.dubrovin Exp $
  */
 
 #include "proxy.h"
