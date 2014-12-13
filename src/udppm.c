@@ -40,7 +40,7 @@ void * udppmchild(struct clientparam* param) {
 
 
  if(!param->hostname)parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport));
- if (!memcmp(SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SAADDRLEN(&param->req))) {
+ if (SAISNULL(&param->req)) {
 	param->srv->fds.events = POLLIN;
 	RETURN (100);
  }

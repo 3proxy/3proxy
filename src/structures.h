@@ -108,14 +108,17 @@ int
 #define SAADDRLEN(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
 #define SASOCK(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
 #define SASIZE(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
+#define SAISNULL(sa) (!memcmp(((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)((struct sockaddr_in6 *)sa)->sin6_addr.u.Byte : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr, NULLADDR,  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4))) 
 #else
 #define SAPORT(sa)  (&((struct sockaddr_in *)sa)->sin_port)
 #define SAADDR(sa)  ((unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
 #define SAADDRLEN(sa) (4)
 #define SASOCK(sa) (PF_INET)
 #define SASIZE(sa) (sizeof(struct sockaddr_in))
+#define SAISNULL(sa) (((struct sockaddr_in *)sa)->sin_addr.s_addr == 0) 
 #endif
 
+extern char* NULLADDR;
 typedef enum {
 	CLIENT,
 	SERVER
@@ -228,8 +231,11 @@ typedef enum {
 struct chain {
 	struct chain * next;
 	int type;
-	unsigned long redirip;
-	unsigned short redirport;
+#ifndef NOIPV6
+	struct sockaddr_in6 addr;
+#else
+	struct sockaddr_in addr;
+#endif
 	unsigned short weight;
 	unsigned char * extuser;
 	unsigned char * extpass;

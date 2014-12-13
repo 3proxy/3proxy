@@ -344,12 +344,8 @@ static void * ef_chain_type(struct node * node){
 	}
 }
 
-static void * ef_chain_ip(struct node * node){
-	return &((struct chain *)node->value) -> redirip;
-}
-
-static void * ef_chain_port(struct node * node){
-	return &((struct chain *)node->value) -> redirport;
+static void * ef_chain_addr(struct node * node){
+	return &((struct chain *)node->value) -> addr;
 }
 
 static void * ef_chain_weight(struct node * node){
@@ -690,12 +686,11 @@ static struct property prop_pwlist[] = {
 };
 
 static struct property prop_chain[] = {
-	{prop_chain + 1, "ip", ef_chain_ip, TYPE_IP, "parent ip address"},
-	{prop_chain + 2, "port", ef_chain_port, TYPE_PORT, "parent port"},
-	{prop_chain + 3, "type", ef_chain_type, TYPE_STRING, "parent type"},
-	{prop_chain + 4, "weight", ef_chain_weight, TYPE_SHORT, "parent weight 0-1000"},
-	{prop_chain + 5, "user", ef_chain_user, TYPE_STRING, "parent login"},
-	{prop_chain + 6, "password", ef_chain_password, TYPE_STRING, "parent password"},
+	{prop_chain + 1, "addr", ef_chain_addr, TYPE_SA, "parent address"},
+	{prop_chain + 2, "type", ef_chain_type, TYPE_STRING, "parent type"},
+	{prop_chain + 3, "weight", ef_chain_weight, TYPE_SHORT, "parent weight 0-1000"},
+	{prop_chain + 4, "user", ef_chain_user, TYPE_STRING, "parent login"},
+	{prop_chain + 5, "password", ef_chain_password, TYPE_STRING, "parent password"},
 	{NULL, "next", ef_chain_next, TYPE_CHAIN, "next"}
 };
 

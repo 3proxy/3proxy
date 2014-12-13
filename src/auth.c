@@ -13,16 +13,13 @@
 #define RECORDSIZE  18
 
 
-int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned long ip, unsigned short port){
+int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr){
 	unsigned char buf[1024];
-	struct in_addr ina;
 	int res;
 	int len=0;
 	unsigned char * user, *pass;
 
-	ina.s_addr = ip;
 
-	
 	user = redir->extuser;
 	pass = redir->extpass;
 	if(user) {
@@ -39,15 +36,17 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 		case R_CONNECT:
 		case R_CONNECTP:
 		{
-			sprintf((char *)buf, "CONNECT ");
+			len = sprintf((char *)buf, "CONNECT ");
 			if(redir->type == R_CONNECTP && param->hostname) {
-				len = 8 + sprintf((char *)buf + 8, "%.256s", param->hostname);
+				len =+ sprintf((char *)buf + len, "%.256s", param->hostname);
 			}
 			else {
-				len = 8 + myinet_ntop(AF_INET, &ina, (char *)buf+8, 256);
+				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = '[';
+				len += myinet_ntop(AF_INET, SAADDR(addr), (char *)buf+8, 256);
+				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = ']';
 			}
 			len += sprintf((char *)buf + len,
-				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(port));
+				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", *SAPORT(addr));
 			if(user){
 				unsigned char username[256];
 				len += sprintf((char *)buf + len, "Proxy-authorization: basic ");
@@ -73,14 +72,15 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 		case R_SOCKS4B:
 		{
 
+			if(*SAFAMILY(addr) != AF_INET) return 44;
 			buf[0] = 4;
 			buf[1] = 1;
-			memcpy(buf+2, &port, 2);
+			memcpy(buf+2, SAPORT(addr), 2);
 			if(redir->type == R_SOCKS4P && param->hostname) {
 				buf[4] = buf[5] = buf[6] = 0;
 				buf[7] = 3;
 			}
-			else memcpy(buf+4, &ip, 4);
+			else memcpy(buf+4, SAADDR(addr), 4);
 			if(!user)user = (unsigned char *)"anonymous";
 			len = (int)strlen((char *)user) + 1;
 			memcpy(buf+8, user, len);
@@ -162,11 +162,12 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 				len += 5;
 			}
 			else {
-				buf[3] = 1;
-				memcpy(buf+4, &ip, 4);
-				len = 8;
+				len = 3;
+				buf[len++] = (*SAFAMILY(addr) == AF_INET)? 1 : 4;
+				memcpy(buf+len, SAADDR(addr), SAADDRLEN(addr));
+				len += SAADDRLEN(addr);
 			}
-			memcpy(buf+len, &port, 2);
+			memcpy(buf+len, SAPORT(addr), 2);
 			len += 2;
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != len){
 				return 51;
@@ -210,7 +211,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	if(param->remsock != INVALID_SOCKET) {
 		return 0;
 	}
-	if(!memcmp(SAADDR(&param->req),"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",SAADDRLEN(&param->req)) || !*SAPORT(&param->req)) return 100;
+	if(SAISNULL(&param->req) || !*SAPORT(&param->req)) {
+		return 100;
+	}
 
 	r2 = (myrand(param, sizeof(struct clientparam))%1000);
 
@@ -231,7 +234,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			r2 = (myrand(param, sizeof(struct clientparam))%1000);
 		}
 		if(!connected){
-			if(!cur->redirip && !cur->redirport){
+			if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
 				if(cur->extuser){
 					if(param->extusername)
 						myfree(param->extusername);
@@ -266,19 +269,14 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				}
 				return 0;
 			}
-			else if(!cur->redirport && cur->redirip) {
+			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
 				unsigned short port = *SAPORT(&param->sinsr);
-				memset(&param->sinsl, 0, sizeof(param->sinsr));
-				*SAFAMILY(&param->sinsr) = AF_INET;
-				*(unsigned long *)SAADDR(&param->sinsr) = cur->redirip;
+				memcpy(&param->sinsr, &cur->addr, SASIZE(&cur->addr)); 
 				*SAPORT(&param->sinsr) = port;
 			}
-			else if(!cur->redirip && cur->redirport) *SAPORT(&param->sinsr) = cur->redirport;
-			else if(*SAFAMILY(&param->req) == AF_INET){
-				memset(&param->sinsr, 0, sizeof(param->sinsr));
-				*SAFAMILY(&param->sinsr) = AF_INET;
-				*(unsigned long *)SAADDR(&param->sinsr) = cur->redirip;
-				*SAPORT(&param->sinsr) = cur->redirport;
+			else if(SAISNULL(&cur->addr) && *SAPORT(&cur->addr)) *SAPORT(&param->sinsr) = *SAPORT(&cur->addr);
+			else {
+				memcpy(&param->sinsr, &cur->addr, SASIZE(&cur->addr)); 
 			}
 
 			if((res = alwaysauth(param))){
@@ -286,7 +284,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 		}
 		else {
-			res = (redir && *SAFAMILY(&param->req) == AF_INET)?clientnegotiate(redir, param, cur->redirip, cur->redirport):0;
+			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&cur->addr):0;
 			if(res) return res;
 		}
 		redir = cur;
@@ -309,7 +307,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	}
 
 	if(!connected) return 9;
-	return (redir && *SAFAMILY(&param->req) == AF_INET)?clientnegotiate(redir, param, *(unsigned long *)SAADDR(&param->req), *SAPORT(&param->req)):0;
+	return (redir)?clientnegotiate(redir, param, (struct sockaddr *)&param->req):0;
 }
 
 int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
@@ -347,7 +345,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 		}
 	 if(!ipentry) return 0;
 	}
-	if((acentry->dst && memcmp(SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SAADDRLEN(&param->req))) || (acentry->dstnames && param->hostname)) {
+	if((acentry->dst && SAISNULL(&param->req)) || (acentry->dstnames && param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
 		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
@@ -596,7 +594,7 @@ int checkACL(struct clientparam * param){
 				if(param->operation < 256 && !(param->operation & CONNECT)){
 					continue;
 				}
-				if(param->redirected && acentry->chains && !acentry->chains->redirip && !acentry->chains->redirport) {
+				if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
 					continue;
 				}
 				memcpy(&dup, acentry, sizeof(struct ace));

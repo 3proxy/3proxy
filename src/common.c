@@ -36,7 +36,7 @@ int myinet_ntop(int af, void *src, char *dst, socklen_t size){
  }
  *dst = 0;
  inet_ntop(af, src, dst, size);
- return strlen(dst);
+ return (int)strlen(dst);
 #endif 
 }
 
@@ -89,6 +89,8 @@ struct extparam conf = {
 };
 
 int numservers=0;
+
+char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 int myrand(void * entropy, int len){
 	int i;
@@ -613,8 +615,10 @@ int doconnect(struct clientparam * param){
  else {
 	struct linger lg;
 
-	if(!memcmp(SAADDR(&param->sinsr), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SAADDRLEN(&param->sinsr))){
-		if(!memcmp(SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SAADDRLEN(&param->req))) return 100;
+	if(SAISNULL(&param->sinsr)){
+		if(SAISNULL(&param->req)) {
+			return 100;
+		}
 		*SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req);
 		memcpy(SAADDR(&param->sinsr), SAADDR(&param->req), SAADDRLEN(&param->req)); 
 	}

@@ -1147,8 +1147,8 @@ static int h_parent(int argc, unsigned char **argv){
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
 		return(4);
 	}
-	chains->redirip = getip(argv[3]);
-	chains->redirport = htons((unsigned short)atoi((char *)argv[4]));
+	if(!getip46(46, argv[3], (struct sockaddr *)&chains->addr)) return 5;
+	*SAPORT(&chains->addr) = htons((unsigned short)atoi((char *)argv[4]));
 	if(argc > 5) chains->extuser = (unsigned char *)mystrdup((char *)argv[5]);
 	if(argc > 6) chains->extpass = (unsigned char *)mystrdup((char *)argv[6]);
 	return 0;
@@ -1523,13 +1523,14 @@ static int h_ace(int argc, unsigned char **argv){
 	switch(acl->action){
 	case REDIRECT:
 		acl->chains = myalloc(sizeof(struct chain));
+		memset(acl->chains, 0, sizeof(struct chain)); 
 		if(!acl->chains) {
 			fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
 			return(2);
 		}
 		acl->chains->type = R_HTTP;
-		acl->chains->redirip = getip(argv[1]);
-		acl->chains->redirport = htons((unsigned short)atoi((char *)argv[2]));
+		if(!getip46(46, argv[1], (struct sockaddr *)&acl->chains->addr)) return 5;
+		*SAPORT(&acl->chains->addr) = htons((unsigned short)atoi((char *)argv[2]));
 		acl->chains->weight = 1000;
 		acl->chains->extuser = NULL;
 		acl->chains->extpass = NULL;

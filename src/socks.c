@@ -102,7 +102,7 @@ void * sockschild(struct clientparam* param) {
 		*SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req) = (c == 1)? AF_INET:AF_INET6;
 		memcpy(SAADDR(&param->sinsr), buf, size);
 		memcpy(SAADDR(&param->req), buf, size);
-		if(command==1 && !memcmp(SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", size)) {
+		if(command==1 && SAISNULL(&param->req)) {
 			RETURN(421);
 		}
 		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);
@@ -269,7 +269,7 @@ fflush(stderr);
 					param->res = 462;
 					break;
 				}
-				if(!memcmp(SAADDR(&param->req),"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",SAADDRLEN(&param->req)) &&
+				if(SAISNULL(&param->req) &&
 				 memcmp(SAADDR(&param->req),SAADDR(&param->sinsr),SAADDRLEN(&param->req))) {
 					param->res = 470;
 					break;
