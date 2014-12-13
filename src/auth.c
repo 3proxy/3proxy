@@ -957,7 +957,7 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 }
 
 struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0},0}};
-unsigned long authnserver;
+struct nserver authnserver;
 
 
 unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientparam* param, int makeauth){
@@ -968,7 +968,7 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 	if((retval = hashresolv(&dns_table, name, retttl))) {
 		return retval;
 	}
-	n = (makeauth && authnserver)? 1 : numservers;
+	n = (makeauth && !SAISNULL(&authnserver.addr))? 1 : numservers;
 	for(i=0; i<n; i++){
 		unsigned short nq, na;
 		unsigned char b[4098], *buf, *s1, *s2;
@@ -993,25 +993,22 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		memset(sinsr, 0, sizeof(addr));
 		
 
-		if(makeauth && authnserver){
-			if((sock=so._socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) break;
-			*SAFAMILY(sinsl) = AF_INET;
-			*SAFAMILY(sinsr) = AF_INET;
+		if(makeauth && !SAISNULL(&authnserver.addr)){
+			usetcp = authnserver.usetcp;
+			*SAFAMILY(sinsl) = *SAFAMILY(&authnserver.addr);
 		}
 		else {
 			usetcp = nservers[i].usetcp;
-			if((sock=so._socket(SASOCK(&nservers[i].addr), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
 			*SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
-
 		}
+		if((sock=so._socket(SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
 		if(so._bind(sock,sinsl,sizeof(addr))){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			break;
 		}
-		if(makeauth && authnserver){
-			((struct sockaddr_in *)sinsr)->sin_addr.s_addr = authnserver;
-			((struct sockaddr_in *)sinsr)->sin_port = htons(53);
+		if(makeauth && !SAISNULL(&authnserver.addr)){
+			memcpy(sinsr, &authnserver.addr, sizeof(addr));
 		}
 		else {
 			memcpy(sinsr, &nservers[i].addr, sizeof(addr));
@@ -1293,17 +1290,3 @@ void logsql(struct clientparam * param, const unsigned char *s) {
 
 #endif
  
-#ifdef WITHMAIN
-int main(int argc, unsigned char * argv[]) {
-	unsigned ip = 0;
- WSADATA wd;
- WSAStartup(MAKEWORD( 1, 1 ), &wd);
-	if(argc == 2)ip=getip(argv[1]);
-	if(!hp) {
-		printf("Not found");
-		return 0;
-	}
-	printf("Name: '%s'\n", getnamebyip(ip);
-	return 0;
-}
-#endif

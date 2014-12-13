@@ -185,7 +185,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
 extern struct nserver nservers[MAXNSERVERS];
-extern unsigned long authnserver;
+struct nserver authnserver;
 unsigned long getip(unsigned char *name);
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
 unsigned long myresolver(unsigned char *);

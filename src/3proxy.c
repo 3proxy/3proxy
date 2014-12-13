@@ -1022,8 +1022,16 @@ static int h_nserver(int argc, unsigned char **argv){
 }
 
 static int h_authnserver(int argc, unsigned char **argv){
+  char *str;
 
-	authnserver = getip(argv[1]);
+	if((str = strchr((char *)argv[1], '/')))
+		*str = 0;
+	if(!getip46(46, argv[1], (struct sockaddr *)&authnserver.addr)) return 1;
+	*SAPORT(&authnserver.addr) = htons(53);
+	if(str) {
+		authnserver.usetcp = strstr(str + 1, "tcp")? 1:0;
+		*str = '/';
+	}
 	return 0;
 }
 

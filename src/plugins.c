@@ -79,6 +79,7 @@ struct symbol symbols[] = {
 	{symbols+48, "parsestr", (void *) parsestr},
 	{symbols+49, "make_ace", (void *) make_ace},
 	{symbols+50, "freeacl", (void *) freeacl},
+	{symbols+51, "getip46", (void *) getip46},
 	{NULL, "", NULL}
 };
 
@@ -109,6 +110,7 @@ struct pluginlink pluginlink = {
 	dobuf2,
 	scanaddr,
 	getip,
+	getip46,
 	sockmap,
 	ACLmatches,		
 	alwaysauth,
