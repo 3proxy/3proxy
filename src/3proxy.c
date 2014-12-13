@@ -1047,7 +1047,21 @@ static int h_nscache(int argc, unsigned char **argv){
 		fprintf(stderr, "Invalid NS cache size: %d\n", res);
 		return 1;
 	}
-	if(initdnshashtable((unsigned)res)){
+	if(inithashtable(&dns_table, (unsigned)res)){
+		fprintf(stderr, "Failed to initialize NS cache\n");
+		return 2;
+	}
+	return 0;
+}
+static int h_nscache6(int argc, unsigned char **argv){
+  int res;
+
+	res = atoi((char *)argv[1]);
+	if(res < 256) {
+		fprintf(stderr, "Invalid NS cache size: %d\n", res);
+		return 1;
+	}
+	if(inithashtable(&dns6_table, (unsigned)res)){
 		fprintf(stderr, "Failed to initialize NS cache\n");
 		return 2;
 	}

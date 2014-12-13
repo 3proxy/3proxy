@@ -189,7 +189,7 @@ unsigned long getip(unsigned char *name);
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
 unsigned long myresolver(unsigned char *);
 unsigned long fakeresolver (unsigned char *name);
-int initdnshashtable(unsigned nhashsize);
+int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);
@@ -308,7 +308,6 @@ extern pthread_mutex_t pwl_mutex;
 extern pthread_mutex_t odbc_mutex;
 #endif
 
-extern struct hashtable dns_table;
 extern struct datatype datatypes[64];
 
 extern struct commands commandhandlers[];

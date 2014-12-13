@@ -583,19 +583,21 @@ struct child {
 
 struct hashentry {
 	unsigned char hash[sizeof(unsigned)*4];
-	unsigned long value;
+	unsigned value;
 	time_t expires;
 	struct hashentry *next;
 };
 
 struct hashtable {
 	unsigned hashsize;
+	unsigned rnd[4];
 	struct hashentry ** hashtable;
 	struct hashentry * hashvalues;
 	struct hashentry * hashempty;
 };
 
 extern struct hashtable dns_table;
+extern struct hashtable dns6_table;
 
 struct sockfuncs {
 #ifdef _WIN32

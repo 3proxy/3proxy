@@ -459,6 +459,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 	sec = tv.tv_sec;
 	msec = tv.tv_usec;
 #endif
+	
 	if(!nbytesin && !nbytesout) return 0;
 	pthread_mutex_lock(&bandlim_mutex);
 	if(param->srv->version != conf.paused){
@@ -829,15 +830,19 @@ struct auth authfuncs[] = {
 
 
 
-struct hashtable dns_table = {0, NULL, NULL, NULL};
+struct hashtable dns_table = {0, {0}, NULL, NULL, NULL};
+struct hashtable dns6_table = {0, {0}, NULL, NULL, NULL};
 
 
-void nametohash(const unsigned char * name, unsigned char *hash){
-	unsigned i, j;
-	memset(hash, 0, sizeof(unsigned)*4);
-	for(i=0, j=0; name[j]; j++){
-		hash[i] += toupper(name[j]) - 32;
-		if(++i == sizeof(unsigned)*4) i = 0;
+void nametohash(const unsigned char * name, unsigned char *hash, unsigned char *rnd){
+	unsigned i, j, k;
+	memcpy(hash, 0, sizeof(unsigned)*4);
+	for(i=0, j=0, k=0; name[j]; j++){
+		hash[i] += (toupper(name[j]) - 32)+rnd[((toupper(name[j]))*29277+rnd[(k+j+i)%16]+k+j+i)%16];
+		if(++i == sizeof(unsigned)*4) {
+			i = 0;
+			k++;
+		}
 	}
 }
 
@@ -867,6 +872,20 @@ void destroyhashtable(struct hashtable *ht){
 
 int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	unsigned i;
+	clock_t c;
+
+
+#ifdef _WIN32
+	struct timeb tb;
+
+	ftime(&tb);
+
+#else
+	struct timeval tb;
+	struct timezone tz;
+	gettimeofday(&tb, &tz);
+#endif
+	c = clock();
 
 	if(nhashsize<4) return 1;
 	if(ht->hashtable){
@@ -887,8 +906,13 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 		return 3;
 	}
 	ht->hashsize = nhashsize;
+	ht->rnd[0] = myrand(&tb, sizeof(tb));
+	ht->rnd[1] = myrand(ht->hashtable, sizeof(ht->hashtable));
+	ht->rnd[2] = myrand(&c, sizeof(c));
+	ht->rnd[3] = myrand(ht->hashvalues,sizeof(ht->hashvalues));
 	memset(ht->hashtable, 0, (ht->hashsize>>2) * sizeof(struct hashentry *));
 	memset(ht->hashvalues, 0, ht->hashsize * sizeof(struct hashentry));
+
 	for(i = 0; i< (ht->hashsize - 1); i++) {
 		(ht->hashvalues + i)->next = ht->hashvalues + i + 1;
 	}
@@ -908,7 +932,7 @@ void hashadd(struct hashtable *ht, const unsigned char* name, unsigned long valu
 	pthread_mutex_lock(&hash_mutex);
 	he = ht->hashempty;
 	ht->hashempty = ht->hashempty->next;
-	nametohash(name, he->hash);
+	nametohash(name, he->hash, (unsigned char *)ht->rnd);
 	he->value = value;
 	he->expires = expires;
 	he->next = NULL;
@@ -934,7 +958,7 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 
 	if(!ht->hashtable || !name) return 0;
 	time(&t);
-	nametohash(name, hash);
+	nametohash(name, hash, (unsigned char *)ht->rnd);
 	index = hashindex(ht, hash);
 	pthread_mutex_lock(&hash_mutex);
 	for(hep = ht->hashtable + index; (he = *hep)!=NULL; ){
