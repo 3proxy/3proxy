@@ -224,7 +224,7 @@ int parsehostname(char *hostname, struct clientparam *param, unsigned short port
 	if(se){
 		*se = 0;
 	}
-	if(hostname != param->hostname){
+	if(hostname != (char *)param->hostname){
 		if(param->hostname) myfree(param->hostname);
 		param->hostname = (unsigned char *)mystrdup(hostname + (se!=0));
 	}

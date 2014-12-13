@@ -313,14 +313,18 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 }
 
 int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
-	int i, addrlen;
+	int addrlen;
 	unsigned char *ip, *ipf, *ipt;
+
+
 	ip = (unsigned char *)SAADDR(sa);
 	ipf = (unsigned char *)&ipentry->ip_from;
 	ipt = (unsigned char *)&ipentry->ip_to;
+
 	if(!sa || ! ipentry || *SAFAMILY(sa) != ipentry->family) return 0;
 	addrlen = SAADDRLEN(sa);
-	for(i=0; i<addrlen; i++) if(ip[i]<ipf[i] || ip[i]>ipt[i]) return 0;
+	
+	if(memcmp(ip,ipf,addrlen) < 0 || memcmp(ip,ipt,addrlen) > 0) return 0;
 	return 1;
 	
 }

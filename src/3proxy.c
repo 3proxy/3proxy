@@ -1186,27 +1186,28 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 	if(dash){
 		if(!getip46(46, dash+1, (struct sockaddr *)&sa)) return 2;
 		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
+		if(*SAFAMILY(&sa) != dst->family || memcmp(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa)) < 0) return 3;
 		return 0;
 	}
+	memcpy(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa));
 	if(slash){
 		addrlen = SAADDRLEN(&sa);
 		masklen = atoi(slash+1);
-		if(masklen >= 0 && masklen<(addrlen*8)){
-			int i, nbytes = masklen / 8, nbits = masklen % 8;
-			
-			for(i = addrlen; i; i--){
+		if(masklen < 0 || masklen > (addrlen*8)) return 4;
+		else {
+			int i, nbytes = masklen / 8, nbits = (8 - (masklen % 8)) % 8;
+
+			for(i = addrlen; i>(nbytes + (nbits > 0)); i--){
 				((unsigned char *)&dst->ip_from)[i-1] = 0x00;
 				((unsigned char *)&dst->ip_to)[i-1] = 0xff;
 			}
-			memcpy(&dst->ip_to, &dst->ip_from, addrlen - i);
 			for(;nbits;nbits--){
-				((unsigned char *)&dst->ip_from)[i-1] &= (0x01<<(nbits-1));
-				((unsigned char *)&dst->ip_to)[i-1] |= (0x01<<(nbits-1));
+				((unsigned char *)&dst->ip_from)[nbytes] &= ~(0x01<<(nbits-1));
+				((unsigned char *)&dst->ip_to)[nbytes] |= (0x01<<(nbits-1));
 			}
 			return 0;
 		}
 	}		
-	memcpy(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa));
 	return 0;
 }
 
@@ -1257,7 +1258,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				memset(ipl, 0, sizeof(struct iplist));
 				if (scanipl(arg, ipl)) {
-					fprintf(stderr, "Invalid IP or CIDR, line %d\n", linenum);
+					fprintf(stderr, "Invalid IP, IP range or CIDR, line %d\n", linenum);
 					return(NULL);
 				}
 			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
@@ -1315,7 +1316,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				memset(ipl, 0, sizeof(struct iplist));
 				if (scanipl(arg, ipl)) {
-						fprintf(stderr, "Invalid IP or CIDR, line %d\n", linenum);
+						fprintf(stderr, "Invalid IP, IP range or CIDR, line %d\n", linenum);
 						return(NULL);
 				}
 			 }
