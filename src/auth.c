@@ -733,24 +733,36 @@ int userauth(struct clientparam * param){
 }
 
 int dnsauth(struct clientparam * param){
-        char buf[32];
+        char buf[128];
+	char addr[16];
+	char dig[]="0123456789abcdef";
 
-/* FIX IT */
-	unsigned u ;
+	unsigned u;
+	int i;
 
-	if(*SAFAMILY(&param->sincr)!=AF_INET) return 6;
-	u = ntohl(*(unsigned long *)SAADDR(&param->sincr));
+	if(*SAFAMILY(&param->sincr)!=AF_INET){
+		char *s = buf;
+		for(i=15; i>=0; i--){
+			unsigned char c=((unsigned char *)SAADDR(&param->sincr))[i];
+			*s++ = dig[(c&0xf)];
+			*s++ = '.';
+			*s++ = dig[(c>>4)];
+			*s++ = '.';
+		}
+		sprintf(s, "ip6.arpa");
+	}
+	else {
+		u = ntohl(*(unsigned long *)SAADDR(&param->sincr));
 
-	sprintf(buf, "%u.%u.%u.%u.in-addr.arpa", 
-
-
-	((u&0x000000FF)),
-	((u&0x0000FF00)>>8),
-	((u&0x00FF0000)>>16),
-	((u&0xFF000000)>>24));
+		sprintf(buf, "%u.%u.%u.%u.in-addr.arpa", 
+			((u&0x000000FF)),
+			((u&0x0000FF00)>>8),
+			((u&0x00FF0000)>>16),
+			((u&0xFF000000)>>24));
 	
-/* FIX IT */
-	if(*(unsigned long *)SAADDR(&param->sincr) != udpresolve(buf, NULL, param, 1)) return 6;
+	}
+	if(!udpresolve(*SAFAMILY(&param->sincr), buf, addr, NULL, param, 1)) return 6;
+	if(!memcmp(SAADDR(&param->sincr), addr, SAADDRLEN(&param->sincr))) return 6;
 
 	return param->username? 0:4;
 }
@@ -830,13 +842,13 @@ struct auth authfuncs[] = {
 
 
 
-struct hashtable dns_table = {0, {0}, NULL, NULL, NULL};
-struct hashtable dns6_table = {0, {0}, NULL, NULL, NULL};
+struct hashtable dns_table = {0, 4, {0}, NULL, NULL, NULL};
+struct hashtable dns6_table = {0, 16, {0}, NULL, NULL, NULL};
 
 
 void nametohash(const unsigned char * name, unsigned char *hash, unsigned char *rnd){
 	unsigned i, j, k;
-	memcpy(hash, 0, sizeof(unsigned)*4);
+	memcpy(hash, rnd, sizeof(unsigned)*4);
 	for(i=0, j=0, k=0; name[j]; j++){
 		hash[i] += (toupper(name[j]) - 32)+rnd[((toupper(name[j]))*29277+rnd[(k+j+i)%16]+k+j+i)%16];
 		if(++i == sizeof(unsigned)*4) {
@@ -870,6 +882,7 @@ void destroyhashtable(struct hashtable *ht){
 	pthread_mutex_unlock(&hash_mutex);
 }
 
+#define hvalue(i) ((struct hashentry *)((char *)ht->hashvalues + i*(sizeof(struct hashentry) + ht->recsize - 4)))
 int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	unsigned i;
 	clock_t c;
@@ -897,10 +910,10 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 		ht->hashvalues = NULL;
 	}
 	ht->hashsize = 0;
-	if(!(ht->hashtable = myalloc((nhashsize>>2) * sizeof(struct hashentry *)))){
+	if(!(ht->hashtable = myalloc((nhashsize>>2) *  sizeof(struct hashentry *)))){
 		return 2;
 	}
-	if(!(ht->hashvalues = myalloc(nhashsize * sizeof(struct hashentry)))){
+	if(!(ht->hashvalues = myalloc(nhashsize * (sizeof(struct hashentry) + (ht->recsize-4))))){
 		myfree(ht->hashtable);
 		ht->hashtable = NULL;
 		return 3;
@@ -911,58 +924,57 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	ht->rnd[2] = myrand(&c, sizeof(c));
 	ht->rnd[3] = myrand(ht->hashvalues,sizeof(ht->hashvalues));
 	memset(ht->hashtable, 0, (ht->hashsize>>2) * sizeof(struct hashentry *));
-	memset(ht->hashvalues, 0, ht->hashsize * sizeof(struct hashentry));
+	memset(ht->hashvalues, 0, ht->hashsize * (sizeof(struct hashentry) + ht->recsize -4));
 
 	for(i = 0; i< (ht->hashsize - 1); i++) {
-		(ht->hashvalues + i)->next = ht->hashvalues + i + 1;
+		hvalue(i)->next = hvalue(i+1);
 	}
 	ht->hashempty = ht->hashvalues;
 	return 0;
 }
 
-int initdnshashtable(unsigned nhashsize){
-	return inithashtable(&dns_table, nhashsize);
-}
+void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires){
+        struct hashentry * hen, *he;
+        struct hashentry ** hep;
 
-void hashadd(struct hashtable *ht, const unsigned char* name, unsigned long value, time_t expires){
-        struct hashentry * he;
 	unsigned index;
 	
 	if(!value||!name||!ht->hashtable||!ht->hashempty) return;
 	pthread_mutex_lock(&hash_mutex);
-	he = ht->hashempty;
+	hen = ht->hashempty;
 	ht->hashempty = ht->hashempty->next;
-	nametohash(name, he->hash, (unsigned char *)ht->rnd);
-	he->value = value;
-	he->expires = expires;
-	he->next = NULL;
-	index = hashindex(ht, he->hash);
-	if(!ht->hashtable[index] || !memcmp(he->hash, ht->hashtable[index]->hash, sizeof(he->hash))){
-		he->next = ht->hashtable[index];
-		ht->hashtable[index] = he;
+	nametohash(name, hen->hash, (unsigned char *)ht->rnd);
+	memcpy(hen->value, value, ht->recsize);
+	hen->expires = expires;
+	hen->next = NULL;
+	index = hashindex(ht, hen->hash);
+
+	for(hep = ht->hashtable + index; (he = *hep)!=NULL; ){
+		if(he->expires < conf.time || !memcmp(hen->hash, he->hash, sizeof(he->hash))) {
+			(*hep) = he->next;
+			he->expires = 0;
+			he->next = ht->hashempty;
+			ht->hashempty = he;
+		}
+		else hep=&(he->next);
 	}
-	else {
-		memset(he, 0, sizeof(struct hashentry));
-		he->next = ht->hashempty;
-		ht->hashempty = he;
-	}
+	hen->next = ht->hashtable[index];
+	ht->hashtable[index] = hen;
 	pthread_mutex_unlock(&hash_mutex);
 }
 
-unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsigned *ttl){
+unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsigned char* value, unsigned *ttl){
 	unsigned char hash[sizeof(unsigned)*4];
         struct hashentry ** hep;
 	struct hashentry *he;
 	unsigned index;
-	time_t t;
 
 	if(!ht->hashtable || !name) return 0;
-	time(&t);
 	nametohash(name, hash, (unsigned char *)ht->rnd);
 	index = hashindex(ht, hash);
 	pthread_mutex_lock(&hash_mutex);
 	for(hep = ht->hashtable + index; (he = *hep)!=NULL; ){
-		if((unsigned long)he->expires < (unsigned long)t) {
+		if(he->expires < conf.time) {
 			(*hep) = he->next;
 			he->expires = 0;
 			he->next = ht->hashempty;
@@ -970,8 +982,9 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 		}
 		else if(!memcmp(hash, he->hash, sizeof(unsigned)*4)){
 			pthread_mutex_unlock(&hash_mutex);
-			if(ttl) *ttl = (unsigned)(he->expires - t);
-			return he->value;
+			if(ttl) *ttl = (unsigned)(he->expires - conf.time);
+			memcpy(value, he->value, ht->recsize);
+			return 1;
 		}
 		else hep=&(he->next);
 	}
@@ -983,12 +996,15 @@ struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0}
 struct nserver authnserver;
 
 
-unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientparam* param, int makeauth){
+unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth){
 
 	int i,n;
 	unsigned long retval;
 
-	if((retval = hashresolv(&dns_table, name, retttl))) {
+	if((af == AF_INET) && (retval = hashresolv(&dns_table, name, value, retttl))) {
+		return retval;
+	}
+	if((af == AF_INET6) && (retval = hashresolv(&dns6_table, name, value, retttl))) {
 		return retval;
 	}
 	n = (makeauth && !SAISNULL(&authnserver.addr))? 1 : numservers;
@@ -1064,7 +1080,7 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		*s2 = (len - (int)(s2 - buf)) - 1;
 		len++;
 		buf[len++] = 0;
-		buf[len++] = (makeauth == 1)? 0x0c : 0x01;	/* PTR:host address */
+		buf[len++] = (makeauth == 1)? 0x0c : (af==AF_INET6? 0x1c:0x01);	/* PTR:host address */
 		buf[len++] = 0;
 		buf[len++] = 1;			/* INET */
 		if(usetcp){
@@ -1112,25 +1128,27 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		k += 4;
 		if(na > 255) na = 255;			/* somebody is very evil */
 		for (j = 0; j < na; j++) {		/* now there should be answers */
-			if((k+16) > len) {
+			if((k+(af == AF_INET6?28:16)) > len) {
 				break;
 			}
 			flen = buf[k+11] + (((unsigned short)buf[k+10])<<8);
-			if((k+12+flen) > len) break;
+			if((k+12+flen) > len) {
+				break;
+			}
 			if(makeauth != 1){
-				if(buf[k+2] != 0 || buf[k+3] != 0x01 || flen != 4) {
+				if(buf[k+2] != 0 || buf[k+3] != (af == AF_INET6?0x1c:0x1) || flen != (af == AF_INET6?16:4)) {
 					k+= (12 + flen);
 					continue; 		/* we need A IPv4 */
 				}
-				retval = *(unsigned long *)(buf + k + 12);
 				ttl = ntohl(*(unsigned long *)(buf + k + 6));
-				t = time(0);
+				memcpy(value, buf + k + 12, af == AF_INET6? 16:4);
 				if(ttl < 60 || ((unsigned)t)+ttl < ttl) ttl = 300;
 				if(ttl){
-					hashadd(&dns_table, name, retval, ((unsigned)t)+ttl);
+					hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, conf.time+ttl);
+
 				}
 				if(retttl) *retttl = ttl;
-				return retval;
+				return 1;
 			}
 			else {
 				
@@ -1147,19 +1165,30 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 				if(param->username)myfree(param->username);
 				param->username = mystrdup (buf + k + 13);
 				
-				return udpresolve(param->username, NULL, NULL, 2);
+				return udpresolve(af,param->username, value, NULL, NULL, 2);
 			}
 		}
 	}
 	return 0;
 }
 
-unsigned long myresolver(unsigned char * name){
- return udpresolve(name, NULL, NULL, 0);
+unsigned long myresolver(int af, unsigned char * name, unsigned char * value){
+ return udpresolve(af, name, value, NULL, NULL, 0);
 }
 
-unsigned long fakeresolver (unsigned char *name){
- return htonl(0x7F000002);
+unsigned long fakeresolver (int af, unsigned char *name, unsigned char * value){
+ memset(value, 0, af == AF_INET6? 16 : 4);
+ if(af == AF_INET6){
+	memset(value, 0, 16);
+	value[15] = 2;
+ }
+ else {
+	value[0] = 127;
+	value[1] = 0;
+	value[2] = 0;
+	value[3] = 2;
+ }
+ return 1;
 }
 
 #ifndef NOODBC

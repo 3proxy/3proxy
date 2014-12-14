@@ -155,7 +155,7 @@ struct srvparam;
 typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char *);
 typedef int (*AUTHFUNC)(struct clientparam * param);
 typedef void * (*REDIRECTFUNC)(struct clientparam * param);
-typedef unsigned long (*RESOLVFUNC)(unsigned char *);
+typedef unsigned long (*RESOLVFUNC)(int af, unsigned char *name, unsigned char *value);
 typedef unsigned (*BANDLIMFUNC)(struct clientparam * param, unsigned nbytesin, unsigned nbytesout);
 typedef void (*TRAFCOUNTFUNC)(struct clientparam * param);
 typedef void * (*EXTENDFUNC) (struct node *node);
@@ -583,16 +583,17 @@ struct child {
 
 struct hashentry {
 	unsigned char hash[sizeof(unsigned)*4];
-	unsigned value;
 	time_t expires;
 	struct hashentry *next;
+	char value[4];
 };
 
 struct hashtable {
 	unsigned hashsize;
+	unsigned recsize;
 	unsigned rnd[4];
 	struct hashentry ** hashtable;
-	struct hashentry * hashvalues;
+	void * hashvalues;
 	struct hashentry * hashempty;
 };
 
@@ -656,7 +657,6 @@ struct pluginlink {
 	int (*dobuf)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 	int (*dobuf2)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 	int (*scanaddr)(const unsigned char *s, unsigned long * ip, unsigned long * mask);
-	unsigned long (*getip)(unsigned char *name);
 	unsigned long (*getip46)(int family, unsigned char *name,  struct sockaddr *sa);
 	int (*sockmap)(struct clientparam * param, int timeo);
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);

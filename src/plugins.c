@@ -35,7 +35,7 @@ struct symbol symbols[] = {
 	{symbols+8, "myinet_ntop", (void *) myinet_ntop},
 	{symbols+9, "dobuf", (void *) dobuf},
 	{symbols+10, "scanaddr", (void *) scanaddr},
-	{symbols+11, "getip", (void *) getip},
+	{symbols+11, "getip46", (void *) getip46},
 	{symbols+12, "sockmap", (void *) sockmap},
 	{symbols+13, "sockfuncs", (void *) &so},
 	{symbols+14, "ACLmatches", (void *) ACLmatches},
@@ -78,7 +78,6 @@ struct symbol symbols[] = {
 	{symbols+48, "parsestr", (void *) parsestr},
 	{symbols+49, "make_ace", (void *) make_ace},
 	{symbols+50, "freeacl", (void *) freeacl},
-	{symbols+51, "getip46", (void *) getip46},
 	{NULL, "", NULL}
 };
 
@@ -108,7 +107,6 @@ struct pluginlink pluginlink = {
 	dobuf,
 	dobuf2,
 	scanaddr,
-	getip,
 	getip46,
 	sockmap,
 	ACLmatches,		

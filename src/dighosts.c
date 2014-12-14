@@ -83,12 +83,11 @@ int main(int argc, char *argv[]){
 		return 4;
 	}
 	*hostend = '/';
-	if(!(sa.sin_addr.s_addr = getip(host))) {
+	if(!getip46(4, host, (struct sockaddr *)&sa)) {
 		fprintf(stderr, "Unable to resolve %s\n", host);
 		return 5;
 	}
 	sa.sin_port = htons(80);
-	sa.sin_family = AF_INET;
 	if((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) return 6;
 	sprintf((char *)buf, (char *)request, hostend, host);
 	if(connect(sock,(struct sockaddr *)&sa,sizeof(sa))) {

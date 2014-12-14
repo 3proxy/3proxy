@@ -27,6 +27,7 @@ void * dnsprchild(struct clientparam* param) {
  int len;
  unsigned type=0;
  unsigned ttl;
+ unsigned char addr[16];
 #ifdef _WIN32
 	unsigned long ul = 1;
 #endif
@@ -81,8 +82,8 @@ void * dnsprchild(struct clientparam* param) {
  *s2 = (len - (int)(s2 - buf)) - 1;
 
  type = ((unsigned)buf[len+1])*256 + (unsigned)buf[len+2];
- if(type==1 && !param->srv->singlepacket){
- 	 ip = udpresolve((unsigned char *)host, &ttl, param, 0);
+ if((type==0x01 || type==0x1c) && !param->srv->singlepacket){
+ 	ip = udpresolve((type==0x1c)?AF_INET6:AF_INET, (unsigned char *)host, addr, &ttl, param, 0);
  }
 
  len+=5;
@@ -96,13 +97,13 @@ void * dnsprchild(struct clientparam* param) {
  	memset(buf+len, 0, 16);
 	buf[len] = 0xc0;
 	buf[len+1] = 0x0c;
-	buf[len+3] = 1;
+	buf[len+3] = type;
 	buf[len+5] = 1;
 	ttl = htonl(ttl);
 	memcpy(buf + len + 6, &ttl, 4);
-	buf[len+11] = 4;
-	memcpy(buf+len+12,(void *)&ip,4);
-	len+=16;
+	buf[len+11] = type==1? 4:16;
+	memcpy(buf+len+12,(void *)&addr,type==1? 4:16);
+	len+=(type==1?16:28);
  }
  else if(type == 0x0c) {
 	unsigned a, b, c, d;
@@ -191,14 +192,12 @@ void * dnsprchild(struct clientparam* param) {
 CLEANRET:
 
  if(param->res!=813){
-	sprintf((char *)buf, "%04x/%s(%u.%u.%u.%u)", 
+	sprintf((char *)buf, "%04x/%s/", 
 			(unsigned)type,
-			host?host:"",
-			(unsigned)(ntohl(ip)&0xff000000)>>24,
-			(unsigned)(ntohl(ip)&0x00ff0000)>>16,
-			(unsigned)(ntohl(ip)&0x0000ff00)>>8,
-			(unsigned)(ntohl(ip)&0x000000ff)
-	);
+			host?host:"");
+	if(ip && type == 0x01 || type == 0x1c){
+		myinet_ntop(type == 0x01? AF_INET:AF_INET6, addr, buf+strlen(buf), 64);
+	}
 	(*param->srv->logfunc)(param, buf);
  }
  if(bbuf)myfree(bbuf);

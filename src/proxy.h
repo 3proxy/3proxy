@@ -187,8 +187,8 @@ extern struct nserver nservers[MAXNSERVERS];
 struct nserver authnserver;
 unsigned long getip(unsigned char *name);
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
-unsigned long myresolver(unsigned char *);
-unsigned long fakeresolver (unsigned char *name);
+unsigned long myresolver(int, unsigned char *, unsigned char *);
+unsigned long fakeresolver (int, unsigned char *, unsigned char*);
 int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
@@ -227,14 +227,14 @@ void mschap(const unsigned char *win_password,
 		 const unsigned char *challenge, unsigned char *response);
 
 struct hashtable;
-void hashadd(struct hashtable *ht, const unsigned char* name, unsigned long value, time_t expires);
+void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires);
 
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
 int ACLmatches(struct ace* acentry, struct clientparam * param);
 
-unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientparam* param, int makeauth);
+unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth);
 
 struct ace * copyacl (struct ace *ac);
 struct auth * copyauth (struct auth *);

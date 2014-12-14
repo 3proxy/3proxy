@@ -1069,7 +1069,15 @@ static int h_nscache6(int argc, unsigned char **argv){
 }
 
 static int h_nsrecord(int argc, unsigned char **argv){
-	hashadd(&dns_table, argv[1], getip(argv[2]), (time_t)0xffffffff);
+#ifndef NOIPV6
+	struct sockaddr_in6 sa;
+#else
+	struct sockaddr_in sa;
+#endif
+	memset(&sa, 0, sizeof(sa));
+	if(!getip46(46, argv[2], (struct sockaddr *)&sa)) return 1;
+
+	hashadd(*SAFAMILY(&sa)==AF_INET6?&dns6_table:&dns_table, argv[1], SAADDR(&sa), (time_t)0xffffffff);
 	return 0;
 }
 
@@ -1819,34 +1827,35 @@ struct commands commandhandlers[]={
 	{commandhandlers+26, "nserver", h_nserver, 2, 2},
 	{commandhandlers+27, "fakeresolve", h_fakeresolve, 1, 1},
 	{commandhandlers+28, "nscache", h_nscache, 2, 2},
-	{commandhandlers+29, "nsrecord", h_nsrecord, 3, 3},
-	{commandhandlers+30, "dialer", h_dialer, 2, 2},
-	{commandhandlers+31, "system", h_system, 2, 2},
-	{commandhandlers+32, "pidfile", h_pidfile, 2, 2},
-	{commandhandlers+33, "monitor", h_monitor, 2, 2},
-	{commandhandlers+34, "parent", h_parent, 5, 0},
-	{commandhandlers+35, "allow", h_ace, 1, 0},
-	{commandhandlers+36, "deny", h_ace, 1, 0},
-	{commandhandlers+37, "redirect", h_ace, 3, 0},
-	{commandhandlers+38, "bandlimin", h_ace, 2, 0},
-	{commandhandlers+39, "bandlimout", h_ace, 2, 0},
-	{commandhandlers+40, "nobandlimin", h_ace, 1, 0},
-	{commandhandlers+41, "nobandlimout", h_ace, 1, 0},
-	{commandhandlers+42, "countin", h_ace, 4, 0},
-	{commandhandlers+43, "nocountin", h_ace, 1, 0},
-	{commandhandlers+44, "countout", h_ace, 4, 0},
-	{commandhandlers+45, "nocountout", h_ace, 1, 0},
-	{commandhandlers+46, "plugin", h_plugin, 3, 0},
-	{commandhandlers+47, "logdump", h_logdump, 2, 3},
-	{commandhandlers+48, "filtermaxsize", h_filtermaxsize, 2, 2},
-	{commandhandlers+49, "nolog", h_nolog, 1, 1},
-	{commandhandlers+50, "weight", h_nolog, 2, 2},
-	{commandhandlers+51, "authcache", h_authcache, 2, 3},
-	{commandhandlers+52, "smtpp", h_proxy, 1, 0},
-	{commandhandlers+53, "icqpr", h_proxy, 4, 0},
-	{commandhandlers+54, "msnpr", h_proxy, 4, 0},
-	{commandhandlers+55, "delimchar",h_delimchar, 2, 2},
-	{commandhandlers+56, "authnserver", h_authnserver, 2, 2},
+	{commandhandlers+29, "nscache6", h_nscache6, 2, 2},
+	{commandhandlers+30, "nsrecord", h_nsrecord, 3, 3},
+	{commandhandlers+31, "dialer", h_dialer, 2, 2},
+	{commandhandlers+32, "system", h_system, 2, 2},
+	{commandhandlers+33, "pidfile", h_pidfile, 2, 2},
+	{commandhandlers+34, "monitor", h_monitor, 2, 2},
+	{commandhandlers+35, "parent", h_parent, 5, 0},
+	{commandhandlers+36, "allow", h_ace, 1, 0},
+	{commandhandlers+37, "deny", h_ace, 1, 0},
+	{commandhandlers+38, "redirect", h_ace, 3, 0},
+	{commandhandlers+39, "bandlimin", h_ace, 2, 0},
+	{commandhandlers+40, "bandlimout", h_ace, 2, 0},
+	{commandhandlers+41, "nobandlimin", h_ace, 1, 0},
+	{commandhandlers+42, "nobandlimout", h_ace, 1, 0},
+	{commandhandlers+43, "countin", h_ace, 4, 0},
+	{commandhandlers+44, "nocountin", h_ace, 1, 0},
+	{commandhandlers+45, "countout", h_ace, 4, 0},
+	{commandhandlers+46, "nocountout", h_ace, 1, 0},
+	{commandhandlers+47, "plugin", h_plugin, 3, 0},
+	{commandhandlers+48, "logdump", h_logdump, 2, 3},
+	{commandhandlers+49, "filtermaxsize", h_filtermaxsize, 2, 2},
+	{commandhandlers+50, "nolog", h_nolog, 1, 1},
+	{commandhandlers+51, "weight", h_nolog, 2, 2},
+	{commandhandlers+52, "authcache", h_authcache, 2, 3},
+	{commandhandlers+53, "smtpp", h_proxy, 1, 0},
+	{commandhandlers+54, "icqpr", h_proxy, 4, 0},
+	{commandhandlers+55, "msnpr", h_proxy, 4, 0},
+	{commandhandlers+56, "delimchar",h_delimchar, 2, 2},
+	{commandhandlers+57, "authnserver", h_authnserver, 2, 2},
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
 

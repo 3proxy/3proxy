@@ -693,6 +693,7 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 }
 #endif
 
+#ifdef NOIPV6
 unsigned long getip(unsigned char *name){
 	unsigned long retval;
 	int i;
@@ -719,9 +720,9 @@ unsigned long getip(unsigned char *name){
 		}
 	}
 	if(resolvfunc){
-		if((retval = (*resolvfunc)(name))) return retval;
+		if((*resolvfunc)(AF_INET, name, &retval)) return retval;
 		if(conf.demanddialprog) system(conf.demanddialprog);
-		return (*resolvfunc)(name);
+		return (*resolvfunc)(AF_INET, name, &retval)?retval:0;
 	}
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
 	if(!ghbn_init){
@@ -744,6 +745,7 @@ unsigned long getip(unsigned char *name){
 #endif
 	return retval;
 }
+#endif
 
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
@@ -753,9 +755,11 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 
 	if(!sa) return 0;
 	if(!family) {
-#endif
+		family = AF_INET;
+#else
 		((struct sockaddr_in *)sa)->sin_family = AF_INET;
 		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getip(name))? AF_INET:0;
+#endif
 #ifndef NOIPV6
 	}
 	for(i=0; name[i]; i++){
@@ -785,6 +789,16 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 			*SAFAMILY(sa)=AF_INET6;
 			return inet_pton(AF_INET6, name, SAADDR(sa))?(family==4? 0:AF_INET6) : 0;
 		}
+	}
+	if(resolvfunc){
+		int f = (family == 6 || family == 64)?AF_INET6:AF_INET;
+		*SAFAMILY(sa) = f;
+		if(resolvfunc(f, name, SAADDR(sa))) return f;
+		if(family == 4 || family == 6) return 0;
+		f = (family == 46)? AF_INET6 : AF_INET;
+		*SAFAMILY(sa) = f;
+		if(resolvfunc(f, name, SAADDR(sa))) return f;
+		return 0;
 	}
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = (family == 6 || family == 64)?AF_INET6:AF_INET;
