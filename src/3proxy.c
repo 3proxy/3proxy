@@ -644,9 +644,11 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 0;
 		childdef.service = S_PROXY;
 		childdef.helpmessage = " -n - no NTLM support\n";
+#ifdef NOIPV6
 		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.hashsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, proxy may run very slow\n", linenum);
 		}
+#endif
 	}
 	else if(!strcmp((char *)argv[0], "pop3p")) {
 		childdef.pf = pop3pchild;
@@ -675,9 +677,11 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 0;
 		childdef.service = S_SOCKS;
 		childdef.helpmessage = " -n - no NTLM support\n";
+#ifdef NOIPV6
 		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.hashsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, socks may run very slow\n", linenum);
 		}
+#endif
 	}
 	else if(!strcmp((char *)argv[0], "tcppm")) {
 		childdef.pf = tcppmchild;
@@ -721,9 +725,11 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 1;
 		childdef.service = S_DNSPR;
 		childdef.helpmessage = " -s - simple DNS forwarding - do not use 3proxy resolver / name cache\n";
+#ifndef NOIPV6
 		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.hashsize) || resolvfunc == fakeresolver){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
 		}
+#endif
 	}
 	return start_proxy_thread(&ch);
 }

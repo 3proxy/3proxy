@@ -842,8 +842,8 @@ struct auth authfuncs[] = {
 
 
 
-struct hashtable dns_table = {0, 4, {0}, NULL, NULL, NULL};
-struct hashtable dns6_table = {0, 16, {0}, NULL, NULL, NULL};
+struct hashtable dns_table = {0, 4, {0,0,0,0}, NULL, NULL, NULL};
+struct hashtable dns6_table = {0, 16, {0,0,0,0}, NULL, NULL, NULL};
 
 
 void nametohash(const unsigned char * name, unsigned char *hash, unsigned char *rnd){
@@ -882,7 +882,7 @@ void destroyhashtable(struct hashtable *ht){
 	pthread_mutex_unlock(&hash_mutex);
 }
 
-#define hvalue(i) ((struct hashentry *)((char *)ht->hashvalues + i*(sizeof(struct hashentry) + ht->recsize - 4)))
+#define hvalue(I) ((struct hashentry *)((char *)ht->hashvalues + (I)*(sizeof(struct hashentry) + ht->recsize - 4)))
 int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	unsigned i;
 	clock_t c;
@@ -981,9 +981,9 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 			ht->hashempty = he;
 		}
 		else if(!memcmp(hash, he->hash, sizeof(unsigned)*4)){
-			pthread_mutex_unlock(&hash_mutex);
 			if(ttl) *ttl = (unsigned)(he->expires - conf.time);
 			memcpy(value, he->value, ht->recsize);
+			pthread_mutex_unlock(&hash_mutex);
 			return 1;
 		}
 		else hep=&(he->next);
@@ -1142,7 +1142,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 				}
 				ttl = ntohl(*(unsigned long *)(buf + k + 6));
 				memcpy(value, buf + k + 12, af == AF_INET6? 16:4);
-				if(ttl < 60 || ((unsigned)t)+ttl < ttl) ttl = 300;
+				if(ttl < 60 || ttl > (3600*12)) ttl = 300;
 				if(ttl){
 					hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, conf.time+ttl);
 
