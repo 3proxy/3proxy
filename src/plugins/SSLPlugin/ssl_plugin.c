@@ -53,13 +53,15 @@ struct SSLqueue {
 
 
 /*
- Todo: use hashtable
+ TO DO: use hashtable
 */
 static struct SSLqueue *searchSSL(SOCKET s){
-	struct SSLqueue *sslq;
+	struct SSLqueue *sslq = NULL;
+	pthread_mutex_lock(&ssl_mutex);
 	for(sslq = SSLq; sslq; sslq = sslq->next)
-		if(sslq->s == s) return sslq;
-	return NULL;
+		if(sslq->s == s) break;
+	pthread_mutex_lock(&ssl_mutex);
+	return sslq;
 }
 
 static void addSSL(SOCKET s, SSL_CERT cert, SSL_CONN conn, struct clientparam* param){

@@ -229,12 +229,12 @@ static int h_pcre(int argc, unsigned char **argv){
 	struct filter *newf;
 	char *replace = NULL;
 	
-	if(!strcmp(argv[2], "allow")) action = PASS;
-	else if(!strcmp(argv[2], "deny")) action = REJECT;
-	else if(!strcmp(argv[2], "remove")) action = REMOVE;
-	else if(!strcmp(argv[2], "dunno")) action = CONTINUE;
+	if(!strncmp(argv[2], "allow",5)) action = PASS;
+	else if(!strncmp(argv[2], "deny",4)) action = REJECT;
+	else if(!strncmp(argv[2], "remove",6)) action = REMOVE;
+	else if(!strncmp(argv[2], "dunno",5)) action = CONTINUE;
 	else return 1;
-	if(!strcmp(argv[0], "pcre_rewrite")) {
+	if(!strncmp(argv[0], "pcre_rewrite", 12)) {
 		int i,j;
 		offset = 5;
 		replace = pl->mystrdup(argv[4]);
@@ -266,6 +266,7 @@ static int h_pcre(int argc, unsigned char **argv){
 		replace[j] = 0;
 	}
 	if(!(acl = pl->make_ace(argc - offset, argv + offset))) return 2;
+	acl->nolog = (strstr(argv[2],"log") == 0);
 	if(*argv[3] && !(*argv[3] == '*' && !argv[3][1]) ){
 		re = pcre_compile((char *)argv[3], pcre_options, &errptr, &offset, NULL);
 		if(!re) {

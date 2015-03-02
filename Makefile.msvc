@@ -14,7 +14,7 @@ LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no /machine:I386
 DLFLAGS = /DLL
 DLSUFFICS = .dll
-LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib 
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib libeay32MT.lib ssleay32MT.lib
 LIBSOLD = libeay32MT.lib ssleay32MT.lib
 LIBEXT = .lib                                                                                               
 LNOUT = /out:
@@ -26,7 +26,7 @@ REMOVECOMMAND = del 2>NUL >NUL
 TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.msvc
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin lastFripper FilePlugin
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin lastFripper FilePlugin SSLPlugin
 VERFILE = $(VERFILE)
 
 include Makefile.inc
