@@ -60,7 +60,7 @@ static struct SSLqueue *searchSSL(SOCKET s){
 	pthread_mutex_lock(&ssl_mutex);
 	for(sslq = SSLq; sslq; sslq = sslq->next)
 		if(sslq->s == s) break;
-	pthread_mutex_lock(&ssl_mutex);
+	pthread_mutex_unlock(&ssl_mutex);
 	return sslq;
 }
 
