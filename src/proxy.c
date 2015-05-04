@@ -239,7 +239,7 @@ void * proxychild(struct clientparam* param) {
  bufsize = BUFSIZE;
  anonymous = param->srv->singlepacket;
 for(;;){
- memset(buf, 0, BUFSIZE);
+ memset(buf, 0, bufsize);
  inbuf = 0;
 
 
@@ -494,7 +494,7 @@ for(;;){
 	}
 	inbuf += i;
 	if((bufsize - inbuf) < LINESIZE){
-		if (bufsize > 20000){
+		if (bufsize > (LINESIZE * 16)){
 			RETURN (516);
 		}
 		if(!(newbuf = myrealloc(buf, bufsize + BUFSIZE))){RETURN (21);}
