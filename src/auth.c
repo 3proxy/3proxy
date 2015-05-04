@@ -901,6 +901,7 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	c = clock();
 
 	if(nhashsize<4) return 1;
+	pthread_mutex_lock(&hash_mutex);
 	if(ht->hashtable){
 		myfree(ht->hashtable);
 		ht->hashtable = NULL;
@@ -911,11 +912,13 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	}
 	ht->hashsize = 0;
 	if(!(ht->hashtable = myalloc((nhashsize>>2) *  sizeof(struct hashentry *)))){
+		pthread_mutex_unlock(&hash_mutex);
 		return 2;
 	}
 	if(!(ht->hashvalues = myalloc(nhashsize * (sizeof(struct hashentry) + (ht->recsize-4))))){
 		myfree(ht->hashtable);
 		ht->hashtable = NULL;
+		pthread_mutex_unlock(&hash_mutex);
 		return 3;
 	}
 	ht->hashsize = nhashsize;
@@ -930,6 +933,7 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 		hvalue(i)->next = hvalue(i+1);
 	}
 	ht->hashempty = ht->hashvalues;
+	pthread_mutex_unlock(&hash_mutex);
 	return 0;
 }
 
@@ -969,10 +973,13 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 	struct hashentry *he;
 	unsigned index;
 
-	if(!ht->hashtable || !name) return 0;
+	pthread_mutex_lock(&hash_mutex);
+	if(!ht || !ht->hashtable || !name) {
+		pthread_mutex_unlock(&hash_mutex);
+		return 0;
+	}
 	nametohash(name, hash, (unsigned char *)ht->rnd);
 	index = hashindex(ht, hash);
-	pthread_mutex_lock(&hash_mutex);
 	for(hep = ht->hashtable + index; (he = *hep)!=NULL; ){
 		if(he->expires < conf.time) {
 			(*hep) = he->next;
