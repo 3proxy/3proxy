@@ -7,13 +7,12 @@
 */
 
 #include "../../structures.h"
-#include "../../proxy.h"
 #include <openssl/rsa.h>       /* SSLeay stuff */
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
-#include <openssl/err.h>
+#include "../../proxy.h"
 #include "my_ssl.h"
 
 #ifndef _WIN32
@@ -236,7 +235,7 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
 	ul = ((unsigned long)ssl_connect_timeout)*1000;
 	setsockopt(param->remsock, SOL_SOCKET, SO_SNDTIMEO, (char *)&ul, 4);
  }
- ServerConn = ssl_handshake_to_server(param->remsock, &ServerCert, &errSSL);
+ ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, &ServerCert, &errSSL);
  if ( ServerConn == NULL || ServerCert == NULL ) {
 	param->res = 8011;
 	param->srv->logfunc(param, (unsigned char *)"SSL handshake to server failed");

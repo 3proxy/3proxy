@@ -58,13 +58,13 @@
 #ifndef FD_SETSIZE
 #define FD_SETSIZE 4096
 #endif
-#include <errno.h>
 #include <signal.h>
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <syslog.h>
+#include <errno.h>
 #endif
 
 #ifdef __CYGWIN__
@@ -77,7 +77,13 @@
 #undef errno
 #endif
 #define errno WSAGetLastError()
+#ifdef EAGAIN
+#undef EAGAIN
+#endif
 #define EAGAIN WSAEWOULDBLOCK
+#ifdef EINTR
+#undef EINTR
+#endif
 #define EINTR WSAEWOULDBLOCK
 #define SLEEPTIME 1
 #define usleep Sleep

@@ -2,11 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "../../structures.h"
-#include "../../proxy.h"
-#include "my_ssl.h"
-
 #include <memory.h>
-#include <errno.h>
 #include <fcntl.h>
 #ifndef _WIN32
 #include <sys/file.h>
@@ -18,6 +14,12 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+
+#include "../../proxy.h"
+#include "my_ssl.h"
+
+
+
 
 typedef struct _ssl_conn {
 	SSL_CTX *ctx;
@@ -184,7 +186,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 }
 
 
-SSL_CONN ssl_handshake_to_server(SOCKET s, SSL_CERT *server_cert, char **errSSL)
+SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cert, char **errSSL)
 {
 	int err = 0;
 	X509 *cert;
@@ -214,6 +216,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, SSL_CERT *server_cert, char **errSSL)
 		ssl_conn_free(conn);
 		return NULL;
 	}
+	if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
 	err = SSL_connect(conn->ssl);
 	if ( err == -1 ) {
 		*errSSL = ERR_error_string(ERR_get_error(), errbuf);

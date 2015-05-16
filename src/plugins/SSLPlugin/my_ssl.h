@@ -18,7 +18,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert);
 //
 // SSL/TLS handshakes
 //
-SSL_CONN ssl_handshake_to_server(SOCKET s, SSL_CERT *server_cert, char **errSSL);
+SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cert, char **errSSL);
 SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, char **errSSL);
 
 //
