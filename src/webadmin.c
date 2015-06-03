@@ -480,9 +480,9 @@ void * adminchild(struct clientparam* param) {
 					"<td>MB%s</td>"
 					"<td>%.3f MB</td>"
 					"<td>%s</td>",
-				 (1024.0 * (float)cp->traflimgb) + (float)cp->traflim/1048576.0,
+				 (4 * 1024.0 * (float)cp->traflimgb) + (float)cp->traflim/(1024.*1024.),
 				 rotations[cp->type],
-				 (1024.0 * (float)cp->trafgb) + (float)cp->traf/1048576.0,
+				 (4 * 1024.0 * (float)cp->trafgb) + (float)cp->traf/(1024.*1024.),
 				 cp->cleared?ctime(&cp->cleared):"never"
 				);
 			 inbuf += sprintf(buf + inbuf,
