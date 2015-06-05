@@ -358,9 +358,8 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 
 		memset(&fakecli, 0, sizeof(fakecli));
 		dobuf2(&fakecli, buf, NULL, NULL, ts, (char *)name);
-		return buf;
 	}
-	switch(lt){
+	else switch(lt){
 		case NONE:
 			sprintf((char *)buf, "%s", name);
 			break;
