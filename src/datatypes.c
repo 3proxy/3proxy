@@ -755,7 +755,7 @@ static struct property prop_server[] = {
 	{prop_server + 16, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
 	{prop_server + 17, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
 #ifndef NOIPV6
-	{prop_server + 7, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
+	{prop_server + 18, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
 #endif
 	{NULL, "next", ef_server_next, TYPE_SERVER, "next"}
 };
