@@ -133,6 +133,7 @@ char * proxy_stringtable[] = {
 
 #define BUFSIZE 8192
 #define LINESIZE 4096
+#define FTPBUFSIZE 1536
 
 static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
  char *sb;
@@ -228,6 +229,8 @@ void * proxychild(struct clientparam* param) {
  int authenticate;
  struct pollfd fds[2];
  SOCKET ftps;
+ char ftpbuf[FTPBUFSIZE];
+ int inftpbuf = 0;
 #ifndef WITHMAIN
  FILTER_ACTION action;
 #endif
@@ -539,23 +542,17 @@ for(;;){
 #endif
 
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
-#define FTPBUFSIZE 1536
 
  if(ftp && param->redirtype != R_HTTP){
 	SOCKET s;
 	int mode = 0;
 	int i=0;
-	char ftpbuf[FTPBUFSIZE];
-	int inftpbuf = 0;
 
+	inftpbuf = 0;
 	if(!ckeepalive){
 		inftpbuf = FTPBUFSIZE - 20;
 		res = ftplogin(param, ftpbuf, &inftpbuf);
 		if(res){
-			if (res == 700 || res == 701){
-				socksend(param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
-				socksend(param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
-			}
 			RETURN(res);
 		}
 	}
@@ -1051,6 +1048,10 @@ CLEANRET:
 	if((param->res>=509 && param->res < 517) || param->res > 900) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2);
 	if(param->res == 10) {
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
+	}
+	else if (res == 700 || res == 701){
+		socksend(param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 100 || (param->res >10 && param->res < 20) || (param->res >701 && param->res <= 705)) {
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[1], (int)strlen(proxy_stringtable[1]), conf.timeouts[STRING_S]);
