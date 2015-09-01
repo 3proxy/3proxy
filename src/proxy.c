@@ -464,7 +464,7 @@ for(;;){
 		}
 		if(se)*se = '\r';
 	}
-	if(ftp && i > 19 && (!strncasecmp((char *)(buf+inbuf), "authorization", 19))){
+	if(ftp && i > 13 && (!strncasecmp((char *)(buf+inbuf), "authorization", 13))){
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
