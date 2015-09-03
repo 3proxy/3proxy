@@ -103,15 +103,29 @@ change default server port to NUMBER
 .B -n
 disable NTLM authentication (required if passwords are stored in Unix crypt format.
 .br
+.B -n1
+enable NTLMv1 authentication.
+.br
 .B -s
-(for admin) - allow only secure operations (currently only traffic counters
+(for admin) - secure, allow only secure operations (currently only traffic counters
 view without ability to reset).
 .br
+(for dnspr) - simple, do not use 'resolver' and 3proxy cache, always use external DNS server.
+.br
+(for udppm) - singlepacket, expect only one packet from both client and server
 .B -a
 (for proxy) - anonymous proxy (no information about client reported)
 .br
 .B -a1
 (for proxy) - anonymous proxy (random client information reported)
+.B -6
+Only resolve IPv6 addresses
+.B -4
+Only resolve IPv4 addresses
+.B -46
+Resolve IPv6 addresses if IPv4 address is not resolvable
+.B -64
+Resolve IPv4 addresses if IPv6 address is not resolvable
 .br
  Also, all options mentioned for 
 .BR proxy (8)
@@ -130,7 +144,9 @@ pop3username@pop3server. If POP3 proxy access must be authenticated, you can
 specify username as proxy_username:proxy_password:POP3_username@pop3server
 .br
  DNS proxy resolves any types of records but only hostnames are cached. It
-requires nserver/nscache to be configured.
+requires nserver/nscache to be configured. If nserver is configured as TCP,
+redirections are applied on connection, so parent proxy may be used to resolve
+names to IP.
 .br
  FTP proxy can be used as FTP server in any FTP client or configured as FTP
 proxy on a client with FTP proxy support. Username format is one of
@@ -328,20 +344,25 @@ Sets timeout values
 
 .br
 .B nserver
- <ipaddr>
+ <ipaddr>[:port][/tcp]
 .br
-Nameserver to use for name resolutions. If none spcified system
+Nameserver to use for name resolutions. If none specified 
 or name server fails system routines for name resolution will be
 used. It's better to specify nserver because gethostbyname() may
-be thread unsafe.
+be thread unsafe. Optional port number may be specified.
+If optional /tcp is added to IP address, name resolution will be
+performed over TCP.
 
 .br
 .B nscache
 <cachesize>
+.B nscache6
+<cachesize>
 .br
 
-Cache <cachesize> records for name resolution. Cachesize usually
-should be large enougth (for example 65536).
+Cache <cachesize> records for name resolution (nscache for IPv4,
+nscache6 for IPv6). Cachesize usually should be large enougth
+(for example 65536).
 
 .br
 .B nsrecord
@@ -375,7 +396,7 @@ http://dial.right.now/ from browser to set up connection.
 .br
 sets ip address of internal interface. This IP address will be used
 to bind gateways. Alternatively you can use -i option for individual
-gateways
+gateways. Since 0.8 version, IPv6 address may be used.
 
 .br
 .B external
@@ -383,7 +404,8 @@ gateways
 .br
 sets ip address of external interface. This IP address will be source
 address for all connections made by proxy. Alternatively you can use
--e option to specify individual address for gateway.
+-e option to specify individual address for gateway. Since 0.8 version
+External or -e can be given twice: once with IPv4 and once with IPv6 address.
    
 .br
 .B maxconn
@@ -486,8 +508,9 @@ Use auth type 'cache' for cached authentication
 Access control entries. All lists are comma-separated, no spaces are
 allowed. Usernames are case sensitive (if used with authtype nbname
 username must be in uppercase). Source and target lists may contain
-IP addresses (W.X.Y.Z) or CIDRs (W.X.Y.Z/L). Since 0.6, targetlist may also
-contain host names, instead of addresses. It's possible to use wildmask in
+IP addresses (W.X.Y.Z), ranges A.B.C.D - W.X.Y.Z (since 0.8) or CIDRs
+(W.X.Y.Z/L). Since 0.6, targetlist may also contain host names,
+instead of addresses. It's possible to use wildmask in
 the begginning and in the the end of hostname, e.g. *badsite.com or
 *badcontent*. Hostname is only checked if hostname presents in request.
 Targetportlist may contain ports (X) or port ranges lists (X-Y). For any field
