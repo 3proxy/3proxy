@@ -26,7 +26,7 @@ REMOVECOMMAND = del 2>NUL >NUL
 TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.msvc64
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin SSLPlugin
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin SSLPlugin
 VERFILE = $(VERFILE)
 
 #../3proxy.res:

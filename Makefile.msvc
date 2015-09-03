@@ -26,7 +26,7 @@ REMOVECOMMAND = del 2>NUL >NUL
 TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.msvc
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin lastFripper FilePlugin SSLPlugin
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin SSLPlugin
 VERFILE = $(VERFILE)
 
 include Makefile.inc
