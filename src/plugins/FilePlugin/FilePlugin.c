@@ -49,7 +49,7 @@ static pthread_mutex_t file_mutex;
 
 unsigned long preview = 0;
 
-char path[256];
+char path[300];
 
 static int counter = 0;
 static int timeo = 0;
@@ -876,13 +876,15 @@ __declspec(dllexport)
 		fp_symbols[1].next = pl->symbols.next;
 		pl->symbols.next = fp_symbols;
 	}
-	if(path) free(path);
 	dirp = (argc > 1)? argv[1] : getenv("TEMP");
-	if(strlen(dirp) > 200 || strchr(dirp, '%')) return (13001);
+	if(strlen(dirp) > 200 || strchr(dirp, '%')) {
+		fprintf(stderr, "FilePlugin: invalid directory path: %s\n", dirp);
+		return (13001);
+	}
 #ifdef _WIN32
-	sprintf(path, "%s\\%%d.tmp", dirp);
+	sprintf(path, "%.256s\\%%07d.tmp", dirp);
 #else
-	sprintf(path, "%s/%%d.tmp", dirp);
+	sprintf(path, "%.256s/%%07d.tmp", dirp);
 #endif
 	if(argc > 2) preview = atoi(argv[2]);
 	if(!preview) preview = 32768;
