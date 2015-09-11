@@ -922,6 +922,7 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	unsigned i;
 
 	if(nhashsize<4) return 1;
+	pthread_mutex_lock(&hash_mutex);
 	if(ht->hashtable){
 		myfree(ht->hashtable);
 		ht->hashtable = NULL;
@@ -932,11 +933,13 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	}
 	ht->hashsize = 0;
 	if(!(ht->hashtable = myalloc((nhashsize>>2) * sizeof(struct hashentry *)))){
+		pthread_mutex_unlock(&hash_mutex);
 		return 2;
 	}
 	if(!(ht->hashvalues = myalloc(nhashsize * sizeof(struct hashentry)))){
 		myfree(ht->hashtable);
 		ht->hashtable = NULL;
+		pthread_mutex_unlock(&hash_mutex);
 		return 3;
 	}
 	ht->hashsize = nhashsize;
@@ -946,6 +949,7 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 		(ht->hashvalues + i)->next = ht->hashvalues + i + 1;
 	}
 	ht->hashempty = ht->hashvalues;
+	pthread_mutex_unlock(&hash_mutex);
 	return 0;
 }
 
