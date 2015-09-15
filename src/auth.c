@@ -961,8 +961,11 @@ void hashadd(struct hashtable *ht, const unsigned char* name, unsigned long valu
         struct hashentry * he;
 	unsigned index;
 	
-	if(!value||!name||!ht->hashtable||!ht->hashempty) return;
 	pthread_mutex_lock(&hash_mutex);
+	if(!value||!name||!ht->hashtable||!ht->hashempty){
+	 pthread_mutex_unlock(&hash_mutex);
+	 return;
+	}
 	he = ht->hashempty;
 	ht->hashempty = ht->hashempty->next;
 	nametohash(name, he->hash);
