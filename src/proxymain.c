@@ -21,6 +21,7 @@ void * threadfunc (void *p) {
 	if(param->remsock == INVALID_SOCKET) {
 		param->res = 13;
 		param->srv->logfunc(param, "Connect back accept() failed");
+		freeparam(param);
 #ifdef _WIN32
  return 0;
 #else
@@ -32,13 +33,23 @@ void * threadfunc (void *p) {
 	if(param->srv->acl) param->res = checkACL(param);
 	if(param->res){
 		param->srv->logfunc(param, "Connect back ACL failed");
-	}
+		freeparam(param);
 #ifdef _WIN32
- return 0;
+		return 0;
 #else
- return NULL;
+		return NULL;
 #endif
+	}
 #endif
+	if(so._sendto(param->remsock, "C", 1, 0, (struct sockaddr*)&param->sinsr, size) != 1){
+		param->srv->logfunc(param, "Connect back sending command failed");
+		freeparam(param);
+#ifdef _WIN32
+		return 0;
+#else
+		return NULL;
+#endif
+	}
 	
  }
  ((struct clientparam *) p)->srv->pf((struct clientparam *)p);
@@ -463,9 +474,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 		(*srv.logfunc)(&defparam, buf);
 	}
  }
- else {
-	parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
- }
  if(iscbl){
 	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
 	if((srv.cbsock=so._socket(SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
@@ -513,7 +521,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
 			break;
 		}
-		continue;
 	}
 	if((conf.paused != srv.version) || (error < 0)) break;
 	if(!isudp){
@@ -521,11 +528,21 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(iscbc){
 			new_sock=so._socket(SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
 			if(new_sock != INVALID_SOCKET){
+				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
 				if(so._connect(new_sock,(struct sockaddr *)&defparam.sincr,sizeof(defparam.sincr))) {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					continue;
 				}
+				if(so._recvfrom(new_sock,buf,1,0,(struct sockaddr*)&defparam.sincr, &size) != 1) {
+					so._closesocket(new_sock);
+					new_sock = INVALID_SOCKET;
+					continue;
+				}
+			}
+			else {
+				usleep(SLEEPTIME);
+				continue;
 			}
 		}
 		else {
