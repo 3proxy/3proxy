@@ -9,8 +9,46 @@
 #include "proxy.h"
 
 
-
-
+#define param ((struct clientparam *) p)
+#ifdef _WIN32
+DWORD WINAPI threadfunc(LPVOID p) {
+#else
+void * threadfunc (void *p) {
+#endif
+ if(param->srv->cbsock != INVALID_SOCKET){
+	SASIZETYPE size = sizeof(param->sinsr);
+	param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
+	if(param->remsock == INVALID_SOCKET) {
+		param->res = 13;
+		param->srv->logfunc(param, "Connect back accept() failed");
+#ifdef _WIN32
+ return 0;
+#else
+ return NULL;
+#endif
+	}
+#ifndef WITHMAIN
+	memcpy(&param->req, &param->sinsr, size);
+	if(param->srv->acl) param->res = checkACL(param);
+	if(param->res){
+		param->srv->logfunc(param, "Connect back ACL failed");
+	}
+#ifdef _WIN32
+ return 0;
+#else
+ return NULL;
+#endif
+#endif
+	
+ }
+ ((struct clientparam *) p)->srv->pf((struct clientparam *)p);
+#ifdef _WIN32
+ return 0;
+#else
+ return NULL;
+#endif
+}
+#undef param
 
 
 
@@ -42,7 +80,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 
 
- SOCKET sock = INVALID_SOCKET;
+ SOCKET sock = INVALID_SOCKET, new_sock = INVALID_SOCKET;
  int i=0;
  SASIZETYPE size;
  pthread_t thread;
@@ -53,8 +91,15 @@ int MODULEMAINFUNC (int argc, char** argv){
  unsigned sleeptime;
  unsigned char buf[256];
  char *hostname=NULL;
- int opt = 1, isudp;
+ int opt = 1, isudp = 0, iscbl = 0, iscbc = 0;
+ unsigned char *cbc_string = NULL, *cbl_string = NULL;
+#ifndef NOIPV6
+ struct sockaddr_in6 cbsa;
+#else
+ struct sockaddr_in cbsa;
+#endif
  FILE *fp = NULL;
+ struct linger lg;
  int nlog = 5000;
  char loghelp[] =
 #ifdef STDMAIN
@@ -73,6 +118,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -t be silent (do not log service start/stop)\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
+	" -rIP:PORT Use IP:port for connect back proxy instead of listen port\n"
+	" -RPORT Use PORT to listen connect back proxy connection to pass data to\n"
 	" -4 Use IPv4 for outgoing connections\n"
 	" -6 Use IPv6 for outgoing connections\n"
 	" -46 Prefer IPv4 for outgoing connections, use both IPv4 and IPv6\n"
@@ -85,8 +132,6 @@ int MODULEMAINFUNC (int argc, char** argv){
  int inetd = 0;
 #endif
 #endif
- SOCKET new_sock = INVALID_SOCKET;
- struct linger lg;
 #ifdef _WIN32
  HANDLE h;
 #endif
@@ -222,6 +267,14 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'h':
 			hostname = argv[i] + 2;
 			break;
+		 case 'r':
+			cbc_string = mystrdup(argv[i] + 2);
+			iscbc = 1;
+			break;
+		 case 'R':
+			cbl_string = mystrdup(argv[i] + 2);
+			iscbl = 1;
+			break;
 		 case 'u':
 			srv.nouser = 1;
 			break;
@@ -255,6 +308,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			"Available options are:\n"
 			"%s"
 			" -pPORT - service port to accept connections\n"
+			" -RIP:PORT - connect back IP:PORT to listen and accept connections\n"
+			" -rIP:PORT - connect back IP:PORT to establish connect back connection\n"
 			"%s"
 			"\tExample: %s -i127.0.0.1\n\n"
 			"%s", 
@@ -284,6 +339,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			" [-e<external_ip>] <port_to_bind>"
 			" <target_hostname> <target_port>\n"
 			"Available options are:\n"
+			" -RIP:PORT - connect back IP:PORT to listen and accept connections\n"
+			" -rIP:PORT - connect back IP:PORT to establish connect back connection\n"
 			"%s"
 			"%s"
 			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
@@ -343,56 +400,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 #endif
 
- if(srv.srvsock == INVALID_SOCKET){
 
-	if(!isudp){
-		lg.l_onoff = 1;
-		lg.l_linger = conf.timeouts[STRING_L];
-		sock=so._socket(SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
-	}
-	else {
-		sock=so._socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	}
-	if( sock == INVALID_SOCKET) {
-		perror("socket()");
-		return -2;
-	}
-#ifdef _WIN32
-	ioctlsocket(sock, FIONBIO, &ul);
-#else
-	fcntl(sock,F_SETFL,O_NONBLOCK);
-#endif
-	srv.srvsock = sock;
-	if(so._setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int)))perror("setsockopt()");
-#ifdef SO_REUSEPORT
-	so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
-#endif
- }
-
- size = sizeof(srv.intsa);
- for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&srv.intsa, size)==-1; usleep(sleeptime)) {
-	sprintf((char *)buf, "bind(): %s", strerror(errno));
-	if(!srv.silent)(*srv.logfunc)(&defparam, buf);	
-	sleeptime = (sleeptime<<1);	
-	if(!sleeptime) {
-		so._closesocket(sock);
-		return -3;
-	}
- }
- if(!isudp){
- 	if(so._listen (sock, 1 + (srv.maxchild>>4))==-1) {
-		sprintf((char *)buf, "listen(): %s", strerror(errno));
-		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
-		return -4;
-	}
- }
- else 
-	 defparam.clisock = sock;
-
- if(!srv.silent){
-	sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
-	(*srv.logfunc)(&defparam, buf);
- }
  memset(&defparam.sincr, 0, sizeof(defparam.sincr));
  memset(&defparam.sincl, 0, sizeof(defparam.sincl));
  memset(&defparam.sinsl, 0, sizeof(defparam.sinsl));
@@ -403,6 +411,76 @@ int MODULEMAINFUNC (int argc, char** argv){
  *SAFAMILY(&defparam.sinsl) = AF_INET;
  *SAFAMILY(&defparam.sinsr) = AF_INET;
  *SAFAMILY(&defparam.req) = AF_INET;
+
+ if (!iscbc) {
+	if(srv.srvsock == INVALID_SOCKET){
+
+		if(!isudp){
+			lg.l_onoff = 1;
+			lg.l_linger = conf.timeouts[STRING_L];
+			sock=so._socket(SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
+		}
+		else {
+			sock=so._socket(SASOCK(&srv.intsa), SOCK_DGRAM, IPPROTO_UDP);
+		}
+		if( sock == INVALID_SOCKET) {
+			perror("socket()");
+			return -2;
+		}
+#ifdef _WIN32
+		ioctlsocket(sock, FIONBIO, &ul);
+#else
+		fcntl(sock,F_SETFL,O_NONBLOCK);
+#endif
+		srv.srvsock = sock;
+		if(so._setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int)))perror("setsockopt()");
+#ifdef SO_REUSEPORT
+		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+#endif
+	}
+	size = sizeof(srv.intsa);
+	for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&srv.intsa, size)==-1; usleep(sleeptime)) {
+		sprintf((char *)buf, "bind(): %s", strerror(errno));
+		if(!srv.silent)(*srv.logfunc)(&defparam, buf);	
+		sleeptime = (sleeptime<<1);	
+		if(!sleeptime) {
+			so._closesocket(sock);
+			return -3;
+		}
+	}
+ 	if(!isudp){
+ 		if(so._listen (sock, 1 + (srv.maxchild>>4))==-1) {
+			sprintf((char *)buf, "listen(): %s", strerror(errno));
+			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+			return -4;
+		}
+	}
+	else 
+		defparam.clisock = sock;
+
+	if(!srv.silent && !iscbc){
+		sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
+		(*srv.logfunc)(&defparam, buf);
+	}
+ }
+ else {
+	parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
+ }
+ if(iscbl){
+	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
+	if((srv.cbsock=so._socket(SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
+		(*srv.logfunc)(&defparam, "Failed to allocate connect back socket");
+		return -6;
+	}
+	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, sizeof(cbsa))==-1) {
+		(*srv.logfunc)(&defparam, "Failed to bind connect back socket");
+		return -7;
+	}
+	if(so._listen(srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
+		(*srv.logfunc)(&defparam, "Failed to listen connect back socket");
+		return -8;
+	}
+ }
 
  srv.fds.fd = sock;
  srv.fds.events = POLLIN;
@@ -419,6 +497,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			usleep(SLEEPTIME);
 		}
+		if (iscbc) break;
 		if (conf.paused != srv.version) break;
 		if (srv.fds.events & POLLIN) {
 			error = so._poll(&srv.fds, 1, 1000);
@@ -439,11 +518,23 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if((conf.paused != srv.version) || (error < 0)) break;
 	if(!isudp){
 		size = sizeof(defparam.sincr);
-		new_sock = so._accept(sock, (struct sockaddr*)&defparam.sincr, &size);
-		if(new_sock == INVALID_SOCKET){
-			sprintf((char *)buf, "accept(): %s", strerror(errno));
-			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
-			continue;
+		if(iscbc){
+			new_sock=so._socket(SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
+			if(new_sock != INVALID_SOCKET){
+				if(so._connect(new_sock,(struct sockaddr *)&defparam.sincr,sizeof(defparam.sincr))) {
+					so._closesocket(new_sock);
+					new_sock = INVALID_SOCKET;
+					continue;
+				}
+			}
+		}
+		else {
+			new_sock = so._accept(sock, (struct sockaddr*)&defparam.sincr, &size);
+			if(new_sock == INVALID_SOCKET){
+				sprintf((char *)buf, "accept(): %s", strerror(errno));
+				if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+				continue;
+			}
 		}
 		size = sizeof(defparam.sincl);
 		if(so._getsockname(new_sock, (struct sockaddr *)&defparam.sincl, &size)){
@@ -490,9 +581,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, (BEGINTHREADFUNC)srv.pf, (void *) newparam, 0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)32768, (BEGINTHREADFUNC)srv.pf, (void *) newparam, 0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)32768, threadfunc, (void *) newparam, 0, &thread);
 #endif
 	srv.childcount++;
 	if (h) {
@@ -506,7 +597,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #else
 
-	error = pthread_create(&thread, &pa, (PTHREADFUNC)srv.pf, (void *)newparam);
+	error = pthread_create(&thread, &pa, threadfunc, (void *)newparam);
 	srv.childcount++;
 	if(error){
 		sprintf((char *)buf, "pthread_create(): %s", strerror(error));
@@ -527,6 +618,8 @@ int MODULEMAINFUNC (int argc, char** argv){
  if(fp) fclose(fp);
  srvfree(&srv);
  if(defparam.hostname)myfree(defparam.hostname);
+ if(cbc_string)myfree(cbc_string);
+ if(cbl_string)myfree(cbc_string);
 
 #ifndef STDMAIN
  if(srv.next)srv.next->prev = srv.prev;
@@ -553,6 +646,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->srvsock = INVALID_SOCKET;
  srv->logdumpsrv = conf.logdumpsrv;
  srv->logdumpcli = conf.logdumpcli;
+ srv->cbsock = INVALID_SOCKET; 
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
@@ -588,6 +682,7 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 
 void srvfree(struct srvparam * srv){
  if(srv->srvsock != INVALID_SOCKET) so._closesocket(srv->srvsock);
+ if(srv->cbsock != INVALID_SOCKET) so._closesocket(srv->cbsock);
  srv->srvsock = INVALID_SOCKET;
  srv->service = S_ZOMBIE;
  while(srv->child) usleep(SLEEPTIME * 100);

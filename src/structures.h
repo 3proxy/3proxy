@@ -34,7 +34,6 @@ extern "C" {
 #define pthread_mutex_lock(x) EnterCriticalSection(x)
 #define pthread_mutex_unlock(x) LeaveCriticalSection(x)
 #define pthread_mutex_destroy(x) DeleteCriticalSection(x)
-typedef unsigned (__stdcall *BEGINTHREADFUNC)(void *);
 #ifdef MSVC
 #pragma warning (disable : 4996)
 #endif
@@ -140,6 +139,8 @@ typedef enum {
 	S_FTPPR,
 	S_SMTPP,
 	S_ICQPR,
+	S_REVLI,
+	S_REVCO,
 /*
 	S_MSNPR,
 */
@@ -162,7 +163,6 @@ typedef void * (*EXTENDFUNC) (struct node *node);
 typedef void (*CBFUNC)(void *cb, char * buf, int inbuf);
 typedef void (*PRINTFUNC) (struct node *node, CBFUNC cbf, void*cb);
 typedef int (*PLUGINFUNC) (struct pluginlink *pluginlink, int argc, char** argv);
-typedef void * (*PTHREADFUNC)(void *);
 
 struct auth {
 	struct auth *next;
@@ -360,7 +360,7 @@ struct srvparam {
 	LOGFUNC logfunc;
 	AUTHFUNC authfunc;
 	PROXYFUNC pf;
-	SOCKET srvsock;
+	SOCKET srvsock, cbsock;
 	int childcount;
 	int maxchild;
 	int version;

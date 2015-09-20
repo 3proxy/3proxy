@@ -216,6 +216,24 @@ int ceparseargs(const char *str){
 
 #endif
 
+void parsehost(int family, char *host, struct sockaddr *sa){
+	char *sp=NULL,*se=NULL;
+	unsigned short port;
+
+	if(*host == '[') se=strchr(host, ']');
+	if ( (sp = strchr(se?se:host, ':')) ) *sp = 0;
+	if(se){
+		*se = 0;
+	}
+	if(sp){
+		port = atoi(sp+1);
+	}
+	getip46(family, host + (se!=0), (struct sockaddr *)sa);
+	if(se) *se = ']';
+	if(sp) *sp = ':';
+	*SAPORT(sa) = htons(port);
+}
+
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port){
 	char *sp=NULL,*se=NULL;
 
