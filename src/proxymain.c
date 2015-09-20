@@ -532,11 +532,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 				if(so._connect(new_sock,(struct sockaddr *)&defparam.sincr,sizeof(defparam.sincr))) {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
+					usleep(SLEEPTIME);
 					continue;
 				}
 				if(so._recvfrom(new_sock,buf,1,0,(struct sockaddr*)&defparam.sincr, &size) != 1) {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
+					usleep(SLEEPTIME);
 					continue;
 				}
 			}
