@@ -15,44 +15,42 @@ DWORD WINAPI threadfunc(LPVOID p) {
 #else
 void * threadfunc (void *p) {
 #endif
+ int i = 0;
  if(param->srv->cbsock != INVALID_SOCKET){
 	SASIZETYPE size = sizeof(param->sinsr);
-	param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
-	if(param->remsock == INVALID_SOCKET) {
-		param->res = 13;
-		param->srv->logfunc(param, "Connect back accept() failed");
-		freeparam(param);
-#ifdef _WIN32
- return 0;
-#else
- return NULL;
-#endif
-	}
+	for(i=0; i<3; i++){
+		param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
+		if(param->remsock == INVALID_SOCKET) {
+			param->res = 13;
+			param->srv->logfunc(param, "Connect back accept() failed");
+			continue;
+		}
 #ifndef WITHMAIN
-	memcpy(&param->req, &param->sinsr, size);
-	if(param->srv->acl) param->res = checkACL(param);
-	if(param->res){
-		param->srv->logfunc(param, "Connect back ACL failed");
-		freeparam(param);
-#ifdef _WIN32
-		return 0;
-#else
-		return NULL;
+		memcpy(&param->req, &param->sinsr, size);
+		if(param->srv->acl) param->res = checkACL(param);
+		if(param->res){
+			param->srv->logfunc(param, "Connect back ACL failed");
+			so._closesocket(param->remsock);
+			param->remsock = INVALID_SOCKET;
+			continue;
+		}
 #endif
-	}
-#endif
-	if(so._sendto(param->remsock, "C", 1, 0, (struct sockaddr*)&param->sinsr, size) != 1){
-		param->srv->logfunc(param, "Connect back sending command failed");
-		freeparam(param);
-#ifdef _WIN32
-		return 0;
-#else
-		return NULL;
-#endif
-	}
+		if(so._sendto(param->remsock, "C", 1, 0, (struct sockaddr*)&param->sinsr, size) != 1){
+			param->srv->logfunc(param, "Connect back sending command failed");
+			so._closesocket(param->remsock);
+			param->remsock = INVALID_SOCKET;
+			continue;
+		}
 	
+		break;
+	}
  }
- ((struct clientparam *) p)->srv->pf((struct clientparam *)p);
+ if(i == 3){
+	freeparam(param);
+ }
+ else {
+	((struct clientparam *) p)->srv->pf((struct clientparam *)p);
+ }
 #ifdef _WIN32
  return 0;
 #else
@@ -444,8 +442,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 		fcntl(sock,F_SETFL,O_NONBLOCK);
 #endif
 		srv.srvsock = sock;
+		opt = 1;
 		if(so._setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int)))perror("setsockopt()");
 #ifdef SO_REUSEPORT
+		opt = 1;
 		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
 #endif
 	}
@@ -480,6 +480,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 		(*srv.logfunc)(&defparam, "Failed to allocate connect back socket");
 		return -6;
 	}
+	opt = 1;
+	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+#ifdef SO_REUSEPORT
+	opt = 1;
+	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+#endif
+
 	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, sizeof(cbsa))==-1) {
 		(*srv.logfunc)(&defparam, "Failed to bind connect back socket");
 		return -7;
