@@ -810,11 +810,20 @@ for(;;){
  }
  inbuf = 0;
 #ifndef ANONYMOUS
- if(anonymous!=1){
+ if(!anonymous){
+		sprintf((char*)buf+strlen((char *)buf), "Forwared: for=");
+		if(*SAFAMILY(&param->sincr) == AF_INET6)	sprintf((char*)buf+strlen((char *)buf), "\"[");
+		myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 128);
+		if(*SAFAMILY(&param->sincr) == AF_INET6) sprintf((char*)buf+strlen((char *)buf), "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
+		else sprintf((char*)buf+strlen((char *)buf), ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
+		gethostname((char *)(buf+strlen((char *)buf)), 256);
+		sprintf((char*)buf+strlen((char *)buf), ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
+ }
+ else if(anonymous>1){
 		sprintf((char*)buf+strlen((char *)buf), "Via: 1.1 ");
 		gethostname((char *)(buf+strlen((char *)buf)), 256);
 		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
-		if(!anonymous)myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 128);
+		if(anonymous != 2)myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 128);
 		else {
 			unsigned long tmp;
 
