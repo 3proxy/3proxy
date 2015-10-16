@@ -811,12 +811,13 @@ for(;;){
  inbuf = 0;
 #ifndef ANONYMOUS
  if(!anonymous){
-		sprintf((char*)buf+strlen((char *)buf), "Forwared: for=");
-		if(*SAFAMILY(&param->sincr) == AF_INET6)	sprintf((char*)buf+strlen((char *)buf), "\"[");
-		myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 128);
-		if(*SAFAMILY(&param->sincr) == AF_INET6) sprintf((char*)buf+strlen((char *)buf), "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
-		else sprintf((char*)buf+strlen((char *)buf), ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
-		gethostname((char *)(buf+strlen((char *)buf)), 256);
+		int len = strlen((char *)buf);
+		len += sprintf((char*)buf + len, "Forwared: for=");
+		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "\"[");
+		len += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + len, 128);
+		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
+		else len += sprintf((char*)buf + len, ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
+		gethostname((char *)(buf + len), 256);
 		sprintf((char*)buf+strlen((char *)buf), ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
  }
  else if(anonymous>1){
