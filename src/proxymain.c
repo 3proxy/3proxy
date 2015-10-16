@@ -410,16 +410,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 
 
- memset(&defparam.sincr, 0, sizeof(defparam.sincr));
- memset(&defparam.sincl, 0, sizeof(defparam.sincl));
- memset(&defparam.sinsl, 0, sizeof(defparam.sinsl));
- memset(&defparam.sinsr, 0, sizeof(defparam.sinsr));
- memset(&defparam.req, 0, sizeof(defparam.req));
- *SAFAMILY(&defparam.sincr) = AF_INET;
- *SAFAMILY(&defparam.sincl) = AF_INET;
- *SAFAMILY(&defparam.sinsl) = AF_INET;
- *SAFAMILY(&defparam.sinsr) = AF_INET;
- *SAFAMILY(&defparam.req) = AF_INET;
 
  if (!iscbc) {
 	if(srv.srvsock == INVALID_SOCKET){
@@ -698,7 +688,14 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 	else srv->logformat = (unsigned char *)mystrdup((char *)srv->logformat);
  }
  if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
+ memset(&param->sinsl, 0, sizeof(param->sinsl));
+ memset(&param->sinsr, 0, sizeof(param->sinsr));
+ memset(&param->req, 0, sizeof(param->req));
+ *SAFAMILY(&param->sinsl) = AF_INET;
+ *SAFAMILY(&param->sinsr) = AF_INET;
+ *SAFAMILY(&param->req) = AF_INET;
  memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
+ memcpy(&param->sincl, &srv->intsa, sizeof(param->sincl));
 #ifndef NOIPV6
  memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsl));
 #else
