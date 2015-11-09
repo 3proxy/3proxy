@@ -812,7 +812,7 @@ for(;;){
 #ifndef ANONYMOUS
  if(!anonymous){
 		int len = strlen((char *)buf);
-		len += sprintf((char*)buf + len, "Forwared: for=");
+		len += sprintf((char*)buf + len, "Forwarded: for=");
 		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "\"[");
 		len += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + len, 128);
 		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
