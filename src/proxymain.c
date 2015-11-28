@@ -705,8 +705,9 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 
 void srvfree(struct srvparam * srv){
  if(srv->srvsock != INVALID_SOCKET) so._closesocket(srv->srvsock);
- if(srv->cbsock != INVALID_SOCKET) so._closesocket(srv->cbsock);
  srv->srvsock = INVALID_SOCKET;
+ if(srv->cbsock != INVALID_SOCKET) so._closesocket(srv->cbsock);
+ srv->cbsock = INVALID_SOCKET;
  srv->service = S_ZOMBIE;
  while(srv->child) usleep(SLEEPTIME * 100);
 #ifndef STDMAIN
