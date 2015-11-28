@@ -24,6 +24,7 @@ pthread_mutex_t bandlim_mutex;
 pthread_mutex_t tc_mutex;
 pthread_mutex_t pwl_mutex;
 pthread_mutex_t hash_mutex;
+pthread_mutex_t config_mutex;
 
 #ifndef NOODBC
 pthread_mutex_t odbc_mutex;
@@ -84,6 +85,113 @@ FILE * confopen(){
 }
 
 
+void freeconf(struct extparam *confp){
+ struct bandlim * bl;
+ struct bandlim * blout;
+ struct trafcount * tc;
+ struct passwords *pw;
+ struct ace *acl;
+ struct filemon *fm;
+ int counterd, archiverc;
+ unsigned char *logname, *logtarget;
+ unsigned char **archiver;
+ unsigned char * logformat;
+
+ int i;
+
+
+
+
+ pthread_mutex_lock(&tc_mutex);
+ confp->trafcountfunc = NULL;
+ tc = confp->trafcounter;
+ confp->trafcounter = NULL;
+ counterd = confp->counterd;
+ confp->counterd = -1;
+ pthread_mutex_unlock(&tc_mutex);
+ if(tc)dumpcounters(tc,counterd);
+ for(; tc; tc = (struct trafcount *) itfree(tc, tc->next)){
+	if(tc->comment)myfree(tc->comment);
+	freeacl(tc->ace);
+ }
+ confp->countertype = NONE;
+
+
+
+ logtarget = confp->logtarget;
+ confp->logtarget = NULL;
+ logformat = confp->logformat;
+ confp->logformat = NULL;
+
+ pthread_mutex_lock(&bandlim_mutex);
+ bl = confp->bandlimiter;
+ blout = confp->bandlimiterout;
+ confp->bandlimiter = NULL;
+ confp->bandlimiterout = NULL;
+ confp->bandlimfunc = NULL;
+ pthread_mutex_unlock(&bandlim_mutex);
+
+ logname = confp->logname;
+ confp->logname = NULL;
+ archiverc = confp->archiverc;
+ confp->archiverc = 0;
+ archiver = confp->archiver;
+ confp->archiver = NULL;
+ fm = confp->fmon;
+ confp->fmon = NULL;
+ pw = confp->pwl;
+ confp->pwl = NULL;
+ confp->rotate = 0;
+ confp->logtype = NONE;
+ confp->authfunc = ipauth;
+ confp->bandlimfunc = NULL;
+ memset(&confp->intsa, 0, sizeof(confp->intsa));
+ memset(&confp->extsa, 0, sizeof(confp->extsa));
+#ifndef NOIPV6
+ memset(&confp->extsa6, 0, sizeof(confp->extsa6));
+ *SAFAMILY(&confp->extsa6) = AF_INET6;
+#endif
+ *SAFAMILY(&confp->intsa) = AF_INET;
+ *SAFAMILY(&confp->extsa) = AF_INET;
+ confp->singlepacket = 0;
+ confp->maxchild = 100;
+ resolvfunc = NULL;
+ numservers = 0;
+ acl = confp->acl;
+ confp->acl = NULL;
+ confp->logtime = confp->time = 0;
+
+ usleep(SLEEPTIME);
+
+ 
+ freeacl(acl);
+ freepwl(pw);
+ for(; bl; bl = (struct bandlim *) itfree(bl, bl->next)) freeacl(bl->ace);
+ for(; blout; blout = (struct bandlim *) itfree(blout, blout->next))freeacl(blout->ace);
+
+ if(counterd != -1) {
+	close(counterd);
+ }
+ for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
+	if(fm->path) myfree(fm->path);
+ }
+ if(logtarget) {
+	myfree(logtarget);
+ }
+ if(logname) {
+	myfree(logname);
+ }
+ if(logformat) {
+	myfree(logformat);
+ }
+ if(archiver) {
+	for(i = 0; i < archiverc; i++) myfree(archiver[i]);
+	myfree(archiver);
+ }
+
+}
+
+
 void clearall(){
  freeconf(&conf);
 }
@@ -135,15 +243,7 @@ void __stdcall CommandHandler( DWORD dwCommand )
         break;
     case SERVICE_CONTROL_CONTINUE:
         SetStatus( SERVICE_CONTINUE_PENDING, 0, 1 );
-	clearall();
-	fp = confopen();
-	if(fp){
-		error = readconfig(fp);
-		if(error) {
-			clearall();
-		}
-		if(!writable)fclose(fp);
-	}
+	conf.needreload = 1;
         SetStatus( SERVICE_RUNNING, 0, 0 );
         break;
     default: ;
@@ -2087,6 +2187,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	return 1;
   }
 
+  pthread_mutex_init(&config_mutex, NULL);
   pthread_mutex_init(&bandlim_mutex, NULL);
   pthread_mutex_init(&hash_mutex, NULL);
   pthread_mutex_init(&tc_mutex, NULL);

@@ -632,18 +632,21 @@ int MODULEMAINFUNC (int argc, char** argv){
 
  if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
  if(fp) fclose(fp);
+
  srvfree(&srv);
- if(defparam.hostname)myfree(defparam.hostname);
- if(cbc_string)myfree(cbc_string);
- if(cbl_string)myfree(cbc_string);
 
 #ifndef STDMAIN
+ pthread_mutex_lock(&config_mutex);
  if(srv.next)srv.next->prev = srv.prev;
  if(srv.prev)srv.prev->next = srv.next;
  else conf.services = srv.next;
- freeacl(srv.acl);
- freeauth(srv.authfuncs);
+ pthread_mutex_unlock(&config_mutex);
 #endif
+
+ if(defparam.hostname)myfree(defparam.hostname);
+ if(cbc_string)myfree(cbc_string);
+ if(cbl_string)myfree(cbl_string);
+
  return 0;
 }
 
@@ -720,6 +723,9 @@ void srvfree(struct srvparam * srv){
 	}
 	myfree(srv->filter);
  }
+
+ if(srv->acl)freeacl(srv->acl);
+ if(srv->authfuncs)freeauth(srv->authfuncs);
 #endif
  pthread_mutex_destroy(&srv->counter_mutex);
  if(srv->target) myfree(srv->target);
@@ -903,7 +909,7 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 	return res;
 }
 
-static void * itfree(void *data, void * retval){
+void * itfree(void *data, void * retval){
 	myfree(data);
 	return retval;
 }
@@ -942,112 +948,6 @@ void freeacl(struct ace *ac){
 			if(ch->extpass) myfree(ch->extpass);
 		}
 	}
-}
-
-void freeconf(struct extparam *confp){
- struct bandlim * bl;
- struct bandlim * blout;
- struct trafcount * tc;
- struct passwords *pw;
- struct ace *acl;
- struct filemon *fm;
- int counterd, archiverc;
- unsigned char *logname, *logtarget;
- unsigned char **archiver;
- unsigned char * logformat;
-
- int i;
-
-
-
-
- pthread_mutex_lock(&tc_mutex);
- confp->trafcountfunc = NULL;
- tc = confp->trafcounter;
- confp->trafcounter = NULL;
- counterd = confp->counterd;
- confp->counterd = -1;
- pthread_mutex_unlock(&tc_mutex);
- if(tc)dumpcounters(tc,counterd);
- for(; tc; tc = (struct trafcount *) itfree(tc, tc->next)){
-	if(tc->comment)myfree(tc->comment);
-	freeacl(tc->ace);
- }
- confp->countertype = NONE;
-
-
-
- logtarget = confp->logtarget;
- confp->logtarget = NULL;
- logformat = confp->logformat;
- confp->logformat = NULL;
-
- pthread_mutex_lock(&bandlim_mutex);
- bl = confp->bandlimiter;
- blout = confp->bandlimiterout;
- confp->bandlimiter = NULL;
- confp->bandlimiterout = NULL;
- confp->bandlimfunc = NULL;
- pthread_mutex_unlock(&bandlim_mutex);
-
- logname = confp->logname;
- confp->logname = NULL;
- archiverc = confp->archiverc;
- confp->archiverc = 0;
- archiver = confp->archiver;
- confp->archiver = NULL;
- fm = confp->fmon;
- confp->fmon = NULL;
- pw = confp->pwl;
- confp->pwl = NULL;
- confp->rotate = 0;
- confp->logtype = NONE;
- confp->authfunc = ipauth;
- confp->bandlimfunc = NULL;
- memset(&confp->intsa, 0, sizeof(confp->intsa));
- memset(&confp->extsa, 0, sizeof(confp->extsa));
-#ifndef NOIPV6
- memset(&confp->extsa6, 0, sizeof(confp->extsa6));
- *SAFAMILY(&confp->extsa6) = AF_INET6;
-#endif
- *SAFAMILY(&confp->intsa) = AF_INET;
- *SAFAMILY(&confp->extsa) = AF_INET;
- confp->singlepacket = 0;
- confp->maxchild = 100;
- resolvfunc = NULL;
- numservers = 0;
- acl = confp->acl;
- confp->acl = NULL;
- confp->logtime = confp->time = 0;
-
- usleep(SLEEPTIME);
-
- 
- freeacl(acl);
- freepwl(pw);
- for(; bl; bl = (struct bandlim *) itfree(bl, bl->next)) freeacl(bl->ace);
- for(; blout; blout = (struct bandlim *) itfree(blout, blout->next))freeacl(blout->ace);
-
- if(counterd != -1) {
-	close(counterd);
- }
- for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
-	if(fm->path) myfree(fm->path);
- }
- if(logtarget) {
-	myfree(logtarget);
- }
- if(logname) {
-	myfree(logname);
- }
- if(logformat) {
-	myfree(logformat);
- }
- if(archiver) {
-	for(i = 0; i < archiverc; i++) myfree(archiver[i]);
-	myfree(archiver);
- }
-
 }
 
 FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
