@@ -313,7 +313,7 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 					len = 0;
 					if(argm[argc]!=(incbegin+1)) {
 						len = (int)strlen((char *)argm[argc]);
-						memcpy(buf+*inbuf, argm[argc], len);
+						memmove(buf+*inbuf, argm[argc], len);
 					}
 					if((res = read(fd, buf+*inbuf+len, STRINGBUF-(1+len))) <= 0) {
 						perror((char *)incbegin+1);
@@ -1873,7 +1873,7 @@ int readconfig(FILE * fp){
   struct commands * cm;
   int res = 0;
 
-  if( !(buf = myalloc(bufsize)) || ! (argv = myalloc(NPARAMS * sizeof(unsigned char *) + 1)) ) {
+  if( !(buf = myalloc(bufsize)) || ! (argv = myalloc((NPARAMS + 1) * sizeof(unsigned char *))) ) {
 		fprintf(stderr, "No memory for configuration");
 		return(10);
   }
