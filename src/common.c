@@ -630,7 +630,8 @@ int doconnect(struct clientparam * param){
 	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (15);}
  }
  else {
-	struct linger lg;
+	struct linger lg = {1,conf.timeouts[SINGLEBYTE_S]};
+	int opt = 1;
 
 	if(SAISNULL(&param->sinsr)){
 		if(SAISNULL(&param->req)) {
@@ -642,6 +643,8 @@ int doconnect(struct clientparam * param){
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
 	if ((param->remsock=so._socket(SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
 	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
+	so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+
 #ifndef NOIPV6
 	if(*SAFAMILY(&param->sinsr) == AF_INET6) memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
 	else
@@ -649,13 +652,7 @@ int doconnect(struct clientparam * param){
 		memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
 	if (param->srv->targetport && !*SAPORT(&param->sinsl) && ntohs(*SAPORT(&param->sincr)) > 1023) *SAPORT(&param->sinsl) = *SAPORT(&param->sincr);
 	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
-#ifndef NOIPV6
-		if(*SAFAMILY(&param->sinsr) == AF_INET)	
-#endif
-			memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
-#ifndef NOIPV6
-		else memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
-#endif
+		*SAPORT(&param->sinsl) = 0;
 		if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
 			return 12;
 		}
