@@ -250,7 +250,7 @@ int parsehostname(char *hostname, struct clientparam *param, unsigned short port
 	if(sp){
 		port = atoi(sp+1);
 	}
-	getip46(param->srv->family, param->hostname + (se!=0), (struct sockaddr *)&param->req);
+	getip46(param->srv->family, param->hostname, (struct sockaddr *)&param->req);
 	if(se) *se = ']';
 	if(sp) *sp = ':';
 	*SAPORT(&param->req) = htons(port);
