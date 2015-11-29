@@ -332,7 +332,7 @@ void *myrealloc(void *ptr, size_t size){
 	if(size <= memsizes[l]) return ptr;
 	p = myalloc(size);
 	if(p){
-		memcpy(p,ptr,size);
+		memmove(p,ptr,size);
 		myfree(ptr);
 	}
 	return p;	
