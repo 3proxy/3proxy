@@ -690,6 +690,17 @@ struct pluginlink {
 	unsigned char * (*dologname) (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 };
 
+struct counter_header {
+	unsigned char sig[4];
+	time_t updated;
+};
+
+struct counter_record {
+	uint64_t traf64;
+	time_t cleared;
+	time_t updated;
+};
+
 extern struct pluginlink pluginlink;
 extern char *rotations[];
 
@@ -733,6 +744,7 @@ typedef enum {
 	TYPE_PERIOD,
 	TYPE_SERVER
 }DATA_TYPE;
+
 
 
 #ifdef  __cplusplus
