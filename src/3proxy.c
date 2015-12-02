@@ -84,6 +84,13 @@ FILE * confopen(){
 	return fopen(curconf, "r");
 }
 
+void freepwl(struct passwords *pwl){
+	for(; pwl; pwl = (struct passwords *)itfree(pwl, pwl->next)){
+		if(pwl->user)myfree(pwl->user);
+		if(pwl->password)myfree(pwl->password);
+	}
+}
+
 
 void freeconf(struct extparam *confp){
  struct bandlim * bl;
@@ -108,20 +115,8 @@ void freeconf(struct extparam *confp){
  confp->trafcounter = NULL;
  counterd = confp->counterd;
  confp->counterd = -1;
- pthread_mutex_unlock(&tc_mutex);
- if(tc)dumpcounters(tc,counterd);
- for(; tc; tc = (struct trafcount *) itfree(tc, tc->next)){
-	if(tc->comment)myfree(tc->comment);
-	freeacl(tc->ace);
- }
  confp->countertype = NONE;
-
-
-
- logtarget = confp->logtarget;
- confp->logtarget = NULL;
- logformat = confp->logformat;
- confp->logformat = NULL;
+ pthread_mutex_unlock(&tc_mutex);
 
  pthread_mutex_lock(&bandlim_mutex);
  bl = confp->bandlimiter;
@@ -131,18 +126,27 @@ void freeconf(struct extparam *confp){
  confp->bandlimfunc = NULL;
  pthread_mutex_unlock(&bandlim_mutex);
 
+ pthread_mutex_lock(&pwl_mutex);
+ pw = confp->pwl;
+ confp->pwl = NULL;
+ pthread_mutex_unlock(&pwl_mutex);
+
+
+ logtarget = confp->logtarget;
+ confp->logtarget = NULL;
+ logformat = confp->logformat;
+ confp->logformat = NULL;
  logname = confp->logname;
  confp->logname = NULL;
+ confp->rotate = 0;
+ confp->logtype = NONE;
+
  archiverc = confp->archiverc;
  confp->archiverc = 0;
  archiver = confp->archiver;
  confp->archiver = NULL;
  fm = confp->fmon;
  confp->fmon = NULL;
- pw = confp->pwl;
- confp->pwl = NULL;
- confp->rotate = 0;
- confp->logtype = NONE;
  confp->authfunc = ipauth;
  confp->bandlimfunc = NULL;
  memset(&confp->intsa, 0, sizeof(confp->intsa));
@@ -162,6 +166,12 @@ void freeconf(struct extparam *confp){
  confp->logtime = confp->time = 0;
 
  usleep(SLEEPTIME);
+
+ if(tc)dumpcounters(tc,counterd);
+ for(; tc; tc = (struct trafcount *) itfree(tc, tc->next)){
+	if(tc->comment)myfree(tc->comment);
+	freeacl(tc->ace);
+ }
 
  
  freeacl(acl);
@@ -219,8 +229,6 @@ int SetStatus( DWORD dwState, DWORD dwExitCode, DWORD dwProgress )
 
 void __stdcall CommandHandler( DWORD dwCommand )
 {
-    FILE *fp;
-    int error;
     switch( dwCommand )
     {
     case SERVICE_CONTROL_STOP:
@@ -1047,26 +1055,31 @@ static int h_users(int argc, unsigned char **argv){
 			return(1);
 		}
 		memset(pwl, 0, sizeof(struct passwords));
-		pwl->next = conf.pwl;
-		conf.pwl = pwl;
+
 		arg = (unsigned char *)strchr((char *)argv[j], ':');
 		if(!arg||!arg[1]||!arg[2]||arg[3]!=':')	{
 			pwl->user = (unsigned char *)mystrdup((char *)argv[j]);
 			pwl->pwtype = SYS;
-			continue;
-		}
-		*arg = 0;
-		pwl->user = (unsigned char *)mystrdup((char *)argv[j]);
-		if((arg[1] == 'C' && arg[2] == 'L' && (pwl->pwtype = CL)) ||
-			(arg[1] == 'C' && arg[2] == 'R' && (pwl->pwtype = CR)) ||
-			(arg[1] == 'N' && arg[2] == 'T' && (pwl->pwtype = NT)) ||
-			(arg[1] == 'L' && arg[2] == 'M' && (pwl->pwtype = LM))){
-			pwl->password = (unsigned char *)mystrdup((char *)arg+4);
 		}
 		else {
-			pwl->password = (unsigned char *) mystrdup((char *)arg + 1);
-			pwl->pwtype = UN;
+			*arg = 0;
+			pwl->user = (unsigned char *)mystrdup((char *)argv[j]);
+			if((arg[1] == 'C' && arg[2] == 'L' && (pwl->pwtype = CL)) ||
+				(arg[1] == 'C' && arg[2] == 'R' && (pwl->pwtype = CR)) ||
+				(arg[1] == 'N' && arg[2] == 'T' && (pwl->pwtype = NT)) ||
+				(arg[1] == 'L' && arg[2] == 'M' && (pwl->pwtype = LM))){
+				pwl->password = (unsigned char *)mystrdup((char *)arg+4);
+			}
+			else {
+				pwl->password = (unsigned char *) mystrdup((char *)arg + 1);
+				pwl->pwtype = UN;
+			}
 		}
+		pthread_mutex_lock(&pwl_mutex);
+		pwl->next = conf.pwl;
+		conf.pwl = pwl;
+		pthread_mutex_unlock(&pwl_mutex);
+
 
 	}
 	return 0;

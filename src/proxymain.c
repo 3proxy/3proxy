@@ -914,13 +914,6 @@ void * itfree(void *data, void * retval){
 	return retval;
 }
 
-void freepwl(struct passwords *pwl){
-	for(; pwl; pwl = (struct passwords *)itfree(pwl, pwl->next)){
-		if(pwl->user)myfree(pwl->user);
-		if(pwl->password)myfree(pwl->password);
-	}
-}
-
 void freeauth(struct auth * authfuncs){
 	for(; authfuncs; authfuncs = (struct auth *)itfree(authfuncs, authfuncs->next));
 }
