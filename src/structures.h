@@ -376,10 +376,11 @@ struct srvparam {
 #ifndef NOIPV6
 	struct sockaddr_in6 intsa;
 	struct sockaddr_in6 extsa6;
+	struct sockaddr_in6 extsa;
 #else
 	struct sockaddr_in intsa;
-#endif
 	struct sockaddr_in extsa;
+#endif
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
 	FILE *stdlog;
@@ -499,7 +500,7 @@ struct extparam {
 #ifndef NOIPV6
 	struct sockaddr_in6 intsa;
 	struct sockaddr_in6 extsa6;
-	struct sockaddr_in extsa;
+	struct sockaddr_in6 extsa;
 #else
 	struct sockaddr_in intsa;
 	struct sockaddr_in extsa;
