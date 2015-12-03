@@ -44,7 +44,6 @@ INSTALL		= /usr/bin/install
 INSTALL_BIN	= $(INSTALL) -m 755
 INSTALL_DATA	= $(INSTALL) -m 644
 INSTALL_OBJS	= src/3proxy \
-		  src/countersutil \
 		  src/dighosts \
 		  src/ftppr \
 		  src/mycrypt \
