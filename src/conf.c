@@ -310,7 +310,7 @@ static int h_log(int argc, unsigned char ** argv){
 		}
 #endif
 		else {
-			FILE *fp, *fp1;
+			FILE *fp;
 			if(argc > 2) {
 				conf.logtype = getrotate(*argv[2]);
 			}
@@ -323,9 +323,10 @@ static int h_log(int argc, unsigned char ** argv){
 				return 1;
 			}
 			else {
-				fp1 = conf.stdlog;
+				pthread_mutex_lock(&log_mutex);
+				if(conf.stdlog)fclose(conf.stdlog);
 				conf.stdlog = fp;
-				if(fp1) fclose(fp1);
+				pthread_mutex_unlock(&log_mutex);
 #ifdef _WINCE
 				freopen(tmpbuf, "w", stdout);
 				freopen(tmpbuf, "w", stderr);

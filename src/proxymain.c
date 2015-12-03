@@ -207,7 +207,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case 'l':
 			srv.logfunc = logstdout;
-			srv.logtarget = (unsigned char*)argv[i] + 2;
+			if(srv.logtarget) myfree(srv.logtarget);
+			srv.logtarget = mystrdup((unsigned char*)argv[i] + 2);
 			if(argv[i][2]) {
 				if(argv[i][2]=='@'){
 
@@ -268,7 +269,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 #endif
 		 case 'f':
-			srv.logformat = (unsigned char *)argv[i] + 2;
+			if(srv.logformat)myfree(srv.logformat);
+			srv.logformat = mystrdup((unsigned char *)argv[i] + 2);
 			break;
 		 case 't':
 			srv.silent = 1;
@@ -656,12 +658,14 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf.paused;
  srv->logfunc = conf.logfunc;
- srv->logformat = conf.logformat;
+ if(srv->logformat)myfree(srv->logformat);
+ srv->logformat = mystrdup(conf.logformat);
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
  srv->time_start = time(NULL);
- srv->logtarget = conf.logtarget;
+ if(srv->logtarget) myfree(srv->logtarget);
+ srv->logtarget = mystrdup(conf.logtarget);
  srv->srvsock = INVALID_SOCKET;
  srv->logdumpsrv = conf.logdumpsrv;
  srv->logdumpcli = conf.logdumpcli;
@@ -682,15 +686,16 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  if(srv->logformat){
 	char *s;
 	if(*srv->logformat == '-' && (s = strchr((char *)srv->logformat + 1, '+')) && s[1]){
+		char* logformat = srv->logformat;
+
 		*s = 0;
 		srv->nonprintable = (unsigned char *)mystrdup((char *)srv->logformat + 1);
 		srv->replace = s[1];
 		srv->logformat = (unsigned char *)mystrdup(s + 2);
 		*s = '+';
+		myfree(logformat);
 	}
-	else srv->logformat = (unsigned char *)mystrdup((char *)srv->logformat);
  }
- if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
  memset(&param->sinsl, 0, sizeof(param->sinsl));
  memset(&param->sinsr, 0, sizeof(param->sinsr));
  memset(&param->req, 0, sizeof(param->req));

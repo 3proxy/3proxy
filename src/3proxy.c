@@ -270,12 +270,13 @@ void cyclestep(void){
 	}
 	if(conf.logname) {
 		if(timechanged(conf.logtime, conf.time, conf.logtype)) {
-			FILE *fp, *fp1;
+			FILE *fp;
 			fp = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a");
 			if (fp) {
-				fp1 = conf.stdlog;
+				pthread_mutex_lock(&log_mutex);
+				fclose(conf.stdlog);
 				conf.stdlog = fp;
-				if(fp1) fclose(fp1);
+				pthread_mutex_unlock(&log_mutex);
 			}
 			fseek(stdout, 0L, SEEK_END);
 			usleep(SLEEPTIME);
@@ -509,6 +510,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
 	return 1;
   }
+
+  pthread_mutex_init(&log_mutex, NULL);
+  logmutexinit = 1;
 
   pthread_mutex_init(&config_mutex, NULL);
   pthread_mutex_init(&bandlim_mutex, NULL);

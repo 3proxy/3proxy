@@ -596,18 +596,25 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	clearstat(param);
 }
-
+pthread_mutex_t log_mutex;
+int logmutexinit = 0;
 
 void logstdout(struct clientparam * param, const unsigned char *s) {
 	unsigned char buf[4096];
 	FILE *log;
 
+	if(!logmutexinit){
+		pthread_mutex_init(&log_mutex, NULL);
+		logmutexinit = 1;
+	}
+	pthread_mutex_lock(&log_mutex);
 	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
 	dobuf(param, buf, s, NULL);
 	if(!param->nolog)if(fprintf(log, "%s\n", buf) < 0) {
 		perror("printf()");
 	};
 	if(log != conf.stdlog)fflush(log);
+	pthread_mutex_unlock(&log_mutex);
 }
 #ifndef _WIN32
 void logsyslog(struct clientparam * param, const unsigned char *s) {
@@ -714,6 +721,7 @@ unsigned long getip(unsigned char *name){
 	int i;
 	int ndots = 0;
 	struct hostent *hp=NULL;
+	RESOLVFUNC tmpresolv;
 
 #ifdef GETHOSTBYNAME_R
 	struct hostent he;
@@ -734,10 +742,10 @@ unsigned long getip(unsigned char *name){
 			return retval;
 		}
 	}
-	if(resolvfunc){
-		if((*resolvfunc)(AF_INET, name, &retval)) return retval;
+	if((tmpresolv=resolvfunc)){
+		if((*tmpresolv)(AF_INET, name, (unsigned char *)&retval)) return retval;
 		if(conf.demanddialprog) system(conf.demanddialprog);
-		return (*resolvfunc)(AF_INET, name, &retval)?retval:0;
+		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
 	}
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
 	if(!ghbn_init){
@@ -767,6 +775,7 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 	int ndots=0, ncols=0, nhex=0;
 	struct addrinfo *ai, hint;
 	int i;
+        RESOLVFUNC tmpresolv;
 
 	if(!sa) return 0;
 	if(!family) {
@@ -805,14 +814,14 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 			return inet_pton(AF_INET6, name, SAADDR(sa))?(family==4? 0:AF_INET6) : 0;
 		}
 	}
-	if(resolvfunc){
+	if((tmpresolv = resolvfunc)){
 		int f = (family == 6 || family == 64)?AF_INET6:AF_INET;
 		*SAFAMILY(sa) = f;
-		if(resolvfunc(f, name, SAADDR(sa))) return f;
+		if(tmpresolv(f, name, SAADDR(sa))) return f;
 		if(family == 4 || family == 6) return 0;
 		f = (family == 46)? AF_INET6 : AF_INET;
 		*SAFAMILY(sa) = f;
-		if(resolvfunc(f, name, SAADDR(sa))) return f;
+		if(tmpresolv(f, name, SAADDR(sa))) return f;
 		return 0;
 	}
 	memset(&hint, 0, sizeof(hint));

@@ -256,7 +256,7 @@ void * smtppchild(struct clientparam* param) {
 	if(!strncasecmp(command, "MAIL", 4) || !strncasecmp(command, "RCPT", 4) || !strncasecmp(command, "STARTTLS", 8) || !strncasecmp(command, "TURN", 4)){
 		res = (int)strlen(command);
 		command[res] = 0;
-		res = handlehdrfilterscli(param, &command, &res, 0, &res);
+		res = handlehdrfilterscli(param, (unsigned char **)&command, &res, 0, &res);
 		if(res != PASS) {
 			if(res == HANDLED) res = 2;
 			else RETURN(677);

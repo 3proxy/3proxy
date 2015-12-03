@@ -1024,7 +1024,6 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 		int j, k, len, flen;
 		SOCKET sock;
 		unsigned ttl;
-		time_t t;
 #ifndef NOIPV6
 		struct sockaddr_in6 addr;
 #else
