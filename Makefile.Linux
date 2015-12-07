@@ -10,11 +10,11 @@
 BUILDDIR =
 CC = gcc
 
-CFLAGS = -Wall -g -O2 -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS = -g -O2 -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
 COUT = -o 
 LN = gcc
 DCFLAGS = -fpic
-LDFLAGS = -Wall -O2 -pthread
+LDFLAGS = -O2 -pthread
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
