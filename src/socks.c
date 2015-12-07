@@ -90,18 +90,36 @@ void * sockschild(struct clientparam* param) {
  }
  
  size = 4;
+ *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req) = AF_INET;
  switch(c) {
+#ifndef NOIPV6
 	case 4:
+		if(param->srv->family == 4) RETURN(997);
 		size = 16;
+		*SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req) = AF_INET6;
+#endif
 	case 1:
 		for (i = 0; i<size; i++){
 			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 			buf[i] = (unsigned char)res;
 		}
-		*SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req) = (c == 1)? AF_INET:AF_INET6;
-		memcpy(SAADDR(&param->sinsr), buf, size);
-		memcpy(SAADDR(&param->req), buf, size);
-		if(command==1 && SAISNULL(&param->req)) {
+#ifndef NOIPV6
+		if (c == 1 && param->srv->family==6){
+			char prefix[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255};
+			*SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req) = AF_INET6;
+			memcpy(SAADDR(&param->sinsr), prefix, 12);
+			memcpy(12 + (char *)SAADDR(&param->sinsr), buf, 4);
+			memcpy(SAADDR(&param->req), prefix, 12);
+			memcpy(12 + (char *)SAADDR(&param->req), buf, 4);
+		}
+		else {
+#endif
+			memcpy(SAADDR(&param->sinsr), buf, size);
+			memcpy(SAADDR(&param->req), buf, size);
+#ifndef NOIPV6
+		}
+#endif
+		if(SAISNULL(&param->req)) {
 			RETURN(421);
 		}
 		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);

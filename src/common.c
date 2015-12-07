@@ -779,7 +779,7 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 
 	if(!sa) return 0;
 	if(!family) {
-		family = AF_INET;
+		family = 4;
 #else
 		((struct sockaddr_in *)sa)->sin_family = AF_INET;
 		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getip(name))? AF_INET:0;
@@ -806,8 +806,8 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 	}
 	if(!name[i]){
 		if(ndots == 3 && ncols == 0 && nhex == 0){
-			*SAFAMILY(sa)=AF_INET;
-			return inet_pton(AF_INET, name, SAADDR(sa))? (family==6? 0:AF_INET) : 0; 
+			*SAFAMILY(sa)=(family == 6)?AF_INET6 : AF_INET;
+			return inet_pton(*SAFAMILY(sa), name, SAADDR(sa))? *SAFAMILY(sa) : 0; 
 		}
 		if(ncols >= 2) {
 			*SAFAMILY(sa)=AF_INET6;
