@@ -659,7 +659,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->version = conf.paused;
  srv->logfunc = conf.logfunc;
  if(srv->logformat)myfree(srv->logformat);
- srv->logformat = mystrdup(conf.logformat);
+ srv->logformat = conf.logformat? mystrdup(conf.logformat) : NULL;
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
