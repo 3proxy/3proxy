@@ -8,9 +8,6 @@
 
 #include "proxy.h"
 
-#define HEADERSIZE 57
-#define RECORDSIZE  18
-
 
 int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr){
 	unsigned char buf[1024];
