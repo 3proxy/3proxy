@@ -1,6 +1,6 @@
 /*
    3APA3A 3proxy tiny proxy server
-   (c) 2002-2014 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
+   (c) 2002-2015 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
 
    please read License Agreement
 */
@@ -39,7 +39,6 @@ smtpp    	SMTP proxy server, binds to port 25. You must specify
 icqpr    	ICQ/AIM proxy. Maps some TCP port to TCP port of ICQ
 		server and performs packets translation. Example:
 		icqpr 5190 login.icq.com 5190
-msnpr		MSN proxy (beta)
 tcppm    	TCP port mapping. Maps some TCP port on local machine to
 		TCP port on remote host.
 udppm    	UDP port mapping. Maps some UDP port on local machine to
@@ -56,7 +55,6 @@ mycrypt    	Program to obtain crypted password fro cleartext. Supports
 			mycrypt salt password
 		produces MD5/crypt password with salt "salt".
 dighosts    	Utility for building networks list from web page.
-countersutil	Utility to manage counters file
 
 
 Run utility with --help option for command line reference.
