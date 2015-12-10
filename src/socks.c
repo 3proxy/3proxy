@@ -132,7 +132,7 @@ void * sockschild(struct clientparam* param) {
 		}
 		buf[i] = 0;
 		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
-		memcpy(&param->sinsr, &param->req, sizeof(&param->req));
+		memcpy(&param->sinsr, &param->req, sizeof(param->req));
 		break;
 	default:
 		RETURN(997);
