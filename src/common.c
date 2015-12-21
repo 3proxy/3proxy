@@ -457,7 +457,12 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 							i++;
 						}
 					}
-					else i += myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf + i, 64);
+					else {
+						buf[i++] = '[';
+						i += myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + i, 64);
+						buf[i++] = ']';
+						buf[i++] = 0;
+					}
 					break;
 
 				case 'N':
