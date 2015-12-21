@@ -664,8 +664,10 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
  srv->time_start = time(NULL);
- if(srv->logtarget) myfree(srv->logtarget);
- srv->logtarget = mystrdup(conf.logtarget);
+ if(conf.logtarget){
+	 if(srv->logtarget) myfree(srv->logtarget);
+	 srv->logtarget = mystrdup(conf.logtarget);
+ }
  srv->srvsock = INVALID_SOCKET;
  srv->logdumpsrv = conf.logdumpsrv;
  srv->logdumpcli = conf.logdumpcli;
