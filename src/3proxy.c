@@ -19,7 +19,6 @@
 #endif
 
 FILE * confopen();
-extern unsigned char tmpbuf[1024];
 extern unsigned char *strings[];
 extern FILE *writable;
 extern struct counter_header cheader;
@@ -65,9 +64,9 @@ void __stdcall CommandHandler( DWORD dwCommand )
 	Sleep(2000);
         SetStatus( SERVICE_STOPPED, 0, 0 );
 #ifndef NOODBC
-	pthread_mutex_lock(&odbc_mutex);
+	pthread_mutex_lock(&log_mutex);
 	close_sql();
-	pthread_mutex_unlock(&odbc_mutex);
+	pthread_mutex_unlock(&log_mutex);
 #endif
         break;
     case SERVICE_CONTROL_PAUSE:
@@ -120,9 +119,9 @@ void mysigterm (int sig){
 	usleep(999*SLEEPTIME);
 	usleep(999*SLEEPTIME);
 #ifndef NOODBC
-	pthread_mutex_lock(&odbc_mutex);
+	pthread_mutex_lock(&log_mutex);
 	close_sql();
-	pthread_mutex_unlock(&odbc_mutex);
+	pthread_mutex_unlock(&log_mutex);
 #endif
 	conf.timetoexit = 1;
 }
@@ -519,9 +518,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   pthread_mutex_init(&hash_mutex, NULL);
   pthread_mutex_init(&tc_mutex, NULL);
   pthread_mutex_init(&pwl_mutex, NULL);
-#ifndef NOODBC
-  pthread_mutex_init(&odbc_mutex, NULL);
-#endif
 
   freeconf(&conf);
   res = readconfig(fp);

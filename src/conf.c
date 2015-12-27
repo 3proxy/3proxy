@@ -16,14 +16,9 @@ pthread_mutex_t pwl_mutex;
 pthread_mutex_t hash_mutex;
 pthread_mutex_t config_mutex;
 
-#ifndef NOODBC
-pthread_mutex_t odbc_mutex;
-#endif
-
 int haveerror = 0;
 int linenum = 0;
 
-unsigned char tmpbuf[1024];
 FILE *writable;
 struct counter_header cheader = {"3CF", (time_t)0};
 struct counter_record crecord;
@@ -302,10 +297,10 @@ static int h_log(int argc, unsigned char ** argv){
 		}
 #ifndef NOODBC
 		else if(*argv[1]=='&'){
-			pthread_mutex_lock(&odbc_mutex);
+			pthread_mutex_lock(&log_mutex);
 			close_sql();
 			init_sql((char *)argv[1]+1);
-			pthread_mutex_unlock(&odbc_mutex);
+			pthread_mutex_unlock(&log_mutex);
 			conf.logfunc = logsql;
 		}
 #endif

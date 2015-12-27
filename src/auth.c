@@ -1296,46 +1296,45 @@ void sqlerr (char *buf){
 		fprintf(conf.stdlog, "%s\n", buf);
 		fflush(conf.stdlog);
 	}
-	pthread_mutex_unlock(&odbc_mutex);
+	pthread_mutex_unlock(&log_mutex);
 }
 
 void logsql(struct clientparam * param, const unsigned char *s) {
-	unsigned char buf[4096];
 	SQLRETURN ret;
 	int len;
 
-	len = dobuf(param, buf, s, "\'");
 
 	if(param->nolog) return;
-	pthread_mutex_lock(&odbc_mutex);
+	pthread_mutex_lock(&log_mutex);
+	len = dobuf(param, tmpbuf, s, "\'");
 
 	if(attempt > 5){
 		time_t t;
 
 		t = time(0);
 		if (t - attempt_time < 180){
-			sqlerr(buf);
+			sqlerr(tmpbuf);
 			return;
 		}
 	}
 	if(!hstmt){
 		if(!init_sql(sqlstring)) {
-			sqlerr(buf);
+			sqlerr(tmpbuf);
 			return;
 		}
 	}
 	if(hstmt){
-		ret = SQLExecDirect(hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+		ret = SQLExecDirect(hstmt, (SQLCHAR *)tmpbuf, (SQLINTEGER)len);
 		if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
 			close_sql();
 			if(!init_sql(sqlstring)){
-				sqlerr(buf);
+				sqlerr(tmpbuf);
 				return;
 			}
 			if(hstmt) {
-				ret = SQLExecDirect(hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+				ret = SQLExecDirect(hstmt, (SQLCHAR *)tmpbuf, (SQLINTEGER)len);
 				if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
-					sqlerr(buf);
+					sqlerr(tmpbuf);
 					return;
 				}
 				attempt = 0;
@@ -1343,7 +1342,7 @@ void logsql(struct clientparam * param, const unsigned char *s) {
 		}
 		attempt = 0;
 	}
-	pthread_mutex_unlock(&odbc_mutex);
+	pthread_mutex_unlock(&log_mutex);
 }
 
 #endif

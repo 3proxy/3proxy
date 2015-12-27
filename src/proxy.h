@@ -309,7 +309,7 @@ struct datatype;
 struct dictionary;
 struct node;
 struct property;
-
+extern unsigned char tmpbuf[4096];
 extern pthread_mutex_t config_mutex;
 extern pthread_mutex_t bandlim_mutex;
 extern pthread_mutex_t hash_mutex;
@@ -317,9 +317,6 @@ extern pthread_mutex_t tc_mutex;
 extern pthread_mutex_t pwl_mutex;
 extern pthread_mutex_t log_mutex;
 extern int logmutexinit;
-#ifndef NOODBC
-extern pthread_mutex_t odbc_mutex;
-#endif
 
 extern struct datatype datatypes[64];
 

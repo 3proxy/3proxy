@@ -603,9 +603,9 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 }
 pthread_mutex_t log_mutex;
 int logmutexinit = 0;
+unsigned char tmpbuf[4096];
 
 void logstdout(struct clientparam * param, const unsigned char *s) {
-	unsigned char buf[4096];
 	FILE *log;
 
 	if(!logmutexinit){
@@ -614,8 +614,8 @@ void logstdout(struct clientparam * param, const unsigned char *s) {
 	}
 	pthread_mutex_lock(&log_mutex);
 	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
-	dobuf(param, buf, s, NULL);
-	if(!param->nolog)if(fprintf(log, "%s\n", buf) < 0) {
+	dobuf(param, tmpbuf, s, NULL);
+	if(!param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
 		perror("printf()");
 	};
 	if(log != conf.stdlog)fflush(log);
@@ -623,10 +623,15 @@ void logstdout(struct clientparam * param, const unsigned char *s) {
 }
 #ifndef _WIN32
 void logsyslog(struct clientparam * param, const unsigned char *s) {
-	unsigned char buf[4096];
 
-	dobuf(param, buf, s, NULL);
-	if(!param->nolog)syslog(LOG_INFO, "%s", buf);
+	if(!logmutexinit){
+		pthread_mutex_init(&log_mutex, NULL);
+		logmutexinit = 1;
+	}
+	pthread_mutex_lock(&log_mutex);
+	dobuf(param, tmpbuf, s, NULL)
+	if(!param->nolog)syslog(LOG_INFO, "%s", tmpbuf);
+	pthread_mutex_unlock(&log_mutex);
 }
 #endif
 
