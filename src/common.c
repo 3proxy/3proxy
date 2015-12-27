@@ -603,7 +603,7 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 }
 pthread_mutex_t log_mutex;
 int logmutexinit = 0;
-unsigned char tmpbuf[4096];
+unsigned char tmpbuf[8192];
 
 void logstdout(struct clientparam * param, const unsigned char *s) {
 	FILE *log;
