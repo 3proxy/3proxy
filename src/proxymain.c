@@ -173,7 +173,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  signal(SIGPIPE, SIG_IGN);
 
  pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 16384);
+ pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 8192);
  pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 #endif
@@ -601,7 +601,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifndef _WINCE
 	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)32768, threadfunc, (void *) newparam, 0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
 #endif
 	srv.childcount++;
 	if (h) {
