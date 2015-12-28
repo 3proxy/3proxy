@@ -325,21 +325,21 @@ static struct filter ssl_filter = {
 	ssl_filter_close
 };
 
-int strip = 0;
+int mitm = 0;
 
-static int h_strip(int argc, unsigned char **argv){
-	if((strip&1)) return 1;
-	if(strip) usleep(100*SLEEPTIME);
+static int h_mitm(int argc, unsigned char **argv){
+	if((mitm&1)) return 1;
+	if(mitm) usleep(100*SLEEPTIME);
 	ssl_filter.next = pl->conf->filters;
 	pl->conf->filters = &ssl_filter;
-	strip++;
+	mitm++;
 	return 0;
 }
 
-static int h_nostrip(int argc, unsigned char **argv){
+static int h_nomitm(int argc, unsigned char **argv){
 	struct filter * sf;
-	if(!(strip&1)) return 1;
-	if(strip) usleep(100*SLEEPTIME);
+	if(!(mitm&1)) return 1;
+	if(mitm) usleep(100*SLEEPTIME);
 	if(pl->conf->filters == &ssl_filter) pl->conf->filters = ssl_filter.next;
 	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
 		if(sf->next == &ssl_filter) {
@@ -347,7 +347,7 @@ static int h_nostrip(int argc, unsigned char **argv){
 			break;
 		}
 	}
-	strip++;
+	mitm++;
 	return 0;
 }
 
@@ -361,9 +361,9 @@ static int h_certpath(int argc, unsigned char **argv){
 }
 
 static struct commands ssl_commandhandlers[] = {
-	{ssl_commandhandlers+1, "ssl_strip", h_strip, 1, 1},
-	{ssl_commandhandlers+2, "ssl_nostrip", h_nostrip, 1, 1},
-	{NULL, "ssl_certpath", h_certpath, 2, 2},
+	{ssl_commandhandlers+1, "ssl_mitm", h_mitm, 1, 1},
+	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
+	{NULL, "ssl_certcache", h_certpath, 2, 2},
 };
 
 
