@@ -846,6 +846,36 @@ static struct symbol fp_symbols[] = {
 	{NULL, "fp_stringtable", (void*) fp_stringtable}
 };
 
+static int h_cachedir(int argc, unsigned char **argv){
+	char * dirp;
+	size_t len;
+
+	dirp = (argc > 1)? argv[1] : getenv("TEMP");
+	len = strlen(dirp);
+	if(!dirp || !len || len > 200 || strchr(dirp, '%')) {
+		fprintf(stderr, "FilePlugin: invalid directory path: %s\n", dirp);
+		return (1);
+	}
+#ifdef _WIN32
+	if(dirp[len-1] == '\\') dirp[len-1] = 0;
+	sprintf(path, "%.256s\\%%07d.tmp", dirp);
+#else
+	if(dirp[len-1] == '/') dirp[len-1] = 0;
+	sprintf(path, "%.256s/%%07d.tmp", dirp);
+#endif
+	return 0;
+}
+
+static int h_preview(int argc, unsigned char **argv){
+	preview = atoi(argv[1]);
+	return 0;
+}
+
+static struct commands file_commandhandlers[] = {
+	{file_commandhandlers + 1, "file_cachedir", h_cachedir, 2, 2},
+	{NULL, "file_preview", h_preview, 2, 2},
+};
+
 static int file_loaded=0;
 
 
@@ -857,7 +887,6 @@ __declspec(dllexport)
  int file_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
 
-	char * dirp;
 	if(!file_loaded){
 		pthread_mutex_init(&file_mutex, NULL);
 		file_loaded = 1;
@@ -874,19 +903,11 @@ __declspec(dllexport)
 		pl->conf->filters = &fp_filter;
 		fp_symbols[1].next = pl->symbols.next;
 		pl->symbols.next = fp_symbols;
+		file_commandhandlers[1].next = pl->commandhandlers->next;
+		pl->commandhandlers->next = file_commandhandlers;
 	}
-	dirp = (argc > 1)? argv[1] : getenv("TEMP");
-	if(strlen(dirp) > 200 || strchr(dirp, '%')) {
-		fprintf(stderr, "FilePlugin: invalid directory path: %s\n", dirp);
-		return (13001);
-	}
-#ifdef _WIN32
-	sprintf(path, "%.256s\\%%07d.tmp", dirp);
-#else
-	sprintf(path, "%.256s/%%07d.tmp", dirp);
-#endif
-	if(argc > 2) preview = atoi(argv[2]);
-	if(!preview) preview = 32768;
+	h_cachedir(0, NULL);
+	preview = 32768;
 
 	return 0;
 		
