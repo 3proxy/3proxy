@@ -1,10 +1,10 @@
 <h3>3proxy security considirations</h3>
 </ul>
-<ol>
+<ul>
 <li>Never install 3proxy suid. If you need it to run suid write some
 wrapper with fixed configuration file.
 <li>Make configuration file only available to account 3proxy starts with.
-<li>Under Windows NT/2000/XP/2003 if 3proxy is used as service create new
+<li>Under Windows if 3proxy is used as service create new
 unprivileged local account without "logon locally" right. Assign this account
 to 3proxy service.
 <li>Under unix use chroot to jail 3proxy (make sure files included in
@@ -20,9 +20,8 @@ authentication method is currently available.
 <li>Always limit connections to internal network and localhost (to 127.0.0.1 and
 all interfaces) with ACLs. Be carefull, because BIND command in SOCKS requies
 BIND method with external interface IP address to be allowed.
-<li> Always use nserver and nscache under Unix, overwise DoS attack is possible
+<li> Before 3proxy 0.8 always use nserver and nscache under Unix, overwise DoS attack is possible
 with unreachable DNS server (because gethostbyname will block over threads).
-<li>Remember, that 'nbname' authentication is not reliable and can be spoofed.
 <li>Keep logs in secure location, because some confidential information from
 user's request can be logged.
 <li>Use -xyz+A character filtering sequences for 'logformat', especially with
@@ -31,6 +30,6 @@ ODBC logging to prevent SQL and log record injections.
 <li>Participate in code audit :)
 </ol>
  
-</ol>
+</ul>
 <p>
 
