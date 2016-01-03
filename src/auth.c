@@ -38,11 +38,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			}
 			else {
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = '[';
-				len += myinet_ntop(AF_INET, SAADDR(addr), (char *)buf+8, 256);
+				len += myinet_ntop(AF_INET, SAADDR(addr), (char *)buf+len, 256);
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = ']';
 			}
 			len += sprintf((char *)buf + len,
-				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", *SAPORT(addr));
+				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(*SAPORT(addr)));
 			if(user){
 				unsigned char username[256];
 				len += sprintf((char *)buf + len, "Proxy-authorization: basic ");
@@ -263,6 +263,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					default:
 						param->redirectfunc = proxychild;
 				}
+				if(cur->next)continue;
 				return 0;
 			}
 			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
