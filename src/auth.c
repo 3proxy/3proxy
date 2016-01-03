@@ -10,7 +10,8 @@
 
 
 int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr){
-	unsigned char buf[1024];
+	unsigned char *buf;
+	unsigned char *username;
 	int res;
 	int len=0;
 	unsigned char * user, *pass;
@@ -18,6 +19,13 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 
 	user = redir->extuser;
 	pass = redir->extpass;
+	if (param->srvinbuf < 4096){
+		if(param->srvbuf)myfree(param->srvbuf);
+		param->srvbuf = myalloc(4096);
+		param->srvbufsize = 4096;
+	}
+	buf = param->srvbuf;
+	username = buf + 2048;
 	if(user) {
 		if (*user == '*') {
 			if(!param->username) return 4;
@@ -34,7 +42,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 		{
 			len = sprintf((char *)buf, "CONNECT ");
 			if(redir->type == R_CONNECTP && param->hostname) {
+				char * needreplace;
+				needreplace = strchr(param->hostname, ':');
+				if(needreplace) buf[len++] = '[';
 				len =+ sprintf((char *)buf + len, "%.256s", param->hostname);
+				if(needreplace) buf[len++] = ']';
 			}
 			else {
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = '[';
@@ -44,7 +56,6 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			len += sprintf((char *)buf + len,
 				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(*SAPORT(addr)));
 			if(user){
-				unsigned char username[256];
 				len += sprintf((char *)buf + len, "Proxy-authorization: basic ");
 				sprintf((char *)username, "%.128s:%.64s", user, pass?pass:(unsigned char *)"");
 				en64(username, buf+len, (int)strlen((char *)username));
