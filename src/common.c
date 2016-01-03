@@ -629,7 +629,7 @@ void logsyslog(struct clientparam * param, const unsigned char *s) {
 		logmutexinit = 1;
 	}
 	pthread_mutex_lock(&log_mutex);
-	dobuf(param, tmpbuf, s, NULL)
+	dobuf(param, tmpbuf, s, NULL);
 	if(!param->nolog)syslog(LOG_INFO, "%s", tmpbuf);
 	pthread_mutex_unlock(&log_mutex);
 }
