@@ -50,7 +50,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			}
 			else {
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = '[';
-				len += myinet_ntop(AF_INET, SAADDR(addr), (char *)buf+len, 256);
+				len += myinet_ntop(*SAFAMILY(addr), SAADDR(addr), (char *)buf+len, 256);
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = ']';
 			}
 			len += sprintf((char *)buf + len,
