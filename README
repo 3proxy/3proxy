@@ -1,6 +1,6 @@
 /*
    3APA3A 3proxy tiny proxy server
-   (c) 2002-2015 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
+   (c) 2002-2016 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
 
    please read License Agreement
 */
@@ -60,3 +60,5 @@ dighosts    	Utility for building networks list from web page.
 Run utility with --help option for command line reference.
 
 Latest version is available from http://3proxy.ru/
+
+Want to donate the project? http://3proxy.ru/donations/
