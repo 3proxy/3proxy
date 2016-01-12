@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: mycrypt.c,v 1.8 2008/01/08 21:46:38 vlad Exp $
 */
 #include "libs/md5.h"
 #include "libs/md4.h"

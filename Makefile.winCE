@@ -1,4 +1,3 @@
-#$Id: Makefile.win,v 1.9 2007/08/20 15:26:27 vlad Exp $
 #
 # 3 proxy Makefile for GCC/windows
 #
@@ -11,10 +10,10 @@
 
 BUILDDIR = ../bin/
 CC = /opt/cegcc/arm-wince-cegcc/bin/gcc
-CFLAGS = -Wall -O2 -s -c -mthreads -DWITH_STD_MALLOC -DNOODBC -D_WINCE -D_WIN32 -D__USE_W32_SOCKETS
+CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DNOODBC -D_WINCE -D_WIN32 -D__USE_W32_SOCKETS
 COUT = -o 
 LN = /opt/cegcc/arm-wince-cegcc/bin/gcc
-LDFLAGS = -Wall -O2 -s -mthreads
+LDFLAGS = -O2 -s -mthreads
 DLFLAGS = -shared
 DLSUFFICS = .dll
 LIBS = -lws2

@@ -1,4 +1,3 @@
-#$Id: Makefile.intl,v 1.8 2007/07/21 18:47:00 vlad Exp $
 #
 # 3 proxy Makefile for Intel C compiler for Windows (for both make and nmake)
 #

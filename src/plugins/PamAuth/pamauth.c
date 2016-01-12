@@ -19,7 +19,7 @@ static int         already_loaded = 0;
 static struct auth pamauth;
 #ifdef USERCASE
 static int     usercaselow = 0;
-#edif
+#endif
 static unsigned char *service=NULL;
 static struct pluginlink * pl;
 

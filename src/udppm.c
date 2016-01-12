@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: udppm.c,v 1.27 2012-02-05 22:29:03 vlad Exp $
 */
 
 #include "proxy.h"
@@ -40,7 +39,7 @@ void * udppmchild(struct clientparam* param) {
 
 
  if(!param->hostname)parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport));
- if (!param->req.sin_addr.s_addr) {
+ if (SAISNULL(&param->req)) {
 	param->srv->fds.events = POLLIN;
 	RETURN (100);
  }
@@ -49,7 +48,7 @@ void * udppmchild(struct clientparam* param) {
 	RETURN (21);
  }
  param->cliinbuf = param->clioffset = 0;
- i = sockrecvfrom(param->srv->srvsock, &param->sinc, param->clibuf, param->clibufsize, 0);
+ i = sockrecvfrom(param->srv->srvsock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, 0);
  if(i<=0){
 	param->srv->fds.events = POLLIN;
 	RETURN (214);
@@ -57,32 +56,34 @@ void * udppmchild(struct clientparam* param) {
  param->cliinbuf = i;
 
 #ifdef _WIN32
-	if((param->clisock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
+	if((param->clisock=so._socket(SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
 	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
 	ioctlsocket(param->clisock, FIONBIO, &ul);
-	size = sizeof(struct sockaddr_in);
-	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sins, &size)) {RETURN(21);};
-	if(so._bind(param->clisock,(struct sockaddr *)&param->sins,sizeof(struct sockaddr_in))) {
+	size = sizeof(param->sinsl);
+	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};
+	if(so._bind(param->clisock,(struct sockaddr *)&param->sinsl,sizeof(struct sockaddr_in))) {
 		RETURN(822);
 	}
 #else
 	param->clisock = param->srv->srvsock;
 #endif
 
- param->sins.sin_family = AF_INET;
- param->sins.sin_port = htons(0);
- param->sins.sin_addr.s_addr = param->extip;
- if ((param->remsock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
- if(so._bind(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins))) {RETURN (12);}
+#ifndef NOIPV6
+ memcpy(&param->sinsl, *SAFAMILY(&param->req) == AF_INET? (struct sockaddr *)&param->srv->extsa : (struct sockaddr *)&param->srv->extsa6, SASIZE(&param->req));
+#else
+ memcpy(&param->sinsl, &param->srv->extsa, SASIZE(&param->req));
+#endif
+ *SAPORT(&param->sinsl) = 0;
+ if ((param->remsock=so._socket(SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+ if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {RETURN (12);}
 #ifdef _WIN32
 	ioctlsocket(param->remsock, FIONBIO, &ul);
 #else
 	fcntl(param->remsock,F_SETFL,O_NONBLOCK);
 #endif
- param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr;
- param->sins.sin_port = param->req.sin_port;
+ memcpy(&param->sinsr, &param->req, sizeof(param->req));
 
  param->operation = UDPASSOC;
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}

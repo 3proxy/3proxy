@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: ntlm.c,v 1.9 2008/01/08 21:46:38 vlad Exp $
 */
 
 #include "proxy.h"
@@ -81,8 +80,8 @@ void genchallenge(struct clientparam *param, char * challenge, char *buf){
 	chal->flags[3] = 0xA0;
 	text2unicode(hostname, (char *)chal->data, 64);
 	time((time_t *)challenge);
-	memcpy(challenge+4, &param->sinc.sin_addr.s_addr, 4);
-	challenge[1]^=param->sinc.sin_port;
+	memcpy(challenge+4, SAADDR(&param->sincr), 4);
+	challenge[1]^=*SAPORT(&param->sincr);
 	for(i = 0; i < 8; i++) challenge[i] ^= myrand(challenge, 8);
 	memcpy(chal->challenge, challenge, 8);
 	en64((unsigned char *)tmpbuf, (unsigned char *)buf, (int)((unsigned char *)chal->data - (unsigned char *)chal) + len);	

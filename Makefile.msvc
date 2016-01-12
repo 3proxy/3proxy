@@ -1,4 +1,3 @@
-#$Id: Makefile.msvc,v 1.17 2010-11-11 14:44:11 v.dubrovin Exp $
 #
 # 3 proxy Makefile for Microsoft Visual C compiler (for both make and nmake)
 #
@@ -15,7 +14,7 @@ LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no /machine:I386
 DLFLAGS = /DLL
 DLSUFFICS = .dll
-LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib 
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib libeay32MT.lib ssleay32MT.lib
 LIBSOLD = libeay32MT.lib ssleay32MT.lib
 LIBEXT = .lib                                                                                               
 LNOUT = /out:
@@ -27,8 +26,8 @@ REMOVECOMMAND = del 2>NUL >NUL
 TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.msvc
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin lastFripper FilePlugin
-VERFILE = 3proxyres.obj $(VERFILE)
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin SSLPlugin
+VERFILE = $(VERFILE)
 
 include Makefile.inc
 
@@ -36,7 +35,7 @@ include Makefile.inc
 	rc /fo../3proxy.res ../3proxy.rc
 
 3proxyres.obj: ../3proxy.res
-	cvtres /out:3proxyres.obj /MACHINE:X86 ../3proxy.res
+	cvtres /out:3proxyres.obj /MACHINE:I386 ../3proxy.res
 
 allplugins:
 	for /D %%i in ($(PLUGINS)) do (copy Makefile plugins\%%i && copy Makefile.var plugins\%%i && cd plugins\%%i && nmake && del *.obj *.idb &&cd ..\..)

@@ -4,83 +4,28 @@
 
    please read License Agreement
 
-   $Id: auth.c,v 1.108 2012-04-11 23:01:18 vlad Exp $
 */
 
 #include "proxy.h"
 
-#define HEADERSIZE 57
-#define RECORDSIZE  18
 
-unsigned char request[] = {	
-		0xa2, 0x48, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x20, 0x43, 0x4b, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 
-		0x41, 0x41, 0x41, 0x41, 0x41, 0x00, 0x00, 0x21, 
-		0x00, 0x01};
-
-unsigned char * getNetBIOSnamebyip(unsigned long ip){
- unsigned char buf[1024];
- struct sockaddr_in sins;
- int res;
- SOCKET sock;
- unsigned char * username = NULL;
- int i;
- int j;
- int nnames;
- int type;
-
- if ( (sock=so._socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP)) == INVALID_SOCKET) return NULL;
- memset(&sins, 0, sizeof(sins));
- sins.sin_family = AF_INET;
- sins.sin_port = htons(0);
- sins.sin_addr.s_addr = INADDR_ANY;
- if(so._bind(sock,(struct sockaddr *)&sins,sizeof(sins))) {
-	so._closesocket(sock);
-	return NULL;
- }
- sins.sin_family = AF_INET;
- sins.sin_addr.s_addr = ip;
- sins.sin_port = htons(137);
- res=socksendto(sock, &sins, request, sizeof(request), conf.timeouts[SINGLEBYTE_L]*1000);
- if(res <= 0) {
-	so._closesocket(sock);
-	return NULL;
- }
- res = sockrecvfrom(sock, &sins, buf, sizeof(buf), conf.timeouts[SINGLEBYTE_L]*1000);
- so._closesocket(sock);
- if(res < (HEADERSIZE + RECORDSIZE)) {
-	return NULL;
- }
- nnames = buf[HEADERSIZE-1];
- if (res < (HEADERSIZE + (nnames * RECORDSIZE))) return NULL;
- for (i = 0; i < nnames; i++){
-	type = buf[HEADERSIZE + (i*RECORDSIZE) + 15];
-	if( type == 3) {
-		for(j = 14; j && buf[HEADERSIZE + (i*RECORDSIZE) + j] == ' '; j--)
-			buf[HEADERSIZE + (i*RECORDSIZE) + j] = 0;
-		if(username)myfree(username);
-		username = (unsigned char *)mystrdup((char *)buf + HEADERSIZE + i*RECORDSIZE);
-	}
-	buf[HEADERSIZE + (i*RECORDSIZE) + 15] = 0;
- }
- return username;
-} 
-
-int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned long ip, unsigned short port){
-	unsigned char buf[1024];
-	struct in_addr ina;
+int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr){
+	unsigned char *buf;
+	unsigned char *username;
 	int res;
 	int len=0;
 	unsigned char * user, *pass;
 
-	ina.s_addr = ip;
 
-	
 	user = redir->extuser;
 	pass = redir->extpass;
+	if (param->srvinbuf < 4096){
+		if(param->srvbuf)myfree(param->srvbuf);
+		param->srvbuf = myalloc(4096);
+		param->srvbufsize = 4096;
+	}
+	buf = param->srvbuf;
+	username = buf + 2048;
 	if(user) {
 		if (*user == '*') {
 			if(!param->username) return 4;
@@ -95,17 +40,22 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 		case R_CONNECT:
 		case R_CONNECTP:
 		{
-			sprintf((char *)buf, "CONNECT ");
+			len = sprintf((char *)buf, "CONNECT ");
 			if(redir->type == R_CONNECTP && param->hostname) {
-				len = 8 + sprintf((char *)buf + 8, "%.256s", param->hostname);
+				char * needreplace;
+				needreplace = strchr(param->hostname, ':');
+				if(needreplace) buf[len++] = '[';
+				len =+ sprintf((char *)buf + len, "%.256s", param->hostname);
+				if(needreplace) buf[len++] = ']';
 			}
 			else {
-				len = 8 + myinet_ntoa(ina, (char *)buf+8);
+				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = '[';
+				len += myinet_ntop(*SAFAMILY(addr), SAADDR(addr), (char *)buf+len, 256);
+				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = ']';
 			}
 			len += sprintf((char *)buf + len,
-				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(port));
+				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(*SAPORT(addr)));
 			if(user){
-				unsigned char username[256];
 				len += sprintf((char *)buf + len, "Proxy-authorization: basic ");
 				sprintf((char *)username, "%.128s:%.64s", user, pass?pass:(unsigned char *)"");
 				en64(username, buf+len, (int)strlen((char *)username));
@@ -115,7 +65,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 			len += sprintf((char *)buf + len, "\r\n");
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != (int)strlen((char *)buf))
 				return 31;
-			param->statssrv+=len;
+			param->statssrv64+=len;
 			param->nwrites++;
 			if((res = sockgetlinebuf(param, SERVER,buf,13,'\n',conf.timeouts[CHAIN_TO])) < 13)
 				return 32;
@@ -129,14 +79,15 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 		case R_SOCKS4B:
 		{
 
+			if(*SAFAMILY(addr) != AF_INET) return 44;
 			buf[0] = 4;
 			buf[1] = 1;
-			memcpy(buf+2, &port, 2);
+			memcpy(buf+2, SAPORT(addr), 2);
 			if(redir->type == R_SOCKS4P && param->hostname) {
 				buf[4] = buf[5] = buf[6] = 0;
 				buf[7] = 3;
 			}
-			else memcpy(buf+4, &ip, 4);
+			else memcpy(buf+4, SAADDR(addr), 4);
 			if(!user)user = (unsigned char *)"anonymous";
 			len = (int)strlen((char *)user) + 1;
 			memcpy(buf+8, user, len);
@@ -152,7 +103,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) < len){
 				return 41;
 			}
-			param->statssrv+=len;
+			param->statssrv64+=len;
 			param->nwrites++;
 			if((len = sockgetlinebuf(param, SERVER, buf, (redir->type == R_SOCKS4B)? 3:8, EOF, conf.timeouts[CHAIN_TO])) != ((redir->type == R_SOCKS4B)? 3:8)){
 				return 42;
@@ -175,7 +126,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 			if(socksend(param->remsock, buf, 3, conf.timeouts[CHAIN_TO]) != 3){
 				return 51;
 			}
-			param->statssrv+=len;
+			param->statssrv64+=len;
 			param->nwrites++;
 			if(sockgetlinebuf(param, SERVER, buf, 2, EOF, conf.timeouts[CHAIN_TO]) != 2){
 				return 52;
@@ -197,7 +148,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 				if(socksend(param->remsock, buf, inbuf, conf.timeouts[CHAIN_TO]) != inbuf){
 					return 51;
 				}
-				param->statssrv+=inbuf;
+				param->statssrv64+=inbuf;
 				param->nwrites++;
 				if(sockgetlinebuf(param, SERVER, buf, 2, EOF, 60) != 2){
 					return 55;
@@ -218,16 +169,17 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, unsigned l
 				len += 5;
 			}
 			else {
-				buf[3] = 1;
-				memcpy(buf+4, &ip, 4);
-				len = 8;
+				len = 3;
+				buf[len++] = (*SAFAMILY(addr) == AF_INET)? 1 : 4;
+				memcpy(buf+len, SAADDR(addr), SAADDRLEN(addr));
+				len += SAADDRLEN(addr);
 			}
-			memcpy(buf+len, &port, 2);
+			memcpy(buf+len, SAPORT(addr), 2);
 			len += 2;
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != len){
 				return 51;
 			}
-			param->statssrv+=len;
+			param->statssrv64+=len;
 			param->nwrites++;
 			if(sockgetlinebuf(param, SERVER, buf, 4, EOF, conf.timeouts[CHAIN_TO]) != 4){
 				return 57;
@@ -261,16 +213,14 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	int done = 0;
 	struct chain * cur;
 	struct chain * redir = NULL;
-	unsigned long targetip;
-	unsigned short targetport;
 	int r2;
 
 	if(param->remsock != INVALID_SOCKET) {
 		return 0;
 	}
-	targetip = param->req.sin_addr.s_addr;
-	targetport = param->req.sin_port;
-	if(!targetip || !targetport) return 100;
+	if(SAISNULL(&param->req) || !*SAPORT(&param->req)) {
+		return 100;
+	}
 
 	r2 = (myrand(param, sizeof(struct clientparam))%1000);
 
@@ -291,7 +241,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			r2 = (myrand(param, sizeof(struct clientparam))%1000);
 		}
 		if(!connected){
-			if(!cur->redirip && !cur->redirport){
+			if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
 				if(cur->extuser){
 					if(param->extusername)
 						myfree(param->extusername);
@@ -316,19 +266,25 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					case R_ICQ:
 						param->redirectfunc = icqprchild;
 						break;
+/*
 					case R_MSN:
 						param->redirectfunc = msnprchild;
 						break;
+*/
 					default:
 						param->redirectfunc = proxychild;
 				}
+				if(cur->next)continue;
 				return 0;
 			}
-			else if(!cur->redirip && cur->redirport) param->extport = cur->redirport;
-			else if(!cur->redirport && cur->redirip) param->extip = cur->redirip;
+			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
+				unsigned short port = *SAPORT(&param->sinsr);
+				memcpy(&param->sinsr, &cur->addr, SASIZE(&cur->addr)); 
+				*SAPORT(&param->sinsr) = port;
+			}
+			else if(SAISNULL(&cur->addr) && *SAPORT(&cur->addr)) *SAPORT(&param->sinsr) = *SAPORT(&cur->addr);
 			else {
-				param->sins.sin_port = cur->redirport;
-				param->sins.sin_addr.s_addr = cur->redirip;
+				memcpy(&param->sinsr, &cur->addr, SASIZE(&cur->addr)); 
 			}
 
 			if((res = alwaysauth(param))){
@@ -336,7 +292,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 		}
 		else {
-			res = redir?clientnegotiate(redir, param, cur->redirip, cur->redirport):0;
+			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&cur->addr):0;
 			if(res) return res;
 		}
 		redir = cur;
@@ -359,9 +315,25 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	}
 
 	if(!connected) return 9;
-	return redir?clientnegotiate(redir, param, targetip, targetport):0;
+	return (redir)?clientnegotiate(redir, param, (struct sockaddr *)&param->req):0;
 }
 
+int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
+	int addrlen;
+	unsigned char *ip, *ipf, *ipt;
+
+
+	ip = (unsigned char *)SAADDR(sa);
+	ipf = (unsigned char *)&ipentry->ip_from;
+	ipt = (unsigned char *)&ipentry->ip_to;
+
+	if(!sa || ! ipentry || *SAFAMILY(sa) != ipentry->family) return 0;
+	addrlen = SAADDRLEN(sa);
+	
+	if(memcmp(ip,ipf,addrlen) < 0 || memcmp(ip,ipt,addrlen) > 0) return 0;
+	return 1;
+	
+}
 
 int ACLmatches(struct ace* acentry, struct clientparam * param){
 	struct userlist * userentry;
@@ -376,14 +348,14 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	username = param->username?param->username:(unsigned char *)"-";
 	if(acentry->src) {
 	 for(ipentry = acentry->src; ipentry; ipentry = ipentry->next)
-		if(ipentry->ip == (param->sinc.sin_addr.s_addr & ipentry->mask)) {
+		if(IPInentry((struct sockaddr *)&param->sincr, ipentry)) {
 			break;
 		}
-		if(!ipentry) return 0;
+	 if(!ipentry) return 0;
 	}
-	if((acentry->dst && param->req.sin_addr.s_addr) || (acentry->dstnames && param->hostname)) {
+	if((acentry->dst && SAISNULL(&param->req)) || (acentry->dstnames && param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
-		if(ipentry->ip == (param->req.sin_addr.s_addr & ipentry->mask)) {
+		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
 		}
 	 if(!ipentry) {
@@ -416,10 +388,10 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	 }
 	 if(!ipentry && !hstentry) return 0;
 	}
-	if(acentry->ports && param->req.sin_port) {
+	if(acentry->ports && *SAPORT(&param->req)) {
 	 for (portentry = acentry->ports; portentry; portentry = portentry->next)
-		if(ntohs(param->req.sin_port) >= portentry->startport &&
-			   ntohs(param->req.sin_port) <= portentry->endport) {
+		if(ntohs(*SAPORT(&param->req)) >= portentry->startport &&
+			   ntohs(*SAPORT(&param->req)) <= portentry->endport) {
 			break;
 		}
 		if(!portentry) return 0;
@@ -496,6 +468,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 	sec = tv.tv_sec;
 	msec = tv.tv_usec;
 #endif
+	
 	if(!nbytesin && !nbytesout) return 0;
 	pthread_mutex_lock(&bandlim_mutex);
 	if(param->srv->version != conf.paused){
@@ -541,7 +514,6 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 
 void trafcountfunc(struct clientparam *param){
 	struct trafcount * tc;
-	unsigned long val;
 	int countout = 0;
 
 	pthread_mutex_lock(&tc_mutex);
@@ -553,9 +525,7 @@ void trafcountfunc(struct clientparam *param){
 				countout = 1;
 				continue;
 			}
-			val = tc->traf + param->statssrv;
-			if(val < tc->traf) tc->trafgb++;
-			tc->traf = val;
+			tc->traf64 += param->statssrv64;
 			time(&t);
 			tc->updated = t;
 		}
@@ -567,9 +537,7 @@ void trafcountfunc(struct clientparam *param){
 			if(tc->ace->action != COUNTOUT) {
 				continue;
 			}
-			val = tc->traf + param->statscli;
-			if(val < tc->traf) tc->trafgb++;
-			tc->traf = val;
+			tc->traf64 += param->statscli64;
 			time(&t);
 			tc->updated = t;
 		}
@@ -596,15 +564,9 @@ int alwaysauth(struct clientparam * param){
 					continue;
 				}
 			
-				if((tc->traflimgb < tc->trafgb) ||
-					((tc->traflimgb == tc->trafgb) && (tc->traflim < tc->traf))
-				) return 10;
+				if(tc->traflim64 <= tc->traf64) return 10;
 				param->trafcountfunc = conf.trafcountfunc;
-				if(tc->traflimgb - tc->trafgb < 1 || ((tc->traflimgb - tc->trafgb) == 1 && tc->traf > tc->traflim)){
-					unsigned maxtraf = tc->traflim - tc->traf;
-					if(!param->maxtrafin || param->maxtrafin > maxtraf) param->maxtrafin = maxtraf;
-				}
-				if((tc->trafgb > tc->traflimgb) || (tc->trafgb == tc->traflimgb && tc->traf >= tc->traflim)) param->maxtrafin = 1; 
+				param->maxtrafin64 = tc->traflim64 - tc->traf64; 
 			}
 		}
 		if(countout)for(tc = conf.trafcounter; tc; tc = tc->next) {
@@ -615,15 +577,9 @@ int alwaysauth(struct clientparam * param){
 					continue;
 				}
 			
-				if((tc->traflimgb < tc->trafgb) ||
-					((tc->traflimgb == tc->trafgb) && (tc->traflim < tc->traf))
-				) return 10;
+				if(tc->traflim64 <= tc->traf64) return 10;
 				param->trafcountfunc = conf.trafcountfunc;
-				if(tc->traflimgb - tc->trafgb < 1 || ((tc->traflimgb - tc->trafgb) == 1 && tc->traf > tc->traflim)){
-					unsigned maxtraf = tc->traflim - tc->traf;
-					if(!param->maxtrafout || param->maxtrafout > maxtraf) param->maxtrafout = maxtraf;
-				}
-				if((tc->trafgb > tc->traflimgb) || (tc->trafgb == tc->traflimgb && tc->traf >= tc->traflim)) param->maxtrafout = 1; 
+				param->maxtrafout64 = tc->traflim64 - tc->traf64; 
 			}
 		}
 
@@ -647,7 +603,7 @@ int checkACL(struct clientparam * param){
 				if(param->operation < 256 && !(param->operation & CONNECT)){
 					continue;
 				}
-				if(param->redirected && acentry->chains && !acentry->chains->redirip && !acentry->chains->redirport) {
+				if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
 					continue;
 				}
 				memcpy(&dup, acentry, sizeof(struct ace));
@@ -663,7 +619,11 @@ struct authcache {
 	char * username;
 	char * password;
 	time_t expires;
-	unsigned long ip;	
+#ifndef NOIPV6
+	struct sockaddr_in6 sa;
+#else
+	struct sockaddr_in sa;
+#endif
 	struct authcache *next;
 } *authc = NULL;
 
@@ -690,7 +650,7 @@ int cacheauth(struct clientparam * param){
 			
 		}
 		if(((!(conf.authcachetype&2)) || (param->username && ac->username && !strcmp(ac->username, param->username))) &&
-		   ((!(conf.authcachetype&1)) || ac->ip == param->sinc.sin_addr.s_addr) && 
+		   ((!(conf.authcachetype&1)) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa)))) && 
 		   (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, param->password)))) {
 			if(param->username){
 				myfree(param->username);
@@ -724,7 +684,7 @@ int doauth(struct clientparam * param){
 				pthread_mutex_lock(&hash_mutex);
 				for(ac = authc; ac; ac = ac->next){
 					if((!(conf.authcachetype&2) || !strcmp(ac->username, param->username)) &&
-					   (!(conf.authcachetype&1) || ac->ip == param->sinc.sin_addr.s_addr)  &&
+					   (!(conf.authcachetype&1) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa))))  &&
 					   (!(conf.authcachetype&4) || (ac->password && !strcmp(ac->password, param->password)))) {
 						ac->expires = conf.time + conf.authcachetime;
 						if(strcmp(ac->username, param->username)){
@@ -737,7 +697,7 @@ int doauth(struct clientparam * param){
 							ac->password = mystrdup(param->password);
 							myfree(tmp);
 						}
-						ac->ip = param->sinc.sin_addr.s_addr;
+						memcpy(&ac->sa, &param->sincr, SASIZE(&param->sincr));
 						break;
 					}
 				}
@@ -746,7 +706,7 @@ int doauth(struct clientparam * param){
 					if(ac){
 						ac->expires = conf.time + conf.authcachetime;
 						ac->username = mystrdup(param->username);
-						ac->ip = param->sinc.sin_addr.s_addr;
+						memcpy(&ac->sa, &param->sincr, SASIZE(&param->sincr));
 						ac->password = NULL;
 						if((conf.authcachetype&4) && param->password) ac->password = mystrdup(param->password);
 					}
@@ -781,28 +741,37 @@ int userauth(struct clientparam * param){
 	return (param->username)? 0:4;
 }
 
-int nbnameauth(struct clientparam * param){
-	unsigned char * name = getNetBIOSnamebyip(param->sinc.sin_addr.s_addr);
-
-	if (param->username) myfree (param->username);
-	param->username = name;
-	return name? 0:4;
-}
-
 int dnsauth(struct clientparam * param){
-        char buf[32];
-	unsigned u = ntohl(param->sinc.sin_addr.s_addr);
+        char buf[128];
+	char addr[16];
+	char dig[]="0123456789abcdef";
 
-	sprintf(buf, "%u.%u.%u.%u.in-addr.arpa", 
+	unsigned u;
+	int i;
 
+	if(*SAFAMILY(&param->sincr)!=AF_INET){
+		char *s = buf;
+		for(i=15; i>=0; i--){
+			unsigned char c=((unsigned char *)SAADDR(&param->sincr))[i];
+			*s++ = dig[(c&0xf)];
+			*s++ = '.';
+			*s++ = dig[(c>>4)];
+			*s++ = '.';
+		}
+		sprintf(s, "ip6.arpa");
+	}
+	else {
+		u = ntohl(*(unsigned long *)SAADDR(&param->sincr));
 
-	((u&0x000000FF)),
-	((u&0x0000FF00)>>8),
-	((u&0x00FF0000)>>16),
-	((u&0xFF000000)>>24));
+		sprintf(buf, "%u.%u.%u.%u.in-addr.arpa", 
+			((u&0x000000FF)),
+			((u&0x0000FF00)>>8),
+			((u&0x00FF0000)>>16),
+			((u&0xFF000000)>>24));
 	
-
-	if(param->sinc.sin_addr.s_addr != udpresolve(buf, NULL, param, 1)) return 6;
+	}
+	if(!udpresolve(*SAFAMILY(&param->sincr), buf, addr, NULL, param, 1)) return 6;
+	if(!memcmp(SAADDR(&param->sincr), addr, SAADDRLEN(&param->sincr))) return 6;
 
 	return param->username? 0:4;
 }
@@ -872,25 +841,29 @@ struct auth authfuncs[] = {
 	{authfuncs+1, NULL, NULL, ""},
 	{authfuncs+2, ipauth, NULL, "iponly"},
 	{authfuncs+3, userauth, checkACL, "useronly"},
-	{authfuncs+4, nbnameauth, checkACL, "nbname"},
-	{authfuncs+5, dnsauth, checkACL, "dnsname"},
-	{authfuncs+6, strongauth, checkACL, "strong"},
-	{authfuncs+7, cacheauth, checkACL, "cache"},
-	{authfuncs+8, NULL, NULL, "none"},
+	{authfuncs+4, dnsauth, checkACL, "dnsname"},
+	{authfuncs+5, strongauth, checkACL, "strong"},
+	{authfuncs+6, cacheauth, checkACL, "cache"},
+	{authfuncs+7, NULL, NULL, "none"},
 
 	{NULL, NULL, NULL, ""}
 };
 
 
-struct hashtable dns_table = {0, NULL, NULL, NULL};
+
+struct hashtable dns_table = {0, 4, {0,0,0,0}, NULL, NULL, NULL};
+struct hashtable dns6_table = {0, 16, {0,0,0,0}, NULL, NULL, NULL};
 
 
-void nametohash(const unsigned char * name, unsigned char *hash){
-	unsigned i, j;
-	memset(hash, 0, sizeof(unsigned)*4);
-	for(i=0, j=0; name[j]; j++){
-		hash[i] += toupper(name[j]) - 32;
-		if(++i == sizeof(unsigned)*4) i = 0;
+void nametohash(const unsigned char * name, unsigned char *hash, unsigned char *rnd){
+	unsigned i, j, k;
+	memcpy(hash, rnd, sizeof(unsigned)*4);
+	for(i=0, j=0, k=0; name[j]; j++){
+		hash[i] += (toupper(name[j]) - 32)+rnd[((toupper(name[j]))*29277+rnd[(k+j+i)%16]+k+j+i)%16];
+		if(++i == sizeof(unsigned)*4) {
+			i = 0;
+			k++;
+		}
 	}
 }
 
@@ -918,8 +891,23 @@ void destroyhashtable(struct hashtable *ht){
 	pthread_mutex_unlock(&hash_mutex);
 }
 
+#define hvalue(I) ((struct hashentry *)((char *)ht->hashvalues + (I)*(sizeof(struct hashentry) + ht->recsize - 4)))
 int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	unsigned i;
+	clock_t c;
+
+
+#ifdef _WIN32
+	struct timeb tb;
+
+	ftime(&tb);
+
+#else
+	struct timeval tb;
+	struct timezone tz;
+	gettimeofday(&tb, &tz);
+#endif
+	c = clock();
 
 	if(nhashsize<4) return 1;
 	pthread_mutex_lock(&hash_mutex);
@@ -932,82 +920,90 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 		ht->hashvalues = NULL;
 	}
 	ht->hashsize = 0;
-	if(!(ht->hashtable = myalloc((nhashsize>>2) * sizeof(struct hashentry *)))){
+	if(!(ht->hashtable = myalloc((nhashsize>>2) *  sizeof(struct hashentry *)))){
 		pthread_mutex_unlock(&hash_mutex);
 		return 2;
 	}
-	if(!(ht->hashvalues = myalloc(nhashsize * sizeof(struct hashentry)))){
+	if(!(ht->hashvalues = myalloc(nhashsize * (sizeof(struct hashentry) + (ht->recsize-4))))){
 		myfree(ht->hashtable);
 		ht->hashtable = NULL;
 		pthread_mutex_unlock(&hash_mutex);
 		return 3;
 	}
 	ht->hashsize = nhashsize;
+	ht->rnd[0] = myrand(&tb, sizeof(tb));
+	ht->rnd[1] = myrand(ht->hashtable, sizeof(ht->hashtable));
+	ht->rnd[2] = myrand(&c, sizeof(c));
+	ht->rnd[3] = myrand(ht->hashvalues,sizeof(ht->hashvalues));
 	memset(ht->hashtable, 0, (ht->hashsize>>2) * sizeof(struct hashentry *));
-	memset(ht->hashvalues, 0, ht->hashsize * sizeof(struct hashentry));
+	memset(ht->hashvalues, 0, ht->hashsize * (sizeof(struct hashentry) + ht->recsize -4));
+
 	for(i = 0; i< (ht->hashsize - 1); i++) {
-		(ht->hashvalues + i)->next = ht->hashvalues + i + 1;
+		hvalue(i)->next = hvalue(i+1);
 	}
 	ht->hashempty = ht->hashvalues;
 	pthread_mutex_unlock(&hash_mutex);
 	return 0;
 }
 
-int initdnshashtable(unsigned nhashsize){
-	return inithashtable(&dns_table, nhashsize);
-}
+void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires){
+        struct hashentry * hen, *he;
+        struct hashentry ** hep;
 
-void hashadd(struct hashtable *ht, const unsigned char* name, unsigned long value, time_t expires){
-        struct hashentry * he;
 	unsigned index;
 	
 	pthread_mutex_lock(&hash_mutex);
-	if(!value||!name||!ht->hashtable||!ht->hashempty){
-	 pthread_mutex_unlock(&hash_mutex);
-	 return;
+	if(!ht||!value||!name||!ht->hashtable||!ht->hashempty) {
+		pthread_mutex_unlock(&hash_mutex);
+		return;
 	}
-	he = ht->hashempty;
+	hen = ht->hashempty;
 	ht->hashempty = ht->hashempty->next;
-	nametohash(name, he->hash);
-	he->value = value;
-	he->expires = expires;
-	he->next = NULL;
-	index = hashindex(ht, he->hash);
-	if(!ht->hashtable[index] || !memcmp(he->hash, ht->hashtable[index]->hash, sizeof(he->hash))){
-		he->next = ht->hashtable[index];
-		ht->hashtable[index] = he;
+	nametohash(name, hen->hash, (unsigned char *)ht->rnd);
+	memcpy(hen->value, value, ht->recsize);
+	hen->expires = expires;
+	hen->next = NULL;
+	index = hashindex(ht, hen->hash);
+
+	for(hep = ht->hashtable + index; (he = *hep)!=NULL; ){
+		if(he->expires < conf.time || !memcmp(hen->hash, he->hash, sizeof(he->hash))) {
+			(*hep) = he->next;
+			he->expires = 0;
+			he->next = ht->hashempty;
+			ht->hashempty = he;
+		}
+		else hep=&(he->next);
 	}
-	else {
-		memset(he, 0, sizeof(struct hashentry));
-		he->next = ht->hashempty;
-		ht->hashempty = he;
-	}
+	hen->next = ht->hashtable[index];
+	ht->hashtable[index] = hen;
 	pthread_mutex_unlock(&hash_mutex);
 }
 
-unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsigned *ttl){
+unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsigned char* value, unsigned *ttl){
 	unsigned char hash[sizeof(unsigned)*4];
         struct hashentry ** hep;
 	struct hashentry *he;
 	unsigned index;
-	time_t t;
 
-	if(!ht->hashtable || !name) return 0;
-	time(&t);
-	nametohash(name, hash);
-	index = hashindex(ht, hash);
 	pthread_mutex_lock(&hash_mutex);
+	if(!ht || !ht->hashtable || !name) {
+		pthread_mutex_unlock(&hash_mutex);
+		return 0;
+	}
+	nametohash(name, hash, (unsigned char *)ht->rnd);
+	index = hashindex(ht, hash);
 	for(hep = ht->hashtable + index; (he = *hep)!=NULL; ){
-		if((unsigned long)he->expires < (unsigned long)t) {
+		if(he->expires < conf.time) {
 			(*hep) = he->next;
 			he->expires = 0;
 			he->next = ht->hashempty;
 			ht->hashempty = he;
 		}
 		else if(!memcmp(hash, he->hash, sizeof(unsigned)*4)){
+			if(ttl) *ttl = (unsigned)(he->expires - conf.time);
+			memcpy(value, he->value, ht->recsize);
 			pthread_mutex_unlock(&hash_mutex);
-			if(ttl) *ttl = (unsigned)(he->expires - t);
-			return he->value;
+			return 1;
 		}
 		else hep=&(he->next);
 	}
@@ -1015,48 +1011,76 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 	return 0;
 }
 
-unsigned long nservers[MAXNSERVERS] = {0, 0, 0, 0, 0};
+struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0},0}};
+struct nserver authnserver;
 
-unsigned long authnserver;
 
+unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth){
 
-unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientparam* param, int makeauth){
-
-	int i;
+	int i,n;
 	unsigned long retval;
 
-	if((retval = hashresolv(&dns_table, name, retttl))) {
+	if((af == AF_INET) && (retval = hashresolv(&dns_table, name, value, retttl))) {
 		return retval;
 	}
-	
-	for(i=0; (i<(makeauth && authnserver)? 1 : MAXNSERVERS) && ((makeauth && authnserver) || nservers[i]); i++){
-		unsigned short nquery, nq, na;
-		unsigned char buf[4096], *s1, *s2;
+	if((af == AF_INET6) && (retval = hashresolv(&dns6_table, name, value, retttl))) {
+		return retval;
+	}
+	n = (makeauth && !SAISNULL(&authnserver.addr))? 1 : numservers;
+	for(i=0; i<n; i++){
+		unsigned short nq, na;
+		unsigned char b[4098], *buf, *s1, *s2;
 		int j, k, len, flen;
 		SOCKET sock;
 		unsigned ttl;
-		time_t t;
-		struct sockaddr_in sin, *sinsp;
+#ifndef NOIPV6
+		struct sockaddr_in6 addr;
+#else
+		struct sockaddr_in addr;
+#endif
+		struct sockaddr *sinsr, *sinsl;
+		int usetcp = 0;
+		unsigned short serial = 1;
 
-		memset(&sin, 0, sizeof(sin));
-		sinsp = (param && !makeauth)? &param->sins : &sin;
+		buf = b+2;
+
+		sinsl = (param && !makeauth)? (struct sockaddr *)&param->sinsl : (struct sockaddr *)&addr;
+		sinsr = (param && !makeauth)? (struct sockaddr *)&param->sinsr : (struct sockaddr *)&addr;
+		memset(sinsl, 0, sizeof(addr));
+		memset(sinsr, 0, sizeof(addr));
 		
 
-		if((sock=so._socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) break;
-		sinsp->sin_family = AF_INET;
-		sinsp->sin_port = htons(0);
-		sinsp->sin_addr.s_addr = htonl(0);
-		if(so._bind(sock,(struct sockaddr *)sinsp,sizeof(struct sockaddr_in))) {
+		if(makeauth && !SAISNULL(&authnserver.addr)){
+			usetcp = authnserver.usetcp;
+			*SAFAMILY(sinsl) = *SAFAMILY(&authnserver.addr);
+		}
+		else {
+			usetcp = nservers[i].usetcp;
+			*SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
+		}
+		if((sock=so._socket(SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
+		if(so._bind(sock,sinsl,sizeof(addr))){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			break;
 		}
-		sinsp->sin_addr.s_addr = (makeauth && authnserver)?authnserver : nservers[i];
-		sinsp->sin_port = htons(53);
-
+		if(makeauth && !SAISNULL(&authnserver.addr)){
+			memcpy(sinsr, &authnserver.addr, sizeof(addr));
+		}
+		else {
+			memcpy(sinsr, &nservers[i].addr, sizeof(addr));
+		}
+		if(usetcp){
+			if(so._connect(sock,sinsr,sizeof(addr))) {
+				so._shutdown(sock, SHUT_RDWR);
+				so._closesocket(sock);
+				break;
+			}
+		}
 		len = (int)strlen((char *)name);
-		nquery = myrand(name, len);
-		*(unsigned short*)buf = nquery; /* query id */
+		
+		serial = myrand(name,len);
+		*(unsigned short*)buf = serial; /* query id */
 		buf[2] = 1; 			/* recursive */
 		buf[3] = 0;
 		buf[4] = 0;
@@ -1074,21 +1098,38 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		*s2 = (len - (int)(s2 - buf)) - 1;
 		len++;
 		buf[len++] = 0;
-		buf[len++] = (makeauth == 1)? 0x0c : 0x01;	/* PTR:host address */
+		buf[len++] = (makeauth == 1)? 0x0c : (af==AF_INET6? 0x1c:0x01);	/* PTR:host address */
 		buf[len++] = 0;
 		buf[len++] = 1;			/* INET */
-		if(socksendto(sock, sinsp, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(usetcp){
+			buf-=2;
+			*(unsigned short*)buf = htons(len);
+			len+=2;
+		}
+
+		if(socksendto(sock, sinsr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			continue;
 		}
-		if(param) param->statscli += len;
-		len = sockrecvfrom(sock, sinsp, buf, 4096, 15000);
+		if(param) param->statscli64 += len;
+		len = sockrecvfrom(sock, sinsr, buf, 4096, 15000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
-		if(len <= 13) continue;
-		if(param) param->statssrv += len;
-		if(*(unsigned short *)buf != nquery)continue;
+		if(len <= 13) {
+			continue;
+		}
+		if(param) param->statssrv64 += len;
+		if(usetcp){
+			unsigned short us;
+			us = ntohs(*(unsigned short*)buf);
+			len-=2;
+			buf+=2;
+			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, sinsr, buf+len, us-len, 15000) != us-len)) {
+				continue;
+			}
+		}
+		if(*(unsigned short *)buf != serial)continue;
 		if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {
 			return 0;
 		}
@@ -1105,25 +1146,27 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 		k += 4;
 		if(na > 255) na = 255;			/* somebody is very evil */
 		for (j = 0; j < na; j++) {		/* now there should be answers */
-			if((k+16) > len) {
+			if((k+(af == AF_INET6?28:16)) > len) {
 				break;
 			}
 			flen = buf[k+11] + (((unsigned short)buf[k+10])<<8);
-			if((k+12+flen) > len) break;
+			if((k+12+flen) > len) {
+				break;
+			}
 			if(makeauth != 1){
-				if(buf[k+2] != 0 || buf[k+3] != 0x01 || flen != 4) {
+				if(buf[k+2] != 0 || buf[k+3] != (af == AF_INET6?0x1c:0x1) || flen != (af == AF_INET6?16:4)) {
 					k+= (12 + flen);
 					continue; 		/* we need A IPv4 */
 				}
-				retval = *(unsigned long *)(buf + k + 12);
 				ttl = ntohl(*(unsigned long *)(buf + k + 6));
-				t = time(0);
-				if(ttl < 60 || ((unsigned)t)+ttl < ttl) ttl = 300;
+				memcpy(value, buf + k + 12, af == AF_INET6? 16:4);
+				if(ttl < 60 || ttl > (3600*12)) ttl = 300;
 				if(ttl){
-					hashadd(&dns_table, name, retval, ((unsigned)t)+ttl);
+					hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, conf.time+ttl);
+
 				}
 				if(retttl) *retttl = ttl;
-				return retval;
+				return 1;
 			}
 			else {
 				
@@ -1140,19 +1183,30 @@ unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientpa
 				if(param->username)myfree(param->username);
 				param->username = mystrdup (buf + k + 13);
 				
-				return udpresolve(param->username, NULL, NULL, 2);
+				return udpresolve(af,param->username, value, NULL, NULL, 2);
 			}
 		}
 	}
 	return 0;
 }
 
-unsigned long myresolver(unsigned char * name){
- return udpresolve(name, NULL, NULL, 0);
+unsigned long myresolver(int af, unsigned char * name, unsigned char * value){
+ return udpresolve(af, name, value, NULL, NULL, 0);
 }
 
-unsigned long fakeresolver (unsigned char *name){
- return htonl(0x7F000002);
+unsigned long fakeresolver (int af, unsigned char *name, unsigned char * value){
+ memset(value, 0, af == AF_INET6? 16 : 4);
+ if(af == AF_INET6){
+	memset(value, 0, 16);
+	value[15] = 2;
+ }
+ else {
+	value[0] = 127;
+	value[1] = 0;
+	value[2] = 0;
+	value[3] = 2;
+ }
+ return 1;
 }
 
 #ifndef NOODBC
@@ -1254,46 +1308,45 @@ void sqlerr (char *buf){
 		fprintf(conf.stdlog, "%s\n", buf);
 		fflush(conf.stdlog);
 	}
-	pthread_mutex_unlock(&odbc_mutex);
+	pthread_mutex_unlock(&log_mutex);
 }
 
 void logsql(struct clientparam * param, const unsigned char *s) {
-	unsigned char buf[4096];
 	SQLRETURN ret;
 	int len;
 
-	len = dobuf(param, buf, s, "\'");
 
 	if(param->nolog) return;
-	pthread_mutex_lock(&odbc_mutex);
+	pthread_mutex_lock(&log_mutex);
+	len = dobuf(param, tmpbuf, s, "\'");
 
 	if(attempt > 5){
 		time_t t;
 
 		t = time(0);
 		if (t - attempt_time < 180){
-			sqlerr(buf);
+			sqlerr(tmpbuf);
 			return;
 		}
 	}
 	if(!hstmt){
 		if(!init_sql(sqlstring)) {
-			sqlerr(buf);
+			sqlerr(tmpbuf);
 			return;
 		}
 	}
 	if(hstmt){
-		ret = SQLExecDirect(hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+		ret = SQLExecDirect(hstmt, (SQLCHAR *)tmpbuf, (SQLINTEGER)len);
 		if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
 			close_sql();
 			if(!init_sql(sqlstring)){
-				sqlerr(buf);
+				sqlerr(tmpbuf);
 				return;
 			}
 			if(hstmt) {
-				ret = SQLExecDirect(hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+				ret = SQLExecDirect(hstmt, (SQLCHAR *)tmpbuf, (SQLINTEGER)len);
 				if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
-					sqlerr(buf);
+					sqlerr(tmpbuf);
 					return;
 				}
 				attempt = 0;
@@ -1301,22 +1354,8 @@ void logsql(struct clientparam * param, const unsigned char *s) {
 		}
 		attempt = 0;
 	}
-	pthread_mutex_unlock(&odbc_mutex);
+	pthread_mutex_unlock(&log_mutex);
 }
 
 #endif
  
-#ifdef WITHMAIN
-int main(int argc, unsigned char * argv[]) {
-	unsigned ip = 0;
- WSADATA wd;
- WSAStartup(MAKEWORD( 1, 1 ), &wd);
-	if(argc == 2)ip=getip(argv[1]);
-	if(!hp) {
-		printf("Not found");
-		return 0;
-	}
-	printf("Name: '%s'\n", getnamebyip(ip);
-	return 0;
-}
-#endif

@@ -1,4 +1,3 @@
-#$Id: Makefile.Linux,v 1.24 2014-04-07 20:34:57 vlad Exp $
 #
 # 3 proxy Makefile for GCC/Linux/Cygwin
 #
@@ -11,17 +10,15 @@
 BUILDDIR =
 CC = gcc
 
-CFLAGS = -Wall -g -O2 -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS = -g -O2 -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
 COUT = -o 
 LN = gcc
 DCFLAGS = -fpic
-LDFLAGS = -Wall -O2 -pthread
+LDFLAGS = -O2 -pthread
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
-#LIBS = -lcrypto -lssl -ldl 
-# libcrypto and libssl are required for SSLPlugin
-LIBS = -ldl 
+LIBS = -lcrypto -lssl -ldl 
 LNOUT = -o 
 EXESUFFICS =
 OBJSUFFICS = .o
@@ -31,9 +28,7 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.Linux
-#PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
-# SSLPlugin is not built by default because of external dependencies
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
 
 include Makefile.inc
 
@@ -49,7 +44,6 @@ INSTALL		= /usr/bin/install
 INSTALL_BIN	= $(INSTALL) -m 755
 INSTALL_DATA	= $(INSTALL) -m 644
 INSTALL_OBJS	= src/3proxy \
-		  src/countersutil \
 		  src/dighosts \
 		  src/ftppr \
 		  src/mycrypt \

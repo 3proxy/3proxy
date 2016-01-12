@@ -2,12 +2,11 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "../../structures.h"
-#include "../../proxy.h"
-#include "my_ssl.h"
-
 #include <memory.h>
-#include <errno.h>
 #include <fcntl.h>
+#ifndef _WIN32
+#include <sys/file.h>
+#endif
 
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
@@ -15,6 +14,12 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+
+#include "../../proxy.h"
+#include "my_ssl.h"
+
+
+
 
 typedef struct _ssl_conn {
 	SSL_CTX *ctx;
@@ -110,20 +115,23 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	static char hash_name[sizeof(src_cert->sha1_hash)*2 + 1];
 	static char cache_name[200];
 
-	pthread_mutex_lock(&ssl_file_mutex);
 	bin2hex(src_cert->sha1_hash, sizeof(src_cert->sha1_hash), hash_name, sizeof(hash_name));
 	sprintf(cache_name, "%s%s.pem", cert_path, hash_name);
 	/* check if certificate is already cached */
 	fcache = fopen(cache_name, "rb");
 	if ( fcache != NULL ) {
+#ifndef _WIN32
+		flock(fileno(fcache), LOCK_SH);
+#endif
 		dst_cert = PEM_read_X509(fcache, &dst_cert, NULL, NULL);
+#ifndef _WIN32
+		flock(fileno(fcache), LOCK_UN);
+#endif
 		fclose(fcache);
 		if ( dst_cert != NULL ){
-			pthread_mutex_unlock(&ssl_file_mutex);
 			return dst_cert;
 		}
 	}
-	pthread_mutex_unlock(&ssl_file_mutex);
 
 	/* proceed if certificate is not cached */
 	dst_cert = X509_dup(src_cert);
@@ -163,18 +171,22 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 
 	/* write to cache */
 
-	pthread_mutex_lock(&ssl_file_mutex);
 	fcache = fopen(cache_name, "wb");
 	if ( fcache != NULL ) {
+#ifndef _WIN32
+		flock(fileno(fcache), LOCK_EX);
+#endif
 		PEM_write_X509(fcache, dst_cert);
+#ifndef _WIN32
+		flock(fileno(fcache), LOCK_UN);
+#endif
 		fclose(fcache);
 	}
-	pthread_mutex_unlock(&ssl_file_mutex);
 	return dst_cert;
 }
 
 
-SSL_CONN ssl_handshake_to_server(SOCKET s, SSL_CERT *server_cert, char **errSSL)
+SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cert, char **errSSL)
 {
 	int err = 0;
 	X509 *cert;
@@ -204,6 +216,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, SSL_CERT *server_cert, char **errSSL)
 		ssl_conn_free(conn);
 		return NULL;
 	}
+	if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
 	err = SSL_connect(conn->ssl);
 	if ( err == -1 ) {
 		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
@@ -212,6 +225,10 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, SSL_CERT *server_cert, char **errSSL)
 	}
 
 	cert = SSL_get_peer_certificate(conn->ssl);     
+	if(!cert) {
+		ssl_conn_free(conn);
+		return NULL;
+	}
 
 	/* TODO: Verify certificate */
 
@@ -312,10 +329,14 @@ void ssl_conn_free(SSL_CONN connection)
 {
 	ssl_conn *conn = (ssl_conn *) connection;
 
-	SSL_shutdown(conn->ssl);
-	SSL_free(conn->ssl);
-	SSL_CTX_free(conn->ctx);
-	free(conn);
+	if(conn){
+		if(conn->ssl){
+			SSL_shutdown(conn->ssl);
+			SSL_free(conn->ssl);
+		}
+		if(conn->ctx) SSL_CTX_free(conn->ctx);
+		free(conn);
+	}
 }
 
 void _ssl_cert_free(SSL_CERT cert)

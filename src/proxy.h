@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: proxy.h,v 1.92 2012-04-11 23:01:20 vlad Exp $
 */
 
 #define COPYRIGHT "(c)2000-2009 3APA3A, Vladimir Dubrovin & 3proxy.ru\n"\
@@ -42,7 +41,7 @@
 #define NOCOUNTOUT	8
 
 #define UDPBUFSIZE 16384
-#define TCPBUFSIZE  4096
+#define TCPBUFSIZE  8192
 
 
 #ifdef _WIN32
@@ -59,13 +58,13 @@
 #ifndef FD_SETSIZE
 #define FD_SETSIZE 4096
 #endif
-#include <errno.h>
 #include <signal.h>
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <syslog.h>
+#include <errno.h>
 #endif
 
 #ifdef __CYGWIN__
@@ -78,7 +77,13 @@
 #undef errno
 #endif
 #define errno WSAGetLastError()
+#ifdef EAGAIN
+#undef EAGAIN
+#endif
 #define EAGAIN WSAEWOULDBLOCK
+#ifdef EINTR
+#undef EINTR
+#endif
 #define EINTR WSAEWOULDBLOCK
 #define SLEEPTIME 1
 #define usleep Sleep
@@ -148,8 +153,8 @@ extern struct extparam conf;
 
 int sockmap(struct clientparam * param, int timeo);
 int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to);
-int socksendto(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to);
-int sockrecvfrom(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to);
+int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);
@@ -174,7 +179,6 @@ int init_sql(char * s);
 void close_sql();
 #endif
 int doconnect(struct clientparam * param);
-int nbnameauth(struct clientparam * param);
 int alwaysauth(struct clientparam * param);
 int ipauth(struct clientparam * param);
 int doauth(struct clientparam * param);
@@ -184,13 +188,14 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 
 
 int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask);
-int myinet_ntoa(struct in_addr in, char * buf);
-extern unsigned long nservers[MAXNSERVERS];
-extern unsigned long authnserver;
+int myinet_ntop(int af, void *src, char *dst, socklen_t size);
+extern struct nserver nservers[MAXNSERVERS];
+struct nserver authnserver;
 unsigned long getip(unsigned char *name);
-unsigned long myresolver(unsigned char *);
-unsigned long fakeresolver (unsigned char *name);
-int initdnshashtable(unsigned nhashsize);
+unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
+unsigned long myresolver(int, unsigned char *, unsigned char *);
+unsigned long fakeresolver (int, unsigned char *, unsigned char*);
+int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);
@@ -228,17 +233,20 @@ void mschap(const unsigned char *win_password,
 		 const unsigned char *challenge, unsigned char *response);
 
 struct hashtable;
-void hashadd(struct hashtable *ht, const unsigned char* name, unsigned long value, time_t expires);
+void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires);
 
+void parsehost(int family, char *host, struct sockaddr *sa);
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
 int ACLmatches(struct ace* acentry, struct clientparam * param);
+int checkACL(struct clientparam * param);
 
-unsigned long udpresolve(unsigned char * name, unsigned *retttl, struct clientparam* param, int makeauth);
+unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth);
 
 struct ace * copyacl (struct ace *ac);
 struct auth * copyauth (struct auth *);
+void * itfree(void *data, void * retval);
 void freeacl(struct ace *ac);
 void freeauth(struct auth *);
 void freefilter(struct filter *filter);
@@ -258,6 +266,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param);
 void srvinit2(struct srvparam * srv, struct clientparam *param);
 void srvfree(struct srvparam * srv);
 unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
+int readconfig(FILE * fp);
 
 
 int myrand(void * entropy, int len);
@@ -300,16 +309,14 @@ struct datatype;
 struct dictionary;
 struct node;
 struct property;
-
+extern unsigned char tmpbuf[8192];
+extern pthread_mutex_t config_mutex;
 extern pthread_mutex_t bandlim_mutex;
 extern pthread_mutex_t hash_mutex;
 extern pthread_mutex_t tc_mutex;
 extern pthread_mutex_t pwl_mutex;
-#ifndef NOODBC
-extern pthread_mutex_t odbc_mutex;
-#endif
-
-extern struct hashtable dns_table;
+extern pthread_mutex_t log_mutex;
+extern int logmutexinit;
 
 extern struct datatype datatypes[64];
 

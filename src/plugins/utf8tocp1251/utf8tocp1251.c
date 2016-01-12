@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: utf8tocp1251.c,v 1.9 2009/09/03 05:32:56 v.dubrovin Exp $
 */
 
 #include "../../structures.h"

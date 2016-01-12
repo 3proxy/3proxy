@@ -6,6 +6,12 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef NOPSTDINT
+#include "pstdint.h"
+#else
+typedef unsigned long uint64_t
+#define PRINTF_INT64_MODIFIER "l"
+#endif
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -22,12 +28,12 @@ extern "C" {
 #define INVALID_SOCKET  (-1)
 #else
 #include <winsock2.h>
+#include <Ws2tcpip.h>
 #define pthread_mutex_t CRITICAL_SECTION
 #define pthread_mutex_init(x, y) InitializeCriticalSection(x)
 #define pthread_mutex_lock(x) EnterCriticalSection(x)
 #define pthread_mutex_unlock(x) LeaveCriticalSection(x)
 #define pthread_mutex_destroy(x) DeleteCriticalSection(x)
-typedef unsigned (__stdcall *BEGINTHREADFUNC)(void *);
 #ifdef MSVC
 #pragma warning (disable : 4996)
 #endif
@@ -92,6 +98,26 @@ int
 #define IM_MSN		0x00400000
 #define ADMIN		0x01000000
 
+
+#define SAFAMILY(sa) (&(((struct sockaddr_in *)sa)->sin_family))
+
+#ifndef NOIPV6
+#define SAPORT(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? &((struct sockaddr_in6 *)sa)->sin6_port : &((struct sockaddr_in *)sa)->sin_port)
+#define SAADDR(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDRLEN(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
+#define SASOCK(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
+#define SASIZE(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
+#define SAISNULL(sa) (!memcmp(((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr, NULLADDR,  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4))) 
+#else
+#define SAPORT(sa)  (&((struct sockaddr_in *)sa)->sin_port)
+#define SAADDR(sa)  ((unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDRLEN(sa) (4)
+#define SASOCK(sa) (PF_INET)
+#define SASIZE(sa) (sizeof(struct sockaddr_in))
+#define SAISNULL(sa) (((struct sockaddr_in *)sa)->sin_addr.s_addr == 0) 
+#endif
+
+extern char* NULLADDR;
 typedef enum {
 	CLIENT,
 	SERVER
@@ -113,7 +139,11 @@ typedef enum {
 	S_FTPPR,
 	S_SMTPP,
 	S_ICQPR,
+	S_REVLI,
+	S_REVCO,
+/*
 	S_MSNPR,
+*/
 	S_ZOMBIE
 }PROXYSERVICE;
 
@@ -126,14 +156,13 @@ struct srvparam;
 typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char *);
 typedef int (*AUTHFUNC)(struct clientparam * param);
 typedef void * (*REDIRECTFUNC)(struct clientparam * param);
-typedef unsigned long (*RESOLVFUNC)(unsigned char *);
+typedef unsigned long (*RESOLVFUNC)(int af, unsigned char *name, unsigned char *value);
 typedef unsigned (*BANDLIMFUNC)(struct clientparam * param, unsigned nbytesin, unsigned nbytesout);
 typedef void (*TRAFCOUNTFUNC)(struct clientparam * param);
 typedef void * (*EXTENDFUNC) (struct node *node);
 typedef void (*CBFUNC)(void *cb, char * buf, int inbuf);
 typedef void (*PRINTFUNC) (struct node *node, CBFUNC cbf, void*cb);
 typedef int (*PLUGINFUNC) (struct pluginlink *pluginlink, int argc, char** argv);
-typedef void * (*PTHREADFUNC)(void *);
 
 struct auth {
 	struct auth *next;
@@ -144,8 +173,14 @@ struct auth {
 
 struct iplist {
 	struct iplist *next;
-	unsigned long ip;
-	unsigned long mask;
+	int family;
+#ifndef NOIPV6
+	struct in6_addr ip_from;
+	struct in6_addr ip_to;
+#else
+	struct in_addr ip_from;
+	struct in_addr ip_to;
+#endif
 };
 
 struct portlist {
@@ -196,8 +231,11 @@ typedef enum {
 struct chain {
 	struct chain * next;
 	int type;
-	unsigned long redirip;
-	unsigned short redirport;
+#ifndef NOIPV6
+	struct sockaddr_in6 addr;
+#else
+	struct sockaddr_in addr;
+#endif
 	unsigned short weight;
 	unsigned char * extuser;
 	unsigned char * extpass;
@@ -257,15 +295,23 @@ struct trafcount {
 	struct ace *ace;
 	unsigned number;
 	ROTATION type;
-	unsigned long traf;
-	unsigned long trafgb;
-	unsigned long traflim;
-	unsigned long traflimgb;
+	uint64_t traf64;
+	uint64_t traflim64;
 	char * comment;
 	int disabled;
 	time_t cleared;
 	time_t updated;
 };
+
+struct nserver {
+#ifndef NOIPV6
+	struct sockaddr_in6 addr;
+#else
+	struct sockaddr_in addr;
+#endif
+	int usetcp;
+};
+extern int numservers;
 
 typedef void * (* PROXYFUNC)(struct clientparam *);
 
@@ -314,7 +360,7 @@ struct srvparam {
 	LOGFUNC logfunc;
 	AUTHFUNC authfunc;
 	PROXYFUNC pf;
-	SOCKET srvsock;
+	SOCKET srvsock, cbsock;
 	int childcount;
 	int maxchild;
 	int version;
@@ -324,10 +370,17 @@ struct srvparam {
 	int silent;
 	int transparent;
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
+	int family;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
-	unsigned long intip;
-	unsigned long extip;
+#ifndef NOIPV6
+	struct sockaddr_in6 intsa;
+	struct sockaddr_in6 extsa6;
+	struct sockaddr_in6 extsa;
+#else
+	struct sockaddr_in intsa;
+	struct sockaddr_in extsa;
+#endif
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
 	FILE *stdlog;
@@ -340,8 +393,6 @@ struct srvparam {
 	unsigned char * logformat;
 	unsigned char * logtarget;
 	unsigned char * nonprintable;
-	unsigned short intport;
-	unsigned short extport;
 	unsigned short targetport;
 	unsigned char replace;
 	time_t time_start;
@@ -377,8 +428,8 @@ struct clientparam {
 
 	int	res,
 		status;
-	unsigned	waitclient,
-			waitserver;
+	uint64_t	waitclient64,
+			waitserver64;
 	int	pwtype,
 		threadid,
 		weight,
@@ -402,25 +453,25 @@ struct clientparam {
 			srvoffset,
 			clibufsize,
 			srvbufsize,
-			msec_start,
-			maxtrafin,
-			maxtrafout;
+			msec_start;
+	uint64_t
+			maxtrafin64,
+			maxtrafout64;
+#ifndef NOIPV6
+	struct sockaddr_in6	sincl, sincr, sinsl, sinsr, req;
+#else
+	struct sockaddr_in	sincl, sincr, sinsl, sinsr, req;
+#endif
 
-	struct sockaddr_in	sinc,
-				sins,
-				req;
-
-	unsigned long	statscli,
-			statssrv,
+	uint64_t	statscli64,
+			statssrv64;
+	unsigned long
 			nreads,
 			nwrites,
-			nconnects,
-			extip;
+			nconnects;
 
 	struct bandlim	*bandlims[MAXBANDLIMS],
 			*bandlimsout[MAXBANDLIMS];
-
-	unsigned short extport;
 
 	time_t time_start;
 };
@@ -446,8 +497,14 @@ struct extparam {
 	unsigned char *logname, **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;
-	unsigned long intip, extip;
-	unsigned short intport, extport;
+#ifndef NOIPV6
+	struct sockaddr_in6 intsa;
+	struct sockaddr_in6 extsa6;
+	struct sockaddr_in6 extsa;
+#else
+	struct sockaddr_in intsa;
+	struct sockaddr_in extsa;
+#endif
 	struct passwords *pwl;
 	struct auth * authenticate;
 	AUTHFUNC authfunc;
@@ -525,6 +582,25 @@ struct child {
 	unsigned char **argv;
 };
 
+struct hashentry {
+	unsigned char hash[sizeof(unsigned)*4];
+	time_t expires;
+	struct hashentry *next;
+	char value[4];
+};
+
+struct hashtable {
+	unsigned hashsize;
+	unsigned recsize;
+	unsigned rnd[4];
+	struct hashentry ** hashtable;
+	void * hashvalues;
+	struct hashentry * hashempty;
+};
+
+extern struct hashtable dns_table;
+extern struct hashtable dns6_table;
+
 struct sockfuncs {
 #ifdef _WIN32
 	SOCKET (WINAPI *_socket)(int domain, int type, int protocol);
@@ -567,22 +643,22 @@ extern struct sockfuncs so;
 struct pluginlink {
 	struct symbol symbols;
 	struct extparam *conf;
-	unsigned long *nservers;
+	struct nserver *nservers;
 	int * linenum;
 	struct auth *authfuncs;
 	struct commands * commandhandlers;
 	void * (*findbyname)(const char *name);
 	int (*socksend)(SOCKET sock, unsigned char * buf, int bufsize, int to);
-	int (*socksendto)(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to);
-	int (*sockrecvfrom)(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to);
+	int (*socksendto)(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
+	int (*sockrecvfrom)(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 	int (*sockgetcharcli)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetcharsrv)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetlinebuf)(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
-	int (*myinet_ntoa)(struct in_addr in, char * buf);
+	int (*myinet_ntop)(int af, void *src, char *dst, socklen_t size);
 	int (*dobuf)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 	int (*dobuf2)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 	int (*scanaddr)(const unsigned char *s, unsigned long * ip, unsigned long * mask);
-	unsigned long (*getip)(unsigned char *name);
+	unsigned long (*getip46)(int family, unsigned char *name,  struct sockaddr *sa);
 	int (*sockmap)(struct clientparam * param, int timeo);
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);
 	int (*alwaysauth)(struct clientparam * param);
@@ -615,6 +691,17 @@ struct pluginlink {
 	unsigned char * (*dologname) (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 };
 
+struct counter_header {
+	unsigned char sig[4];
+	time_t updated;
+};
+
+struct counter_record {
+	uint64_t traf64;
+	time_t cleared;
+	time_t updated;
+};
+
 extern struct pluginlink pluginlink;
 extern char *rotations[];
 
@@ -634,9 +721,11 @@ typedef enum {
 	TYPE_SHORT,
 	TYPE_CHAR,
 	TYPE_UNSIGNED,
+	TYPE_UNSIGNED64,
 	TYPE_TRAFFIC,
 	TYPE_PORT,
 	TYPE_IP,
+	TYPE_SA,
 	TYPE_CIDR,
 	TYPE_STRING,
 	TYPE_DATETIME,
@@ -657,19 +746,7 @@ typedef enum {
 	TYPE_SERVER
 }DATA_TYPE;
 
-struct hashentry {
-	unsigned char hash[sizeof(unsigned)*4];
-	unsigned long value;
-	time_t expires;
-	struct hashentry *next;
-};
 
-struct hashtable {
-	unsigned hashsize;
-	struct hashentry ** hashtable;
-	struct hashentry * hashvalues;
-	struct hashentry * hashempty;
-};
 
 #ifdef  __cplusplus
 }

@@ -1,4 +1,3 @@
-#$Id: Makefile.debug,v 1.7 2007/04/18 05:33:19 vlad Exp $
 #
 # 3 proxy Makefile for Microsoft Visual C compiler (for both make and nmake)
 #

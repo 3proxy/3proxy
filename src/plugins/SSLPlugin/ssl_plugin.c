@@ -4,17 +4,15 @@
 
    please read License Agreement
 
-   $Id: ssl_plugin.c,v 1.9 2010-11-11 11:32:33 v.dubrovin Exp $
 */
 
 #include "../../structures.h"
-#include "../../proxy.h"
 #include <openssl/rsa.h>       /* SSLeay stuff */
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
-#include <openssl/err.h>
+#include "../../proxy.h"
 #include "my_ssl.h"
 
 #ifndef _WIN32
@@ -54,13 +52,15 @@ struct SSLqueue {
 
 
 /*
- Todo: use hashtable
+ TO DO: use hashtable
 */
 static struct SSLqueue *searchSSL(SOCKET s){
-	struct SSLqueue *sslq;
+	struct SSLqueue *sslq = NULL;
+	pthread_mutex_lock(&ssl_mutex);
 	for(sslq = SSLq; sslq; sslq = sslq->next)
-		if(sslq->s == s) return sslq;
-	return NULL;
+		if(sslq->s == s) break;
+	pthread_mutex_unlock(&ssl_mutex);
+	return sslq;
 }
 
 static void addSSL(SOCKET s, SSL_CERT cert, SSL_CONN conn, struct clientparam* param){
@@ -235,7 +235,7 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
 	ul = ((unsigned long)ssl_connect_timeout)*1000;
 	setsockopt(param->remsock, SOL_SOCKET, SO_SNDTIMEO, (char *)&ul, 4);
  }
- ServerConn = ssl_handshake_to_server(param->remsock, &ServerCert, &errSSL);
+ ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, &ServerCert, &errSSL);
  if ( ServerConn == NULL || ServerCert == NULL ) {
 	param->res = 8011;
 	param->srv->logfunc(param, (unsigned char *)"SSL handshake to server failed");
@@ -325,6 +325,47 @@ static struct filter ssl_filter = {
 	ssl_filter_close
 };
 
+int mitm = 0;
+
+static int h_mitm(int argc, unsigned char **argv){
+	if((mitm&1)) return 1;
+	if(mitm) usleep(100*SLEEPTIME);
+	ssl_filter.next = pl->conf->filters;
+	pl->conf->filters = &ssl_filter;
+	mitm++;
+	return 0;
+}
+
+static int h_nomitm(int argc, unsigned char **argv){
+	struct filter * sf;
+	if(!(mitm&1)) return 1;
+	if(mitm) usleep(100*SLEEPTIME);
+	if(pl->conf->filters == &ssl_filter) pl->conf->filters = ssl_filter.next;
+	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
+		if(sf->next == &ssl_filter) {
+			sf->next = ssl_filter.next;
+			break;
+		}
+	}
+	mitm++;
+	return 0;
+}
+
+static int h_certpath(int argc, unsigned char **argv){
+	size_t len;
+	len = strlen(argv[1]);
+	if(!len || (argv[1][len - 1] != '/' && argv[1][len - 1] != '\\')) return 1;
+	if(cert_path && *cert_path) free(cert_path);
+	cert_path = strdup(argv[1]);
+	return 0;
+}
+
+static struct commands ssl_commandhandlers[] = {
+	{ssl_commandhandlers+1, "ssl_mitm", h_mitm, 1, 1},
+	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
+	{NULL, "ssl_certcache", h_certpath, 2, 2},
+};
+
 
 #ifdef _WIN32
 __declspec(dllexport)
@@ -333,15 +374,9 @@ __declspec(dllexport)
  int ssl_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
 	pl = pluginlink;
-	if(argc > 1) {
-		if(cert_path && *cert_path) free(cert_path);
-		cert_path = strdup(argv[1]);
-	}
 	if(!ssl_loaded){
 		ssl_loaded = 1;
 		pthread_mutex_init(&ssl_mutex, NULL);
-		ssl_filter.next = pl->conf->filters;
-		pl->conf->filters = &ssl_filter;
 		memcpy(&sso, pl->so, sizeof(struct sockfuncs));
 		pl->so->_send = ssl_send;
 		pl->so->_recv = ssl_recv;
@@ -349,10 +384,13 @@ __declspec(dllexport)
 		pl->so->_recvfrom = ssl_recvfrom;
 		pl->so->_closesocket = ssl_closesocket;
 		pl->so->_poll = ssl_poll;
+		ssl_commandhandlers[2].next = pl->commandhandlers->next;
+		pl->commandhandlers->next = ssl_commandhandlers;
 	}
-	else{
+	else {
 		ssl_release();
 	}
+
 	ssl_init();
 	tcppmfunc = (PROXYFUNC)pl->findbyname("tcppm");	
 	if(!tcppmfunc){return 13;}

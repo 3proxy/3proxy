@@ -4,14 +4,60 @@
 
    please read License Agreement
 
-   $Id: proxymain.c,v 1.85 2012-04-15 22:46:09 vlad Exp $
 */
 
 #include "proxy.h"
 
 
-
-
+#define param ((struct clientparam *) p)
+#ifdef _WIN32
+DWORD WINAPI threadfunc(LPVOID p) {
+#else
+void * threadfunc (void *p) {
+#endif
+ int i = 0;
+ if(param->srv->cbsock != INVALID_SOCKET){
+	SASIZETYPE size = sizeof(param->sinsr);
+	for(i=0; i<3; i++){
+		param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
+		if(param->remsock == INVALID_SOCKET) {
+			param->res = 13;
+			param->srv->logfunc(param, "Connect back accept() failed");
+			continue;
+		}
+#ifndef WITHMAIN
+		memcpy(&param->req, &param->sinsr, size);
+		if(param->srv->acl) param->res = checkACL(param);
+		if(param->res){
+			param->srv->logfunc(param, "Connect back ACL failed");
+			so._closesocket(param->remsock);
+			param->remsock = INVALID_SOCKET;
+			continue;
+		}
+#endif
+		if(so._sendto(param->remsock, "C", 1, 0, (struct sockaddr*)&param->sinsr, size) != 1){
+			param->srv->logfunc(param, "Connect back sending command failed");
+			so._closesocket(param->remsock);
+			param->remsock = INVALID_SOCKET;
+			continue;
+		}
+	
+		break;
+	}
+ }
+ if(i == 3){
+	freeparam(param);
+ }
+ else {
+	((struct clientparam *) p)->srv->pf((struct clientparam *)p);
+ }
+#ifdef _WIN32
+ return 0;
+#else
+ return NULL;
+#endif
+}
+#undef param
 
 
 
@@ -43,7 +89,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 
 
- SOCKET sock = INVALID_SOCKET;
+ SOCKET sock = INVALID_SOCKET, new_sock = INVALID_SOCKET;
  int i=0;
  SASIZETYPE size;
  pthread_t thread;
@@ -54,8 +100,15 @@ int MODULEMAINFUNC (int argc, char** argv){
  unsigned sleeptime;
  unsigned char buf[256];
  char *hostname=NULL;
- int opt = 1, isudp;
+ int opt = 1, isudp = 0, iscbl = 0, iscbc = 0;
+ unsigned char *cbc_string = NULL, *cbl_string = NULL;
+#ifndef NOIPV6
+ struct sockaddr_in6 cbsa;
+#else
+ struct sockaddr_in cbsa;
+#endif
  FILE *fp = NULL;
+ struct linger lg;
  int nlog = 5000;
  char loghelp[] =
 #ifdef STDMAIN
@@ -73,7 +126,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -bBUFSIZE size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
 	" -t be silent (do not log service start/stop)\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
-	" -eIP ip address or external interface (outgoing connection will have this)\n";
+	" -eIP ip address or external interface (outgoing connection will have this)\n"
+	" -rIP:PORT Use IP:port for connect back proxy instead of listen port\n"
+	" -RPORT Use PORT to listen connect back proxy connection to pass data to\n"
+	" -4 Use IPv4 for outgoing connections\n"
+	" -6 Use IPv6 for outgoing connections\n"
+	" -46 Prefer IPv4 for outgoing connections, use both IPv4 and IPv6\n"
+	" -64 Prefer IPv6 for outgoing connections, use both IPv4 and IPv6\n";
 
 #ifdef _WIN32
  unsigned long ul = 1;
@@ -82,8 +141,6 @@ int MODULEMAINFUNC (int argc, char** argv){
  int inetd = 0;
 #endif
 #endif
- SOCKET new_sock = INVALID_SOCKET;
- struct linger lg;
 #ifdef _WIN32
  HANDLE h;
 #endif
@@ -116,7 +173,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  signal(SIGPIPE, SIG_IGN);
 
  pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 16384);
+ pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 8192);
  pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 #endif
@@ -150,7 +207,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case 'l':
 			srv.logfunc = logstdout;
-			srv.logtarget = (unsigned char*)argv[i] + 2;
+			if(srv.logtarget) myfree(srv.logtarget);
+			srv.logtarget = mystrdup((unsigned char*)argv[i] + 2);
 			if(argv[i][2]) {
 				if(argv[i][2]=='@'){
 
@@ -173,13 +231,25 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			break;
 		 case 'i':
-			srv.intip = getip((unsigned char *)argv[i]+2);
+			getip46(46, argv[i]+2, (struct sockaddr *)&srv.intsa);
 			break;
 		 case 'e':
-			srv.extip = getip((unsigned char *)argv[i]+2);
+			{
+#ifndef NOIPV6
+				struct sockaddr_in6 sa6;
+				error = !getip46(46, argv[i]+2, (struct sockaddr *)&sa6);
+				if(!error) memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&srv.extsa:(void *)&srv.extsa6, &sa6, SASIZE(&sa6)); 
+#else
+				error = !getip46(46, argv[i]+2, (struct sockaddr *)&srv.extsa);
+#endif
+			}
 			break;
 		 case 'p':
-			srv.intport = htons(atoi(argv[i]+2));
+			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
+			break;
+		 case '4':
+		 case '6':
+			srv.family = atoi(argv[i]+1);
 			break;
 		 case 'b':
 			srv.bufsize = atoi(argv[i]+2);
@@ -190,22 +260,31 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef STDMAIN
 #ifndef _WIN32
 		 case 'I':
-			size = sizeof(defparam.sinc);
-			if(so._getsockname(0, (struct sockaddr*)&defparam.sinc, &size) ||
-				defparam.sinc.sin_family != AF_INET) error = 1;
+			size = sizeof(defparam.sincl);
+			if(so._getsockname(0, (struct sockaddr*)&defparam.sincl, &size) ||
+				SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
 
 			else inetd = 1;
 			break;
 #endif
 #endif
 		 case 'f':
-			srv.logformat = (unsigned char *)argv[i] + 2;
+			if(srv.logformat)myfree(srv.logformat);
+			srv.logformat = mystrdup((unsigned char *)argv[i] + 2);
 			break;
 		 case 't':
 			srv.silent = 1;
 			break;
 		 case 'h':
 			hostname = argv[i] + 2;
+			break;
+		 case 'r':
+			cbc_string = mystrdup(argv[i] + 2);
+			iscbc = 1;
+			break;
+		 case 'R':
+			cbl_string = mystrdup(argv[i] + 2);
+			iscbl = 1;
 			break;
 		 case 'u':
 			srv.nouser = 1;
@@ -240,6 +319,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			"Available options are:\n"
 			"%s"
 			" -pPORT - service port to accept connections\n"
+			" -RIP:PORT - connect back IP:PORT to listen and accept connections\n"
+			" -rIP:PORT - connect back IP:PORT to establish connect back connection\n"
 			"%s"
 			"\tExample: %s -i127.0.0.1\n\n"
 			"%s", 
@@ -259,7 +340,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  else {
 #endif
 #ifndef NOPORTMAP
-	if (error || argc != i+3 || *argv[i]=='-'|| (srv.intport = htons((unsigned short)atoi(argv[i])))==0 || (srv.targetport = htons((unsigned short)atoi(argv[i+2])))==0) {
+	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv.intsa) = htons((unsigned short)atoi(argv[i])))==0 || (srv.targetport = htons((unsigned short)atoi(argv[i+2])))==0) {
 #ifndef STDMAIN
 		haveerror = 1;
 		conf.threadinit = 0;
@@ -269,6 +350,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			" [-e<external_ip>] <port_to_bind>"
 			" <target_hostname> <target_port>\n"
 			"Available options are:\n"
+			" -RIP:PORT - connect back IP:PORT to listen and accept connections\n"
+			" -rIP:PORT - connect back IP:PORT to establish connect back connection\n"
 			"%s"
 			"%s"
 			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
@@ -311,8 +394,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 
  
  srvinit2(&srv, &defparam);
- if(!srv.intport) srv.intport = htons(childdef.port);
- if(!defparam.sinc.sin_port) defparam.sinc.sin_port = htons(childdef.port);
+ if(!*SAFAMILY(&srv.intsa)) *SAFAMILY(&srv.intsa) = AF_INET;
+ if(!*SAPORT(&srv.intsa)) *SAPORT(&srv.intsa) = htons(childdef.port);
+ *SAFAMILY(&srv.extsa) = AF_INET;
+#ifndef NOIPV6
+ *SAFAMILY(&srv.extsa6) = AF_INET6;
+#endif
  if(hostname)parsehostname(hostname, &defparam, childdef.port);
 
 
@@ -324,58 +411,83 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 #endif
 
- if(srv.srvsock == INVALID_SOCKET){
 
-	if(!isudp){
-		lg.l_onoff = 1;
-		lg.l_linger = conf.timeouts[STRING_L];
-		sock=so._socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	}
-	else {
-		sock=so._socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	}
-	if( sock == INVALID_SOCKET) {
-		perror("socket()");
-		return -2;
-	}
+
+ if (!iscbc) {
+	if(srv.srvsock == INVALID_SOCKET){
+
+		if(!isudp){
+			lg.l_onoff = 1;
+			lg.l_linger = conf.timeouts[STRING_L];
+			sock=so._socket(SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
+		}
+		else {
+			sock=so._socket(SASOCK(&srv.intsa), SOCK_DGRAM, IPPROTO_UDP);
+		}
+		if( sock == INVALID_SOCKET) {
+			perror("socket()");
+			return -2;
+		}
 #ifdef _WIN32
-	ioctlsocket(sock, FIONBIO, &ul);
+		ioctlsocket(sock, FIONBIO, &ul);
 #else
-	fcntl(sock,F_SETFL,O_NONBLOCK);
+		fcntl(sock,F_SETFL,O_NONBLOCK);
 #endif
-	srv.srvsock = sock;
-	if(so._setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int)))perror("setsockopt()");
+		srv.srvsock = sock;
+		opt = 1;
+		if(so._setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int)))perror("setsockopt()");
 #ifdef SO_REUSEPORT
-	so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+		opt = 1;
+		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
 #endif
- }
+	}
+	size = sizeof(srv.intsa);
+	for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&srv.intsa, size)==-1; usleep(sleeptime)) {
+		sprintf((char *)buf, "bind(): %s", strerror(errno));
+		if(!srv.silent)(*srv.logfunc)(&defparam, buf);	
+		sleeptime = (sleeptime<<1);	
+		if(!sleeptime) {
+			so._closesocket(sock);
+			return -3;
+		}
+	}
+ 	if(!isudp){
+ 		if(so._listen (sock, 1 + (srv.maxchild>>4))==-1) {
+			sprintf((char *)buf, "listen(): %s", strerror(errno));
+			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+			return -4;
+		}
+	}
+	else 
+		defparam.clisock = sock;
 
- size = sizeof(defparam.sinc);
- for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&defparam.sinc, size)==-1; usleep(sleeptime)) {
-	sprintf((char *)buf, "bind(): %s", strerror(errno));
-	if(!srv.silent)(*srv.logfunc)(&defparam, buf);	
-	sleeptime = (sleeptime<<1);	
-	if(!sleeptime) {
-		so._closesocket(sock);
-		return -3;
+	if(!srv.silent && !iscbc){
+		sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
+		(*srv.logfunc)(&defparam, buf);
 	}
  }
- if(!isudp){
- 	if(so._listen (sock, 1 + (srv.maxchild>>4))==-1) {
-		sprintf((char *)buf, "listen(): %s", strerror(errno));
-		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
-		return -4;
+ if(iscbl){
+	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
+	if((srv.cbsock=so._socket(SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
+		(*srv.logfunc)(&defparam, "Failed to allocate connect back socket");
+		return -6;
+	}
+	opt = 1;
+	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+#ifdef SO_REUSEPORT
+	opt = 1;
+	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+#endif
+
+	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, sizeof(cbsa))==-1) {
+		(*srv.logfunc)(&defparam, "Failed to bind connect back socket");
+		return -7;
+	}
+	if(so._listen(srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
+		(*srv.logfunc)(&defparam, "Failed to listen connect back socket");
+		return -8;
 	}
  }
- else 
-	 defparam.clisock = sock;
-
- if(!srv.silent){
-	sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
-	(*srv.logfunc)(&defparam, buf);
- }
- defparam.sinc.sin_addr.s_addr = defparam.sins.sin_addr.s_addr = 0;
- defparam.sinc.sin_port = defparam.sins.sin_port = 0;
 
  srv.fds.fd = sock;
  srv.fds.events = POLLIN;
@@ -392,6 +504,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			usleep(SLEEPTIME);
 		}
+		if (iscbc) break;
 		if (conf.paused != srv.version) break;
 		if (srv.fds.events & POLLIN) {
 			error = so._poll(&srv.fds, 1, 1000);
@@ -407,14 +520,43 @@ int MODULEMAINFUNC (int argc, char** argv){
 			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
 			break;
 		}
-		continue;
 	}
 	if((conf.paused != srv.version) || (error < 0)) break;
 	if(!isudp){
-		size = sizeof(defparam.sinc);
-		new_sock = so._accept(sock, (struct sockaddr*)&defparam.sinc, &size);
-		if(new_sock == INVALID_SOCKET){
-			sprintf((char *)buf, "accept(): %s", strerror(errno));
+		size = sizeof(defparam.sincr);
+		if(iscbc){
+			new_sock=so._socket(SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
+			if(new_sock != INVALID_SOCKET){
+				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
+				if(so._connect(new_sock,(struct sockaddr *)&defparam.sincr,sizeof(defparam.sincr))) {
+					so._closesocket(new_sock);
+					new_sock = INVALID_SOCKET;
+					usleep(SLEEPTIME);
+					continue;
+				}
+				if(so._recvfrom(new_sock,buf,1,0,(struct sockaddr*)&defparam.sincr, &size) != 1) {
+					so._closesocket(new_sock);
+					new_sock = INVALID_SOCKET;
+					usleep(SLEEPTIME);
+					continue;
+				}
+			}
+			else {
+				usleep(SLEEPTIME);
+				continue;
+			}
+		}
+		else {
+			new_sock = so._accept(sock, (struct sockaddr*)&defparam.sincr, &size);
+			if(new_sock == INVALID_SOCKET){
+				sprintf((char *)buf, "accept(): %s", strerror(errno));
+				if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+				continue;
+			}
+		}
+		size = sizeof(defparam.sincl);
+		if(so._getsockname(new_sock, (struct sockaddr *)&defparam.sincl, &size)){
+			sprintf((char *)buf, "getsockname(): %s", strerror(errno));
 			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
 			continue;
 		}
@@ -426,8 +568,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 		so._setsockopt(new_sock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
 		so._setsockopt(new_sock, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
 	}
-	else 
+	else {
 		srv.fds.events = 0;
+	}
 	if(! (newparam = myalloc (sizeof(defparam)))){
 		if(!isudp) so._closesocket(new_sock);
 		defparam.res = 21;
@@ -456,9 +599,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, (BEGINTHREADFUNC)srv.pf, (void *) newparam, 0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)32768, (BEGINTHREADFUNC)srv.pf, (void *) newparam, 0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
 #endif
 	srv.childcount++;
 	if (h) {
@@ -472,7 +615,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #else
 
-	error = pthread_create(&thread, &pa, (PTHREADFUNC)srv.pf, (void *)newparam);
+	error = pthread_create(&thread, &pa, threadfunc, (void *)newparam);
 	srv.childcount++;
 	if(error){
 		sprintf((char *)buf, "pthread_create(): %s", strerror(error));
@@ -484,22 +627,28 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #endif
 	pthread_mutex_unlock(&srv.counter_mutex);
-	memset(&defparam.sinc, 0, sizeof(defparam.sinc));
+	memset(&defparam.sincl, 0, sizeof(defparam.sincl));
+	memset(&defparam.sincr, 0, sizeof(defparam.sincr));
 	if(isudp) while(!srv.fds.events)usleep(SLEEPTIME);
  }
 
  if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
  if(fp) fclose(fp);
+
  srvfree(&srv);
- if(defparam.hostname)myfree(defparam.hostname);
 
 #ifndef STDMAIN
+ pthread_mutex_lock(&config_mutex);
  if(srv.next)srv.next->prev = srv.prev;
  if(srv.prev)srv.prev->next = srv.next;
  else conf.services = srv.next;
- freeacl(srv.acl);
- freeauth(srv.authfuncs);
+ pthread_mutex_unlock(&config_mutex);
 #endif
+
+ if(defparam.hostname)myfree(defparam.hostname);
+ if(cbc_string)myfree(cbc_string);
+ if(cbl_string)myfree(cbl_string);
+
  return 0;
 }
 
@@ -509,48 +658,66 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf.paused;
  srv->logfunc = conf.logfunc;
- srv->logformat = conf.logformat;
+ if(srv->logformat)myfree(srv->logformat);
+ srv->logformat = conf.logformat? mystrdup(conf.logformat) : NULL;
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
  srv->time_start = time(NULL);
- srv->logtarget = conf.logtarget;
+ if(conf.logtarget){
+	 if(srv->logtarget) myfree(srv->logtarget);
+	 srv->logtarget = mystrdup(conf.logtarget);
+ }
  srv->srvsock = INVALID_SOCKET;
  srv->logdumpsrv = conf.logdumpsrv;
  srv->logdumpcli = conf.logdumpcli;
+ srv->cbsock = INVALID_SOCKET; 
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
- param->req.sin_family = param->sins.sin_family = param->sinc.sin_family = AF_INET;
+ *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
-
+ memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
+ memcpy(&srv->extsa, &conf.extsa, sizeof(srv->extsa));
+#ifndef NOIPV6
+ memcpy(&srv->extsa6, &conf.extsa6, sizeof(srv->extsa6));
+#endif
 }
 
 void srvinit2(struct srvparam * srv, struct clientparam *param){
  if(srv->logformat){
 	char *s;
 	if(*srv->logformat == '-' && (s = strchr((char *)srv->logformat + 1, '+')) && s[1]){
+		char* logformat = srv->logformat;
+
 		*s = 0;
 		srv->nonprintable = (unsigned char *)mystrdup((char *)srv->logformat + 1);
 		srv->replace = s[1];
 		srv->logformat = (unsigned char *)mystrdup(s + 2);
 		*s = '+';
+		myfree(logformat);
 	}
-	else srv->logformat = (unsigned char *)mystrdup((char *)srv->logformat);
  }
- if(srv->logtarget) srv->logtarget = (unsigned char *)mystrdup((char *)srv->logtarget);
- if(!srv->intip) srv->intip = conf.intip;
- param->sinc.sin_addr.s_addr = srv->intip;
- param->sinc.sin_port = srv->intport;
- if(!srv->extip) srv->extip = conf.extip;
- param->sins.sin_addr.s_addr = param->extip = srv->extip;
- if(!srv->extport) srv->extport = htons(conf.extport);
- param->sins.sin_port = param->extport = srv->extport;
+ memset(&param->sinsl, 0, sizeof(param->sinsl));
+ memset(&param->sinsr, 0, sizeof(param->sinsr));
+ memset(&param->req, 0, sizeof(param->req));
+ *SAFAMILY(&param->sinsl) = AF_INET;
+ *SAFAMILY(&param->sinsr) = AF_INET;
+ *SAFAMILY(&param->req) = AF_INET;
+ memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
+ memcpy(&param->sincl, &srv->intsa, sizeof(param->sincl));
+#ifndef NOIPV6
+ memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsl));
+#else
+ memcpy(&param->sinsr, &srv->extsa, sizeof(param->sinsl));
+#endif
 }
 
 void srvfree(struct srvparam * srv){
  if(srv->srvsock != INVALID_SOCKET) so._closesocket(srv->srvsock);
  srv->srvsock = INVALID_SOCKET;
+ if(srv->cbsock != INVALID_SOCKET) so._closesocket(srv->cbsock);
+ srv->cbsock = INVALID_SOCKET;
  srv->service = S_ZOMBIE;
  while(srv->child) usleep(SLEEPTIME * 100);
 #ifndef STDMAIN
@@ -563,6 +730,9 @@ void srvfree(struct srvparam * srv){
 	}
 	myfree(srv->filter);
  }
+
+ if(srv->acl)freeacl(srv->acl);
+ if(srv->authfuncs)freeauth(srv->authfuncs);
 #endif
  pthread_mutex_destroy(&srv->counter_mutex);
  if(srv->target) myfree(srv->target);
@@ -746,16 +916,9 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 	return res;
 }
 
-static void * itfree(void *data, void * retval){
+void * itfree(void *data, void * retval){
 	myfree(data);
 	return retval;
-}
-
-void freepwl(struct passwords *pwl){
-	for(; pwl; pwl = (struct passwords *)itfree(pwl, pwl->next)){
-		if(pwl->user)myfree(pwl->user);
-		if(pwl->password)myfree(pwl->password);
-	}
 }
 
 void freeauth(struct auth * authfuncs){
@@ -785,104 +948,6 @@ void freeacl(struct ace *ac){
 			if(ch->extpass) myfree(ch->extpass);
 		}
 	}
-}
-
-void freeconf(struct extparam *confp){
- struct bandlim * bl;
- struct bandlim * blout;
- struct trafcount * tc;
- struct passwords *pw;
- struct ace *acl;
- struct filemon *fm;
- int counterd, archiverc;
- unsigned char *logname, *logtarget;
- unsigned char **archiver;
- unsigned char * logformat;
-
- int i;
-
-
-
-
- pthread_mutex_lock(&tc_mutex);
- confp->trafcountfunc = NULL;
- tc = confp->trafcounter;
- confp->trafcounter = NULL;
- counterd = confp->counterd;
- confp->counterd = -1;
- pthread_mutex_unlock(&tc_mutex);
- if(tc)dumpcounters(tc,counterd);
- for(; tc; tc = (struct trafcount *) itfree(tc, tc->next)){
-	if(tc->comment)myfree(tc->comment);
-	freeacl(tc->ace);
- }
- confp->countertype = NONE;
-
-
-
- logtarget = confp->logtarget;
- confp->logtarget = NULL;
- logformat = confp->logformat;
- confp->logformat = NULL;
-
- pthread_mutex_lock(&bandlim_mutex);
- bl = confp->bandlimiter;
- blout = confp->bandlimiterout;
- confp->bandlimiter = NULL;
- confp->bandlimiterout = NULL;
- confp->bandlimfunc = NULL;
- pthread_mutex_unlock(&bandlim_mutex);
-
- logname = confp->logname;
- confp->logname = NULL;
- archiverc = confp->archiverc;
- confp->archiverc = 0;
- archiver = confp->archiver;
- confp->archiver = NULL;
- fm = confp->fmon;
- confp->fmon = NULL;
- pw = confp->pwl;
- confp->pwl = NULL;
- confp->rotate = 0;
- confp->logtype = NONE;
- confp->authfunc = ipauth;
- confp->bandlimfunc = NULL;
- confp->intip = confp->extip = 0;
- confp->intport = confp->extport = 0;
- confp->singlepacket = 0;
- confp->maxchild = 100;
- resolvfunc = NULL;
- acl = confp->acl;
- confp->acl = NULL;
- confp->logtime = confp->time = 0;
-
- usleep(SLEEPTIME);
-
- 
- freeacl(acl);
- freepwl(pw);
- for(; bl; bl = (struct bandlim *) itfree(bl, bl->next)) freeacl(bl->ace);
- for(; blout; blout = (struct bandlim *) itfree(blout, blout->next))freeacl(blout->ace);
-
- if(counterd != -1) {
-	close(counterd);
- }
- for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
-	if(fm->path) myfree(fm->path);
- }
- if(logtarget) {
-	myfree(logtarget);
- }
- if(logname) {
-	myfree(logname);
- }
- if(logformat) {
-	myfree(logformat);
- }
- if(archiver) {
-	for(i = 0; i < archiverc; i++) myfree(archiver[i]);
-	myfree(archiver);
- }
 }
 
 FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){

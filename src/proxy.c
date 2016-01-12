@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: proxy.c,v 1.107 2014-04-07 20:35:07 vlad Exp $
 */
 
 
@@ -132,8 +131,9 @@ char * proxy_stringtable[] = {
 	NULL
 };
 
+#define BUFSIZE 8192
 #define LINESIZE 4096
-#define BUFSIZE (LINESIZE*2)
+#define FTPBUFSIZE 1536
 
 static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
  char *sb;
@@ -217,7 +217,7 @@ void * proxychild(struct clientparam* param) {
  unsigned char *ftpbase=NULL;
  unsigned char username[1024];
  int keepalive = 0;
- unsigned long contentlength = 0;
+ uint64_t contentlength64 = 0;
  int hascontent =0;
  int isconnect = 0;
  int redirect = 0;
@@ -229,7 +229,8 @@ void * proxychild(struct clientparam* param) {
  int authenticate;
  struct pollfd fds[2];
  SOCKET ftps;
- SASIZETYPE sasize;
+ char ftpbuf[FTPBUFSIZE];
+ int inftpbuf = 0;
 #ifndef WITHMAIN
  FILTER_ACTION action;
 #endif
@@ -241,7 +242,7 @@ void * proxychild(struct clientparam* param) {
  bufsize = BUFSIZE;
  anonymous = param->srv->singlepacket;
 for(;;){
- memset(buf, 0, BUFSIZE);
+ memset(buf, 0, bufsize);
  inbuf = 0;
 
 
@@ -260,8 +261,6 @@ for(;;){
 		ckeepalive = 0;
 		so._shutdown(param->remsock, SHUT_RDWR);
 		so._closesocket(param->remsock);
-		param->sins.sin_addr.s_addr = 0;
-		param->sins.sin_port = 0;
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
@@ -282,8 +281,6 @@ for(;;){
 			so._shutdown(param->remsock, SHUT_RDWR);
 			so._closesocket(param->remsock);
 		}
-		param->sins.sin_addr.s_addr = 0;
-		param->sins.sin_port = 0;
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
@@ -388,14 +385,14 @@ for(;;){
 				while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
 					if(i> 15 && (!strncasecmp((char *)(buf), "content-length", 14))){
 						buf[i]=0;
-						sscanf((char *)buf + 15, "%lu", &contentlength);
+						sscanf((char *)buf + 15, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
 					}
 				}
-				while( contentlength > 0 && (i = sockgetlinebuf(param, CLIENT, buf, (BUFSIZE < contentlength)? BUFSIZE - 1:contentlength, '\n', conf.timeouts[STRING_S])) > 0){
-					if ((unsigned long)i > contentlength) break;
-					contentlength-=i;
+				while( contentlength64 > 0 && (i = sockgetlinebuf(param, CLIENT, buf, (BUFSIZE < contentlength64)? BUFSIZE - 1:(int)contentlength64, '\n', conf.timeouts[STRING_S])) > 0){
+					if ((uint64_t)i > contentlength64) break;
+					contentlength64-=i;
 				}
-				contentlength = 0;
+				contentlength64 = 0;
 				if(param->password)myfree(param->password);
 				param->password = myalloc(32);
 				param->pwtype = 2;
@@ -492,15 +489,15 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf(sb, "%lu",&contentlength);
-		if(param->maxtrafout && (param->maxtrafout < param->statscli || (unsigned)contentlength > param->maxtrafout - param->statscli)){
+		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
+		if(param->maxtrafout64 && (param->maxtrafout64 < param->statscli64 || contentlength64 > param->maxtrafout64 - param->statscli64)){
 			RETURN(10);
 		}
-		if(param->ndatfilterscli > 0 && contentlength > 0) continue;
+		if(param->ndatfilterscli > 0 && contentlength64 > 0) continue;
 	}
 	inbuf += i;
 	if((bufsize - inbuf) < LINESIZE){
-		if (bufsize > 20000){
+		if (bufsize > (LINESIZE * 16)){
 			RETURN (516);
 		}
 		if(!(newbuf = myrealloc(buf, bufsize + BUFSIZE))){RETURN (21);}
@@ -527,48 +524,35 @@ for(;;){
 	RETURN(0);
  }
  if(action != PASS) RETURN(517);
- if(param->ndatfilterscli > 0 && contentlength > 0){
-  unsigned long newlen;
-  newlen = sockfillbuffcli(param, contentlength, CONNECTION_S);
-  if(newlen == contentlength) {
+ if(param->ndatfilterscli > 0 && contentlength64 > 0){
+  uint64_t newlen64;
+  newlen64 = sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
+  if(newlen64 == contentlength64) {
 	action = handledatfltcli(param,  &param->clibuf, &param->clibufsize, 0, &param->cliinbuf);
 	if(action == HANDLED){
 		RETURN(0);
 	}
 	if(action != PASS) RETURN(517);
-	contentlength = param->cliinbuf;
+	contentlength64 = param->cliinbuf;
 	param->ndatfilterscli = 0;
   }
-  sprintf((char*)buf+strlen((char *)buf), "Content-Length: %lu\r\n", contentlength);
+  sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
  }
 
 #endif
 
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
- if (param->sins.sin_addr.s_addr == param->srv->intip && param->sins.sin_port == param->srv->intport) {
-	RETURN(519);
- }
- sasize = sizeof(struct sockaddr_in);
- if(so._getpeername(param->remsock, (struct sockaddr *)&param->sins, &sasize)){
-	RETURN(520);
- }
-#define FTPBUFSIZE 1536
 
  if(ftp && param->redirtype != R_HTTP){
 	SOCKET s;
 	int mode = 0;
 	int i=0;
-	char ftpbuf[FTPBUFSIZE];
-	int inftpbuf = 0;
 
+	inftpbuf = 0;
 	if(!ckeepalive){
 		inftpbuf = FTPBUFSIZE - 20;
 		res = ftplogin(param, ftpbuf, &inftpbuf);
 		if(res){
-			if (res == 700 || res == 701){
-				socksend(param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
-				socksend(param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
-			}
 			RETURN(res);
 		}
 	}
@@ -619,7 +603,7 @@ for(;;){
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 		s = param->remsock;
 		param->remsock = ftps;
-		if((param->operation == FTP_PUT) && (contentlength > 0)) param->waitclient = contentlength;
+		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
 		res = sockmap(param, conf.timeouts[CONNECTION_L]);
 		if (res == 99) res = 0;
 		so._closesocket(ftps);
@@ -821,23 +805,31 @@ for(;;){
 	 if(socksend(param->remsock, req , (res = (int)strlen((char *)req)), conf.timeouts[STRING_L]) != res) {
 		RETURN(518);
 	 }
-	 param->statscli += res;
+	 param->statscli64 += res;
 	 param->nwrites++;
  }
  inbuf = 0;
 #ifndef ANONYMOUS
- if(anonymous!=1){
+ if(!anonymous){
+		int len = strlen((char *)buf);
+		len += sprintf((char*)buf + len, "Forwarded: for=");
+		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "\"[");
+		len += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + len, 128);
+		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
+		else len += sprintf((char*)buf + len, ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
+		gethostname((char *)(buf + len), 256);
+		sprintf((char*)buf+strlen((char *)buf), ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
+ }
+ else if(anonymous>1){
 		sprintf((char*)buf+strlen((char *)buf), "Via: 1.1 ");
 		gethostname((char *)(buf+strlen((char *)buf)), 256);
-		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(param->srv->intport), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
-		if(!anonymous)myinet_ntoa(param->sinc.sin_addr, (char *)buf + strlen((char *)buf));
+		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
+		if(anonymous != 2)myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 128);
 		else {
 			unsigned long tmp;
 
-			tmp = param->sinc.sin_addr.s_addr;
-			param->sinc.sin_addr.s_addr = ((unsigned long)myrand(param, sizeof(struct clientparam))<<16)^(unsigned long)rand();
-			myinet_ntoa(param->sinc.sin_addr, (char *)buf + strlen((char *)buf));
-			param->sinc.sin_addr.s_addr = tmp;
+			tmp = ((unsigned long)myrand(param, sizeof(struct clientparam))<<16)^(unsigned long)rand();
+			myinet_ntop(AF_INET, &tmp, (char *)buf + strlen((char *)buf), 64);
 		}
 		sprintf((char*)buf+strlen((char *)buf), "\r\n");
  }
@@ -845,7 +837,7 @@ for(;;){
  if(keepalive <= 1) sprintf((char*)buf+strlen((char *)buf), "%s: %s\r\n", (param->redirtype == R_HTTP)?"Proxy-Connection":"Connection", keepalive? "keep-alive":"close");
  if(param->extusername){
 	sprintf((char*)buf + strlen((char *)buf), "%s: basic ", (redirect)?"Proxy-Authorization":"Authorization");
-	sprintf((char*)username, "%.32s:%.64s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
+	sprintf((char*)username, "%.128s:%.64s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
 	en64(username, buf+strlen((char *)buf), (int)strlen((char *)username));
 	sprintf((char*)buf + strlen((char *)buf), "\r\n");
  }
@@ -853,21 +845,21 @@ for(;;){
  if ((res = socksend(param->remsock, buf+reqlen, (int)strlen((char *)buf+reqlen), conf.timeouts[STRING_S])) != (int)strlen((char *)buf+reqlen)) {
 	RETURN(518);
  }
- param->statscli += res;
+ param->statscli64 += res;
  param->nwrites++;
  if(param->bandlimfunc) {
 	sleeptime = param->bandlimfunc(param, 0, (int)strlen((char *)buf));
  }
- if(contentlength > 0){
+ if(contentlength64 > 0){
 	 param->nolongdatfilter = 0;
-	 param->waitclient = contentlength;
+	 param->waitclient64 = contentlength64;
 	 res = sockmap(param, conf.timeouts[CONNECTION_S]);
-	 param->waitclient = 0;
+	 param->waitclient64 = 0;
 	 if(res != 99) {
 		RETURN(res);
 	}
  }
- contentlength = 0;
+ contentlength64 = 0;
  inbuf = 0;
  ckeepalive = keepalive;
  res = 0; 
@@ -900,13 +892,13 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf(sb, "%lu", &contentlength);
+		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
 		hascontent = 1;
 		if(param->unsafefilter && param->ndatfilterssrv > 0) {
 			hascontent = 2;
 			continue;
 		}
-		if(param->maxtrafin && (param->maxtrafin < param->statssrv || (unsigned)contentlength > param->maxtrafin - param->statssrv)){
+		if(param->maxtrafin64 && (param->maxtrafin64 < param->statssrv64 || contentlength64 + param->statssrv64 > param->maxtrafin64)){
 			RETURN(10);
 		}
 	}
@@ -935,7 +927,7 @@ for(;;){
  }
  if((res == 304 || res == 204) && !hascontent){
 	hascontent = 1;
-	contentlength = 0;
+	contentlength64 = 0;
  }
  if(param->bandlimfunc) {
 	int st1;
@@ -959,25 +951,25 @@ for(;;){
  param->nolongdatfilter = 0;
 
  
- if (conf.filtermaxsize && contentlength > (unsigned long)conf.filtermaxsize) {
+ if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
 	param->nolongdatfilter = 1;
  }
- else if(param->unsafefilter && param->ndatfilterssrv > 0 && contentlength > 0 && param->operation != HTTP_HEAD && res != 204 && res != 304){
-  unsigned long newlen;
-  newlen = sockfillbuffsrv(param, (unsigned long) contentlength, CONNECTION_S);
-  if(newlen == contentlength) {
+ else if(param->unsafefilter && param->ndatfilterssrv > 0 && contentlength64 > 0 && param->operation != HTTP_HEAD && res != 204 && res != 304){
+  uint64_t newlen;
+  newlen = (uint64_t)sockfillbuffsrv(param, (unsigned long) contentlength64, CONNECTION_S);
+  if(newlen == contentlength64) {
 	action = handledatfltsrv(param,  &param->srvbuf, &param->srvbufsize, 0, &param->srvinbuf);
 	param->nolongdatfilter = 1;
 	if(action == HANDLED){
 		RETURN(0);
 	}
 	if(action != PASS) RETURN(517);
-	contentlength = param->srvinbuf;
-	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %lu\r\n", contentlength);
+	contentlength64 = param->srvinbuf;
+	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
 	hascontent = 1;
   }
  }
- if (contentlength > 0 && hascontent != 1) ckeepalive = 0;
+ if (contentlength64 > 0 && hascontent != 1) ckeepalive = 0;
 #else
 #endif
  if(!isconnect || param->operation){
@@ -996,7 +988,7 @@ for(;;){
 		RETURN(521);
 	 }
  }
- if((param->chunked || contentlength > 0) && param->operation != HTTP_HEAD && res != 204 && res != 304) {
+ if((param->chunked || contentlength64 > 0) && param->operation != HTTP_HEAD && res != 204 && res != 304) {
  	do {
 		if(param->chunked){
 			char smallbuf[32];
@@ -1021,18 +1013,18 @@ for(;;){
 				break;
 			}
 			smallbuf[i] = 0;
-			contentlength = 0;
-			sscanf(smallbuf, "%lx", &contentlength);
-			if(contentlength == 0) {
+			contentlength64 = 0;
+			sscanf(smallbuf, "%"PRINTF_INT64_MODIFIER"x", &contentlength64);
+			if(contentlength64 == 0) {
 				param->chunked = 2;
 			}
 		}
 		if(param->chunked != 2){
-			param->waitserver = contentlength;
+			param->waitserver64 = contentlength64;
 		 	if((res = sockmap(param, conf.timeouts[CONNECTION_S])) != 98){
 				RETURN(res);
 			}
-	 		param->waitserver = 0;
+	 		param->waitserver64 = 0;
 		}
         } while(param->chunked);
  }
@@ -1045,8 +1037,7 @@ for(;;){
  else if(!hascontent && !param->chunked) {
 	RETURN(sockmap(param, conf.timeouts[CONNECTION_S]));
  }
- contentlength = 0;
-
+ contentlength64 = 0;
 REQUESTEND:
 
  if((!ckeepalive || !keepalive) && param->remsock != INVALID_SOCKET){
@@ -1067,6 +1058,10 @@ CLEANRET:
 	if((param->res>=509 && param->res < 517) || param->res > 900) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2);
 	if(param->res == 10) {
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
+	}
+	else if (res == 700 || res == 701){
+		socksend(param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 100 || (param->res >10 && param->res < 20) || (param->res >701 && param->res <= 705)) {
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[1], (int)strlen(proxy_stringtable[1]), conf.timeouts[STRING_S]);

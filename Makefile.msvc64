@@ -1,4 +1,3 @@
-#$Id: Makefile.msvc64,v 1.14 2007/07/21 18:47:05 vlad Exp $
 #
 # 3 proxy Makefile for Microsoft Visual C compiler (for both make and nmake)
 #
@@ -15,7 +14,7 @@ LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no /machine:x64
 DLFLAGS = /DLL
 DLSUFFICS = .dll
-LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib 
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib libeay32MT.lib ssleay32MT.lib
 LIBSOLD = libeay32MT.lib ssleay32MT.lib
 LIBEXT = .lib
 LNOUT = /out:
@@ -27,8 +26,14 @@ REMOVECOMMAND = del 2>NUL >NUL
 TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.msvc64
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
-VERFILE = 3proxyres.obj $(VERFILE)
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin SSLPlugin
+VERFILE = $(VERFILE)
+
+#../3proxy.res:
+#	rc /fo../3proxy.res ../3proxy.rc
+
+#3proxyres.obj: ../3proxy.res
+#	cvtres /out:3proxyres.obj /MACHINE:X64 ../3proxy.res
 
 include Makefile.inc
 
@@ -36,7 +41,8 @@ include Makefile.inc
 	rc /fo../3proxy.res ../3proxy.rc
 
 3proxyres.obj: ../3proxy.res
-	cvtres /out:3proxyres.obj /MACHINE:X64 ../3proxy.res
+	cvtres /out:3proxyres.obj /machine:x64 ../3proxy.res
+
 
 allplugins:
 	for /D %%i in ($(PLUGINS)) do (copy Makefile plugins\%%i && copy Makefile.var plugins\%%i && cd plugins\%%i && nmake && del *.obj *.idb &&cd ..\..)

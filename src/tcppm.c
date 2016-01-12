@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: tcppm.c,v 1.15 2012-02-05 22:29:02 vlad Exp $
 */
 
 #include "proxy.h"

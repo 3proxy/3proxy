@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: icqpr.c,v 1.30 2012-04-11 23:01:19 vlad Exp $
 */
 
 #include "proxy.h"
@@ -105,11 +104,11 @@ static void addbuffer(int increment, struct clientparam * param, unsigned char *
 		*buf_p = newbuf;
 		*bufsize_p = bufsize;
 	}
-	if(increment) len = sockrecvfrom(param->remsock, &param->sins, *buf_p + *length_p, increment, conf.timeouts[STRING_S]*1000);
+	if(increment) len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, *buf_p + *length_p, increment, conf.timeouts[STRING_S]*1000);
 	if(len > 0) {
 		*length_p += len;
 		param->nreads++;
-		param->statssrv += len;
+		param->statssrv64 += len;
 	}
 	return;
 }
@@ -118,7 +117,7 @@ static void addbuffer(int increment, struct clientparam * param, unsigned char *
 
 static int searchcookie(struct clientparam *param, struct flap_header * flap, int len, int * dif, struct tlv_header *tlv, int extra){
  struct icq_cookie *ic;
- char smallbuf[32];
+ char smallbuf[64];
  struct tlv_header *bostlv = NULL;
  struct sockaddr_in sa;
  SASIZETYPE size = sizeof(sa);
@@ -165,7 +164,7 @@ static int searchcookie(struct clientparam *param, struct flap_header * flap, in
 	pthread_mutex_unlock(&icq_cookie_mutex);
 	if(bostlv){
 		if(so._getsockname(param->clisock, (struct sockaddr *)&sa, &size)==-1) return 1;
-		len = myinet_ntoa(sa.sin_addr, smallbuf);
+		len = myinet_ntop(*SAFAMILY(&sa),SAADDR(&sa), smallbuf, 64);
 		if(strchr(ic->connectstring, ':'))sprintf(smallbuf+len, ":%hu", ntohs(sa.sin_port));
 		len = (int)strlen(smallbuf);
 		*dif = len - (int)ntohs(bostlv->size);
@@ -437,20 +436,17 @@ void * icqprchild(struct clientparam* param) {
 
  if(greet){
 	if(socksend(param->remsock, tmpsend, 10, conf.timeouts[STRING_S])!=10) {RETURN (1105);}
-	param->statscli += 10;
+	param->statscli64 += 10;
  }
  if(readflap(param, SERVER, tmpsend, 1024)) {RETURN (1111);}
- param->statssrv += (ntohs(((struct flap_header *)tmpsend)->size) + 6);
+ param->statssrv64 += (ntohs(((struct flap_header *)tmpsend)->size) + 6);
  mystate.srvseq = ntohs(((struct flap_header *)tmpsend)->seq) + 1;
  mystate.seq = 1;
  len = ntohs(flap->size) + 6;
  if((res=handledatfltcli(param,  &buf, &buflen, offset, &len))!=PASS) RETURN(res);
  if(socksend(param->remsock, buf+offset, len, conf.timeouts[STRING_S])!=(ntohs(flap->size)+6)) {RETURN (1106);}
  offset = 0;
- param->statscli += len;
-
-
-
+ param->statscli64 += len;
 
  if(logintype == ICQMD5) {
 	if(readflap(param, SERVER, buf, 65550)) {RETURN (1112);}
@@ -466,7 +462,7 @@ void * icqprchild(struct clientparam* param) {
 	len = ntohs(flap->size) + 6;
 	if((res=handledatfltcli(param,  &buf, &buflen, offset, &len))!=PASS) RETURN(res);
 	if(socksend(param->remsock, buf+offset, len, conf.timeouts[STRING_S])!=len) {RETURN (1115);}
-	param->statscli += len;
+	param->statscli64 += len;
 	offset = 0;
  }
  if(logintype != ICQCOOKIE) {

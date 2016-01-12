@@ -33,7 +33,7 @@ int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to){
 }
 
 
-int socksendto(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to){
+int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to){
  int sent = 0;
  int res;
  struct pollfd fds;
@@ -45,7 +45,7 @@ int socksendto(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int b
  	res = so._poll(&fds, 1, to);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 	if(res < 1) break;
-	res = so._sendto(sock, buf + sent, bufsize - sent, 0,  (struct sockaddr *)sin, sizeof(struct sockaddr_in));
+	res = so._sendto(sock, buf + sent, bufsize - sent, 0, sin, SASIZE(sin));
 	if(res < 0) {
 		if(errno !=  EAGAIN && errno != EINTR) break;
 		continue;
@@ -55,7 +55,7 @@ int socksendto(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int b
  return sent;
 }
 
-int sockrecvfrom(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int bufsize, int to){
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to){
 	struct pollfd fds;
 	SASIZETYPE sasize;
 	int res;
@@ -64,7 +64,7 @@ int sockrecvfrom(SOCKET sock, struct sockaddr_in * sin, unsigned char * buf, int
 	fds.events = POLLIN;
 	if(conf.timetoexit) return EOF;
 	if (so._poll(&fds, 1, to)<1) return 0;
-	sasize = sizeof(struct sockaddr_in);
+	sasize = SASIZE(sin);
 	do {
 		res = so._recvfrom(sock, buf, bufsize, 0, (struct sockaddr *)sin, &sasize);
 	} while (res < 0 && (errno == EAGAIN || errno == EINTR));
@@ -83,7 +83,7 @@ int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
 		return (int)param->clibuf[param->clioffset++];
 	}
 	param->clioffset = param->cliinbuf = 0;
-	if ((len = sockrecvfrom(param->clisock, &param->sinc, param->clibuf, param->clibufsize, timeosec*1000 + timeousec))<=0) return EOF;
+	if ((len = sockrecvfrom(param->clisock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, timeosec*1000 + timeousec))<=0) return EOF;
 	param->cliinbuf = len;
 	param->clioffset = 1;
 	return (int)*param->clibuf;
@@ -103,7 +103,7 @@ int sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec
 	}
 	if(size <= param->cliinbuf) return size;
 	size -= param->cliinbuf;
-	if((len = sockrecvfrom(param->clisock, &param->sinc, param->clibuf + param->cliinbuf, (param->clibufsize - param->cliinbuf) < size? param->clibufsize - param->cliinbuf:size, timeosec*1000)) > 0){
+	if((len = sockrecvfrom(param->clisock, (struct sockaddr *)&param->sincr, param->clibuf + param->cliinbuf, (param->clibufsize - param->cliinbuf) < size? param->clibufsize - param->cliinbuf:size, timeosec*1000)) > 0){
 		param->cliinbuf += len;
 	}
 	return param->cliinbuf;
@@ -123,10 +123,10 @@ int sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec
 	}
 	if(size <= param->srvinbuf) return size;
 	size -= param->srvinbuf;
-	if((len = sockrecvfrom(param->remsock, &param->sinc, param->srvbuf + param->srvinbuf, (param->srvbufsize - param->srvinbuf) < size? param->srvbufsize - param->srvinbuf:size, timeosec*1000)) > 0){
+	if((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf + param->srvinbuf, (param->srvbufsize - param->srvinbuf) < size? param->srvbufsize - param->srvinbuf:size, timeosec*1000)) > 0){
 		param->srvinbuf += len;
 		param->nreads++;
-		param->statssrv += len;
+		param->statssrv64 += len;
 	}
 	return param->srvinbuf;
 }
@@ -148,11 +148,11 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec){
 		return (int)param->srvbuf[param->srvoffset++];
 	}
 	param->srvoffset = param->srvinbuf = 0;
-	if ((len = sockrecvfrom(param->remsock, &param->sins, param->srvbuf, param->srvbufsize, timeosec*1000 + timeousec))<=0) return EOF;
+	if ((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf, param->srvbufsize, timeosec*1000 + timeousec))<=0) return EOF;
 	param->srvinbuf = len;
 	param->srvoffset = 1;
 	param->nreads++;
-	param->statssrv += len;
+	param->statssrv64 += len;
 	return (int)*param->srvbuf;
 }
 

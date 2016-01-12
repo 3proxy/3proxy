@@ -1,4 +1,3 @@
-#$Id: Makefile.win,v 1.9 2007/08/20 15:26:27 vlad Exp $
 #
 # 3 proxy Makefile for GCC/windows
 #
@@ -11,7 +10,7 @@
 
 BUILDDIR = ../bin/
 CC = gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC
+CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DNOIPV6
 COUT = -o 
 LN = gcc
 LDFLAGS = -O2 -s  -mthreads

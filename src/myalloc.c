@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: myalloc.c,v 1.5 2008/01/08 21:46:38 vlad Exp $
 */
 
 #include "proxy.h"
@@ -333,7 +332,7 @@ void *myrealloc(void *ptr, size_t size){
 	if(size <= memsizes[l]) return ptr;
 	p = myalloc(size);
 	if(p){
-		memcpy(p,ptr,size);
+		memmove(p,ptr,size);
 		myfree(ptr);
 	}
 	return p;	

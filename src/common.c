@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: common.c,v 1.94 2014-04-07 21:24:45 vlad Exp $
 */
 
 
@@ -22,13 +21,22 @@ int randomizer = 1;
 
 unsigned char **stringtable = NULL;
 
-int myinet_ntoa(struct in_addr in, char * buf){
- unsigned u = ntohl(in.s_addr);
- return sprintf(buf, "%u.%u.%u.%u", 
-	((u&0xFF000000)>>24), 
-	((u&0x00FF0000)>>16),
-	((u&0x0000FF00)>>8),
-	((u&0x000000FF)));
+int myinet_ntop(int af, void *src, char *dst, socklen_t size){
+#ifndef NOIPV6
+ if(af != AF_INET6){
+#endif 
+	unsigned u = ntohl(((struct in_addr *)src)->s_addr);
+ 	return sprintf(dst, "%u.%u.%u.%u", 
+		((u&0xFF000000)>>24), 
+		((u&0x00FF0000)>>16),
+		((u&0x0000FF00)>>8),
+		((u&0x000000FF)));
+#ifndef NOIPV6
+ }
+ *dst = 0;
+ inet_ntop(af, src, dst, size);
+ return (int)strlen(dst);
+#endif 
 }
 
 char *rotations[] = {
@@ -56,8 +64,11 @@ struct extparam conf = {
 	NULL, NULL,
 	NONE, NONE,
 	NULL,
-	INADDR_ANY, INADDR_ANY, 
-	0, 0,
+#ifndef NOIPV6
+	{AF_INET},{AF_INET6},{AF_INET}, 
+#else
+	{AF_INET},{AF_INET}, 
+#endif
 	NULL,
 	NULL,
 	doconnect,
@@ -75,6 +86,10 @@ struct extparam conf = {
 	0,0,
 	'@'
 };
+
+int numservers=0;
+
+char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 int myrand(void * entropy, int len){
 	int i;
@@ -201,23 +216,45 @@ int ceparseargs(const char *str){
 
 #endif
 
-int parsehostname(char *hostname, struct clientparam *param, unsigned short port){
-	char *sp;
+void parsehost(int family, char *host, struct sockaddr *sa){
+	char *sp=NULL,*se=NULL;
+	unsigned short port;
 
-	if(!hostname || !*hostname)return 1;
-	if ( (sp = strchr(hostname, ':')) ) *sp = 0;
-	if(hostname != param->hostname){
-		if(param->hostname) myfree(param->hostname);
-		param->hostname = (unsigned char *)mystrdup(hostname);
+	if(*host == '[') se=strchr(host, ']');
+	if ( (sp = strchr(se?se:host, ':')) ) *sp = 0;
+	if(se){
+		*se = 0;
 	}
 	if(sp){
 		port = atoi(sp+1);
-		*sp = ':';
 	}
-	param->req.sin_port=htons(port);
-	param->req.sin_addr.s_addr = getip(param->hostname);
-	param->sins.sin_addr.s_addr = 0;
-	param->sins.sin_port = 0;
+	getip46(family, host + (se!=0), (struct sockaddr *)sa);
+	if(se) *se = ']';
+	if(sp) *sp = ':';
+	*SAPORT(sa) = htons(port);
+}
+
+int parsehostname(char *hostname, struct clientparam *param, unsigned short port){
+	char *sp=NULL,*se=NULL;
+
+	if(!hostname || !*hostname)return 1;
+	if(*hostname == '[') se=strchr(hostname, ']');
+	if ( (sp = strchr(se?se:hostname, ':')) ) *sp = 0;
+	if(se){
+		*se = 0;
+	}
+	if(hostname != (char *)param->hostname){
+		if(param->hostname) myfree(param->hostname);
+		param->hostname = (unsigned char *)mystrdup(hostname + (se!=0));
+	}
+	if(sp){
+		port = atoi(sp+1);
+	}
+	getip46(param->srv->family, param->hostname, (struct sockaddr *)&param->req);
+	if(se) *se = ']';
+	if(sp) *sp = ':';
+	*SAPORT(&param->req) = htons(port);
+	memset(&param->sinsr, 0, sizeof(param->sinsr));
 	return 0;
 }
 
@@ -260,6 +297,7 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 	if(!username || !*username) return 1;
         if ((sb=strchr(username, conf.delimchar)) == NULL){
 		if(!param->hostname && param->remsock == INVALID_SOCKET) return 2;
+		if(param->hostname)parsehostname(param->hostname, param, port);
 		return parseusername(username, param, extpasswd);
 	}
 	while ((se=strchr(sb+1, conf.delimchar)))sb=se;
@@ -287,7 +325,7 @@ void clearstat(struct clientparam * param) {
 	param->time_start = (time_t)tv.tv_sec;
 	param->msec_start = (tv.tv_usec / 1000);
 #endif
-	param->statscli = param->statssrv = param->nreads = param->nwrites =
+	param->statscli64 = param->statssrv64 = param->nreads = param->nwrites =
 		param->nconnects = 0;
 }
 
@@ -306,7 +344,6 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 
 	long timezone;
 	unsigned delay;
-	struct in_addr tmpia;
 
 
 
@@ -378,10 +415,10 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i+=10;
 				 break;
 				case 'b':
-				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statscli * 1000./delay):0);
+				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statscli64 * 1000./delay):0);
 				 break;
 				case 'B':
-				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statssrv * 1000./delay):0);
+				 i+=sprintf((char *)buf+i, "%u", delay?(unsigned)(param->statssrv64 * 1000./delay):0);
 				 break;				 
 				case 'D':
 				 i+=sprintf((char *)buf+i, "%u", delay);
@@ -412,7 +449,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 break;
 				case 'n':
 					len = param->hostname? (int)strlen((char *)param->hostname) : 0;
-					if (len > 0) for(len = 0; param->hostname[len] && i < 4000; len++, i++){
+					if (len > 0 && !strchr((char *)param->hostname, ':')) for(len = 0; param->hostname[len] && i < 4000; len++, i++){
 						buf[i] = param->hostname[len];
 					 	if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
 						if(doublec && strchr((char *)doublec, buf[i])) {
@@ -420,7 +457,12 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 							i++;
 						}
 					}
-					else i += myinet_ntoa(param->sins.sin_addr, (char *)buf + i);
+					else {
+						buf[i++] = '[';
+						i += myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + i, 64);
+						buf[i++] = ']';
+						buf[i++] = 0;
+					}
 					break;
 
 				case 'N':
@@ -449,40 +491,39 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 }
 				 break;
 				case 'e':
-				 tmpia.s_addr = param->extip;
-				 i += myinet_ntoa(tmpia, (char *)buf + i);
+				 i += myinet_ntop(*SAFAMILY(&param->sinsl), SAADDR(&param->sinsl), (char *)buf + i, 64);
 				 break;
 				case 'C':
-				 i += myinet_ntoa(param->sinc.sin_addr, (char *)buf + i);
+				 i += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + i, 64);
 				 break;
 				case 'R':
-				 i += myinet_ntoa(param->sins.sin_addr, (char *)buf + i);
+				 i += myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf + i, 64);
 				 break;
 				case 'Q':
-				 i += myinet_ntoa(param->req.sin_addr, (char *)buf + i);
+				 i += myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + i, 64);
 				 break;
 				case 'p':
-				 sprintf((char *)buf+i, "%hu", ntohs(param->srv->intport));
+				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->srv->intsa)));
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'c':
-				 sprintf((char *)buf+i, "%hu", ntohs(param->sinc.sin_port));
+				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->sincr)));
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'r':
-				 sprintf((char *)buf+i, "%hu", ntohs(param->sins.sin_port));
+				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->sinsr)));
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'q':
-				 sprintf((char *)buf+i, "%hu", ntohs(param->req.sin_port));
+				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->req)));
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'I':
-				 sprintf((char *)buf+i, "%lu", param->statssrv);
+				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->statssrv64);
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'O':
-				 sprintf((char *)buf+i, "%lu", param->statscli);
+				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->statscli64);
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'h':
@@ -560,77 +601,94 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	clearstat(param);
 }
-
+pthread_mutex_t log_mutex;
+int logmutexinit = 0;
+unsigned char tmpbuf[8192];
 
 void logstdout(struct clientparam * param, const unsigned char *s) {
-	unsigned char buf[4096];
 	FILE *log;
 
+	if(!logmutexinit){
+		pthread_mutex_init(&log_mutex, NULL);
+		logmutexinit = 1;
+	}
+	pthread_mutex_lock(&log_mutex);
 	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
-	dobuf(param, buf, s, NULL);
-	if(!param->nolog)if(fprintf(log, "%s\n", buf) < 0) {
+	dobuf(param, tmpbuf, s, NULL);
+	if(!param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
 		perror("printf()");
 	};
 	if(log != conf.stdlog)fflush(log);
+	pthread_mutex_unlock(&log_mutex);
 }
 #ifndef _WIN32
 void logsyslog(struct clientparam * param, const unsigned char *s) {
-	unsigned char buf[4096];
 
-	dobuf(param, buf, s, NULL);
-	if(!param->nolog)syslog(LOG_INFO, "%s", buf);
+	if(!logmutexinit){
+		pthread_mutex_init(&log_mutex, NULL);
+		logmutexinit = 1;
+	}
+	pthread_mutex_lock(&log_mutex);
+	dobuf(param, tmpbuf, s, NULL);
+	if(!param->nolog)syslog(LOG_INFO, "%s", tmpbuf);
+	pthread_mutex_unlock(&log_mutex);
 }
 #endif
 
 int doconnect(struct clientparam * param){
- SASIZETYPE size = sizeof(param->sins);
- struct sockaddr_in bindsa;
+ SASIZETYPE size = sizeof(param->sinsr);
+
+ if (*SAFAMILY(&param->sincr) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincr), SAADDR(&param->req), SAADDRLEN(&param->req)) &&
+	*SAPORT(&param->sincr) == *SAPORT(&param->req)) return 519;
+
  if (param->operation == ADMIN || param->operation == DNSRESOLVE || param->operation == BIND || param->operation == UDPASSOC)
 	return 0;
  if (param->remsock != INVALID_SOCKET){
-	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sins, &size)==-1) {return (15);}
+	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (15);}
  }
  else {
-	struct linger lg;
+	struct linger lg = {1,conf.timeouts[SINGLEBYTE_S]};
+	int opt = 1;
 
-	if(!param->sins.sin_addr.s_addr)
-		if(!(param->sins.sin_addr.s_addr = param->req.sin_addr.s_addr)) return 100;
-	if(!param->sins.sin_port)param->sins.sin_port = param->req.sin_port;
-	if ((param->remsock=so._socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
+	if(SAISNULL(&param->sinsr)){
+		if(SAISNULL(&param->req)) {
+			return 100;
+		}
+		*SAFAMILY(&param->sinsr) = *SAFAMILY(&param->req);
+		memcpy(SAADDR(&param->sinsr), SAADDR(&param->req), SAADDRLEN(&param->req)); 
+	}
+	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
+	if ((param->remsock=so._socket(SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
 	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
-	memset(&bindsa, 0, sizeof(bindsa));
-	bindsa.sin_family = AF_INET;
-	bindsa.sin_port = param->extport;
-	bindsa.sin_addr.s_addr = param->extip;
-	if (param->srv->targetport && !bindsa.sin_port && ntohs(param->sinc.sin_port) > 1023) bindsa.sin_port = param->sinc.sin_port;
-	if(so._bind(param->remsock, (struct sockaddr*)&bindsa, sizeof(bindsa))==-1) {
-		memset(&bindsa, 0, sizeof(bindsa));
-		bindsa.sin_family = AF_INET;
-		bindsa.sin_addr.s_addr = param->extip;
-		bindsa.sin_port = 0;
-		if(so._bind(param->remsock, (struct sockaddr*)&bindsa, sizeof(bindsa))==-1) {
+	so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+
+#ifndef NOIPV6
+	if(*SAFAMILY(&param->sinsr) == AF_INET6) memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
+	else
+#endif
+		memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
+	if (param->srv->targetport && !*SAPORT(&param->sinsl) && ntohs(*SAPORT(&param->sincr)) > 1023) *SAPORT(&param->sinsl) = *SAPORT(&param->sincr);
+	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
+		*SAPORT(&param->sinsl) = 0;
+		if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
 			return 12;
 		}
 	}
 	
-	param->sins.sin_family = AF_INET;
 	if(param->operation >= 256 || (param->operation & CONNECT)){
 #ifdef _WIN32
 		unsigned long ul = 1;
 #endif
-		if(so._connect(param->remsock,(struct sockaddr *)&param->sins,sizeof(param->sins))) {return (13);}
+		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,sizeof(param->sinsr))) {return (13);}
 		param->nconnects++;
 #ifdef _WIN32
 		ioctlsocket(param->remsock, FIONBIO, &ul);
 #else
 		fcntl(param->remsock,F_SETFL,O_NONBLOCK);
 #endif
-		if(so._getsockname(param->remsock, (struct sockaddr *)&bindsa, &size)==-1) {return (15);}
-		param->extip = bindsa.sin_addr.s_addr;
+		size = sizeof(param->sinsl);
 	}
-	else {
-		if(so._getsockname(param->remsock, (struct sockaddr *)&param->sins, &size)==-1) {return (15);}
-	}
+	if(so._getsockname(param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
  }
  return 0;
 }
@@ -667,11 +725,13 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 }
 #endif
 
+#ifdef NOIPV6
 unsigned long getip(unsigned char *name){
 	unsigned long retval;
 	int i;
 	int ndots = 0;
 	struct hostent *hp=NULL;
+	RESOLVFUNC tmpresolv;
 
 #ifdef GETHOSTBYNAME_R
 	struct hostent he;
@@ -688,15 +748,14 @@ unsigned long getip(unsigned char *name){
 		if(name[i] <'0' || name[i] >'9') break;
 	}
 	if(!name[i] && ndots == 3){
-		unsigned long ip;
-		if(scanaddr(name, &ip, NULL) == 4){
-			return ip;
+		if(scanaddr(name, &retval, NULL) == 4){
+			return retval;
 		}
 	}
-	if(resolvfunc){
-		if((retval = (*resolvfunc)(name))) return retval;
+	if((tmpresolv=resolvfunc)){
+		if((*tmpresolv)(AF_INET, name, (unsigned char *)&retval)) return retval;
 		if(conf.demanddialprog) system(conf.demanddialprog);
-		return (*resolvfunc)(name);
+		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
 	}
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
 	if(!ghbn_init){
@@ -718,4 +777,81 @@ unsigned long getip(unsigned char *name){
 #undef gethostbyname
 #endif
 	return retval;
+}
+#endif
+
+unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
+#ifndef NOIPV6
+	int ndots=0, ncols=0, nhex=0;
+	struct addrinfo *ai, hint;
+	int i;
+        RESOLVFUNC tmpresolv;
+
+	if(!sa) return 0;
+	if(!family) {
+		family = 4;
+#else
+		((struct sockaddr_in *)sa)->sin_family = AF_INET;
+		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getip(name))? AF_INET:0;
+#endif
+#ifndef NOIPV6
+	}
+	for(i=0; name[i]; i++){
+		if(name[i] == '.'){
+			if(++ndots > 3) {
+				break;
+			}
+		}
+		else if(name[i] == ':'){
+			if(++ncols > 7) {
+				break;
+			}
+		}
+		else if(name[i] == '%' || (name[i] >= 'a' && name[i] <= 'f') || (name[i] >= 'A' && name[i] <= 'F')){
+			nhex++;
+		}
+		else if(name[i] <'0' || name[i] >'9') {
+			break;
+		}
+	}
+	if(!name[i]){
+		if(ndots == 3 && ncols == 0 && nhex == 0){
+			*SAFAMILY(sa)=(family == 6)?AF_INET6 : AF_INET;
+			return inet_pton(*SAFAMILY(sa), name, SAADDR(sa))? *SAFAMILY(sa) : 0; 
+		}
+		if(ncols >= 2) {
+			*SAFAMILY(sa)=AF_INET6;
+			return inet_pton(AF_INET6, name, SAADDR(sa))?(family==4? 0:AF_INET6) : 0;
+		}
+	}
+	if((tmpresolv = resolvfunc)){
+		int f = (family == 6 || family == 64)?AF_INET6:AF_INET;
+		*SAFAMILY(sa) = f;
+		if(tmpresolv(f, name, SAADDR(sa))) return f;
+		if(family == 4 || family == 6) return 0;
+		f = (family == 46)? AF_INET6 : AF_INET;
+		*SAFAMILY(sa) = f;
+		if(tmpresolv(f, name, SAADDR(sa))) return f;
+		return 0;
+	}
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_family = (family == 6 || family == 64)?AF_INET6:AF_INET;
+	if (getaddrinfo(name, NULL, &hint, &ai)) {
+		if(family == 64 || family == 46){
+			hint.ai_family = (family == 64)?AF_INET:AF_INET6;
+			if (getaddrinfo(name, NULL, &hint, &ai)) return 0;
+		}
+		else return 0;
+	}
+	if(ai){
+		if(ai->ai_addr->sa_family == AF_INET || ai->ai_addr->sa_family == AF_INET6){
+			*SAFAMILY(sa)=ai->ai_addr->sa_family;
+			memcpy(SAADDR(sa), SAADDR(ai->ai_addr), SAADDRLEN(ai->ai_addr));
+			freeaddrinfo(ai);
+			return *SAFAMILY(sa);
+		}
+		freeaddrinfo(ai);
+	}
+	return 0;
+#endif
 }

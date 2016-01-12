@@ -1,4 +1,3 @@
-#$Id: Makefile.msvc,v 1.14 2007/07/21 18:47:02 vlad Exp $
 #
 # 3 proxy Makefile for Microsoft Visual C compiler (for both make and nmake)
 #

@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: sockmap.c,v 1.64 2014-04-07 20:35:09 vlad Exp $
 */
 
 #include "proxy.h"
@@ -13,7 +12,7 @@
 
 int sockmap(struct clientparam * param, int timeo){
  int res=0;
- unsigned sent=0, received=0;
+ uint64_t sent=0, received=0;
  SASIZETYPE sasize;
  struct pollfd fds[2];
  int sleeptime = 0, stop = 0;
@@ -32,12 +31,12 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Starting sockets mapping");
 #endif
- if(!param->waitclient){
+ if(!param->waitclient64){
 	if(!param->srvbuf && (!(param->srvbuf=myalloc(bufsize)) || !(param->srvbufsize = bufsize))){
 		return (21);
 	}
  }
- if(!param->waitserver){
+ if(!param->waitserver64){
 	if(!param->clibuf && (!(param->clibuf=myalloc(bufsize)) || !(param->clibufsize = bufsize))){
 		return (21);
 	}
@@ -69,33 +68,33 @@ int sockmap(struct clientparam * param, int timeo){
 
  while (!stop&&!conf.timetoexit){
 	sasize = sizeof(struct sockaddr_in);
-	if((param->maxtrafin && param->statssrv >= param->maxtrafin) || (param->maxtrafout && param->statscli >= param->maxtrafout)){
+	if((param->maxtrafin64 && param->statssrv64 >= param->maxtrafin64) || (param->maxtrafout64 && param->statscli64 >= param->maxtrafout64)){
 		return (10);
 	}
-	if((param->srv->logdumpsrv && (param->statssrv > param->srv->logdumpsrv)) ||
-		(param->srv->logdumpcli && (param->statscli > param->srv->logdumpcli)))
+	if((param->srv->logdumpsrv && (param->statssrv64 > param->srv->logdumpsrv)) ||
+		(param->srv->logdumpcli && (param->statscli64 > param->srv->logdumpcli)))
 			(*param->srv->logfunc)(param, NULL);
 	fds[0].events = fds[1].events = 0;
-	if(param->srvinbuf > param->srvoffset && !param->waitclient) {
+	if(param->srvinbuf > param->srvoffset && !param->waitclient64) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "will send to client");
 #endif
 		fds[0].events |= POLLOUT;
 	}
-	if((param->srvbufsize - param->srvinbuf) > minsize && !param->waitclient && (!param->waitserver ||(received + param->srvinbuf - param->srvoffset < param->waitserver))) {
+	if((param->srvbufsize - param->srvinbuf) > minsize && !param->waitclient64 && (!param->waitserver64 ||(received + param->srvinbuf - param->srvoffset < param->waitserver64))) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Will recv from server");
 #endif
 		fds[1].events |= POLLIN;
 	}
 
-	if(param->cliinbuf > param->clioffset && !param->waitserver) {
+	if(param->cliinbuf > param->clioffset && !param->waitserver64) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Will send to server");
 #endif
 		fds[1].events |= POLLOUT;
 	}
-    	if((param->clibufsize - param->cliinbuf) > minsize  && !param->waitserver &&(!param->srv->singlepacket || param->service != S_UDPPM) ) {
+    	if((param->clibufsize - param->cliinbuf) > minsize  && !param->waitserver64 &&(!param->srv->singlepacket || param->service != S_UDPPM) ) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Will recv from client");
 #endif
@@ -128,7 +127,7 @@ int sockmap(struct clientparam * param, int timeo){
 		if(param->bandlimfunc) {
 			sleeptime = (*param->bandlimfunc)(param, param->srvinbuf - param->srvoffset, 0);
 		}
-		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver || ((unsigned)param->waitserver - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : param->waitserver - received, 0, (struct sockaddr*)&param->sinc, sasize);
+		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sincr, sasize);
 		if(res < 0) {
 			if(errno != EAGAIN && errno != EINTR) return 96;
 			if(errno == EINTR) usleep(SLEEPTIME);
@@ -137,7 +136,7 @@ int sockmap(struct clientparam * param, int timeo){
 		param->srvoffset += res;
 		received += res;
 		if(param->srvoffset == param->srvinbuf) param->srvoffset = param->srvinbuf = 0;
-		if(param->waitserver && param->waitserver<= received){
+		if(param->waitserver64 && param->waitserver64<= received){
 			return (98);
 		}
 		if(param->service == S_UDPPM && param->srv->singlepacket) {
@@ -154,18 +153,18 @@ int sockmap(struct clientparam * param, int timeo){
 			sl1 = (*param->bandlimfunc)(param, 0, param->cliinbuf - param->clioffset);
 			if(sl1 > sleeptime) sleeptime = sl1;
 		}
-		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient || ((unsigned)param->waitclient - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : param->waitclient - sent, 0, (struct sockaddr*)&param->sins, sasize);
+		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sinsr, sasize);
 		if(res < 0) {
 			if(errno != EAGAIN && errno != EINTR) return 97;
 			if(errno == EINTR) usleep(SLEEPTIME);
 			continue;
 		}
 		param->clioffset += res;
-		sent += res;
-		param->statscli += res;
-		param->nwrites++;
 		if(param->clioffset == param->cliinbuf) param->clioffset = param->cliinbuf = 0;
-		if(param->waitclient && param->waitclient<= sent) {
+		sent += res;
+		param->nwrites++;
+		param->statscli64 += res;
+		if(param->waitclient64 && param->waitclient64<= sent) {
 			return (99);
 		}
 	}
@@ -173,7 +172,7 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "recv from client");
 #endif
-		res = so._recvfrom(param->clisock, param->clibuf + param->cliinbuf, param->clibufsize - param->cliinbuf, 0, (struct sockaddr *)&param->sinc, &sasize);
+		res = so._recvfrom(param->clisock, param->clibuf + param->cliinbuf, param->clibufsize - param->cliinbuf, 0, (struct sockaddr *)&param->sincr, &sasize);
 		if (res==0) {
 			so._shutdown(param->clisock, SHUT_RDWR);
 			so._closesocket(param->clisock);
@@ -219,7 +218,7 @@ int sockmap(struct clientparam * param, int timeo){
 			}
 			param->srvinbuf += res;
 			param->nreads++;
-			param->statssrv += res;
+			param->statssrv64 += res;
 			if(!param->nolongdatfilter){
 				action = handledatfltsrv(param,  &param->srvbuf, &param->srvbufsize, param->srvinbuf - res, &param->srvinbuf);
 				if(action == HANDLED){
@@ -241,26 +240,26 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "finished with mapping");
 #endif
- while(!param->waitclient && param->srvinbuf > param->srvoffset && param->clisock != INVALID_SOCKET){
+ while(!param->waitclient64 && param->srvinbuf > param->srvoffset && param->clisock != INVALID_SOCKET){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "flushing buffer to client");
 #endif
-	res = socksendto(param->clisock, &param->sinc, param->srvbuf + param->srvoffset, param->srvinbuf - param->srvoffset, conf.timeouts[STRING_S] * 1000);
+	res = socksendto(param->clisock, (struct sockaddr *)&param->sincr, param->srvbuf + param->srvoffset, param->srvinbuf - param->srvoffset, conf.timeouts[STRING_S] * 1000);
 	if(res > 0){
 		param->srvoffset += res;
-		param->statssrv += res;
+		param->statssrv64 += res;
 		if(param->srvoffset == param->srvinbuf) param->srvoffset = param->srvinbuf = 0;
 	}
 	else break;
  } 
- while(!param->waitserver && param->cliinbuf > param->clioffset && param->remsock != INVALID_SOCKET){
+ while(!param->waitserver64 && param->cliinbuf > param->clioffset && param->remsock != INVALID_SOCKET){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "flushing buffer to server");
 #endif
-	res = socksendto(param->remsock, &param->sins, param->clibuf + param->clioffset, param->cliinbuf - param->clioffset, conf.timeouts[STRING_S] * 1000);
+	res = socksendto(param->remsock, (struct sockaddr *)&param->sinsr, param->clibuf + param->clioffset, param->cliinbuf - param->clioffset, conf.timeouts[STRING_S] * 1000);
 	if(res > 0){
 		param->clioffset += res;
-		param->statscli += res;
+		param->statscli64 += res;
 		if(param->cliinbuf == param->clioffset) param->cliinbuf = param->clioffset = 0;
 	}
 	else break;

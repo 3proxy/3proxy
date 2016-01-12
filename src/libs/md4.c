@@ -1,8 +1,6 @@
 /*
  * md4c.c	MD4 message-digest algorithm
  *
- * Version:	$Id: md4.c,v 1.1 2010-11-11 11:32:32 v.dubrovin Exp $
- *
  *   License to copy and use this software is granted provided that it
  *   is identified as the "RSA Data Security, Inc. MD4 Message-Digest
  *   Algorithm" in all material mentioning or referencing this software

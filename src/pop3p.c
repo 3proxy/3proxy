@@ -4,7 +4,6 @@
 
    please read License Agreement
 
-   $Id: pop3p.c,v 1.17 2008/01/08 21:46:38 vlad Exp $
 */
 
 #include "proxy.h"
@@ -43,13 +42,13 @@ void * pop3pchild(struct clientparam* param) {
 	socksend(param->remsock, param->extusername, (int)strlen((char *)param->extusername), conf.timeouts[STRING_S]) <= 0 ||
 	socksend(param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
 		{RETURN(623);}
- param->statscli += (int)(strlen((char *)param->extusername) + 7);
+ param->statscli64 += (uint64_t)(strlen((char *)param->extusername) + 7);
  param->nwrites++;
  RETURN (sockmap(param, 180));
 CLEANRET:
 
  if(param->hostname&&param->extusername) {
-	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(param->sins.sin_port)==110)?0:':', ntohs(param->sins.sin_port));
+	sprintf((char *)buf, "%.64s@%.128s%c%hu", param->extusername, param->hostname, (*SAPORT(&param->sinsr)==110)?0:':', ntohs(*SAPORT(&param->sinsr)));
 	 (*param->srv->logfunc)(param, buf);
  }
  else (*param->srv->logfunc)(param, NULL);
