@@ -1,0 +1,94 @@
+
+<h3>3proxy Perl Compatible Regular Expressions (PCRE) plugin</h3>
+
+This filtering plugin can be used to create matching and replace
+rules with regular expressions for client's request, client and
+servers header and client and server data. It adds 3 additional
+configuration commands:
+
+<pre>
+pcre TYPE FILTER_ACTION REGEXP [ACE]
+pcre_rewrite TYPE FILTER_ACTION REGEXP REWRITE_EXPRESSION [ACE]
+pcre_extend FILTER_ACTION [ACE]
+pcre_options OPTION1 [...]
+</pre>
+pcre - allows to apply some rule for matching
+<br>pcre_rewrite - in addition to 'pcre' allows to substitute substrings
+<br>pcre_extend - extends ACL of the last pcre or pcre_rewrite comand by
+adding additional ACE (like with allow/deny configuration commands).
+<br>pcre_options - allows to set matching options. Awailable options are:
+PCRE_CASELESS,
+PCRE_MULTILINE,
+PCRE_DOTALL,
+PCRE_EXTENDED,
+PCRE_ANCHORED,
+PCRE_DOLLAR_ENDONLY,
+PCRE_EXTRA,
+PCRE_NOTBOL,
+PCRE_NOTEOL,
+PCRE_UNGREEDY,
+PCRE_NOTEMPTY,
+PCRE_UTF8,
+PCRE_NO_AUTO_CAPTURE,
+PCRE_NO_UTF8_CHECK,
+PCRE_AUTO_CALLOUT,
+PCRE_PARTIAL,     
+PCRE_DFA_SHORTEST,
+PCRE_DFA_RESTART,
+PCRE_FIRSTLINE,
+PCRE_DUPNAMES,
+PCRE_NEWLINE_CR,
+PCRE_NEWLINE_LF,
+PCRE_NEWLINE_CRLF,
+PCRE_NEWLINE_ANY,
+PCRE_NEWLINE_ANYCRLF,
+PCRE_BSR_ANYCRLF,
+PCRE_BSR_UNICODE
+
+<ul>
+<li>TYPE - type of filtered data. May contain one or more
+(comma delimited list) values:
+ <ul>
+ <li>request - content of client's request e.g. HTTP GET request string.
+(known problem: changing request string doesn't change IP of the host to connect)
+ <li>cliheader - content of client request headers,  e.g. HTTP request header.
+ <li>srvheader - content of server's reply headers, e.g. HTTP status and headers.
+ <li>clidata - data received from client, e.g. HTTP POST request data
+ <li>srvdata - data received from server, e.g. HTML page
+ </ul>
+<li>FILTER_ACTION - action on match
+ <ul>allow - allow this request without checking rest of the given type
+of the rules
+ <li>deny - deny this request without checking rest of the rules
+ <li>dunno - continue with the rest of rules (useful with pcre_rewrite) 
+ </ul>
+<li>REGEXP - PCRE (perl) regular expression. Use * if no regexp matching
+required.
+<li>REWRITE_EXPRESSION - substitution string. May contain perl-style
+substrings
+(not tested) $1, $2. $0 - means whole matched string. \r and \n may be used
+to insert new strings, string may be empty ("").
+<li>ACE - access control entry (user names, source IPs, destination IPs,
+ports, etc), absolutely identical to allow/deny/bandlimin commands.
+Regular expression is only matched if ACL matches connection data.
+Warning:
+reqular expression doesn't require authentication and can not replace
+authentication and/or allow/deny ACLs.
+</ul>
+
+
+<h4>Example:</h4>
+<pre>
+plugin PCREPlugin.dll pcre_plugin
+pcre request deny "porn|sex" user1,user2,user3 192.168.0.0/16
+pcre srvheader deny "Content-type: application"
+pcre_rewrite clidata,srvdata dunno "porn|sex|pussy" "***" baduser
+pcre_extend deny * 192.168.0.1/16
+</pre>
+
+<h4>Download:</h4>
+<ul>
+ <li>Plugin is included into 3proxy 0.6 binary and source distribution
+ <li>Example configuration (by Dennis Garber): <A HREF="NoPornLitest.cfg.txt">NoPornLitest.cfg</A>
+</ul>
+
