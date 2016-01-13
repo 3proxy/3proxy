@@ -1,0 +1,33 @@
+
+<h3>3proxy Windows Authentication plugin</h3>
+Support for cleartext authentication against Windows domain or local Windows account.
+<h4>Usage:</h4>
+<ol>
+ <li>Extract WindowsAuthentication.dll to the same folder with 3proxy executable.
+ <li>Create 3ProxyAllowedGroup - Windows system group allowed to use proxy.
+ You can choose different group name. Group can be either local or
+ Active Directory. Every account allowed to use 3proxy must be included in this
+ group either directly or through group nesting.
+ <li>Configure plugin with 'plugin' command in 3proxy.cfg, e.g.:
+<pre><code>
+plugin &quot;WindowsAuthentication.dll&quot; WindowsAuthentication &quot;3ProxyAllowedGroup&quot;
+</code></pre>
+<br>WindowsAuthentication.dll - location of DLL, if DLL is located in different folder
+from 3proxy.exe you must specify complete path to DLL here. 3ProxyAllowedGroup - Windows
+system group allowed to use 3proxy.
+After plugin is loaded, 'windows' authentication type is supported.
+
+ <li>Configure 'auth windows' for services that require Windows authentication.
+ <li>It's recommended you also configure authentication caching (see 'authcache'),
+ to prevent excessive workload for domain controller. Example:
+<pre>
+ authcache user,pass 900
+ auth cache windows
+</pre>
+
+ <li>NTLM authentication is not currently supported for plugins, you should use proxy -n key to disable it.
+</ol>
+<h4>Download:</h4>
+<ul>
+ <li>Plugin is included into 3proxy 0.6 binary and source distribution
+</ul>

@@ -1,0 +1,90 @@
+<h3>Плагин регулярных выражений совместимых с Perl (PCRE) для 3proxy</h3>
+
+Фильтрующий плагин используется для создания правил поиска и замены
+регулярных выражений в запросе, заголовков запроса и ответа и данных.
+Добавляет поддержку 3х новых команд в файле конфигурации:
+
+<pre>
+pcre TYPE FILTER_ACTION REGEXP [ACE]
+pcre_rewrite TYPE FILTER_ACTION REGEXP REWRITE_EXPRESSION [ACE]
+pcre_extend FILTER_ACTION [ACE]
+pcre_options OPTION1 [...]
+</pre>
+pcre - позволяет искать совпадения
+<br>pcre_rewrite - дополнительно позволяет производить замену подстрок
+<br>pcre_extend - расширяет ACL последней команды pcre или pcre_rewrite путем
+добавления еще одной ACE (аналогично списку правил allow/deny).
+<br>pcre_options - позволяет устанавливать опции поиска, доступны следующие опции:
+PCRE_CASELESS,
+PCRE_MULTILINE,
+PCRE_DOTALL,
+PCRE_EXTENDED,
+PCRE_ANCHORED,
+PCRE_DOLLAR_ENDONLY,
+PCRE_EXTRA,
+PCRE_NOTBOL,
+PCRE_NOTEOL,
+PCRE_UNGREEDY,
+PCRE_NOTEMPTY,
+PCRE_UTF8,
+PCRE_NO_AUTO_CAPTURE,
+PCRE_NO_UTF8_CHECK,
+PCRE_AUTO_CALLOUT,
+PCRE_PARTIAL,     
+PCRE_DFA_SHORTEST,
+PCRE_DFA_RESTART,
+PCRE_FIRSTLINE,
+PCRE_DUPNAMES,
+PCRE_NEWLINE_CR,
+PCRE_NEWLINE_LF,
+PCRE_NEWLINE_CRLF,
+PCRE_NEWLINE_ANY,
+PCRE_NEWLINE_ANYCRLF,
+PCRE_BSR_ANYCRLF,
+PCRE_BSR_UNICODE
+
+
+<ul>
+<li>TYPE - тип фильтруемых данных. Может содержать одно или
+несколько (список через запятую) значений:
+ <ul>
+ <li>request - содержимое запроса клиента (например строка HTTP GET-запроса).
+(в настоящий момент изменение запроса не приводит к изменению адреса запрашиваемого хоста)
+ <li>cliheader - содержимое заголовков запроса клиента, например заголовки HTTP
+ <li>srvheader - содержимое заголовков ответа сервера, например заголовки HTTP
+ <li>clidata - данные полученные от клиента, например данные POST-запроса
+ <li>srvdata - данные полученные от сервера, например содержимое HTML-страницы
+ </ul>
+<li>FILTER_ACTION - действие при совпадении. Может принимать значение
+ <ul>allow - разрешить данный запрос без просмотра дальнейших правил
+ <li>deny - запретить данный запрос без просмотра дальнейших правил
+ <li>dunno - продолжить анализ правил (полезно для pcre_rewrite) 
+ </ul>
+<li>REGEXP - регулярное выражение в формате PCRE (perl). Используйте * если не
+требуется проерка регулярного выражения.
+<li>REWRITE_EXPRESSION - строка замены. Может содержать макроподстановки
+(не тестировалось) $1, $2 и т.д. аналогично perl. $0 - полная найденная
+подстрока. В строке замены можно использовать сочетания \r, \n для вставки
+новых строк. Строка может быть пустой ("").
+<li>ACE - Список контроля доступа (имя пользователя, IP источника, IP назначения, порт и т.д.),
+полностью аналогичный ACE в командах allow, deny, bandlimin и т.п. Регулярное
+выражение проверяется только при совпадении ACE с запросом. ВНИМАНИЕ:
+использование регулярных выражений не требует авторизации и не заменяет ее.
+Авторизацию необходимо конфигурировать отдельно.
+</ul>
+
+
+<h4>Пример:</h4>
+<pre>
+plugin PCREPlugin.dll pcre_plugin
+pcre request deny "porn|sex" user1,user2,user3 192.168.0.0/16
+pcre srvheader deny "Content-type: application"
+pcre_rewrite clidata,srvdata dunno "porn|sex|pussy" "***" baduser
+pcre_extend deny * 192.168.0.1/16
+</pre>
+
+<h4>Загрузить:</h4>
+<ul>
+ <li>Плагин включен в дистрибутив 3proxy 0.6
+ <li>Пример конфигурации (by Dennis Garber): <A HREF="NoPornLitest.cfg.txt">NoPornLitest.cfg</A>
+</ul>
