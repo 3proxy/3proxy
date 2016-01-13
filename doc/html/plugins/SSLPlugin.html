@@ -1,0 +1,34 @@
+<h3>3proxy SSL/TLS plugin</h3>
+
+Plugin can be used to transparently decypher SSL/TLS data. Plugin should never be used in production environment due to
+potential securiy reasons.
+
+<pre>
+ssl_certcache PATH_TO_CACHE
+ssl_mitm
+ssl_nomitm
+</pre>
+ssl_certcache - path to certificates cache. For transparent spoofing cache must contain 3 files: 3proxy.pem - public
+self-signed certificates, 3proxy.key - key for public certificates, server.key - this key will be used to generates
+spoofed certificates.
+Generated certificates will be placed to the same path.
+<br>ssl_mitm - spoof certificates for services started below
+<br>ssl_nomitm - do not spoof certificates for services started below
+
+
+<h4>Example:</h4>
+<pre>
+plugin /path/to/SslPlugin.dll ssl_plugin
+ssl_certcache /path/to/cache/
+ssl_mitm
+proxy -p3128
+ssl_nomitm
+proxy -p3129
+</pre>
+
+<h4>Download:</h4>
+<ul>
+ <li>Plugin included into 3proxy 0.8
+</ul>
+
+&copy; Vladimir Dubrovin, License: BSD style

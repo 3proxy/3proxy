@@ -1,0 +1,52 @@
+<h3>3proxy traffic correction plugin</h3>
+3proxy logs and counts traffic on application level, while provider usually does
+it on network or link level. It's significant if you use 3proxy for billing,
+especially in case where network packets are small, e.g. network games.
+<p>
+This plugin attempts to correct 3proxy computations to approximate network or
+link level traffic by using either fixed coefficients by port number or
+attempting to predict number and sizes of network packets.
+</p><h4>Usage:</h4>
+<ol>
+ <li>Extract TrafficPlugin.dll to the same folder with 3proxy executable.
+ </li><li>Start plugin in 3proxy.cfg with 
+<pre>plugin TrafficPlugin.dll start
+</pre>
+ </li><li>Add correction rules:
+<br>
+FOR FIXED COEFFICIENTS MODE:
+<pre>trafcorrect m &lt;service&gt; &lt;target port&gt; &lt;coefficient&gt;
+</pre>
+where &lt;service&gt; - one of proxy, socks4, socks45, socks5, tcppm, udppm, pop3p, * matches "any".
+<br> &lt;target port&gt; - target port, * matches any
+<br> &lt;coefficient&gt; - coefficient to multiply traffic for this port.
+<br>
+FOR PACKET HEADER PREDICTION MODE
+<pre>trafcorrect p &lt;service&gt; &lt;tcp/udp&gt; &lt;target port&gt; [empty packet size]
+</pre>
+tcp ot udp - transport level protocol to apply rule
+<br>
+empty packet size - average size of "empty" packet, that is sum of average network/transport headers.
+You can use network sniffer, such is Ethereal to discover it. Usually packet size
+is 42 for UDP and 
+<br>Modes can be mixed.
+<br>Plugin creates a list of rules, first matching rule will be applied.
+</li></ol>
+For any mode plugin approximates traffic, logged or counted amount is not exact.
+<h4>Example:</h4>
+<pre>plugin "TrafficPlugin.dll" start
+trafcorrect m socks5 6112 4.5
+trafcorrect m socks5 * 1.1
+</pre>
+wrong usage:
+<pre>trafcorrect m socks5 * 1.1
+trafcorrect m socks5 6112 4.5
+</pre>
+second rule will never be applied.
+<h4>Download:</h4>
+<ul>
+ <li>Plugin is included into 3proxy 0.6 binary and source distribution
+</li></ul>
+
+©Maslov Michael aka Flexx(rus)
+	
