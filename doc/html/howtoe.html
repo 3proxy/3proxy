@@ -33,6 +33,8 @@
 		<li><A HREF="#BANDLIM">How to limit bandwidth</A>
 		<li><A HREF="#TRAFLIM">How to limit traffic amount</A>
 		<li><A HREF="#NETLIST">How to build network lists</A>
+		<li><a href="#NSCACHING">How to configure name resolution and DNS caching</a>
+		<li><a href="#IPv6">How to use IPv6</a>
 	</ul>
 	<li><A HREF="#CLIENT">Client configuration</A>
 	<li><A HREF="#ADMIN">Administering and information analisys</A>
@@ -738,6 +740,45 @@ In this example we obtain list of local networks from provider's page to
 local.networks file, allow direct access to these networks and redirect all
 connection to external networks to provider's proxy.
 </p>
+  <li><a name="NSCACHING"><i>How to configure name resolution and DNS caching</i></a>
+  <p>
+  For name resolution and caching use commands nserver, nscache / nscache6 and nsrecord.
+  <pre>
+  nserver 192.168.1.2
+  nserver 192.168.1.3:5353/tcp</pre>
+  sets DNS resolvers. 192.168.1.3 will be used via TCP/5353 (instead of default UDP/53)
+  only if 192.168.1.2 fails. Up to 5 nservers may be specified.
+  If no nserver is configured, default system name resolution functions are used.
+  <pre>
+  nscache 65535
+  nscache6 65535</pre>
+  sets name cache size for IPv4 and IPv6. Name cache must be large enouth, if presents.
+  name cache is only used if nserver is configured.
+  <pre>
+  nsrecord server.mycompany.example.com 192.168.1.1
+  nsrecord www.porno.com 127.0.0.2
+  ...
+  deny * * 127.0.0.2</pre>
+  adds static nsrecords. Also, static nsrecords are used for dnspr, unless -s option is specified.
+  Since 0.8 version, parent proxy may be configured for dnspr.
+</p>
+  <li><a name="IPv6"><i>How to use IPv6</i></a>
+  <p>
+  IPv6 is supported since 0.8. Please note, some proxy protolos, e.g. SOCKSv4,
+  do not  support IPv6. SOCKSv5 supports IPv6 with special request type (must be
+  implemented by client).
+  <br>
+  3proxy supports proxying from IPv4 and IPv6 networks to IPv4,
+  IPv6 and mixed networks. IPv6 address may be used in
+  internal, external, parent commands, ACLs, -i and -e options,etc.
+  external command and -e options may be given twice for each service - once with IPv4
+  and once with IPv6 address. internal can be given only once, to bind to all IPv4 and
+  IPv6 addresses use [0:0:0:0:0:0:0:0] or [::]. 
+  <br>
+  Any service may be configured with -4, -46, -64, -6 options to specify decied
+  priority for name to IPv4/IPv6 address resolution (IPv4 only, IPv4 priority,
+  IPv6 priority, IPv6 only).
+  </p>	
 	</ul>
 
 <hr>
