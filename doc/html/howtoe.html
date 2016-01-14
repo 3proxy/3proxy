@@ -34,7 +34,8 @@
 		<li><A HREF="#TRAFLIM">How to limit traffic amount</A>
 		<li><A HREF="#NETLIST">How to build network lists</A>
 		<li><a href="#NSCACHING">How to configure name resolution and DNS caching</a>
-		<li><a href="#IPv6">How to use IPv6</a>
+		<li><a href="#IPV6">How to use IPv6</a>
+		<li><a href="#CONNBACK">How to use connect back</a>
 	</ul>
 	<li><A HREF="#CLIENT">Client configuration</A>
 	<li><A HREF="#ADMIN">Administering and information analisys</A>
@@ -762,7 +763,7 @@ connection to external networks to provider's proxy.
   adds static nsrecords. Also, static nsrecords are used for dnspr, unless -s option is specified.
   Since 0.8 version, parent proxy may be configured for dnspr.
 </p>
-  <li><a name="IPv6"><i>How to use IPv6</i></a>
+  <li><a name="IPV6"><i>How to use IPv6</i></a>
   <p>
   IPv6 is supported since 0.8. Please note, some proxy protolos, e.g. SOCKSv4,
   do not  support IPv6. SOCKSv5 supports IPv6 with special request type (must be
@@ -778,6 +779,26 @@ connection to external networks to provider's proxy.
   Any service may be configured with -4, -46, -64, -6 options to specify decied
   priority for name to IPv4/IPv6 address resolution (IPv4 only, IPv4 priority,
   IPv6 priority, IPv6 only).
+  </p>	
+  <li><a name="CONNBACK"><i>How to use connect back</i></a>
+  <p>
+  In example, users needs access from external network to proxy server located
+  on the host 192.168.1.2. This host can not be accessed from external network,
+  but it has access to external network with with external address 1.1.1.1.
+  Also, user has access to the host 2.2.2.2 (IP address may be dynamic) with
+  hostname host.dyndns.example.org via external network. User needs 2 instances
+  of 3proxy, first one on the host 192.168.1.2 with config
+  <pre>
+  users user:CL:password
+  auth strong
+  allow user
+  proxy -rhost.dyndns.example.org:1234</pre>
+  second one on the host.dyndns.example.org (2.2.2.2) with config
+  <pre>
+  auth iponly
+  allow * * 1.1.1.1
+  tcppm -R0.0.0.0:1234 3128 1.1.1.1 3128</pre>
+  For browser settings proxy is host.dyndns.example.org:3128.
   </p>	
 	</ul>
 
