@@ -113,19 +113,30 @@ view without ability to reset).
 (for dnspr) - simple, do not use 'resolver' and 3proxy cache, always use external DNS server.
 .br
 (for udppm) - singlepacket, expect only one packet from both client and server
+.br
 .B -a
 (for proxy) - anonymous proxy (no information about client reported)
 .br
 .B -a1
 (for proxy) - anonymous proxy (random client information reported)
+.br
 .B -6
 Only resolve IPv6 addresses
+.br
 .B -4
 Only resolve IPv4 addresses
+.br
 .B -46
 Resolve IPv6 addresses if IPv4 address is not resolvable
+.br
 .B -64
 Resolve IPv4 addresses if IPv6 address is not resolvable
+.br
+.B -RHOST:port
+listen on given local HOST:port for incoming connections instead of making remote outgoing connection. Can be used with another 3proxy service running -r option for connect back functionality. Most commonly used with tcppm. HOST can be given as IP or hostname, useful in case of dynamic DNS.
+.br
+.B -rHOST:port
+connect to given remote HOST:port instead of listening local connection on -p or default port. Can be used with another 3proxy service running -R option for connect back functionality. Most commonly used with proxy or socks. HOST can be given as IP or hostname, useful in case of dynamic DNS.
 .br
  Also, all options mentioned for 
 .BR proxy (8)
@@ -157,13 +168,9 @@ proxy on a client with FTP proxy support. Username format is one of
 .br
  proxyuser:proxypassword:FTPuser:FTPpassword@FTPserver
 .br
- Please note, if you use FTP client interface for FTP proxy
-do not add FTPpassword and FTPServer to username, because
-FTP client does it for you. That is, if you use 3proxy with
-authentication use
-proxyuser:proxypassword:FTPuser
-as FTP username, otherwise do not change original FTP user name	
+ Please note, if you use FTP client interface for FTP proxy do not add FTPpassword and FTPServer to username, because FTP client does it for you. That is, if you use 3proxy with authentication use proxyuser:proxypassword:FTPuser as FTP username, otherwise do not change original FTP user name
 
+.br
 .B include
 <path>
 .br
@@ -478,6 +485,7 @@ required in ACL. It's usefull to protect access to some resources with
 password allowing passwordless access to another resources, or to use
 IP-based authentication for dedicated laptops and request username/password for
 shared ones.
+
 .br
 .B authcache
 <cachtype> <cachtime>
@@ -496,6 +504,7 @@ assigned to the same user without actual authentication.
  user,password - both username and password are checked against cached ones.
 .br
 Use auth type 'cache' for cached authentication
+
 .br
 .B allow
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
@@ -573,7 +582,9 @@ Operation is one of:
 Weeksdays are week days numbers or periods (0 or 7 means Sunday, 1 is Monday,
 1-5 means Monday through Friday). Timeperiodlists is a list of time
 periods in HH:MM:SS-HH:MM:SS format. For example, 
- 00:00:00-08:00:00,17:00:00-24:00:00
+.br
+00:00:00-08:00:00,17:00:00-24:00:00
+.br
 lists non-working hours.
 	
 .br
@@ -726,6 +737,7 @@ Weight may be used for different purposes.
 .br
 .B nobandlimin
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+.br
 .B bandlimout
 <rate> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
 .br
@@ -750,7 +762,7 @@ addresses) to 57600 bps you have to specify 4 rules like
 .br
  bandlimin 57600 * 192.168.10.19
 .br
- and every of you clients will have 56K channel.	if you specify
+ and every of you clients will have 56K channel. If you specify
 .br
  bandlimin 57600 * 192.168.10.16/30
 .br
@@ -788,6 +800,8 @@ if proxy restarted all information is loosed) overwise it should be
 unique sequential number.
 Type specifies a type of counter. Type is one of:
 .br
+ H - counter is resetted hourly
+.br
  D - counter is resetted daily
 .br
  W - counter is resetted weekly
@@ -799,7 +813,7 @@ Reporttype is one of D,W,M,H(hourly) and repotname specifies filename
 template for reports. Report is text file with counter values in
 format:
 .br
- <COUNTERNUMBER> <TRAF*4GB> <TRAF>
+ <COUNTERNUMBER> <TRAF>
 .br
  The rest of parameters is identical to bandlim/nobandlim.
 
@@ -823,7 +837,7 @@ example:
 .br
  users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63
 .br
-(note: double quotes are requiered because password contains $ sign).	
+Note: double quotes are requiered because password contains $ sign.	
 
 .br
 .B flush
