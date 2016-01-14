@@ -351,7 +351,7 @@ Sets timeout values
 
 .br
 .B nserver
- <ipaddr>[:port][/tcp]
+<ipaddr>[:port][/tcp]
 .br
 Nameserver to use for name resolutions. If none specified 
 or name server fails system routines for name resolution will be
@@ -457,13 +457,6 @@ AOL screen name as a username)
  dnsname - authentication by DNS hostnname with authorization by ACLs.
 DNS hostname is resolved via PTR (reverse) record and validated (resolved
 name must resolve to same IP address). It's recommended to use authcache by
-ip for this authentication.
-NB: there is no any password check, name may be spoofed.
-.br
- nbname - authentication by NetBIOS name with authorization by ACLs.
-Messanger service should be started on user's machine. Note, that
-Windows 95/98 hosts do not have messanger service by default,
-WinPopup program need to be started. It's recommended to use authcache by
 ip for this authentication.
 NB: there is no any password check, name may be spoofed.
 .br
@@ -579,12 +572,8 @@ Operation is one of:
  ADMIN - access to administration interface
 .br
 
-Weeksdays are week days numbers or periods (0 or 7 means Sunday, 1 is Monday,
-1-5 means Monday through Friday). Timeperiodlists is a list of time
-periods in HH:MM:SS-HH:MM:SS format. For example, 
-.br
-00:00:00-08:00:00,17:00:00-24:00:00
-.br
+Weeksdays are week days numbers or periods (0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday). Timeperiodlists is a list of time
+periods in HH:MM:SS-HH:MM:SS format. For example, 00:00:00-08:00:00,17:00:00-24:00:00
 lists non-working hours.
 	
 .br
@@ -837,7 +826,7 @@ example:
 .br
  users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63
 .br
-Note: double quotes are requiered because password contains $ sign.	
+ Note: double quotes are requiered because password contains $ sign.	
 
 .br
 .B flush
