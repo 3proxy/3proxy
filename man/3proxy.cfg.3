@@ -5,31 +5,33 @@
 .SH DESCRIPTION
  Common structure:
 .br
-Configuration file is a text file 3proxy reads configuration from. Each line
+ Configuration file is a text file 3proxy reads configuration from. Each line
 of the file is a command executed immediately, as it was given from
 console. Sequence of commands is important. Configuration file as actually a
 script for 3proxy executable.
 Each line of the file is treated as a blank (space or tab) separated
 command line. Additional space characters are ignored. 
 Think about 3proxy as "application level router" with console interface.
+
 .br
  Comments:
 .br
-Any string beginning with space character or \'#\' character is comment. It\'s
+ Any string beginning with space character or \'#\' character is comment. It\'s
 ignored. <LF>s are ignored. <CR> is end of command.
 
 .br
  Quotation:
 .br
-Quotation character is " (double quote). Quotation must be used to quote
+ Quotation character is " (double quote). Quotation must be used to quote
 spaces or another special characters. To use quotation character inside
 quotation character must be dubbed (BASIC convention). For example to use
 HELLO "WORLD" as an argument you should use it as "HELLO ""WORLD"""\.
 Good practice is to quote any argument you use.
+
 .br
  File inclusion:
 .br
-You can include file by using $FILENAME macro (replace FILENAME with a path
+ You can include file by using $FILENAME macro (replace FILENAME with a path
 to file, for example $/usr/local/etc/3proxy/conf.incl or 
  $"c:\\Program Files\\3proxy\\include.cfg" Quotation is
 required in last example because path contains space character. 
@@ -39,8 +41,11 @@ Thus, include files are only useful to store long signle-line commands
 (like userlist, network lists, etc).
 To use dollar sign somewhere in argument it must be quoted. 
 Recursion is not allowed.
+
 .br
  Next commands start gateway services:
+.br
+
 .br
 .B   proxy
 [options]
@@ -174,18 +179,18 @@ proxy on a client with FTP proxy support. Username format is one of
 .B include
 <path>
 .br
-Include config file
+ Include config file
 
 .br
 .B config
 <path>
 .br
-Path to configuration file to use on 3proxy restart or to save configuration.
+ Path to configuration file to use on 3proxy restart or to save configuration.
 
 .br
 .B writable
 .br
-ReOpens configuration file for write access via Web interface,
+ ReOpens configuration file for write access via Web interface,
 and re-reads it. Usually should be first command on config file
 but in combination with "config" it can be used anywhere to open
 alternate config file. Think twice before using it.
@@ -193,13 +198,13 @@ alternate config file. Think twice before using it.
 .br
 .B end
 .br
-End of configuration
+ End of configuration
 
 .br
 .B log
 [[@|&]logfile] [<LOGTYPE>]
 .br
-sets logfile for all gateways
+ sets logfile for all gateways
 .br
  @ - (for Unix) use syslog, filename is used as ident name
 .br
@@ -215,10 +220,10 @@ sets logfile for all gateways
 .br
   H - Hourly
 .br
-if logfile is not specified logging goes to stdout. You can specify individual logging options for gateway by using
+ if logfile is not specified logging goes to stdout. You can specify individual logging options for gateway by using
 -l option in gateway configuration.
 .br
-"log" command supports same format specifications for filename template
+ "log" command supports same format specifications for filename template
 as "logformat" (if filename contains '%' sign it's believed to be template).
 As with "logformat" filename must begin with 'L' or 'G' to specify Local or
 Grinwitch time zone for all time-based format specificators.
@@ -226,13 +231,13 @@ Grinwitch time zone for all time-based format specificators.
 .br
 .B rotate
 <n>
-how many archived log files to keep
+ how many archived log files to keep
 
 .br
 .B logformat
 <format>
-
-Format for log record. First symbol in format must be L (local time)
+.br
+ Format for log record. First symbol in format must be L (local time)
 or G (absolute Grinwitch time). 
 It can be preceeded with -XXX+Y where XXX is list of characters to be
 filtered in user input (any non-printable characters are filtered too
@@ -240,72 +245,72 @@ in this case) and Y is replacement character. For example, "-,%+ L" in
 the beginning of logformat means comma and percent are replaced
 with space and all time based elemnts are in local time zone.
 .br
-You can use:
+ You can use:
 
 .br
- %y - Year in 2 digit format
+  %y - Year in 2 digit format
 .br
- %Y - Year in 4 digit format
+  %Y - Year in 4 digit format
 .br
- %m - Month number
+  %m - Month number
 .br
- %o - Month abbriviature
+  %o - Month abbriviature
 .br
- %d - Day
+  %d - Day
 .br
- %H - Hour
+  %H - Hour
 .br
- %M - Minute
+  %M - Minute
 .br
- %S - Second
+  %S - Second
 .br
- %t - Timstamp (in seconds since 01-Jan-1970)
+  %t - Timstamp (in seconds since 01-Jan-1970)
 .br
- %. - milliseconds
+  %. - milliseconds
 .br
- %z - timeZone (from Grinvitch)
+  %z - timeZone (from Grinvitch)
 .br
- %D - request duration (in milliseconds)
+  %D - request duration (in milliseconds)
 .br
- %b - average send rate per request (in Bytes per second) this speed is typically below connection speed shown by download manager.
+  %b - average send rate per request (in Bytes per second) this speed is typically below connection speed shown by download manager.
 .br
- %B - average receive rate per request (in Bytes per second) this speed is typically below connection speed shown by download manager.
+  %B - average receive rate per request (in Bytes per second) this speed is typically below connection speed shown by download manager.
 .br
- %U - Username
+  %U - Username
 .br
- %N - service Name
+  %N - service Name
 .br
- %p - service Port
+  %p - service Port
 .br
- %E - Error code
+  %E - Error code
 .br
- %C - Client IP
+  %C - Client IP
 .br
- %c - Client port
+  %c - Client port
 .br
- %R - Remote IP
+  %R - Remote IP
 .br
- %r - Remote port
+  %r - Remote port
 .br
- %e - External IP used to establish connection
+  %e - External IP used to establish connection
 .br
- %Q - Requested IP
+  %Q - Requested IP
 .br
- %q - Requested port
+  %q - Requested port
 .br
- %n - requested hostname
+  %n - requested hostname
 .br
- %I - bytes In
+  %I - bytes In
 .br
- %O - bytes Out
+  %O - bytes Out
 .br
- %h - Hops (redirections) count
+  %h - Hops (redirections) count
 .br
- %T - service specific Text
+  %T - service specific Text
 .br
- %N1-N2T - (N1 and N2 are positive numbers) - log only fields from N1 thorugh N2 of service specific text
+  %N1-N2T - (N1 and N2 are positive numbers) - log only fields from N1 thorugh N2 of service specific text
 .br
-in case of ODBC logging logformat specifies SQL statement, for exmample:
+ in case of ODBC logging logformat specifies SQL statement, for exmample:
 .br
    logformat "-'+_Linsert into log (l_date, l_user, l_service, l_in, l_out, l_descr) values ('%d-%m-%Y %H:%M:%S', '%U', '%N', %I, %O, '%T')"
 
@@ -313,7 +318,7 @@ in case of ODBC logging logformat specifies SQL statement, for exmample:
 .B logdump
 <in_traffic_limit> <out_traffic_limit>
 .br
-Immediately creates additional log records if given amount of incoming/outgoing
+ Immediately creates additional log records if given amount of incoming/outgoing
 traffic is achieved for connection, without waiting for connection to finish.
 It may be useful to prevent information about long-lasting downloads on server
 shutdown.
@@ -322,7 +327,7 @@ shutdown.
 .B archiver
 <ext> <commandline>
 .br
-Archiver to use for log files. <ext> is file extension produced by
+ Archiver to use for log files. <ext> is file extension produced by
 archiver. Filename will be last argument to archiver, optionally you
 can use %A as produced archive name and %F as filename.
 
@@ -330,23 +335,23 @@ can use %A as produced archive name and %F as filename.
 .B timeouts
 <BYTE_SHORT> <BYTE_LONG> <STRING_SHORT> <STRING_LONG> <CONNECTION_SHORT> <CONNECTION_LONG> <DNS> <CHAIN>
 .br
-Sets timeout values
+ Sets timeout values
 .br
- BYTE_SHORT - short timeout for single byte, is usually used for receiving single byte from stream.
+  BYTE_SHORT - short timeout for single byte, is usually used for receiving single byte from stream.
 .br
- BYTE_LONG - long timeout for single byte, is usually used for receiving first byte in frame (for example first byte in socks request).
+  BYTE_LONG - long timeout for single byte, is usually used for receiving first byte in frame (for example first byte in socks request).
 .br
- STRING_SHORT - short timeout, for character string within stream (for example to wait between 2 HTTP headers)
+  STRING_SHORT - short timeout, for character string within stream (for example to wait between 2 HTTP headers)
 .br
- STRING_LONG - long timeout, for first string in stream (for example to wait for HTTP request).
+  STRING_LONG - long timeout, for first string in stream (for example to wait for HTTP request).
 .br
- CONNECTION_SHORT - inactivity timeout for short connections (HTTP, POP3, etc).
+  CONNECTION_SHORT - inactivity timeout for short connections (HTTP, POP3, etc).
 .br
- CONNECTION_LONG - inactivity timeout for long connection (SOCKS, portmappers, etc).
+  CONNECTION_LONG - inactivity timeout for long connection (SOCKS, portmappers, etc).
 .br
- DNS - timeout for DNS request before requesting next server
+  DNS - timeout for DNS request before requesting next server
 .br
- CHAIN - timeout for reading data from chained connection
+  CHAIN - timeout for reading data from chained connection
 .br
 
 .br
@@ -366,16 +371,15 @@ performed over TCP.
 .B nscache6
 <cachesize>
 .br
-
-Cache <cachesize> records for name resolution (nscache for IPv4,
+ Cache <cachesize> records for name resolution (nscache for IPv4,
 nscache6 for IPv6). Cachesize usually should be large enougth
 (for example 65536).
 
 .br
 .B nsrecord
 <hostname> <hostaddr>
-.BR
-Adds static record to nscache. nscache must be enabled. If 0.0.0.0
+.br
+ Adds static record to nscache. nscache must be enabled. If 0.0.0.0
 is used as a hostaddr host will never resolve, it can be used to
 blacklist something or together with 
 .B dialer
@@ -383,15 +387,15 @@ command to set up UDL for dialing.
 
 .br
 .B fakeresolve
-.BR
-All names are resolved to 127.0.0.2 address. Usefull if all requests are
+.br
+ All names are resolved to 127.0.0.2 address. Usefull if all requests are
 redirected to parent proxy with http, socks4+, connect+ or socks5+.
 
 .br
 .B dialer
 <progname>
 .br
-Execute progname if external name can't be resolved.
+ Execute progname if external name can't be resolved.
 Hint: if you use nscache, dialer may not work, because names will
 be resolved through cache. In this case you can use something like
 http://dial.right.now/ from browser to set up connection.
@@ -401,7 +405,7 @@ http://dial.right.now/ from browser to set up connection.
 .B internal
 <ipaddr>
 .br
-sets ip address of internal interface. This IP address will be used
+ sets ip address of internal interface. This IP address will be used
 to bind gateways. Alternatively you can use -i option for individual
 gateways. Since 0.8 version, IPv6 address may be used.
 
@@ -409,7 +413,7 @@ gateways. Since 0.8 version, IPv6 address may be used.
 .B external
 <ipaddr>
 .br
-sets ip address of external interface. This IP address will be source
+ sets ip address of external interface. This IP address will be source
 address for all connections made by proxy. Alternatively you can use
 -e option to specify individual address for gateway. Since 0.8 version
 External or -e can be given twice: once with IPv4 and once with IPv6 address.
@@ -418,13 +422,13 @@ External or -e can be given twice: once with IPv4 and once with IPv6 address.
 .B maxconn
 <number>
 .br
-sets maximum number of simulationeous connections to each services
+ sets maximum number of simulationeous connections to each services
 started after this command. Default is 100.
 
 .br
 .B service
 .br
-(depricated). Indicates 3proxy to behave as Windows 95/98/NT/2000/XP
+ (depricated). Indicates 3proxy to behave as Windows 95/98/NT/2000/XP
 service, no effect for Unix. Not required for 3proxy 0.6 and above. If
 you upgraded from previous version of 3proxy use --remove and --install
 to reinstall service.
@@ -432,7 +436,7 @@ to reinstall service.
 .br
 .B daemon
 .br
-Should be specified to close console. Do not use 'daemon' with 'service'.
+ Should be specified to close console. Do not use 'daemon' with 'service'.
 At least under FreeBSD 'daemon' should preceed any proxy service
 and log commands to avoid sockets problem. Always place it in the beginning
 of the configuration file.
@@ -441,38 +445,39 @@ of the configuration file.
 .B auth
 <authtype> [...]
 .br
-Type of user authorization. Currently supported:
+ Type of user authorization. Currently supported:
 .br
- none - no authentication or authorization required.
+  none - no authentication or authorization required.
+.br
  Note: is auth is none any ip based limitation, redirection, etc will not work. 
- This is default authentication type
+This is default authentication type
 .br
- iponly - authentication by access control list with username ignored.
+  iponly - authentication by access control list with username ignored.
  Appropriate for most cases
 .br
- useronly - authentication by username without checking for any password with
+  useronly - authentication by username without checking for any password with
 authorization by ACLs. Useful for e.g. SOCKSv4 proxy and icqpr (icqpr set UIN /
 AOL screen name as a username)
 .br
- dnsname - authentication by DNS hostnname with authorization by ACLs.
+  dnsname - authentication by DNS hostnname with authorization by ACLs.
 DNS hostname is resolved via PTR (reverse) record and validated (resolved
 name must resolve to same IP address). It's recommended to use authcache by
 ip for this authentication.
 NB: there is no any password check, name may be spoofed.
 .br
- strong - username/password authentication required. It will work with
+  strong - username/password authentication required. It will work with
 SOCKSv5, FTP, POP3 and HTTP proxy. 
 .br
- cache - cached authentication, may be used with 'authcache'.
+  cache - cached authentication, may be used with 'authcache'.
 .br
-Plugins may add additional authentication types.
+ Plugins may add additional authentication types.
 .br
 
  It's possible to use few authentication types in the same commands. E.g.
 .br
 auth iponly strong
 .br
-In this case 'strong' authentication will be used only in case resource
+ In this case 'strong' authentication will be used only in case resource
 access can not be performed with 'iponly' authentication, that is username is
 required in ACL. It's usefull to protect access to some resources with
 password allowing passwordless access to another resources, or to use
@@ -483,18 +488,18 @@ shared ones.
 .B authcache
 <cachtype> <cachtime>
 .br
-Cache authentication information to given amount of time (cachetime) in seconds.
+ Cache authentication information to given amount of time (cachetime) in seconds.
 Cahtype is one of:
 .br
- ip - after successful authentication all connections during caching time
+  ip - after successful authentication all connections during caching time
 from same IP are assigned to the same user, username is not requested.
 .br
- ip,user username is requested and all connections from the same IP are
+  ip,user username is requested and all connections from the same IP are
 assigned to the same user without actual authentication.
 .br
- user - same as above, but IP is not checked. 
+  user - same as above, but IP is not checked. 
 .br
- user,password - both username and password are checked against cached ones.
+  user,password - both username and password are checked against cached ones.
 .br
 Use auth type 'cache' for cached authentication
 
@@ -507,7 +512,7 @@ Use auth type 'cache' for cached authentication
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
 <weekdayslist> <timeperiodslist>
 .br
-Access control entries. All lists are comma-separated, no spaces are
+ Access control entries. All lists are comma-separated, no spaces are
 allowed. Usernames are case sensitive (if used with authtype nbname
 username must be in uppercase). Source and target lists may contain
 IP addresses (W.X.Y.Z), ranges A.B.C.D - W.X.Y.Z (since 0.8) or CIDRs
@@ -534,53 +539,51 @@ to appropriate interface only or to use ip filters.
 
 Operation is one of:
 .br
- CONNECT - establish outgoing TCP connection
+  CONNECT - establish outgoing TCP connection
 .br
- BIND - bind TCP port for listening
+  BIND - bind TCP port for listening
 .br
- UDPASSOC - make UDP association
+  UDPASSOC - make UDP association
 .br
- ICMPASSOC - make ICMP association (for future use)
+  ICMPASSOC - make ICMP association (for future use)
 .br
- HTTP_GET - HTTP GET request
+  HTTP_GET - HTTP GET request
 .br
- HTTP_PUT - HTTP PUT request
+  HTTP_PUT - HTTP PUT request
 .br
- HTTP_POST - HTTP POST request
+  HTTP_POST - HTTP POST request
 .br
- HTTP_HEAD - HTTP HEAD request
+  HTTP_HEAD - HTTP HEAD request
 .br
- HTTP_CONNECT - HTTP CONNECT request
+  HTTP_CONNECT - HTTP CONNECT request
 .br
- HTTP_OTHER - over HTTP request
+  HTTP_OTHER - over HTTP request
 .br
- HTTP - matches any HTTP request except HTTP_CONNECT
+  HTTP - matches any HTTP request except HTTP_CONNECT
 .br
- HTTPS - same as HTTP_CONNECT
+  HTTPS - same as HTTP_CONNECT
 .br
- FTP_GET - FTP get request
+  FTP_GET - FTP get request
 .br
- FTP_PUT - FTP put request
+  FTP_PUT - FTP put request
 .br
- FTP_LIST - FTP list request
+  FTP_LIST - FTP list request
 .br
- FTP_DATA - FTP data connection. Note: FTP_DATA requires access to dynamic
+  FTP_DATA - FTP data connection. Note: FTP_DATA requires access to dynamic
  non-ptivileged (1024-65535) ports on remote side.
 .br
- FTP - matches any FTP/FTP Data request
+  FTP - matches any FTP/FTP Data request
 .br
- ADMIN - access to administration interface
+  ADMIN - access to administration interface
 .br
-
-Weeksdays are week days numbers or periods (0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday). Timeperiodlists is a list of time
-periods in HH:MM:SS-HH:MM:SS format. For example, 00:00:00-08:00:00,17:00:00-24:00:00
-lists non-working hours.
+ Weeksdays are week days numbers or periods, 0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday. Timeperiodlists is a list of time
+periods in HH:MM:SS-HH:MM:SS format. For example, 00:00:00-08:00:00,17:00:00-24:00:00 lists non-working hours.
 	
 .br
 .B parent
 <weight> <type> <ip> <port> <username> <password>
 .br
-this command must follow "allow" rule. It extends last allow rule to
+ this command must follow "allow" rule. It extends last allow rule to
 build proxy chain. Proxies may be grouped. Proxy inside the
 group is selected randomly. If few groups are specified one proxy
 is randomly picked from each group and chain of proxies is created
@@ -615,38 +618,38 @@ with probability of 0.7) for outgoing web connections.
 .br
  type is one of:
 .br
- tcp - simply redirect connection. TCP is always last in chain.
+  tcp - simply redirect connection. TCP is always last in chain.
 .br
- http - redirect to HTTP proxy. HTTP is always last chain.
+  http - redirect to HTTP proxy. HTTP is always last chain.
 .br
- pop3 - redirect to POP3 proxy (only local redirection is supported, can not be
+  pop3 - redirect to POP3 proxy (only local redirection is supported, can not be
 used for chaining)
 .br
- ftp - redirect to FTP proxy (only local redirection is supported, can not be
+  ftp - redirect to FTP proxy (only local redirection is supported, can not be
 used for chaining)
 .br
- connect - parent is HTTP CONNECT method proxy
+  connect - parent is HTTP CONNECT method proxy
 .br
- connect+ - parent is HTTP CONNECT proxy with name resolution
+  connect+ - parent is HTTP CONNECT proxy with name resolution
 .br
- socks4 - parent is SOCKSv4 proxy
+  socks4 - parent is SOCKSv4 proxy
 .br
- socks4+ - parent is SOCKSv4 proxy with name resolution (SOCKSv4a)
+  socks4+ - parent is SOCKSv4 proxy with name resolution (SOCKSv4a)
 .br
- socks5 - parent is SOCKSv5 proxy
+  socks5 - parent is SOCKSv5 proxy
 .br
- socks5+ - parent is SOCKSv5 proxy with name resolution
+  socks5+ - parent is SOCKSv5 proxy with name resolution
 .br
- socks4b - parent is SOCKS4b (broken SOCKSv4 implementation with shortened
+  socks4b - parent is SOCKS4b (broken SOCKSv4 implementation with shortened
 server reply. I never saw this kind ofservers byt they say there are).
 Normally you should not use this option. Do not mess this option with
 SOCKSv4a (socks4+).
 .br
- socks5b - parent is SOCKS5b (broken SOCKSv5 implementation with shortened
+  socks5b - parent is SOCKS5b (broken SOCKSv5 implementation with shortened
 server reply. I think you will never find it useful). Never use this option
 unless you know exactly you need it.
 .br
- admin - redirect request to local 'admin' service (with -s parameter).
+  admin - redirect request to local 'admin' service (with -s parameter).
 .br
  Use "+" proxy only with "fakeresolve" option
 .br
@@ -687,14 +690,14 @@ example:
 .br
  socks
 .br
-redirects all SOCKS requests with target port 80 to local HTTP proxy,
+ redirects all SOCKS requests with target port 80 to local HTTP proxy,
 local HTTP proxy parses requests and allows only GET and POST requests.
 .br
  parent 1000 http 1.2.3.4 0
 .br
-Changes external address for given connection to 1.2.3.4
+ Changes external address for given connection to 1.2.3.4
 (an equivalent to -e1.2.3.4)
-
+.br
  Optional username and password are used to authenticate on parent
 proxy. Username of '*' means username must be supplied by user.
 
@@ -702,7 +705,8 @@ proxy. Username of '*' means username must be supplied by user.
 .br
 .B nolog
 <n>
-extends last allow or deny command to prevent logging, e.g.
+.br
+ extends last allow or deny command to prevent logging, e.g.
 .br
 allow * * 192.168.1.1
 .br
@@ -712,13 +716,14 @@ nolog
 .br
 .B weight
 <n>
-extends last allow or deny command to set weight for this request
 .br
-allow * * 192.168.1.1
+ extends last allow or deny command to set weight for this request
 .br
-weight 100
+ allow * * 192.168.1.1
 .br
-Weight may be used for different purposes.
+ weight 100
+.br
+ Weight may be used for different purposes.
 
 .br
 .B bandlimin
@@ -810,17 +815,17 @@ format:
 .B users
 username[:pwtype:password] ...
 .br
-pwtype is one of:
+ pwtype is one of:
 .br
- none (empty) - use system authentication
+  none (empty) - use system authentication
 .br
- CL - password is cleartext
+  CL - password is cleartext
 .br
- CR - password is crypt-style password
+  CR - password is crypt-style password
 .br
- NT - password is NT password (in hex)
+  NT - password is NT password (in hex)
 .br
-example:
+ example:
 .br
  users test1:CL:password1 "test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49."
 .br
@@ -831,7 +836,7 @@ example:
 .br
 .B flush
 .br
-empty active access list. Access list must be flushed avery time you creating
+ empty active access list. Access list must be flushed avery time you creating
 new access list for new service. For example:
 .br
  allow *
@@ -844,35 +849,36 @@ new access list for new service. For example:
 .br
  socks
 .br
-sets different ACLs for
+ sets different ACLs for
 .B pop3p
 and
 .B socks
 
 .br
 .B system
+<command>
 .br
-execute system command
+ execute system command
 
 .br
 .B pidfile
 <filename>
 .br
-write pid of current process to file. It can be used to manipulate
+ write pid of current process to file. It can be used to manipulate
 3proxy with signals under Unix. Currently next signals are available:
 
 .br
 .B monitor
 <filename>
 .br
-If file monitored changes in modification time or size, 3proxy reloads
+ If file monitored changes in modification time or size, 3proxy reloads
 configuration within one minute. Any number of files may be monitored.
 
 .br
 .B setuid
 <uid>
 .br
-calls setuid(uid), uid must be numeric. Unix only. Warning: under some Linux
+ calls setuid(uid), uid must be numeric. Unix only. Warning: under some Linux
 kernels setuid() works onle for current thread. It makes it impossible to suid
 for all threads.
 
@@ -880,31 +886,31 @@ for all threads.
 .B setgid
 <gid>
 .br
-calls setgid(gid), gid must be numeric. Unix only.
+ calls setgid(gid), gid must be numeric. Unix only.
 
 .br
 .B chroot
 <path>
 .br
-calls chroot(path). Unix only.
+ calls chroot(path). Unix only.
 .SH PLUGINS
 
 .br
 .B plugin
 <path_to_shared_library> <function_to_call> [<arg1> ...]
 .br
-Loads specified library and calls given export function with given arguments,
+ Loads specified library and calls given export function with given arguments,
 as 
 .br
-int functions_to_call(struct pluginlink * pl, int argc, char * argv[]);
+ int functions_to_call(struct pluginlink * pl, int argc, char * argv[]);
 .br
-function_to_call must return 0 in case of success, value > 0 to indicate error.
+ function_to_call must return 0 in case of success, value > 0 to indicate error.
 
 .br
 .B filtermaxsize
 <max_size_of_data_to_filter>
 .br
-If Content-length (or another data length) is greater than given value, no
+ If Content-length (or another data length) is greater than given value, no
 data filtering will be performed thorugh filtering plugins to avoid data
 corruption and/or Content-Length chaging. Default is 1MB (1048576).
 
