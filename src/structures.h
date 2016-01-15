@@ -366,7 +366,7 @@ struct srvparam {
 	int version;
 	int singlepacket;
 	int usentlm;
-	int nouser;
+	int needuser;
 	int silent;
 	int transparent;
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;

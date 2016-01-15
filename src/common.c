@@ -262,7 +262,7 @@ int parseusername(char *username, struct clientparam *param, int extpasswd){
 	char *sb = NULL, *se = NULL, *sp = NULL;
 
 	if(!username || !*username) return 1;
-	if(!param->srv->nouser && (sb = strchr(username, ':')) && (se = strchr(sb + 1, ':')) && (!extpasswd || (sp = strchr(se + 1, ':')))){
+	if(param->srv->needuser && (sb = strchr(username, ':')) && (se = strchr(sb + 1, ':')) && (!extpasswd || (sp = strchr(se + 1, ':')))){
 		*sb = 0;
 		*se = 0;
 		if(sp) *sp = 0;

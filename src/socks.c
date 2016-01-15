@@ -48,13 +48,14 @@ void * sockschild(struct clientparam* param) {
 	 if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);} /* nmethods */
 	 for (; i; i--) {
 		if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
-		if (res == 2 && !param->srv->nouser) {
+		if (res == 2 && param->srv->needuser) {
 			havepass = res;
 		}
 	 }
 	 buf[0] = 5;
-	 buf[1] = havepass;
+	 buf[1] = (param->srv->needuser > 1 && !havepass)? 255 : havepass;
 	 if(socksend(param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(401);}
+	 if (param->srv->needuser > 1 && !havepass) RETURN(4);
 	 if (havepass) {
 		if (((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_L], 0))) != 1) {
 			RETURN(412);
@@ -150,7 +151,7 @@ void * sockschild(struct clientparam* param) {
  else {
 	sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]);
 	buf[127] = 0;
-	if(!param->srv->nouser && *buf && !param->username)param->username = (unsigned char *)mystrdup((char *)buf);
+	if(param->srv->needuser && *buf && !param->username)param->username = (unsigned char *)mystrdup((char *)buf);
 	if(!memcmp(SAADDR(&param->req), "\0\0\0", 3)){
 		param->service = S_SOCKS45;
 		sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]);

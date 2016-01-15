@@ -119,11 +119,20 @@ view without ability to reset).
 .br
 (for udppm) - singlepacket, expect only one packet from both client and server
 .br
+.B -u
+Never ask for username/password
+.br
+.B -u2
+(socks) require username/password in authentication methods
+.br
 .B -a
 (for proxy) - anonymous proxy (no information about client reported)
 .br
 .B -a1
 (for proxy) - anonymous proxy (random client information reported)
+.br
+.B -a2
+(for proxy) - generate Via: and X-Forwared-For: instead of Forwarded:
 .br
 .B -6
 Only resolve IPv6 addresses
@@ -570,7 +579,7 @@ Operation is one of:
   FTP_LIST - FTP list request
 .br
   FTP_DATA - FTP data connection. Note: FTP_DATA requires access to dynamic
- non-ptivileged (1024-65535) ports on remote side.
+non-ptivileged (1024-65535) ports on remote side.
 .br
   FTP - matches any FTP/FTP Data request
 .br
