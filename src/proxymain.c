@@ -289,7 +289,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case 'u':
 			srv.needuser = 0;
-			if(*(argv[i] + 2)) needuser = atoi(argv[i] + 2);
+			if(*(argv[i] + 2)) srv.needuser = atoi(argv[i] + 2);
 			break;
 		 case 'T':
 			srv.transparent = 1;
