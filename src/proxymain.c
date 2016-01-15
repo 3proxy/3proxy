@@ -119,6 +119,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -d go to background (daemon)\n"
 #else
 	" -u never ask for username\n"
+	" -u2 always ask for username\n"
 #endif
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
@@ -195,7 +196,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	conf.services = conf.services->prev = &srv;
  }
 #else
- srv.nouser = 1;
+ srv.needuser = 0;
 #endif
 
  for (i=1; i<argc; i++) {
@@ -287,7 +288,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			iscbl = 1;
 			break;
 		 case 'u':
-			srv.nouser = 1;
+			srv.needuser = 0;
+			if(*(argv[i] + 2)) needuser = atoi(argv[i] + 2);
 			break;
 		 case 'T':
 			srv.transparent = 1;
@@ -672,6 +674,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->logdumpsrv = conf.logdumpsrv;
  srv->logdumpcli = conf.logdumpcli;
  srv->cbsock = INVALID_SOCKET; 
+ srv->needuser = 1;
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;

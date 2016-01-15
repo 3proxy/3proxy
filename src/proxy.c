@@ -1072,7 +1072,7 @@ CLEANRET:
 	else if(param->res >=30 && param->res < 80) {
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[5], (int)strlen(proxy_stringtable[5]), conf.timeouts[STRING_S]);
 	}
-	else if(param->res == 1 || (param->srv->nouser && param->res < 10)) {
+	else if(param->res == 1 || (!param->srv->needuser && param->res < 10)) {
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[11], (int)strlen(proxy_stringtable[11]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res < 10) {
