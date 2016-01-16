@@ -1113,7 +1113,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			continue;
 		}
 		if(param) param->statscli64 += len;
-		len = sockrecvfrom(sock, sinsr, buf, 4096, 15000);
+		len = sockrecvfrom(sock, sinsr, buf, 4096, conf.timeouts[DNS_TO]*1000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
 		if(len <= 13) {
@@ -1125,7 +1125,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			us = ntohs(*(unsigned short*)buf);
 			len-=2;
 			buf+=2;
-			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, sinsr, buf+len, us-len, 15000) != us-len)) {
+			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, sinsr, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
 				continue;
 			}
 		}

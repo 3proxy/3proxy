@@ -158,7 +158,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	param->statscli64 += i;
 	param->nwrites++;
-	len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, buf, BUFSIZE, 15000);
+	len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, buf, BUFSIZE, conf.timeouts[DNS_TO]*1000);
 	if(len <= 13) {
 		RETURN(821);
 	}
