@@ -323,11 +323,13 @@ int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
 	unsigned char *ip, *ipf, *ipt;
 
 
+	if(!sa || ! ipentry || *SAFAMILY(sa) != ipentry->family) return 0;
+
 	ip = (unsigned char *)SAADDR(sa);
 	ipf = (unsigned char *)&ipentry->ip_from;
 	ipt = (unsigned char *)&ipentry->ip_to;
 
-	if(!sa || ! ipentry || *SAFAMILY(sa) != ipentry->family) return 0;
+
 	addrlen = SAADDRLEN(sa);
 	
 	if(memcmp(ip,ipf,addrlen) < 0 || memcmp(ip,ipt,addrlen) > 0) return 0;
@@ -353,7 +355,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 		}
 	 if(!ipentry) return 0;
 	}
-	if((acentry->dst && SAISNULL(&param->req)) || (acentry->dstnames && param->hostname)) {
+	if((acentry->dst && !SAISNULL(&param->req)) || (acentry->dstnames && param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
 		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
