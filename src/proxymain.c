@@ -444,7 +444,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 	}
 	size = sizeof(srv.intsa);
-	for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&srv.intsa, size)==-1; usleep(sleeptime)) {
+	for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&srv.intsa, SASIZE(&srv.intsa))==-1; usleep(sleeptime)) {
 		sprintf((char *)buf, "bind(): %s", strerror(errno));
 		if(!srv.silent)(*srv.logfunc)(&defparam, buf);	
 		sleeptime = (sleeptime<<1);	
@@ -481,7 +481,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
 #endif
 
-	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, sizeof(cbsa))==-1) {
+	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 		(*srv.logfunc)(&defparam, "Failed to bind connect back socket");
 		return -7;
 	}

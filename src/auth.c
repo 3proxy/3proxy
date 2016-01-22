@@ -1061,7 +1061,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			*SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
 		}
 		if((sock=so._socket(SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
-		if(so._bind(sock,sinsl,sizeof(addr))){
+		if(so._bind(sock,sinsl,SASIZE(sinsl))){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			break;
