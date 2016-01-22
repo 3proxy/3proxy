@@ -668,9 +668,9 @@ int doconnect(struct clientparam * param){
 #endif
 		memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
 	if (param->srv->targetport && !*SAPORT(&param->sinsl) && ntohs(*SAPORT(&param->sincr)) > 1023) *SAPORT(&param->sinsl) = *SAPORT(&param->sincr);
-	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
+	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		*SAPORT(&param->sinsl) = 0;
-		if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, sizeof(param->sinsl))==-1) {
+		if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 			return 12;
 		}
 	}

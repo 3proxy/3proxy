@@ -48,7 +48,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	ioctlsocket(param->clisock, FIONBIO, &ul);
 	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
-	if(so._bind(param->clisock,(struct sockaddr *)&param->sincl,sizeof(param->sincl))) {
+	if(so._bind(param->clisock,(struct sockaddr *)&param->sincl,SASIZE(&param->sincl))) {
 		RETURN(822);
 	}
 
@@ -135,7 +135,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	memset(&param->sinsl, 0, sizeof(param->sinsl));
 	*SAFAMILY(&param->sinsl) = *SAFAMILY(&nservers[0].addr);
-	if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,sizeof(param->sinsl))) {
+	if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		RETURN(819);
 	}
 	memcpy(&param->sinsr, &nservers[0].addr, sizeof(param->sinsr));

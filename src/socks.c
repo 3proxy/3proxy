@@ -206,7 +206,7 @@ fflush(stderr);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 		memcpy(&sin, &param->sincl, sizeof(&sin));
 		*SAPORT(&sin) = 0;
-		if(so._bind(param->clisock,(struct sockaddr *)&sin,sizeof(sin))) {RETURN (12);}
+		if(so._bind(param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}
 #if SOCKSTRACE > 0
 fprintf(stderr, "%hu binded to communicate with client\n",
 			ntohs(*SAPORT(&sin))
