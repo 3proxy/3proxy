@@ -300,6 +300,7 @@ for(;;){
 
  if ((sb=(unsigned char *)(unsigned char *)strchr((char *)buf, ' ')) == NULL) {RETURN(512);}
  ss = ++sb;
+ param->transparent = 0;
  if(!isconnect) {
 	if (!strncasecmp((char *)sb, "http://", 7)) {
 		sb += 7;
