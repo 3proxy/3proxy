@@ -648,7 +648,6 @@ int doconnect(struct clientparam * param){
  }
  else {
 	struct linger lg = {1,conf.timeouts[SINGLEBYTE_S]};
-	int opt = 1;
 
 	if(SAISNULL(&param->sinsr)){
 		if(SAISNULL(&param->req)) {
@@ -660,26 +659,38 @@ int doconnect(struct clientparam * param){
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
 	if ((param->remsock=so._socket(SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
 	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
-	so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+#ifdef REUSE
+	{
+		int opt;
+
+#ifdef SO_REUSEADDR
+		opt = 1;
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+#endif
+#ifdef SO_REUSEPORT
+		opt = 1;
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+#endif
+	}
+#endif
 
 #ifndef NOIPV6
 	if(*SAFAMILY(&param->sinsr) == AF_INET6) memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
 	else
 #endif
 		memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
-	if (param->srv->targetport && !*SAPORT(&param->sinsl) && ntohs(*SAPORT(&param->sincr)) > 1023) *SAPORT(&param->sinsl) = *SAPORT(&param->sincr);
+	*SAPORT(&param->sinsl) = 0;
 	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
-		*SAPORT(&param->sinsl) = 0;
-		if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
-			return 12;
-		}
+		return 12;
 	}
 	
 	if(param->operation >= 256 || (param->operation & CONNECT)){
 #ifdef _WIN32
 		unsigned long ul = 1;
 #endif
-		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,sizeof(param->sinsr))) {return (13);}
+		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,sizeof(param->sinsr))) {
+			return (13);
+		}
 		param->nconnects++;
 #ifdef _WIN32
 		ioctlsocket(param->remsock, FIONBIO, &ul);
