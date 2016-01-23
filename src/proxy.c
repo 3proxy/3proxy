@@ -293,6 +293,7 @@ for(;;){
 	RETURN(511);
  }
  if(buf[i-3] == '1') keepalive = 2; 
+ param->transparent = 0;
  if((isconnect = !strncasecmp((char *)buf, "CONNECT", 7))) keepalive = 2;
 
  if ((sb=(unsigned char *)(unsigned char *)strchr((char *)buf, ' ')) == NULL) {RETURN(512);}

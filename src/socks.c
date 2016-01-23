@@ -179,6 +179,20 @@ void * sockschild(struct clientparam* param) {
 #endif
 	 if ((param->remsock=so._socket(SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;
+#ifdef REUSE
+	if (command == 2){
+		int opt;
+
+#ifdef SO_REUSEADDR
+		opt = 1;
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+#endif
+#ifdef SO_REUSEPORT
+		opt = 1;
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+#endif
+	}
+#endif
 	 break;
 
 	default:
