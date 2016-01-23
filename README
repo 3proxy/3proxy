@@ -47,7 +47,7 @@ Please read doc/html/index.html and man pages.
 	+ stdout logging
 	+ file logging
 	+ syslog logging (Unix)
-	+ ODBC logging (Windows and Unix)
+	+ ODBC logging
 	+ log file rotation (hourly, daily, weekly, monthly)
 	+ automatic log file comperssion with external archiver (for files)
 	+ automatic removal of older log files
@@ -59,7 +59,8 @@ Please read doc/html/index.html and man pages.
 	+ ACL-driven (user/source/destination/protocol/weekday/daytime or
 	combined) traffic limitation per day, week or month for incoming and
 	  (!) outgoing traffic
-	+ User authorization by NetBIOS messanger name
+	+ User authentication by DNS hostname
+	+ User authentication by username / password
 	+ Access control by username, source IP, destination IP, destination
 	port and destination action (POST, PUT, GET, etc), weekday and daytime.
 	+ Access control by username/password for SOCKSv5 and HTTP/HTTPS/FTP
