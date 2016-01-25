@@ -530,7 +530,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			new_sock=so._socket(SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
 			if(new_sock != INVALID_SOCKET){
 				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
-				if(so._connect(new_sock,(struct sockaddr *)&defparam.sincr,sizeof(defparam.sincr))) {
+				if(so._connect(new_sock,(struct sockaddr *)&defparam.sincr,SASIZE(&defparam.sincr))) {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);

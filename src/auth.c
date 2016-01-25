@@ -1067,13 +1067,13 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			break;
 		}
 		if(makeauth && !SAISNULL(&authnserver.addr)){
-			memcpy(sinsr, &authnserver.addr, sizeof(addr));
+			memcpy(sinsr, &authnserver.addr, sizeof(authnserver.addr));
 		}
 		else {
-			memcpy(sinsr, &nservers[i].addr, sizeof(addr));
+			memcpy(sinsr, &nservers[i].addr, sizeof(nservers[i].addr));
 		}
 		if(usetcp){
-			if(so._connect(sock,sinsr,sizeof(addr))) {
+			if(so._connect(sock,sinsr,SASIZE(sinsr))) {
 				so._shutdown(sock, SHUT_RDWR);
 				so._closesocket(sock);
 				break;

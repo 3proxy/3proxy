@@ -119,11 +119,11 @@ void * ftpprchild(struct clientparam* param) {
 			clidatasock = INVALID_SOCKET;
 		}
 		if ((clidatasock=socket(SASOCK(&param->sincl), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN(821);}
-		sasize = sizeof(param->sincl);
 		*SAPORT(&param->sincl) = 0;
 		if(so._bind(clidatasock, (struct sockaddr *)&param->sincl, SASIZE(&param->sincl))){RETURN(822);}
 		if (pasv) {
 			if(so._listen(clidatasock, 1)) {RETURN(823);}
+			sasize = sizeof(param->sincl);
 			if(so._getsockname(clidatasock, (struct sockaddr *)&param->sincl, &sasize)){RETURN(824);}
 			if(*SAFAMILY(&param->sincl) == AF_INET)
 				sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
@@ -145,8 +145,7 @@ void * ftpprchild(struct clientparam* param) {
 
 			if(sscanf((char *)buf+5, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) {RETURN(828);}
 			*SAPORT(&param->sincr) = htons((unsigned short)((b5<<8)^b6));
-			sasize = sizeof(param->sincr);
-			if(so._connect(clidatasock, (struct sockaddr *)&param->sincr, sasize)) {
+			if(so._connect(clidatasock, (struct sockaddr *)&param->sincr, SASIZE(&param->sincr))) {
 				so._closesocket(clidatasock);
 				clidatasock = INVALID_SOCKET;
 				RETURN(826);

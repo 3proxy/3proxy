@@ -688,7 +688,7 @@ int doconnect(struct clientparam * param){
 #ifdef _WIN32
 		unsigned long ul = 1;
 #endif
-		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,sizeof(param->sinsr))) {
+		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) {
 			return (13);
 		}
 		param->nconnects++;
