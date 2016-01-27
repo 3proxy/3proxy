@@ -499,9 +499,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	for(;;){
 		while((conf.paused == srv.version && srv.childcount >= srv.maxchild)){
 			nlog++;			
-			if(nlog > 5000) {
+			if(!srv.silent && nlog > 5000) {
 				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv.childcount, srv.maxchild);
-				if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+				(*srv.logfunc)(&defparam, buf);
 				nlog = 0;
 			}
 			usleep(SLEEPTIME);
@@ -588,9 +588,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 				}
 #endif
 				nlog++;			
-				if(error || nlog > 5000) {
+				if(!srv.silent && (error || nlog > 5000)) {
 					sprintf((char *)buf, "accept(): %s", strerror(errno));
-					if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+					(*srv.logfunc)(&defparam, buf);
 					nlog = 0;
 				}
 				continue;
