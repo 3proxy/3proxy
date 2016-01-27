@@ -1,26 +1,25 @@
 #include "src/version.h"
 
-LANGUAGE 0x09, 0x01
 
-VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,8,0,0
- PRODUCTVERSION 0,8,0,0
- FILETYPE 0x1L
- FILESUBTYPE 0x0L
+1 VERSIONINFO
+FILEVERSION 0,9,0,0
+PRODUCTVERSION 0,9,0,0
+FILETYPE 1
+FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "000004b0"
+        BLOCK "040904E4"
         BEGIN
-            VALUE "Comments", "3proxy - tiny proxy server, http://3proxy.ru/"
-            VALUE "CompanyName", "Vladimir Dubrovin"
-            VALUE "FileDescription", "3proxy - tiny proxy server"
-            VALUE "FileVersion", VERSION "-" BUILDDATE
-            VALUE "InternalName", "3proxy"
-            VALUE "LegalCopyright", "Copyright (C) 2002-2014 Vladimir Dubrovin"
-            VALUE "OriginalFilename", "3proxy.exe"
-            VALUE "ProductName", "3proxy - tiny proxy server"
-            VALUE "ProductVersion", VERSION
+            VALUE "Comments", "3proxy - tiny proxy server, http://3proxy.ru/\0"
+            VALUE "CompanyName", "Vladimir Dubrovin\0"
+            VALUE "FileDescription", "3proxy - tiny proxy server\0"
+            VALUE "FileVersion", "0.9.0.0\0"
+            VALUE "InternalName", "3proxy\0"
+            VALUE "LegalCopyright", "Copyright (C) 2002-2016 Vladimir Dubrovin\0"
+            VALUE "OriginalFilename", "3proxy.exe\0"
+            VALUE "ProductName", "3proxy - tiny proxy server\0"
+            VALUE "ProductVersion", "0.9.0.0\0"
         END
     END
     BLOCK "VarFileInfo"
