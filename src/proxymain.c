@@ -499,9 +499,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	for(;;){
 		while((conf.paused == srv.version && srv.childcount >= srv.maxchild)){
 			nlog++;			
-			if(nlog > 5000) {
+			if(!srv.silent && nlog > 5000) {
 				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv.childcount, srv.maxchild);
-				if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+				(*srv.logfunc)(&defparam, buf);
 				nlog = 0;
 			}
 			usleep(SLEEPTIME);
@@ -524,6 +524,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 	}
 	if((conf.paused != srv.version) || (error < 0)) break;
+	error = 0;
 	if(!isudp){
 		size = sizeof(defparam.sincr);
 		if(iscbc){
@@ -551,8 +552,47 @@ int MODULEMAINFUNC (int argc, char** argv){
 		else {
 			new_sock = so._accept(sock, (struct sockaddr*)&defparam.sincr, &size);
 			if(new_sock == INVALID_SOCKET){
-				sprintf((char *)buf, "accept(): %s", strerror(errno));
-				if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+#ifdef _WIN32
+				switch(WSAGetLastError()){
+				case WSAEMFILE:
+				case WSAENOBUFS:
+				case WSAENETDOWN:
+					usleep(SLEEPTIME * 10);
+					break;
+				case WSAEINTR:
+					error = 1;
+					break;
+				default:
+					break;
+				}
+
+#else
+				switch (errno){
+#ifdef EMFILE
+				case EMFILE:
+#endif
+#ifdef ENFILE
+				case ENFILE:
+#endif
+#ifdef ENOBUFS
+				case ENOBUFS:
+#endif
+#ifdef ENOMEM
+				case ENOMEM:
+#endif
+					usleep(SLEEPTIME * 10);
+					break;
+
+				default:
+					break;
+				}
+#endif
+				nlog++;			
+				if(!srv.silent && (error || nlog > 5000)) {
+					sprintf((char *)buf, "accept(): %s", strerror(errno));
+					(*srv.logfunc)(&defparam, buf);
+					nlog = 0;
+				}
 				continue;
 			}
 		}

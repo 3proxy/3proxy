@@ -6,7 +6,7 @@
 
 */
 
-#define COPYRIGHT "(c)2000-2009 3APA3A, Vladimir Dubrovin & 3proxy.ru\n"\
+#define COPYRIGHT "(c)3APA3A, Vladimir Dubrovin & 3proxy.ru\n"\
 		 "Documentation and sources: http://3proxy.ru/\n"\
 		 "Please read license agreement in \'copying\' file.\n"\
 		 "You may not use this program without accepting license agreement"

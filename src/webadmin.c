@@ -473,7 +473,7 @@ void * adminchild(struct clientparam* param) {
 					"<td>MB%s</td>"
 					"<td>%"PRINTF_INT64_MODIFIER"u</td>"
 					"<td>%s</td>",
-				 cp->traflim64,
+				 cp->traflim64 / (1024 * 1024),
 				 rotations[cp->type],
 				 cp->traf64,
 				 cp->cleared?ctime(&cp->cleared):"never"

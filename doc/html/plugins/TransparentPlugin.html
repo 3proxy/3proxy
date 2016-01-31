@@ -1,0 +1,28 @@
+<h3>3proxy TransparentPlugin plugin (Linux only)</h3>
+
+Plugin can turn 3proxy into transparent proxy for virtually any TCP-based protocol
+and use all 3proxy features - redirections, parent proxies, ACLs, traffic limitations,
+etc. TransparentPlugin plugin takes destination IP:port from Linux and uses this
+information as a target IP in proxy. An example of usage:
+
+<pre>
+plugin /path/to/TransparentPlugin.ld.so transparent_plugin
+log /path/to/log
+auth iponly
+allow * * * 80
+parent 1000 http 0.0.0.0 0
+allow *
+parent 1000 socks5 SOCKS5_IP SOCKS5_PORT USER PASSWORD
+tcppm -iLOCAL_IP 12345 127.0.0.1 11111
+</pre>
+Now, any TCP traffic transparently redirected to port 12345 will be routed via
+parent SOCKSv5 proxy and logged, all URLs for web requests are visible in logs.
+Paremeters '127.0.0.1 11111' in this case are not used and are overwritten by
+destination IP:port for each transparent connection.
+
+<h4>Download:</h4>
+<ul>
+ <li>Plugin included into 3proxy 0.8
+</ul>
+
+&copy; Vladimir Dubrovin, License: BSD style
