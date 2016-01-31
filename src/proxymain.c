@@ -238,8 +238,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			{
 #ifndef NOIPV6
 				struct sockaddr_in6 sa6;
+				memset(&sa6, 0, sizeof(sa6));
 				error = !getip46(46, argv[i]+2, (struct sockaddr *)&sa6);
-				if(!error) memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&srv.extsa:(void *)&srv.extsa6, &sa6, SASIZE(&sa6)); 
+				if(!error) memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&srv.extsa:(void *)&srv.extsa6, &sa6, sizeof(sa6)); 
 #else
 				error = !getip46(46, argv[i]+2, (struct sockaddr *)&srv.extsa);
 #endif

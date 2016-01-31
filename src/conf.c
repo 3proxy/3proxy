@@ -271,9 +271,10 @@ static int h_external(int argc, unsigned char ** argv){
 	int res;
 #ifndef NOIPV6
 	struct sockaddr_in6 sa6;
+	memset(&sa6, 0, sizeof(sa6));
 	res = getip46(46, argv[1], (struct sockaddr *)&sa6);
 	if(!res) return 1; 
-	memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&conf.extsa:(void *)&conf.extsa6, &sa6, SASIZE(&sa6)); 
+	memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&conf.extsa:(void *)&conf.extsa6, &sa6, sizeof(sa6)); 
 #else
 	res = getip46(46, argv[1], (struct sockaddr *)&conf.extsa);
 	if(!res) return 1; 
