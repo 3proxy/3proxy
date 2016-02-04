@@ -241,7 +241,10 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			r2 = (myrand(param, sizeof(struct clientparam))%1000);
 		}
 		if(!connected){
-			if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
+			if(cur->type == R_EXTIP){
+				memcpy(&param->sinsl, &cur->addr, sizeof(cur->addr)); 
+			}
+			else if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
 				if(cur->extuser){
 					if(param->extusername)
 						myfree(param->extusername);
@@ -266,11 +269,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					case R_ICQ:
 						param->redirectfunc = icqprchild;
 						break;
-/*
-					case R_MSN:
-						param->redirectfunc = msnprchild;
+					case R_SMTP:
+						param->redirectfunc = smtppchild;
 						break;
-*/
 					default:
 						param->redirectfunc = proxychild;
 				}

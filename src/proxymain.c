@@ -751,9 +751,9 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
  memcpy(&param->sincl, &srv->intsa, sizeof(param->sincl));
 #ifndef NOIPV6
- memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsl));
+ memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsr));
 #else
- memcpy(&param->sinsr, &srv->extsa, sizeof(param->sinsl));
+ memcpy(&param->sinsr, &srv->extsa, sizeof(param->sinsr));
 #endif
 }
 

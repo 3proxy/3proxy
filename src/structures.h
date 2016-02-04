@@ -217,6 +217,7 @@ typedef enum {
 	R_SOCKS5,
 	R_HTTP,
 	R_POP3,
+	R_SMTP,
 	R_FTP,
 	R_CONNECTP,
 	R_SOCKS4P,
@@ -225,7 +226,7 @@ typedef enum {
 	R_SOCKS5B,
 	R_ADMIN,
 	R_ICQ,
-	R_MSN
+	R_EXTIP
 } REDIRTYPE;
 
 struct chain {

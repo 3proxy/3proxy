@@ -705,7 +705,8 @@ static int h_parent(int argc, unsigned char **argv){
 	else if(!strcmp((char *)argv[2], "ftp"))chains->type = R_FTP;
 	else if(!strcmp((char *)argv[2], "admin"))chains->type = R_ADMIN;
 	else if(!strcmp((char *)argv[2], "icq"))chains->type = R_ICQ;
-	else if(!strcmp((char *)argv[2], "msn"))chains->type = R_MSN;
+	else if(!strcmp((char *)argv[2], "extip"))chains->type = R_EXTIP;
+	else if(!strcmp((char *)argv[2], "smtp"))chains->type = R_SMTP;
 	else {
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
 		return(4);

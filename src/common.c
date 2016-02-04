@@ -674,12 +674,14 @@ int doconnect(struct clientparam * param){
 	}
 #endif
 
+	if(SAISNULL(&param->sinsl)){
 #ifndef NOIPV6
-	if(*SAFAMILY(&param->sinsr) == AF_INET6) memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
-	else
+		if(*SAFAMILY(&param->sinsr) == AF_INET6) memcpy(&param->sinsl, &param->srv->extsa6, sizeof(param->srv->extsa6));
+		else
 #endif
-		memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
-	*SAPORT(&param->sinsl) = 0;
+			memcpy(&param->sinsl, &param->srv->extsa, sizeof(param->srv->extsa));
+		*SAPORT(&param->sinsl) = 0;
+	}
 	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;
 	}
