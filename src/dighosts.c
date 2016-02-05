@@ -6,6 +6,7 @@
  */
 
 #include "proxy.h"
+pthread_mutex_t log_mutex;
 
 
 int sockgetchar(SOCKET sock, int timeosec, int timeousec){

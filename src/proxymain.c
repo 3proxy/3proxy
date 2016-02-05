@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+pthread_mutex_t log_mutex;
+int logmutexinit = 0;
 
 #define param ((struct clientparam *) p)
 #ifdef _WIN32
@@ -179,6 +181,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 #endif
 
+ if(!logmutexinit){
+	pthread_mutex_init(&log_mutex, NULL);
+	logmutexinit = 1;
+ }
 
  srvinit(&srv, &defparam);
  srv.pf = childdef.pf;

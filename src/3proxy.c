@@ -510,9 +510,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	return 1;
   }
 
-  pthread_mutex_init(&log_mutex, NULL);
-  logmutexinit = 1;
-
   pthread_mutex_init(&config_mutex, NULL);
   pthread_mutex_init(&bandlim_mutex, NULL);
   pthread_mutex_init(&hash_mutex, NULL);

@@ -601,17 +601,11 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	clearstat(param);
 }
-pthread_mutex_t log_mutex;
-int logmutexinit = 0;
 unsigned char tmpbuf[8192];
 
 void logstdout(struct clientparam * param, const unsigned char *s) {
 	FILE *log;
 
-	if(!logmutexinit){
-		pthread_mutex_init(&log_mutex, NULL);
-		logmutexinit = 1;
-	}
 	pthread_mutex_lock(&log_mutex);
 	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
 	dobuf(param, tmpbuf, s, NULL);
@@ -624,10 +618,6 @@ void logstdout(struct clientparam * param, const unsigned char *s) {
 #ifndef _WIN32
 void logsyslog(struct clientparam * param, const unsigned char *s) {
 
-	if(!logmutexinit){
-		pthread_mutex_init(&log_mutex, NULL);
-		logmutexinit = 1;
-	}
 	pthread_mutex_lock(&log_mutex);
 	dobuf(param, tmpbuf, s, NULL);
 	if(!param->nolog)syslog(LOG_INFO, "%s", tmpbuf);
