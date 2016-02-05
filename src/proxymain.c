@@ -26,7 +26,7 @@ void * threadfunc (void *p) {
 			continue;
 		}
 #ifndef WITHMAIN
-		memcpy(&param->req, &param->sinsr, size);
+		param->req = param->sinsr;
 		if(param->srv->acl) param->res = checkACL(param);
 		if(param->res){
 			param->srv->logfunc(param, "Connect back ACL failed");
@@ -240,7 +240,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 				struct sockaddr_in6 sa6;
 				memset(&sa6, 0, sizeof(sa6));
 				error = !getip46(46, argv[i]+2, (struct sockaddr *)&sa6);
-				if(!error) memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&srv.extsa:(void *)&srv.extsa6, &sa6, sizeof(sa6)); 
+				if(!error) {
+					if (*SAFAMILY(&sa6)==AF_INET) srv.extsa = sa6;
+					else srv.extsa6 = sa6;
+				} 
 #else
 				error = !getip46(46, argv[i]+2, (struct sockaddr *)&srv.extsa);
 #endif
@@ -386,7 +389,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(! (newparam = myalloc (sizeof(defparam)))){
 		return 2;
 	};
-	memcpy(newparam, &defparam, sizeof(defparam));
+	*newparam = defparam;
 	return((*srv.pf)((void *)newparam)? 1:0);
 	
  }
@@ -621,7 +624,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		usleep(SLEEPTIME);
 		continue;
 	};
-	memcpy(newparam, &defparam, sizeof(defparam));
+	*newparam = defparam;
 	if(defparam.hostname)newparam->hostname=strdup(defparam.hostname);
 	clearstat(newparam);
 	if(!isudp) newparam->clisock = new_sock;
@@ -721,10 +724,10 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
- memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
- memcpy(&srv->extsa, &conf.extsa, sizeof(srv->extsa));
+ srv->intsa = conf.intsa;
+ srv->extsa = conf.extsa;
 #ifndef NOIPV6
- memcpy(&srv->extsa6, &conf.extsa6, sizeof(srv->extsa6));
+ srv->extsa6 = conf.extsa6;
 #endif
 }
 
@@ -748,13 +751,12 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  *SAFAMILY(&param->sinsl) = AF_INET;
  *SAFAMILY(&param->sinsr) = AF_INET;
  *SAFAMILY(&param->req) = AF_INET;
- memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
- memcpy(&param->sincl, &srv->intsa, sizeof(param->sincl));
+ param->sincr = param->sincl = srv->intsa;
 #ifndef NOIPV6
- memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsr));
-#else
- memcpy(&param->sinsr, &srv->extsa, sizeof(param->sinsr));
+ if (srv->family == 6 || srv->family == 64) param->sinsr = srv->extsa6;
+ else 
 #endif
+	param->sinsr = srv->extsa;
 }
 
 void srvfree(struct srvparam * srv){
@@ -911,7 +913,7 @@ void copyfilter (struct filter *filter, struct srvparam *srv){
 
 	if(!filter->filter_open || !(data = (*filter->filter_open)(filter->data, srv))) continue;
 
-	memcpy(srv->filter + srv->nfilters, filter, sizeof(struct filter));
+	srv->filter[srv->nfilters] = *filter;
 	srv->filter[srv->nfilters].data = data;
 	if(srv->nfilters>0)srv->filter[srv->nfilters - 1].next = srv->filter + srv->nfilters;
 	srv->nfilters++;

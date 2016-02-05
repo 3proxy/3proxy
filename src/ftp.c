@@ -189,7 +189,7 @@ SOCKET ftpdata(struct clientparam *param){
 	if(sscanf(sb+1, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) return INVALID_SOCKET;
 	rem = param->remsock;
 	param->remsock = INVALID_SOCKET;
-	memcpy(&param->req,&param->sinsr,sizeof(param->req));
+	param->req = param->sinsr;
 	*SAPORT(&param->req) = *SAPORT(&param->sinsr) = htons((unsigned short)((b5<<8)^b6));
 	i = param->operation;
 	param->operation = FTP_DATA;

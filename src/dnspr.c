@@ -138,7 +138,7 @@ void * dnsprchild(struct clientparam* param) {
 	if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		RETURN(819);
 	}
-	memcpy(&param->sinsr, &nservers[0].addr, sizeof(param->sinsr));
+	param->sinsr = nservers[0].addr;
 	if(nservers[0].usetcp) {
 		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) RETURN(830);
 		buf-=2;

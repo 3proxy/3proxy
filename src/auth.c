@@ -242,7 +242,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		}
 		if(!connected){
 			if(cur->type == R_EXTIP){
-				memcpy(&param->sinsl, &cur->addr, sizeof(cur->addr)); 
+				param->sinsl = cur->addr;
 			}
 			else if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
 				if(cur->extuser){
@@ -280,12 +280,12 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
 				unsigned short port = *SAPORT(&param->sinsr);
-				memcpy(&param->sinsr, &cur->addr, SASIZE(&cur->addr)); 
+				param->sinsr = cur->addr;
 				*SAPORT(&param->sinsr) = port;
 			}
 			else if(SAISNULL(&cur->addr) && *SAPORT(&cur->addr)) *SAPORT(&param->sinsr) = *SAPORT(&cur->addr);
 			else {
-				memcpy(&param->sinsr, &cur->addr, SASIZE(&cur->addr)); 
+				param->sinsr = cur->addr;
 			}
 
 			if((res = alwaysauth(param))){
@@ -609,7 +609,7 @@ int checkACL(struct clientparam * param){
 				if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
 					continue;
 				}
-				memcpy(&dup, acentry, sizeof(struct ace));
+				dup = *acentry;
 				return handleredirect(param, &dup);
 			}
 			return acentry->action;
@@ -700,7 +700,7 @@ int doauth(struct clientparam * param){
 							ac->password = mystrdup(param->password);
 							myfree(tmp);
 						}
-						memcpy(&ac->sa, &param->sincr, SASIZE(&param->sincr));
+						ac->sa = param->sincr;
 						break;
 					}
 				}
@@ -709,7 +709,7 @@ int doauth(struct clientparam * param){
 					if(ac){
 						ac->expires = conf.time + conf.authcachetime;
 						ac->username = mystrdup(param->username);
-						memcpy(&ac->sa, &param->sincr, SASIZE(&param->sincr));
+						ac->sa = param->sincr;
 						ac->password = NULL;
 						if((conf.authcachetype&4) && param->password) ac->password = mystrdup(param->password);
 					}
@@ -1038,17 +1038,18 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 		unsigned ttl;
 #ifndef NOIPV6
 		struct sockaddr_in6 addr;
+		struct sockaddr_in6 *sinsr, *sinsl;
 #else
 		struct sockaddr_in addr;
+		struct sockaddr_in *sinsr, *sinsl;
 #endif
-		struct sockaddr *sinsr, *sinsl;
 		int usetcp = 0;
 		unsigned short serial = 1;
 
 		buf = b+2;
 
-		sinsl = (param && !makeauth)? (struct sockaddr *)&param->sinsl : (struct sockaddr *)&addr;
-		sinsr = (param && !makeauth)? (struct sockaddr *)&param->sinsr : (struct sockaddr *)&addr;
+		sinsl = (param && !makeauth)? &param->sinsl : &addr;
+		sinsr = (param && !makeauth)? &param->sinsr : &addr;
 		memset(sinsl, 0, sizeof(addr));
 		memset(sinsr, 0, sizeof(addr));
 		
@@ -1062,19 +1063,19 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			*SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
 		}
 		if((sock=so._socket(SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
-		if(so._bind(sock,sinsl,SASIZE(sinsl))){
+		if(so._bind(sock,(struct sockaddr *)sinsl,SASIZE(sinsl))){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			break;
 		}
 		if(makeauth && !SAISNULL(&authnserver.addr)){
-			memcpy(sinsr, &authnserver.addr, sizeof(authnserver.addr));
+			*sinsr = authnserver.addr;
 		}
 		else {
-			memcpy(sinsr, &nservers[i].addr, sizeof(nservers[i].addr));
+			*sinsr = nservers[i].addr;
 		}
 		if(usetcp){
-			if(so._connect(sock,sinsr,SASIZE(sinsr))) {
+			if(so._connect(sock,(struct sockaddr *)sinsr,SASIZE(sinsr))) {
 				so._shutdown(sock, SHUT_RDWR);
 				so._closesocket(sock);
 				break;
@@ -1110,13 +1111,13 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			len+=2;
 		}
 
-		if(socksendto(sock, sinsr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(sock, (struct sockaddr *)sinsr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			continue;
 		}
 		if(param) param->statscli64 += len;
-		len = sockrecvfrom(sock, sinsr, buf, 4096, conf.timeouts[DNS_TO]*1000);
+		len = sockrecvfrom(sock, (struct sockaddr *)sinsr, buf, 4096, conf.timeouts[DNS_TO]*1000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
 		if(len <= 13) {
@@ -1128,7 +1129,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			us = ntohs(*(unsigned short*)buf);
 			len-=2;
 			buf+=2;
-			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, sinsr, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
+			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, (struct sockaddr *)sinsr, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
 				continue;
 			}
 		}

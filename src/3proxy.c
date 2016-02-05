@@ -139,7 +139,7 @@ int timechanged (time_t oldtime, time_t newtime, ROTATION lt){
 	struct tm tmold;
 	struct tm *tm;
 	tm = localtime(&oldtime);
-	memcpy(&tmold, tm, sizeof(tmold));
+	tmold = *tm;
 	tm = localtime(&newtime);
 	switch(lt){
 		case MINUTELY:

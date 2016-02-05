@@ -133,7 +133,7 @@ void * sockschild(struct clientparam* param) {
 		}
 		buf[i] = 0;
 		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
-		memcpy(&param->sinsr, &param->req, sizeof(param->req));
+		param->sinsr = param->req;
 		break;
 	default:
 		RETURN(997);
@@ -159,7 +159,7 @@ void * sockschild(struct clientparam* param) {
 		if(param->hostname)myfree(param->hostname);
 		param->hostname = (unsigned char *)mystrdup((char *)buf);
 		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
-		memcpy(&param->sinsr, &param->req, sizeof(&param->req));
+		param->sinsr = param->req;
 	}
  }
 
@@ -173,9 +173,9 @@ void * sockschild(struct clientparam* param) {
 	case 3:
 
 #ifndef NOIPV6	 
-	 memcpy(&param->sinsl, *SAFAMILY(&param->req)==AF_INET6? (struct sockaddr *)&param->srv->extsa6:(struct sockaddr *)&param->srv->extsa, SASIZE(&param->req)); 
+	 param->sinsl = *SAFAMILY(&param->req)==AF_INET6? param->srv->extsa6 : param->srv->extsa;
 #else
-	 memcpy(&param->sinsl, &param->srv->extsa, SASIZE(&param->req)); 
+	 param->sinsl = param->srv->extsa;
 #endif
 	 if ((param->remsock=so._socket(SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;
@@ -218,7 +218,7 @@ fflush(stderr);
 		param->ctrlsock = param->clisock;
 		param->clisock = so._socket(SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
-		memcpy(&sin, &param->sincl, sizeof(&sin));
+		sin = param->sincl;
 		*SAPORT(&sin) = 0;
 		if(so._bind(param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}
 #if SOCKSTRACE > 0
@@ -328,7 +328,7 @@ fflush(stderr);
 				param->res = sockmap(param, conf.timeouts[CONNECTION_S]);
 				break;
 			case 3:
-				memcpy(&param->sinsr, &param->req, sizeof(param->sinsr));
+				param->sinsr = param->req;
 				myfree(buf);
 				if(!(buf = myalloc(LARGEBUFSIZE))) {RETURN(21);}
 
