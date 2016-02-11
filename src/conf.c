@@ -32,6 +32,7 @@ struct proxydef childdef = {NULL, 0, 0, S_NOSERVICE, ""};
 
 #ifndef _WIN32
 char *chrootp = NULL;
+static pthread_attr_t pa;
 #endif
 char * curconf = NULL;
 
@@ -142,14 +143,14 @@ int start_proxy_thread(struct child * chp){
 	conf.threadinit = 1;
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384, startsrv, (void *) chp, (DWORD)0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, startsrv, (void *) chp, (DWORD)0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384, startsrv, (void *) chp, (DWORD)0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, startsrv, (void *) chp, (DWORD)0, &thread);
 #endif
 	if(h)CloseHandle(h);
 #else
 	pthread_attr_init(&pa);
-	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 16384);
+	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (16384+conf.stacksize));
 	pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 	pthread_create(&thread, &pa, startsrv, (void *)chp);
 #endif
@@ -331,6 +332,11 @@ static int h_log(int argc, unsigned char ** argv){
 			}
 		}
 	}
+	return 0;
+}
+
+static int h_stacksize(int argc, unsigned char **argv){
+	conf.stacksize = atoi((char *)argv[1]);
 	return 0;
 }
 
@@ -1392,6 +1398,7 @@ struct commands commandhandlers[]={
 	{commandhandlers+55, "msnpr", h_proxy, 4, 0},
 	{commandhandlers+56, "delimchar",h_delimchar, 2, 2},
 	{commandhandlers+57, "authnserver", h_authnserver, 2, 2},
+	{commandhandlers+58, "stacksize", h_stacksize, 2, 2},
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
 

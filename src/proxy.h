@@ -122,8 +122,6 @@
 #ifdef _WIN32
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
-#else
-extern pthread_attr_t pa;
 #endif
 
 #ifndef SOCKET_ERROR

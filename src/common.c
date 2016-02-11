@@ -58,7 +58,7 @@ struct extparam conf = {
 	NULL, NULL,
 	NULL,
 	NULL,
-	0, -1, 0, 0, 0, 0, 0, 500, 0, 0, 0,
+	8192, 0, -1, 0, 0, 0, 0, 0, 500, 0, 0, 0,
 	6, 600,
 	1048576,
 	NULL, NULL,
@@ -84,7 +84,7 @@ struct extparam conf = {
 	NULL,
 	(time_t)0, (time_t)0,
 	0,0,
-	'@'
+	'@',
 };
 
 int numservers=0;

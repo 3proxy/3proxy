@@ -372,6 +372,7 @@ struct srvparam {
 	int transparent;
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
+	int stacksize;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
 #ifndef NOIPV6
@@ -422,6 +423,9 @@ struct clientparam {
 
 	REDIRTYPE redirtype;
 
+	uint64_t	waitclient64,
+			waitserver64;
+
 	int	redirected,
 		operation,
 		nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv,
@@ -429,8 +433,6 @@ struct clientparam {
 
 	int	res,
 		status;
-	uint64_t	waitclient64,
-			waitserver64;
 	int	pwtype,
 		threadid,
 		weight,
@@ -491,7 +493,7 @@ struct extparam {
 	struct bandlim * bandlimiter,  *bandlimiterout;
 	struct trafcount * trafcounter;
 	struct srvparam *services;
-	int threadinit, counterd, haveerror, rotate, paused, archiverc,
+	int stacksize, threadinit, counterd, haveerror, rotate, paused, archiverc,
 		demon, maxchild, singlepacket, needreload, timetoexit;
 	int authcachetype, authcachetime;
 	int filtermaxsize;

@@ -126,7 +126,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
 	" -lFILENAME log to FILENAME\n"
-	" -bBUFSIZE size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
+	" -b(BUFSIZE) size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
+	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
@@ -140,6 +141,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef _WIN32
  unsigned long ul = 1;
 #else
+ pthread_attr_t pa;
 #ifdef STDMAIN
  int inetd = 0;
 #endif
@@ -175,9 +177,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 #else
  signal(SIGPIPE, SIG_IGN);
 
- pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 8192);
- pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 #endif
 
@@ -304,6 +303,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'T':
 			srv.transparent = 1;
 			break;
+		 case 'S':
+			srv.stacksize = atoi(argv[i]+2);
+			break;
 		case 's':
 		case 'a':
 			srv.singlepacket = 1 + atoi(argv[i]+2);
@@ -399,6 +401,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	return((*srv.pf)((void *)newparam)? 1:0);
 	
  }
+ pthread_attr_init(&pa);
+ pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (8192 + srv.stacksize));
+ pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 
 
@@ -651,9 +656,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), threadfunc, (void *) newparam, 0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), threadfunc, (void *) newparam, 0, &thread);
 #endif
 	srv.childcount++;
 	if (h) {
@@ -715,6 +720,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
+ srv->stacksize = conf.stacksize;
  srv->time_start = time(NULL);
  if(conf.logtarget){
 	 if(srv->logtarget) myfree(srv->logtarget);
