@@ -1,0 +1,34 @@
+#
+# 3 proxy Makefile for GCC/windows
+#
+# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
+# libraries
+#
+# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
+# library support
+
+
+BUILDDIR = ../bin/
+CC = clang
+CFLAGS = -O2 -c -pthread -static -DWITH_STD_MALLOC -DNOIPV6
+COUT = -o 
+LN = clang
+LDFLAGS = -O2 -static -s
+DLFLAGS = -shared
+DLSUFFICS = .dll
+LIBS = -lws2_32 -lodbc32 -ladvapi32
+LNOUT = -o 
+EXESUFFICS = .exe
+OBJSUFFICS = .o
+DEFINEOPTION = -D
+COMPFILES = *.tmp
+REMOVECOMMAND = rm -f
+TYPECOMMAND = cat
+COMPATLIBS =
+MAKEFILE = Makefile.win
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
+
+include Makefile.inc
+
+allplugins:
+	for /D %%i in ($(PLUGINS)) do (copy Makefile plugins\%%i && copy Makefile.var plugins\%%i && cd plugins\%%i && nmake && del *.o &&cd ..\..)
