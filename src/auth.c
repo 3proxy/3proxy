@@ -43,9 +43,9 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			len = sprintf((char *)buf, "CONNECT ");
 			if(redir->type == R_CONNECTP && param->hostname) {
 				char * needreplace;
-				needreplace = strchr(param->hostname, ':');
+				needreplace = strchr((char *)param->hostname, ':');
 				if(needreplace) buf[len++] = '[';
-				len =+ sprintf((char *)buf + len, "%.256s", param->hostname);
+				len += sprintf((char *)buf + len, "%.256s", (char *)param->hostname);
 				if(needreplace) buf[len++] = ']';
 			}
 			else {
@@ -372,19 +372,19 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 			for(hstentry = acentry->dstnames; hstentry; hstentry = hstentry->next){
 				switch(hstentry->matchtype){
 					case 0:
-					if(strstr(param->hostname, hstentry->name)) match = 1;
+					if(strstr((char *)param->hostname, (char *)hstentry->name)) match = 1;
 					break;
 
 					case 1:
-					if(strstr(param->hostname, hstentry->name) == (char *)param->hostname) match = 1;
+					if(strstr((char *)param->hostname, (char *)hstentry->name) == (char *)param->hostname) match = 1;
 					break;
 
 					case 2:
-					if(strstr(param->hostname, hstentry->name) == (char *)(param->hostname + i - (strlen(hstentry->name)))) match = 1;
+					if(strstr((char *)param->hostname, (char *)hstentry->name) == (char *)(param->hostname + i - (strlen((char *)hstentry->name)))) match = 1;
 					break;
 
 					default:
-					if(!strcmp(param->hostname, hstentry->name)) match = 1;
+					if(!strcmp((char *)param->hostname, (char *)hstentry->name)) match = 1;
 					break;
         			}
 				if(match) break;
@@ -654,13 +654,13 @@ int cacheauth(struct clientparam * param){
 			continue;
 			
 		}
-		if(((!(conf.authcachetype&2)) || (param->username && ac->username && !strcmp(ac->username, param->username))) &&
+		if(((!(conf.authcachetype&2)) || (param->username && ac->username && !strcmp(ac->username, (char *)param->username))) &&
 		   ((!(conf.authcachetype&1)) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa)))) && 
-		   (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, param->password)))) {
+		   (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, (char *)param->password)))) {
 			if(param->username){
 				myfree(param->username);
 			}
-			param->username = mystrdup(ac->username);
+			param->username = (unsigned char *)mystrdup(ac->username);
 			pthread_mutex_unlock(&hash_mutex);
 			return 0;
 		}
@@ -688,18 +688,18 @@ int doauth(struct clientparam * param){
 			if(conf.authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && param->username && (!(conf.authcachetype&4) || (!param->pwtype && param->password))){
 				pthread_mutex_lock(&hash_mutex);
 				for(ac = authc; ac; ac = ac->next){
-					if((!(conf.authcachetype&2) || !strcmp(ac->username, param->username)) &&
+					if((!(conf.authcachetype&2) || !strcmp(ac->username, (char *)param->username)) &&
 					   (!(conf.authcachetype&1) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa))))  &&
-					   (!(conf.authcachetype&4) || (ac->password && !strcmp(ac->password, param->password)))) {
+					   (!(conf.authcachetype&4) || (ac->password && !strcmp(ac->password, (char *)param->password)))) {
 						ac->expires = conf.time + conf.authcachetime;
-						if(strcmp(ac->username, param->username)){
+						if(strcmp(ac->username, (char *)param->username)){
 							tmp = ac->username;
-							ac->username = mystrdup(param->username);
+							ac->username = mystrdup((char *)param->username);
 							myfree(tmp);
 						}
 						if((conf.authcachetype&4)){
 							tmp = ac->password;
-							ac->password = mystrdup(param->password);
+							ac->password = mystrdup((char *)param->password);
 							myfree(tmp);
 						}
 						ac->sa = param->sincr;
@@ -710,10 +710,10 @@ int doauth(struct clientparam * param){
 					ac = myalloc(sizeof(struct authcache));
 					if(ac){
 						ac->expires = conf.time + conf.authcachetime;
-						ac->username = mystrdup(param->username);
+						ac->username = mystrdup((char *)param->username);
 						ac->sa = param->sincr;
 						ac->password = NULL;
-						if((conf.authcachetype&4) && param->password) ac->password = mystrdup(param->password);
+						if((conf.authcachetype&4) && param->password) ac->password = mystrdup((char *)param->password);
 					}
 					ac->next = authc;
 					authc = ac;
@@ -775,7 +775,7 @@ int dnsauth(struct clientparam * param){
 			((u&0xFF000000)>>24));
 	
 	}
-	if(!udpresolve(*SAFAMILY(&param->sincr), buf, addr, NULL, param, 1)) return 6;
+	if(!udpresolve(*SAFAMILY(&param->sincr), (unsigned char *)buf, (unsigned char *)addr, NULL, param, 1)) return 6;
 	if(!memcmp(SAADDR(&param->sincr), addr, SAADDRLEN(&param->sincr))) return 6;
 
 	return param->username? 0:4;
@@ -1187,7 +1187,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 				}
 				*s2 = 0;
 				if(param->username)myfree(param->username);
-				param->username = mystrdup (buf + k + 13);
+				param->username = (unsigned char *)mystrdup ((char *)buf + k + 13);
 				
 				return udpresolve(af,param->username, value, NULL, NULL, 2);
 			}
@@ -1324,20 +1324,20 @@ void logsql(struct clientparam * param, const unsigned char *s) {
 
 	if(param->nolog) return;
 	pthread_mutex_lock(&log_mutex);
-	len = dobuf(param, tmpbuf, s, "\'");
+	len = dobuf(param, tmpbuf, s, (unsigned char *)"\'");
 
 	if(attempt > 5){
 		time_t t;
 
 		t = time(0);
 		if (t - attempt_time < 180){
-			sqlerr(tmpbuf);
+			sqlerr((char *)tmpbuf);
 			return;
 		}
 	}
 	if(!hstmt){
 		if(!init_sql(sqlstring)) {
-			sqlerr(tmpbuf);
+			sqlerr((char *)tmpbuf);
 			return;
 		}
 	}
@@ -1346,13 +1346,13 @@ void logsql(struct clientparam * param, const unsigned char *s) {
 		if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
 			close_sql();
 			if(!init_sql(sqlstring)){
-				sqlerr(tmpbuf);
+				sqlerr((char *)tmpbuf);
 				return;
 			}
 			if(hstmt) {
 				ret = SQLExecDirect(hstmt, (SQLCHAR *)tmpbuf, (SQLINTEGER)len);
 				if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
-					sqlerr(tmpbuf);
+					sqlerr((char *)tmpbuf);
 					return;
 				}
 				attempt = 0;

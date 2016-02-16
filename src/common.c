@@ -216,12 +216,12 @@ int ceparseargs(const char *str){
 
 #endif
 
-void parsehost(int family, char *host, struct sockaddr *sa){
+void parsehost(int family, unsigned char *host, struct sockaddr *sa){
 	char *sp=NULL,*se=NULL;
 	unsigned short port;
 
-	if(*host == '[') se=strchr(host, ']');
-	if ( (sp = strchr(se?se:host, ':')) ) *sp = 0;
+	if(*host == '[') se=strchr((char *)host, ']');
+	if ( (sp = strchr(se?se:(char *)host, ':')) ) *sp = 0;
 	if(se){
 		*se = 0;
 	}
@@ -297,7 +297,7 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 	if(!username || !*username) return 1;
         if ((sb=strchr(username, conf.delimchar)) == NULL){
 		if(!param->hostname && param->remsock == INVALID_SOCKET) return 2;
-		if(param->hostname)parsehostname(param->hostname, param, port);
+		if(param->hostname)parsehostname((char *)param->hostname, param, port);
 		return parseusername(username, param, extpasswd);
 	}
 	while ((se=strchr(sb+1, conf.delimchar)))sb=se;
@@ -466,7 +466,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 					break;
 
 				case 'N':
-				 if(param->service >=0 && param->service < 15) {
+				 if(param->service < 15) {
 					 len = (conf.stringtable)? (int)strlen((char *)conf.stringtable[SERVICES + param->service]) : 0;
 					 if(len > 20) len = 20;
 					 memcpy(buf+i, (len)?conf.stringtable[SERVICES + param->service]:(unsigned char*)"-", (len)?len:1);
@@ -648,14 +648,14 @@ int doconnect(struct clientparam * param){
 	}
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
 	if ((param->remsock=so._socket(SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
-	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
+	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #ifdef REUSE
 	{
 		int opt;
 
 #ifdef SO_REUSEADDR
 		opt = 1;
-		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;

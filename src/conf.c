@@ -735,7 +735,7 @@ static int h_nolog(int argc, unsigned char **argv){
 		return(1);
 	}
 	while(acl->next) acl = acl->next;
-	if(!strcmp(argv[0],"nolog")) acl->nolog = 1;
+	if(!strcmp((char *)argv[0],"nolog")) acl->nolog = 1;
 	else acl->weight = atoi((char*)argv[1]);
 	return 0;
 }
@@ -748,14 +748,14 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 #endif
         char * slash, *dash;
 	int masklen, addrlen;
-	if((slash = strchr(arg, '/'))) *slash = 0;
-	if((dash = strchr(arg,'-'))) *dash = 0;
+	if((slash = strchr((char *)arg, '/'))) *slash = 0;
+	if((dash = strchr((char *)arg,'-'))) *dash = 0;
 	
 	if(!getip46(46, arg, (struct sockaddr *)&sa)) return 1;
 	memcpy(&dst->ip_from, SAADDR(&sa), SAADDRLEN(&sa));
 	dst->family = *SAFAMILY(&sa);
 	if(dash){
-		if(!getip46(46, dash+1, (struct sockaddr *)&sa)) return 2;
+		if(!getip46(46, (unsigned char *)dash+1, (struct sockaddr *)&sa)) return 2;
 		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
 		if(*SAFAMILY(&sa) != dst->family || memcmp(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa)) < 0) return 3;
 		return 0;
@@ -1262,7 +1262,7 @@ static int h_plugin(int argc, unsigned char **argv){
 #ifdef _WINCE
 	hi = LoadLibraryW((LPCWSTR)CEToUnicode(argv[1]));
 #else
-	hi = LoadLibrary(argv[1]);
+	hi = LoadLibrary((char *)argv[1]);
 #endif
 	if(!hi) {
 		fprintf(stderr, "Failed to load %s, code %d\n", argv[1], (int)GetLastError());
@@ -1271,7 +1271,7 @@ static int h_plugin(int argc, unsigned char **argv){
 #ifdef _WINCE
 	fp = GetProcAddressW(hi, (LPCWSTR)CEToUnicode(argv[2]));
 #else
-	fp = GetProcAddress(hi, argv[2]);
+	fp = GetProcAddress(hi, (char *)argv[2]);
 #endif
 	if(!fp) {
 		printf("%s not found in %s, code: %d\n", argv[2], argv[1], (int)GetLastError());

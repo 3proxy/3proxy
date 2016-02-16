@@ -49,14 +49,14 @@ int sockmap(struct clientparam * param, int timeo){
  if(action != PASS) return 19;
  if(!param->nolongdatfilter){
 	if(param->cliinbuf > param->clioffset){
-		action = handledatfltcli(param,  &param->clibuf, &param->clibufsize, param->clioffset, &param->cliinbuf);
+		action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, param->clioffset, (int *)&param->cliinbuf);
 		if(action == HANDLED){
 			return 0;
 		}
 		if(action != PASS) return 19;
 	}
 	if(param->srvinbuf > param->srvoffset){
-		action = handledatfltsrv(param,  &param->srvbuf, &param->srvbufsize, param->srvoffset, &param->srvinbuf);
+		action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, param->srvoffset, (int *)&param->srvinbuf);
 		if(action == HANDLED){
 			return 0;
 		}
@@ -127,7 +127,7 @@ int sockmap(struct clientparam * param, int timeo){
 		if(param->bandlimfunc) {
 			sleeptime = (*param->bandlimfunc)(param, param->srvinbuf - param->srvoffset, 0);
 		}
-		res = so._sendto(param->clisock, param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sincr, sasize);
+		res = so._sendto(param->clisock, (char *)param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sincr, sasize);
 		if(res < 0) {
 			if(errno != EAGAIN && errno != EINTR) return 96;
 			if(errno == EINTR) usleep(SLEEPTIME);
@@ -153,7 +153,7 @@ int sockmap(struct clientparam * param, int timeo){
 			sl1 = (*param->bandlimfunc)(param, 0, param->cliinbuf - param->clioffset);
 			if(sl1 > sleeptime) sleeptime = sl1;
 		}
-		res = so._sendto(param->remsock, param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sinsr, sasize);
+		res = so._sendto(param->remsock, (char *)param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sinsr, sasize);
 		if(res < 0) {
 			if(errno != EAGAIN && errno != EINTR) return 97;
 			if(errno == EINTR) usleep(SLEEPTIME);
@@ -172,7 +172,7 @@ int sockmap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "recv from client");
 #endif
-		res = so._recvfrom(param->clisock, param->clibuf + param->cliinbuf, param->clibufsize - param->cliinbuf, 0, (struct sockaddr *)&param->sincr, &sasize);
+		res = so._recvfrom(param->clisock, (char *)param->clibuf + param->cliinbuf, param->clibufsize - param->cliinbuf, 0, (struct sockaddr *)&param->sincr, &sasize);
 		if (res==0) {
 			so._shutdown(param->clisock, SHUT_RDWR);
 			so._closesocket(param->clisock);
@@ -187,7 +187,7 @@ int sockmap(struct clientparam * param, int timeo){
 			}
 			param->cliinbuf += res;
 			if(!param->nolongdatfilter){
-				action = handledatfltcli(param,  &param->clibuf, &param->clibufsize, param->cliinbuf - res, &param->cliinbuf);
+				action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, param->cliinbuf - res, (int *)&param->cliinbuf);
 				if(action == HANDLED){
 					return 0;
 				}
@@ -203,7 +203,7 @@ int sockmap(struct clientparam * param, int timeo){
 #endif
 
 		sasize = sizeof(sin);
-		res = so._recvfrom(param->remsock, param->srvbuf + param->srvinbuf, param->srvbufsize - param->srvinbuf, 0, (struct sockaddr *)&sin, &sasize);
+		res = so._recvfrom(param->remsock, (char *)param->srvbuf + param->srvinbuf, param->srvbufsize - param->srvinbuf, 0, (struct sockaddr *)&sin, &sasize);
 		if (res==0) {
 			so._shutdown(param->remsock, SHUT_RDWR);
 			so._closesocket(param->remsock);
@@ -220,7 +220,7 @@ int sockmap(struct clientparam * param, int timeo){
 			param->nreads++;
 			param->statssrv64 += res;
 			if(!param->nolongdatfilter){
-				action = handledatfltsrv(param,  &param->srvbuf, &param->srvbufsize, param->srvinbuf - res, &param->srvinbuf);
+				action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, param->srvinbuf - res, (int *)&param->srvinbuf);
 				if(action == HANDLED){
 					return 0;
 				}

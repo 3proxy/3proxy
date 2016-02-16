@@ -59,7 +59,7 @@ void * udppmchild(struct clientparam* param) {
 	if((param->clisock=so._socket(SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
-	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
+	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (char *)&ul, sizeof(int))) {RETURN(820);};
 	ioctlsocket(param->clisock, FIONBIO, &ul);
 	size = sizeof(param->sinsl);
 	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};

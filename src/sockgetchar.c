@@ -22,7 +22,7 @@ int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to){
 	res = so._poll(&fds, 1, to*1000);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 	if(res < 1) break;
-	res = so._send(sock, buf + sent, bufsize - sent, 0);
+	res = so._send(sock, (char *)buf + sent, bufsize - sent, 0);
 	if(res < 0) {
 		if(errno == EAGAIN || errno == EINTR) continue;
 		break;
@@ -45,7 +45,7 @@ int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufs
  	res = so._poll(&fds, 1, to);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 	if(res < 1) break;
-	res = so._sendto(sock, buf + sent, bufsize - sent, 0, sin, SASIZE(sin));
+	res = so._sendto(sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin));
 	if(res < 0) {
 		if(errno !=  EAGAIN && errno != EINTR) break;
 		continue;
@@ -66,7 +66,7 @@ int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bu
 	if (so._poll(&fds, 1, to)<1) return 0;
 	sasize = SASIZE(sin);
 	do {
-		res = so._recvfrom(sock, buf, bufsize, 0, (struct sockaddr *)sin, &sasize);
+		res = so._recvfrom(sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, &sasize);
 	} while (res < 0 && (errno == EAGAIN || errno == EINTR));
 	return res;
 }

@@ -349,7 +349,7 @@ fflush(stderr);
 					}
 					if (fds[1].revents) {
 						sasize = sizeof(sin);
-						if((len = so._recvfrom(param->clisock, buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
+						if((len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
 							param->res = 464;
 							break;
 						}
@@ -413,7 +413,7 @@ fflush(stderr);
 						sasize = sizeof(param->sinsr);
 						buf[0]=buf[1]=buf[2]=0;
 						buf[3]=(*SAFAMILY(&param->sinsl) == AF_INET)?1:4;
-						if((len = so._recvfrom(param->remsock, buf+6+SAADDRLEN(&param->sinsl), 65535 - 10, 0, (struct sockaddr *)&param->sinsr, &sasize)) <= 0) {
+						if((len = so._recvfrom(param->remsock, (char *)buf+6+SAADDRLEN(&param->sinsl), 65535 - 10, 0, (struct sockaddr *)&param->sinsr, &sasize)) <= 0) {
 							param->res = 468;
 							break;
 						}

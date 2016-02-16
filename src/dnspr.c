@@ -39,7 +39,7 @@ void * dnsprchild(struct clientparam* param) {
  }
  buf = bbuf+2;
  size = sizeof(param->sincr);
- i = so._recvfrom(param->srv->srvsock, buf, BUFSIZE, 0, (struct sockaddr *)&param->sincr, &size); 
+ i = so._recvfrom(param->srv->srvsock, (char *)buf, BUFSIZE, 0, (struct sockaddr *)&param->sincr, &size); 
  size = sizeof(param->sinsl);
  getsockname(param->srv->srvsock, (struct sockaddr *)&param->sincl, &size);
 #ifdef _WIN32
@@ -47,7 +47,7 @@ void * dnsprchild(struct clientparam* param) {
 		RETURN(818);
 	}
 	ioctlsocket(param->clisock, FIONBIO, &ul);
-	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&ul, sizeof(int))) {RETURN(820);};
+	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (char *)&ul, sizeof(int))) {RETURN(820);};
 	if(so._bind(param->clisock,(struct sockaddr *)&param->sincl,SASIZE(&param->sincl))) {
 		RETURN(822);
 	}
@@ -195,8 +195,8 @@ CLEANRET:
 	sprintf((char *)buf, "%04x/%s/", 
 			(unsigned)type,
 			host?host:"");
-	if(ip && type == 0x01 || type == 0x1c){
-		myinet_ntop(type == 0x01? AF_INET:AF_INET6, addr, buf+strlen(buf), 64);
+	if((ip && type == 0x01) || type == 0x1c){
+		myinet_ntop(type == 0x01? AF_INET:AF_INET6, addr, (char *)buf+strlen((char *)buf), 64);
 	}
 	(*param->srv->logfunc)(param, buf);
  }

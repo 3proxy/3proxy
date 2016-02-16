@@ -41,7 +41,7 @@ extern "C" {
 	if(dom)*dom++=0;
 	if(!LogonUser(	dom?dom:(char *)param->username,
 					dom?(char *)param->username:NULL,
-					param->password,
+					(char *)param->password,
 					LOGON32_LOGON_NETWORK,
 					LOGON32_PROVIDER_DEFAULT,
 					&h))return 5;
@@ -54,7 +54,7 @@ extern "C" {
 		if(GetLengthSid(ptg->Groups[i].Sid)==sidlen){
 			if(!memcmp((void *)ptg->Groups[i].Sid, (void *)psid, sidlen)) {
 				setlocale(LC_CTYPE, ".ACP");
-				_strlwr(param->username);
+				_strlwr((char *)param->username);
 				return 0;
 			}
 		}
