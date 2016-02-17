@@ -52,6 +52,9 @@ is specified logging is to file. Under Unix, if
 preceeds
 .IR logfile ,
 syslog is used for logging.
+.B -S
+Increase or decrease stack size. You may want to try something like -S8192 if you experience 3proxy
+crashes.
 .SH CLIENTS
 You should use client with HTTP proxy support or configure router to redirect
 HTTP traffic to proxy (transparent proxy). Configure client to connect to

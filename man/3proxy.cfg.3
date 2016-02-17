@@ -916,6 +916,20 @@ as
  function_to_call must return 0 in case of success, value > 0 to indicate error.
 
 .br
+.B stacksize
+<value_to_add_to_default_stack_size>
+.br
+ Change default size for threads stack. May be required in some situation,
+ e.g. with non-default plugins, on on some platforms (some FreeBSD version
+ may require adjusting stack size due to invalid defined value in system
+ header files, this value is also oftent reqruied to be changed for ODBC and
+ PAM support on Linux. If you experience 3proxy
+ crash on request processing, try to set some positive value. You may start with
+ stacksize 65536 
+ and then find the minimal value for service to work. If you experience
+ memory shortage, you can try to experiment with negative values.
+
+.br
 .B filtermaxsize
 <max_size_of_data_to_filter>
 .br
