@@ -104,7 +104,7 @@
 #define PTHREAD_STACK_MIN 32768
 #define sockerror strerror
 #endif
-#define daemonize() daemon(1,1)
+#define daemonize() {if(fork())exit(0); else setsid();}
 #define SLEEPTIME 1000
 #ifndef O_BINARY
 #define O_BINARY 0

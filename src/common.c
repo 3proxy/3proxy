@@ -157,10 +157,10 @@ struct sockfuncs so = {
 #else
 	mypoll,
 #endif
-	send,
-	sendto,
-	recv,
-	recvfrom,
+	(void *)send,
+	(void *)sendto,
+	(void *)recv,
+	(void *)recvfrom,
 	shutdown,
 #ifdef _WIN32
 	closesocket
