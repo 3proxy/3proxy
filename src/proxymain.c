@@ -244,7 +244,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifndef NOIPV6
 				struct sockaddr_in6 sa6;
 				memset(&sa6, 0, sizeof(sa6));
-				error = !getip46(46, argv[i]+2, (struct sockaddr *)&sa6);
+				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&sa6);
 				if(!error) {
 					if (*SAFAMILY(&sa6)==AF_INET) srv.extsa = sa6;
 					else srv.extsa6 = sa6;
@@ -272,7 +272,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'I':
 			size = sizeof(defparam.sincl);
 			if(so._getsockname(0, (struct sockaddr*)&defparam.sincl, &size) ||
-				SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
+				*SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
 
 			else inetd = 1;
 			break;

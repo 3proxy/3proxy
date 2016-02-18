@@ -820,11 +820,11 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 	if(!name[i]){
 		if(ndots == 3 && ncols == 0 && nhex == 0){
 			*SAFAMILY(sa)=(family == 6)?AF_INET6 : AF_INET;
-			return inet_pton(*SAFAMILY(sa), name, SAADDR(sa))? *SAFAMILY(sa) : 0; 
+			return inet_pton(*SAFAMILY(sa), (char *)name, SAADDR(sa))? *SAFAMILY(sa) : 0; 
 		}
 		if(ncols >= 2) {
 			*SAFAMILY(sa)=AF_INET6;
-			return inet_pton(AF_INET6, name, SAADDR(sa))?(family==4? 0:AF_INET6) : 0;
+			return inet_pton(AF_INET6, (char *)name, SAADDR(sa))?(family==4? 0:AF_INET6) : 0;
 		}
 	}
 	if((tmpresolv = resolvfunc)){
@@ -839,10 +839,10 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 	}
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = (family == 6 || family == 64)?AF_INET6:AF_INET;
-	if (getaddrinfo(name, NULL, &hint, &ai)) {
+	if (getaddrinfo((char *)name, NULL, &hint, &ai)) {
 		if(family == 64 || family == 46){
 			hint.ai_family = (family == 64)?AF_INET:AF_INET6;
-			if (getaddrinfo(name, NULL, &hint, &ai)) return 0;
+			if (getaddrinfo((char *)name, NULL, &hint, &ai)) return 0;
 		}
 		else return 0;
 	}
