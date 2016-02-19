@@ -401,9 +401,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 	return((*srv.pf)((void *)newparam)? 1:0);
 	
  }
- pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (8192 + srv.stacksize));
- pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 
 
@@ -509,6 +506,11 @@ int MODULEMAINFUNC (int argc, char** argv){
  srv.fds.fd = sock;
  srv.fds.events = POLLIN;
  
+#ifndef _WIN32
+ pthread_attr_init(&pa);
+ pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (8192 + srv.stacksize));
+ pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
+#endif
 
  for (;;) {
 	for(;;){
