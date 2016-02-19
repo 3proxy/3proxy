@@ -443,12 +443,16 @@ for(;;){
 		continue;
 	}
 	if(param->transparent && i > 6 && !strncasecmp((char *)buf + inbuf, "Host:", 5)){
+		unsigned char c;
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		se = (unsigned char *)strchr((char *)sb, '\r');
-		if(se) *se = 0;
+		(se = (unsigned char *)strchr((char *)sb, '\r')) || (se = (unsigned char *)strchr((char *)sb, '\n'));
+		if(se) {
+			c = *se;
+			*se = 0;
+		}
 		if(!param->hostname){
 			parsehostname((char *)sb, param, 80);
 		}
@@ -460,7 +464,7 @@ for(;;){
 			myfree(req);
 			req = newbuf;
 		}
-		if(se)*se = '\r';
+		if(se)*se = c;
 	}
 	if(ftp && i > 13 && (!strncasecmp((char *)(buf+inbuf), "authorization", 13))){
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
