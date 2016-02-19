@@ -47,7 +47,6 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 
 		len = sizeof(addr);
 		if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &addr, &len) || !addr.sin_addr.s_addr){
-perror("getsockopt()");
 			return PASS;
 		}
 		u = ntohl(addr.sin_addr.s_addr);
@@ -59,8 +58,6 @@ perror("getsockopt()");
 			((u&0x000000FF)),
 			p);
 
-        	param->srv->logfunc(param, (unsigned char *)"transparent_filter_client() Success");
-        	param->srv->logfunc(param, (unsigned char *)addrbuf);
         	pl->parsehostname(addrbuf, param, 0);
 		return PASS;
 #else
