@@ -59,7 +59,7 @@ struct extparam conf = {
 	NULL,
 	NULL,
 #ifdef __FreeBSD__
-	16384, 
+	8192, 
 #else
 	0,
 #endif
