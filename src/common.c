@@ -843,9 +843,11 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 		return 0;
 	}
 	memset(&hint, 0, sizeof(hint));
+	memset(&sa, 0, sizeof(struct sockaddr_in));
 	hint.ai_family = (family == 6 || family == 64)?AF_INET6:AF_INET;
 	if (getaddrinfo((char *)name, NULL, &hint, &ai)) {
 		if(family == 64 || family == 46){
+			memset(&hint, 0, sizeof(hint));
 			hint.ai_family = (family == 64)?AF_INET:AF_INET6;
 			if (getaddrinfo((char *)name, NULL, &hint, &ai)) return 0;
 		}
