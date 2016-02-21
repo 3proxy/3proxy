@@ -658,9 +658,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), threadfunc, (void *) newparam, 0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), threadfunc, (void *) newparam, 0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
 #endif
 	srv.childcount++;
 	if (h) {

@@ -143,9 +143,9 @@ int start_proxy_thread(struct child * chp){
 	conf.threadinit = 1;
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, startsrv, (void *) chp, (DWORD)0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, (void *)startsrv, (void *) chp, (DWORD)0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, startsrv, (void *) chp, (DWORD)0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, (void *)startsrv, (void *) chp, (DWORD)0, &thread);
 #endif
 	if(h)CloseHandle(h);
 #else
