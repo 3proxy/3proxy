@@ -37,7 +37,7 @@ int readreply (struct clientparam* param) {
 	return 0;
  }
  buf[i] = 0;
- res = atoi(buf);
+ res = atoi((char *)buf);
  myfree(buf);
  return res;
 }
@@ -51,7 +51,7 @@ int readcommand (struct clientparam* param) {
  i = sockgetlinebuf(param, CLIENT, buf, bufsize-1, '\n', conf.timeouts[STRING_L]);
  if(i < 4) return 0;
 #ifndef WITHMAIN
- if(!strncasecmp(buf, "MAIL", 4) || !strncasecmp(buf, "RCPT", 4) || !strncasecmp(buf, "STARTTLS", 8) || !strncasecmp(buf, "TURN", 4)){
+ if(!strncasecmp((char *)buf, "MAIL", 4) || !strncasecmp((char *)buf, "RCPT", 4) || !strncasecmp((char *)buf, "STARTTLS", 8) || !strncasecmp((char *)buf, "TURN", 4)){
 	res = handlehdrfilterscli(param, &buf, &bufsize, 0, &i);
 	if(res != PASS) {
 		myfree(buf);
@@ -62,7 +62,7 @@ int readcommand (struct clientparam* param) {
 #endif
  socksend(param->remsock, buf, i, conf.timeouts[STRING_S]);	
  myfree(buf);
- if(!strncasecmp(buf, "STARTTLS", 8) || !strncasecmp(buf, "TURN", 4)){
+ if(!strncasecmp((char *)buf, "STARTTLS", 8) || !strncasecmp((char *)buf, "TURN", 4)){
 	ret = 22;
  }
  return ret;
@@ -118,22 +118,22 @@ void * smtppchild(struct clientparam* param) {
 	else {
 		login = -1;
 		buf[i] = 0;
-		command = mystrdup(buf);
+		command = mystrdup((char *)buf);
 		break;
 	}
 	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
  }
  if(!login) {RETURN(662);}
  if(login == 1){
-	socksend(param->clisock, "334 VXNlcm5hbWU6\r\n", 18,conf.timeouts[STRING_S]);	
+	socksend(param->clisock, (unsigned char *)"334 VXNlcm5hbWU6\r\n", 18,conf.timeouts[STRING_S]);	
 	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
 	if(i < 3) {RETURN(663);}
 	buf[i-2] = 0;
 	i = de64(buf,username,255);
 	if(i < 1) {RETURN(664);}
 	username[i] = 0;
-	parseconnusername(username, param, 0, 25);
-	socksend(param->clisock, "334 UGFzc3dvcmQ6\r\n", 18,conf.timeouts[STRING_S]);	
+	parseconnusername((char *)username, param, 0, 25);
+	socksend(param->clisock, (unsigned char *)"334 UGFzc3dvcmQ6\r\n", 18,conf.timeouts[STRING_S]);	
 	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
 	if(i < 2) {RETURN(665);}
 	buf[i-2] = 0;
@@ -141,7 +141,7 @@ void * smtppchild(struct clientparam* param) {
 	if(i < 0) {RETURN(666);}
 	username[i] = 0;
 	if(param->extpassword) myfree(param->extpassword);
-	param->extpassword = mystrdup(username);
+	param->extpassword = (unsigned char *)mystrdup((char *)username);
  }
  else if(login == 2){
 	if(i > 13) {
@@ -149,7 +149,7 @@ void * smtppchild(struct clientparam* param) {
 		i = de64(buf+11,username,255);
 	}
 	else {
-		socksend(param->clisock, "334\r\n", 5,conf.timeouts[STRING_S]);	
+		socksend(param->clisock, (unsigned char *)"334\r\n", 5,conf.timeouts[STRING_S]);	
 		i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
 		if(i < 3) {RETURN(667);}
 		buf[i-2] = 0;
@@ -157,18 +157,18 @@ void * smtppchild(struct clientparam* param) {
 	}
 	if(i < 3 || *username) {RETURN(668);}
 	username[i] = 0;
-	parseconnusername(username+1, param, 0, 25);
-	res = (int)strlen(username+1) + 2;
+	parseconnusername((char *)username+1, param, 0, 25);
+	res = (int)strlen((char *)username+1) + 2;
 	if(res < i){
 		if(param->extpassword) myfree(param->extpassword);
-		param->extpassword = mystrdup(username + res);
+		param->extpassword = (unsigned char *)mystrdup((char *)username + res);
 	}
  }
 
 #ifndef WITHMAIN
  {
 	int action, reqbufsize, reqsize;
-	reqbufsize = reqsize = (int)strlen(param->hostname) + 1;
+	reqbufsize = reqsize = (int)strlen((char *)param->hostname) + 1;
 	action = handlereqfilters(param, &param->hostname, &reqbufsize, 0, &reqsize);
 	if(action == HANDLED){
 		RETURN(0);
@@ -186,9 +186,9 @@ void * smtppchild(struct clientparam* param) {
  if( i < 3 ) {RETURN(671);}
  buf[i] = 0;
  if(strncasecmp((char *)buf, "220", 3)||!strncasecmp((char *)buf+4, "PROXY", 5)){RETURN(672);}
- i = sprintf(buf, "EHLO [");
- i += myinet_ntop(*SAFAMILY(&param->sinsl), SAADDR(&param->sinsl), buf+strlen(buf), 64);
- i += sprintf(buf+strlen(buf), "]\r\n");
+ i = sprintf((char *)buf, "EHLO [");
+ i += myinet_ntop(*SAFAMILY(&param->sinsl), SAADDR(&param->sinsl), (char *)buf+strlen((char *)buf), 64);
+ i += sprintf((char *)buf+strlen((char *)buf), "]\r\n");
  if(socksend(param->remsock, buf, i, conf.timeouts[STRING_S])!= i) {RETURN(673);}
  param->statscli64+=i;
  param->nwrites++;
@@ -204,44 +204,44 @@ void * smtppchild(struct clientparam* param) {
  if(i<3) {RETURN(672);}
  if(!command || (param->extusername && param->extpassword)){
 	if(!param->extusername || !*param->extusername || !param->extpassword || !*param->extpassword || !login){
-		socksend(param->clisock, "235 auth required\r\n", 19,conf.timeouts[STRING_S]);	
+		socksend(param->clisock, (unsigned char *)"235 auth required\r\n", 19,conf.timeouts[STRING_S]);	
 	}
 	if ((login & 1)) {
-		socksend(param->remsock, "AUTH LOGIN\r\n", 12, conf.timeouts[STRING_S]);
+		socksend(param->remsock, (unsigned char *)"AUTH LOGIN\r\n", 12, conf.timeouts[STRING_S]);
  param->statscli64+=12;
 		param->nwrites++;
 		i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L]);
 		if(i<4 || strncasecmp((char *)buf, "334", 3)) {RETURN(680);}
-		en64(param->extusername, buf, (int)strlen(param->extusername));
-		socksend(param->remsock, buf, (int)strlen(buf), conf.timeouts[STRING_S]);
-		socksend(param->remsock, "\r\n", 2, conf.timeouts[STRING_S]);
+		en64(param->extusername, buf, (int)strlen((char *)param->extusername));
+		socksend(param->remsock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
+		socksend(param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S]);
  param->statscli64+=(i+2);
 		param->nwrites+=2;
 		i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L]);
 		if(i<4 || strncasecmp((char *)buf, "334", 3)) {RETURN(681);}
-		en64(param->extpassword, buf, (int)strlen(param->extpassword));
-		socksend(param->remsock, buf, (int)strlen(buf), conf.timeouts[STRING_S]);
-		socksend(param->remsock, "\r\n", 2, conf.timeouts[STRING_S]);
+		en64(param->extpassword, buf, (int)strlen((char *)param->extpassword));
+		socksend(param->remsock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
+		socksend(param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S]);
  param->statscli64+=(i+2);
 		param->nwrites+=2;
 	}
 	else if((login & 2)){
-		socksend(param->remsock, "AUTH PLAIN\r\n", 12, conf.timeouts[STRING_S]);
+		socksend(param->remsock, (unsigned char *)"AUTH PLAIN\r\n", 12, conf.timeouts[STRING_S]);
  param->statscli64+=(12);
 		param->nwrites++;
 		i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L]);
 		if(i<4 || strncasecmp((char *)buf, "334", 3)) {RETURN(682);}
 		*username = 0;
-		i = (int)strlen(param->extusername) + 1;
+		i = (int)strlen((char *)param->extusername) + 1;
 		memcpy(username+1, param->extusername,  i);
 		i++;
-		res = (int)strlen(param->extpassword);
+		res = (int)strlen((char *)param->extpassword);
 		memcpy(username + i, param->extpassword, res);
 		i+=res;
 		en64(username, buf, i);
-		i = (int)strlen(buf);
+		i = (int)strlen((char *)buf);
 		socksend(param->remsock, buf, i, conf.timeouts[STRING_S]);
-		socksend(param->remsock, "\r\n", 2, conf.timeouts[STRING_S]);
+		socksend(param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S]);
  param->statscli64+=(i+2);
 		param->nwrites+=2;
 	}
@@ -266,7 +266,7 @@ void * smtppchild(struct clientparam* param) {
 	}
 #endif
 	i = (int)strlen(command);
-	if(res != 2) socksend(param->remsock, command, i, conf.timeouts[STRING_S]);
+	if(res != 2) socksend(param->remsock, (unsigned char *)command, i, conf.timeouts[STRING_S]);
  }
 #ifndef WITHMAIN
 

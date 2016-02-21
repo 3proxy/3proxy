@@ -6,6 +6,7 @@
  */
 
 #include "proxy.h"
+pthread_mutex_t log_mutex;
 
 
 int sockgetchar(SOCKET sock, int timeosec, int timeousec){
@@ -18,7 +19,7 @@ int sockgetchar(SOCKET sock, int timeosec, int timeousec){
  FD_ZERO(&fds);
  FD_SET(sock, &fds);
  if (select (((int)sock)+1, &fds, NULL, NULL, &tv)!=1) return EOF;
- if (recv(sock, &buf, 1, 0)!=1) return EOF;
+ if (recv(sock, (char *)&buf, 1, 0)!=1) return EOF;
  return((int)buf);
 }
 
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "Unable to connect: %s\n", host);
 		return 8;
 	}
-	if(send(sock, buf, (int)strlen((char *)buf), 0) != (int)strlen((char *)buf)) return 9;
+	if(send(sock, (char *)buf, (int)strlen((char *)buf), 0) != (int)strlen((char *)buf)) return 9;
 	while( (i = sockgetline(sock, buf, sizeof(buf) - 1, '\n', 30)) > 2);
 	if(i<1) return 9;
 	if(!(fp = fopen(argv[argc-1], "w"))) {

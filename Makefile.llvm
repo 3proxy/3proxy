@@ -9,11 +9,11 @@
 
 
 BUILDDIR = ../bin/
-CC = gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DNOIPV6
+CC = clang
+CFLAGS = -O2 -c -pthread -static -DWITH_STD_MALLOC -DNOIPV6
 COUT = -o 
-LN = gcc
-LDFLAGS = -O2 -s -mthreads
+LN = clang
+LDFLAGS = -O2 -static -s
 DLFLAGS = -shared
 DLSUFFICS = .dll
 LIBS = -lws2_32 -lodbc32 -ladvapi32
@@ -31,4 +31,4 @@ PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlu
 include Makefile.inc
 
 allplugins:
-	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;  rm *.o ; cd ../.. ; done
+	for /D %%i in ($(PLUGINS)) do (copy Makefile plugins\%%i && copy Makefile.var plugins\%%i && cd plugins\%%i && nmake && del *.o &&cd ..\..)

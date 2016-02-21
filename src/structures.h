@@ -217,6 +217,7 @@ typedef enum {
 	R_SOCKS5,
 	R_HTTP,
 	R_POP3,
+	R_SMTP,
 	R_FTP,
 	R_CONNECTP,
 	R_SOCKS4P,
@@ -225,7 +226,7 @@ typedef enum {
 	R_SOCKS5B,
 	R_ADMIN,
 	R_ICQ,
-	R_MSN
+	R_EXTIP
 } REDIRTYPE;
 
 struct chain {
@@ -371,6 +372,7 @@ struct srvparam {
 	int transparent;
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
+	int stacksize;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
 #ifndef NOIPV6
@@ -421,6 +423,9 @@ struct clientparam {
 
 	REDIRTYPE redirtype;
 
+	uint64_t	waitclient64,
+			waitserver64;
+
 	int	redirected,
 		operation,
 		nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv,
@@ -428,8 +433,6 @@ struct clientparam {
 
 	int	res,
 		status;
-	uint64_t	waitclient64,
-			waitserver64;
 	int	pwtype,
 		threadid,
 		weight,
@@ -490,7 +493,7 @@ struct extparam {
 	struct bandlim * bandlimiter,  *bandlimiterout;
 	struct trafcount * trafcounter;
 	struct srvparam *services;
-	int threadinit, counterd, haveerror, rotate, paused, archiverc,
+	int stacksize, threadinit, counterd, haveerror, rotate, paused, archiverc,
 		demon, maxchild, singlepacket, needreload, timetoexit;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
@@ -610,13 +613,13 @@ struct sockfuncs {
 	int (WINAPI *_connect)(SOCKET s, const struct sockaddr *name, int namelen);
 	int (WINAPI *_getpeername)(SOCKET s, struct sockaddr * name, int * namelen);
 	int (WINAPI *_getsockname)(SOCKET s, struct sockaddr * name, int * namelen);
-   	int (WINAPI *_getsockopt)(SOCKET s, int level, int optname, void * optval, int * optlen);
-	int (WINAPI *_setsockopt)(SOCKET s, int level, int optname, const void *optval, int optlen);
+   	int (WINAPI *_getsockopt)(SOCKET s, int level, int optname, char * optval, int * optlen);
+	int (WINAPI *_setsockopt)(SOCKET s, int level, int optname, const char *optval, int optlen);
 	int (WINAPI *_poll)(struct pollfd *fds, unsigned int nfds, int timeout);
-	int (WINAPI *_send)(SOCKET s, const void *msg, int len, int flags);
-	int  (WINAPI *_sendto)(SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, int tolen);
-	int  (WINAPI *_recv)(SOCKET s, void *buf, int len, int flags);
-	int  (WINAPI *_recvfrom)(SOCKET s, void * buf, int len, int flags, struct sockaddr * from, int * fromlen);
+	int (WINAPI *_send)(SOCKET s, const char *msg, int len, int flags);
+	int  (WINAPI *_sendto)(SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen);
+	int  (WINAPI *_recv)(SOCKET s, char *buf, int len, int flags);
+	int  (WINAPI *_recvfrom)(SOCKET s, char * buf, int len, int flags, struct sockaddr * from, int * fromlen);
 	int (WINAPI *_shutdown)(SOCKET s, int how);
 	int (WINAPI *_closesocket)(SOCKET s);
 #else

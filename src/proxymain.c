@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+pthread_mutex_t log_mutex;
+int logmutexinit = 0;
 
 #define param ((struct clientparam *) p)
 #ifdef _WIN32
@@ -22,21 +24,21 @@ void * threadfunc (void *p) {
 		param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
 			param->res = 13;
-			param->srv->logfunc(param, "Connect back accept() failed");
+			param->srv->logfunc(param, (unsigned char *)"Connect back accept() failed");
 			continue;
 		}
 #ifndef WITHMAIN
-		memcpy(&param->req, &param->sinsr, size);
+		param->req = param->sinsr;
 		if(param->srv->acl) param->res = checkACL(param);
 		if(param->res){
-			param->srv->logfunc(param, "Connect back ACL failed");
+			param->srv->logfunc(param, (unsigned char *)"Connect back ACL failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
 		}
 #endif
 		if(so._sendto(param->remsock, "C", 1, 0, (struct sockaddr*)&param->sinsr, size) != 1){
-			param->srv->logfunc(param, "Connect back sending command failed");
+			param->srv->logfunc(param, (unsigned char *)"Connect back sending command failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
@@ -124,7 +126,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
 	" -lFILENAME log to FILENAME\n"
-	" -bBUFSIZE size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
+	" -b(BUFSIZE) size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
+	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
@@ -138,6 +141,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef _WIN32
  unsigned long ul = 1;
 #else
+ pthread_attr_t pa;
 #ifdef STDMAIN
  int inetd = 0;
 #endif
@@ -173,12 +177,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 #else
  signal(SIGPIPE, SIG_IGN);
 
- pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 8192);
- pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 #endif
 
+ if(!logmutexinit){
+	pthread_mutex_init(&log_mutex, NULL);
+	logmutexinit = 1;
+ }
 
  srvinit(&srv, &defparam);
  srv.pf = childdef.pf;
@@ -209,7 +214,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'l':
 			srv.logfunc = logstdout;
 			if(srv.logtarget) myfree(srv.logtarget);
-			srv.logtarget = mystrdup((unsigned char*)argv[i] + 2);
+			srv.logtarget = (unsigned char *)mystrdup(argv[i] + 2);
 			if(argv[i][2]) {
 				if(argv[i][2]=='@'){
 
@@ -232,17 +237,20 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			break;
 		 case 'i':
-			getip46(46, argv[i]+2, (struct sockaddr *)&srv.intsa);
+			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.intsa);
 			break;
 		 case 'e':
 			{
 #ifndef NOIPV6
 				struct sockaddr_in6 sa6;
 				memset(&sa6, 0, sizeof(sa6));
-				error = !getip46(46, argv[i]+2, (struct sockaddr *)&sa6);
-				if(!error) memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&srv.extsa:(void *)&srv.extsa6, &sa6, sizeof(sa6)); 
+				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&sa6);
+				if(!error) {
+					if (*SAFAMILY(&sa6)==AF_INET) srv.extsa = sa6;
+					else srv.extsa6 = sa6;
+				} 
 #else
-				error = !getip46(46, argv[i]+2, (struct sockaddr *)&srv.extsa);
+				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extsa);
 #endif
 			}
 			break;
@@ -264,7 +272,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'I':
 			size = sizeof(defparam.sincl);
 			if(so._getsockname(0, (struct sockaddr*)&defparam.sincl, &size) ||
-				SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
+				*SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
 
 			else inetd = 1;
 			break;
@@ -272,7 +280,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 		 case 'f':
 			if(srv.logformat)myfree(srv.logformat);
-			srv.logformat = mystrdup((unsigned char *)argv[i] + 2);
+			srv.logformat = (unsigned char *)mystrdup(argv[i] + 2);
 			break;
 		 case 't':
 			srv.silent = 1;
@@ -281,11 +289,11 @@ int MODULEMAINFUNC (int argc, char** argv){
 			hostname = argv[i] + 2;
 			break;
 		 case 'r':
-			cbc_string = mystrdup(argv[i] + 2);
+			cbc_string = (unsigned char *)mystrdup(argv[i] + 2);
 			iscbc = 1;
 			break;
 		 case 'R':
-			cbl_string = mystrdup(argv[i] + 2);
+			cbl_string = (unsigned char *)mystrdup(argv[i] + 2);
 			iscbl = 1;
 			break;
 		 case 'u':
@@ -294,6 +302,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case 'T':
 			srv.transparent = 1;
+			break;
+		 case 'S':
+			srv.stacksize = atoi(argv[i]+2);
 			break;
 		case 's':
 		case 'a':
@@ -386,7 +397,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(! (newparam = myalloc (sizeof(defparam)))){
 		return 2;
 	};
-	memcpy(newparam, &defparam, sizeof(defparam));
+	*newparam = defparam;
 	return((*srv.pf)((void *)newparam)? 1:0);
 	
  }
@@ -438,10 +449,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 		srv.srvsock = sock;
 		opt = 1;
-		if(so._setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int)))perror("setsockopt()");
+		if(so._setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
 #ifdef SO_REUSEPORT
 		opt = 1;
-		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 	}
 	size = sizeof(srv.intsa);
@@ -472,22 +483,22 @@ int MODULEMAINFUNC (int argc, char** argv){
  if(iscbl){
 	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
 	if((srv.cbsock=so._socket(SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
-		(*srv.logfunc)(&defparam, "Failed to allocate connect back socket");
+		(*srv.logfunc)(&defparam, (unsigned char *)"Failed to allocate connect back socket");
 		return -6;
 	}
 	opt = 1;
-	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
 #ifdef SO_REUSEPORT
 	opt = 1;
-	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 
 	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
-		(*srv.logfunc)(&defparam, "Failed to bind connect back socket");
+		(*srv.logfunc)(&defparam, (unsigned char *)"Failed to bind connect back socket");
 		return -7;
 	}
 	if(so._listen(srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
-		(*srv.logfunc)(&defparam, "Failed to listen connect back socket");
+		(*srv.logfunc)(&defparam, (unsigned char *)"Failed to listen connect back socket");
 		return -8;
 	}
  }
@@ -495,6 +506,11 @@ int MODULEMAINFUNC (int argc, char** argv){
  srv.fds.fd = sock;
  srv.fds.events = POLLIN;
  
+#ifndef _WIN32
+ pthread_attr_init(&pa);
+ pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (16384 + srv.stacksize));
+ pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
+#endif
 
  for (;;) {
 	for(;;){
@@ -538,7 +554,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 					usleep(SLEEPTIME);
 					continue;
 				}
-				if(so._recvfrom(new_sock,buf,1,0,(struct sockaddr*)&defparam.sincr, &size) != 1) {
+				if(so._recvfrom(new_sock,(char *)buf,1,0,(struct sockaddr*)&defparam.sincr, &size) != 1) {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);
@@ -608,8 +624,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 #else
 		fcntl(new_sock,F_SETFL,O_NONBLOCK);
 #endif
-		so._setsockopt(new_sock, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
-		so._setsockopt(new_sock, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+		so._setsockopt(new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
 	}
 	else {
 		srv.fds.events = 0;
@@ -621,8 +637,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 		usleep(SLEEPTIME);
 		continue;
 	};
-	memcpy(newparam, &defparam, sizeof(defparam));
-	if(defparam.hostname)newparam->hostname=strdup(defparam.hostname);
+	*newparam = defparam;
+	if(defparam.hostname)newparam->hostname=(unsigned char *)strdup((char *)defparam.hostname);
 	clearstat(newparam);
 	if(!isudp) newparam->clisock = new_sock;
 #ifndef STDMAIN
@@ -642,9 +658,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)16384, threadfunc, (void *) newparam, 0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
 #endif
 	srv.childcount++;
 	if (h) {
@@ -702,14 +718,15 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->version = conf.paused;
  srv->logfunc = conf.logfunc;
  if(srv->logformat)myfree(srv->logformat);
- srv->logformat = conf.logformat? mystrdup(conf.logformat) : NULL;
+ srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
+ srv->stacksize = conf.stacksize;
  srv->time_start = time(NULL);
  if(conf.logtarget){
 	 if(srv->logtarget) myfree(srv->logtarget);
-	 srv->logtarget = mystrdup(conf.logtarget);
+	 srv->logtarget = (unsigned char *)mystrdup((char *)conf.logtarget);
  }
  srv->srvsock = INVALID_SOCKET;
  srv->logdumpsrv = conf.logdumpsrv;
@@ -721,10 +738,10 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
- memcpy(&srv->intsa, &conf.intsa, sizeof(srv->intsa));
- memcpy(&srv->extsa, &conf.extsa, sizeof(srv->extsa));
+ srv->intsa = conf.intsa;
+ srv->extsa = conf.extsa;
 #ifndef NOIPV6
- memcpy(&srv->extsa6, &conf.extsa6, sizeof(srv->extsa6));
+ srv->extsa6 = conf.extsa6;
 #endif
 }
 
@@ -732,7 +749,7 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  if(srv->logformat){
 	char *s;
 	if(*srv->logformat == '-' && (s = strchr((char *)srv->logformat + 1, '+')) && s[1]){
-		char* logformat = srv->logformat;
+		unsigned char* logformat = srv->logformat;
 
 		*s = 0;
 		srv->nonprintable = (unsigned char *)mystrdup((char *)srv->logformat + 1);
@@ -748,13 +765,12 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  *SAFAMILY(&param->sinsl) = AF_INET;
  *SAFAMILY(&param->sinsr) = AF_INET;
  *SAFAMILY(&param->req) = AF_INET;
- memcpy(&param->sincr, &srv->intsa, sizeof(param->sincr));
- memcpy(&param->sincl, &srv->intsa, sizeof(param->sincl));
+ param->sincr = param->sincl = srv->intsa;
 #ifndef NOIPV6
- memcpy(&param->sinsr, (srv->family == 6 || srv->family == 64)? (void *)&srv->extsa6: (void *)&srv->extsa, sizeof(param->sinsl));
-#else
- memcpy(&param->sinsr, &srv->extsa, sizeof(param->sinsl));
+ if (srv->family == 6 || srv->family == 64) param->sinsr = srv->extsa6;
+ else 
 #endif
+	param->sinsr = srv->extsa;
 }
 
 void srvfree(struct srvparam * srv){
@@ -911,7 +927,7 @@ void copyfilter (struct filter *filter, struct srvparam *srv){
 
 	if(!filter->filter_open || !(data = (*filter->filter_open)(filter->data, srv))) continue;
 
-	memcpy(srv->filter + srv->nfilters, filter, sizeof(struct filter));
+	srv->filter[srv->nfilters] = *filter;
 	srv->filter[srv->nfilters].data = data;
 	if(srv->nfilters>0)srv->filter[srv->nfilters - 1].next = srv->filter + srv->nfilters;
 	srv->nfilters++;

@@ -128,11 +128,11 @@ static int searchcookie(struct clientparam *param, struct flap_header * flap, in
 		icq_cookie_mutex_init = 1;
 	}
 	pthread_mutex_lock(&icq_cookie_mutex);
-	for(ic = icq_cookies; ic; ic = ic->next)if(!strcmp(param->username, ic->id))break;
+	for(ic = icq_cookies; ic; ic = ic->next)if(!strcmp((char *)param->username, ic->id))break;
 	if(!ic){
 		ic = myalloc(sizeof(struct icq_cookie));
 		memset(ic, 0, sizeof(struct icq_cookie));
-		ic->id = mystrdup(param->username);
+		ic->id = mystrdup((char *)param->username);
 		ic->next = icq_cookies;
 		icq_cookies = ic;
 	}
@@ -202,10 +202,10 @@ static FILTER_ACTION icq_srv(void *fc, struct clientparam * param, unsigned char
 				state->state = ONCHAN;
 			}
 			else {
-				if(!state->leftinstate)param->srv->logfunc(param, "Warning: need resync");
+				if(!state->leftinstate)param->srv->logfunc(param, (unsigned char *)"Warning: need resync");
 				state->leftinstate++;
 				if(state->leftinstate > 65535){
-					param->srv->logfunc(param, "Out of Sync");
+					param->srv->logfunc(param, (unsigned char *)"Out of Sync");
 					return REJECT;
 				}
 			}
@@ -214,7 +214,7 @@ static FILTER_ACTION icq_srv(void *fc, struct clientparam * param, unsigned char
 			break;
 		case ONCHAN:
 			if (*start >= 10){
-				param->srv->logfunc(param, "Warning: Wrong channel");
+				param->srv->logfunc(param, (unsigned char *)"Warning: Wrong channel");
 				state->state = ONBEGIN;
 			}
 			else {
@@ -234,15 +234,15 @@ static FILTER_ACTION icq_srv(void *fc, struct clientparam * param, unsigned char
 		case ONSEQ2:
 			state->gotseq += *start;
 			if(state->gotseq != state->srvseq){
-				char smallbuf[64];
+				unsigned char smallbuf[64];
 				if(((state->gotseq < state->srvseq) || ((state->gotseq - state->srvseq) > 10 )) && (!state->resyncseq || state->gotseq != state->resyncseq)){
-					sprintf(smallbuf, "Warning: Wrong sequence, expected: %04hx got: %04hx", state->srvseq, state->gotseq);
+					sprintf((char *)smallbuf, "Warning: Wrong sequence, expected: %04hx got: %04hx", state->srvseq, state->gotseq);
 					param->srv->logfunc(param, smallbuf);
 					state->state = ONBEGIN;
 					state->resyncseq = state->gotseq;
 					break;
 				}
-				sprintf(smallbuf, "Warning: %hu flaps are lost on resync", state->gotseq - state->srvseq );
+				sprintf((char *)smallbuf, "Warning: %d flaps are lost on resync", state->gotseq - state->srvseq );
 				param->srv->logfunc(param, smallbuf);
 				state->srvseq = state->gotseq;
 				*(start-1) = (state->seq>>8);
@@ -339,7 +339,7 @@ static int readflap(struct clientparam * param, int direction, unsigned char *bu
  if(flap->id != 0x2a) return 2;
  len = ntohs(flap->size);
  if(len > buflen-6) return 3;
- i = sockgetlinebuf(param, direction, flap->data, len, EOF, conf.timeouts[STRING_S]);
+ i = sockgetlinebuf(param, direction, (unsigned char *)flap->data, len, EOF, conf.timeouts[STRING_S]);
  if(len != i) return 4;
  return 0;
 
@@ -418,7 +418,7 @@ void * icqprchild(struct clientparam* param) {
 		for(ic = icq_cookies; ic; ic=ic->next){
 			if(ic->size && ic->size == tlv->size && !memcmp(ic->cookie, tlv->data, ntohs(tlv->size))){
 				parsehostname((char *)ic->connectstring, param, ntohs(param->srv->targetport));
-				if(!param->username && ic->id) param->username = mystrdup(ic->id);
+				if(!param->username && ic->id) param->username = (unsigned char *)mystrdup(ic->id);
 				break;
 			}
 		}

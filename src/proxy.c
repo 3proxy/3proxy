@@ -328,7 +328,7 @@ for(;;){
 	prefix = (int)(se - buf);
 	su = (unsigned char*)strrchr((char *)sb, '@');
 	if(su) {
-		su = mystrdup(sb);
+		su = (unsigned char *)mystrdup((char *)sb);
 		decodeurl(su, 0);
 		parseconnusername((char *)su, (struct clientparam *)param, 1, (unsigned short)((ftp)?21:80));
 		myfree(su);
@@ -443,12 +443,16 @@ for(;;){
 		continue;
 	}
 	if(param->transparent && i > 6 && !strncasecmp((char *)buf + inbuf, "Host:", 5)){
+		unsigned char c;
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		se = (unsigned char *)strchr((char *)sb, '\r');
-		if(se) *se = 0;
+		(se = (unsigned char *)strchr((char *)sb, '\r')) || (se = (unsigned char *)strchr((char *)sb, '\n'));
+		if(se) {
+			c = *se;
+			*se = 0;
+		}
 		if(!param->hostname){
 			parsehostname((char *)sb, param, 80);
 		}
@@ -460,7 +464,7 @@ for(;;){
 			myfree(req);
 			req = newbuf;
 		}
-		if(se)*se = '\r';
+		if(se)*se = c;
 	}
 	if(ftp && i > 13 && (!strncasecmp((char *)(buf+inbuf), "authorization", 13))){
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
@@ -490,7 +494,7 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
+		sscanf((char *)sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
 		if(param->maxtrafout64 && (param->maxtrafout64 < param->statscli64 || contentlength64 > param->maxtrafout64 - param->statscli64)){
 			RETURN(10);
 		}
@@ -510,7 +514,7 @@ for(;;){
 
  buf[inbuf] = 0;
 
- reqsize = (int)strlen(req);
+ reqsize = (int)strlen((char *)req);
  reqbufsize = reqsize + 1;
 
 #ifndef WITHMAIN
@@ -529,7 +533,7 @@ for(;;){
   uint64_t newlen64;
   newlen64 = sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
   if(newlen64 == contentlength64) {
-	action = handledatfltcli(param,  &param->clibuf, &param->clibufsize, 0, &param->cliinbuf);
+	action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, 0, (int *)&param->cliinbuf);
 	if(action == HANDLED){
 		RETURN(0);
 	}
@@ -803,7 +807,8 @@ for(;;){
 
  else {
 	 redirect = 1;
-	 if(socksend(param->remsock, req , (res = (int)strlen((char *)req)), conf.timeouts[STRING_L]) != res) {
+	 res = (int)strlen((char *)req);
+	 if(socksend(param->remsock, req , res, conf.timeouts[STRING_L]) != res) {
 		RETURN(518);
 	 }
 	 param->statscli64 += res;
@@ -893,7 +898,7 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf(sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
+		sscanf((char *)sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
 		hascontent = 1;
 		if(param->unsafefilter && param->ndatfilterssrv > 0) {
 			hascontent = 2;
@@ -909,7 +914,7 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		if(!strncasecmp(sb, "chunked", 7)){
+		if(!strncasecmp((char *)sb, "chunked", 7)){
 			param->chunked = 1;
 		}
 	}
@@ -959,7 +964,7 @@ for(;;){
   uint64_t newlen;
   newlen = (uint64_t)sockfillbuffsrv(param, (unsigned long) contentlength64, CONNECTION_S);
   if(newlen == contentlength64) {
-	action = handledatfltsrv(param,  &param->srvbuf, &param->srvbufsize, 0, &param->srvinbuf);
+	action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, 0, (int *)&param->srvinbuf);
 	param->nolongdatfilter = 1;
 	if(action == HANDLED){
 		RETURN(0);
@@ -992,7 +997,7 @@ for(;;){
  if((param->chunked || contentlength64 > 0) && param->operation != HTTP_HEAD && res != 204 && res != 304) {
  	do {
 		if(param->chunked){
-			char smallbuf[32];
+			unsigned char smallbuf[32];
 			while ((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) == 2) {
 				if (socksend(param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
 					RETURN(533);
@@ -1015,7 +1020,7 @@ for(;;){
 			}
 			smallbuf[i] = 0;
 			contentlength64 = 0;
-			sscanf(smallbuf, "%"PRINTF_INT64_MODIFIER"x", &contentlength64);
+			sscanf((char *)smallbuf, "%"PRINTF_INT64_MODIFIER"x", &contentlength64);
 			if(contentlength64 == 0) {
 				param->chunked = 2;
 			}
@@ -1048,7 +1053,7 @@ REQUESTEND:
 	RETURN(0);
  }
  if(param->transparent && (!ckeepalive || !keepalive)) {RETURN (0);}
- logurl(param, buf, (char *)req, ftp);
+ logurl(param, (char *)buf, (char *)req, ftp);
  param->status = 0;
 
 }
@@ -1095,7 +1100,7 @@ CLEANRET:
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[0], (int)strlen(proxy_stringtable[0]), conf.timeouts[STRING_S]);
 	}
  } 
- logurl(param, buf, (char *)req, ftp);
+ logurl(param, (char *)buf, (char *)req, ftp);
  if(req)myfree(req);
  if(buf)myfree(buf);
  if(ftpbase)myfree(ftpbase);

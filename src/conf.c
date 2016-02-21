@@ -32,6 +32,7 @@ struct proxydef childdef = {NULL, 0, 0, S_NOSERVICE, ""};
 
 #ifndef _WIN32
 char *chrootp = NULL;
+static pthread_attr_t pa;
 #endif
 char * curconf = NULL;
 
@@ -142,14 +143,14 @@ int start_proxy_thread(struct child * chp){
 	conf.threadinit = 1;
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384, startsrv, (void *) chp, (DWORD)0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, (void *)startsrv, (void *) chp, (DWORD)0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384, startsrv, (void *) chp, (DWORD)0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, (void *)startsrv, (void *) chp, (DWORD)0, &thread);
 #endif
 	if(h)CloseHandle(h);
 #else
 	pthread_attr_init(&pa);
-	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 16384);
+	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (16384+conf.stacksize));
 	pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 	pthread_create(&thread, &pa, startsrv, (void *)chp);
 #endif
@@ -274,7 +275,8 @@ static int h_external(int argc, unsigned char ** argv){
 	memset(&sa6, 0, sizeof(sa6));
 	res = getip46(46, argv[1], (struct sockaddr *)&sa6);
 	if(!res) return 1; 
-	memcpy((*SAFAMILY(&sa6)==AF_INET)?(void *)&conf.extsa:(void *)&conf.extsa6, &sa6, sizeof(sa6)); 
+	if (*SAFAMILY(&sa6)==AF_INET) conf.extsa = sa6;
+	else conf.extsa6 = sa6;
 #else
 	res = getip46(46, argv[1], (struct sockaddr *)&conf.extsa);
 	if(!res) return 1; 
@@ -330,6 +332,11 @@ static int h_log(int argc, unsigned char ** argv){
 			}
 		}
 	}
+	return 0;
+}
+
+static int h_stacksize(int argc, unsigned char **argv){
+	conf.stacksize = atoi((char *)argv[1]);
 	return 0;
 }
 
@@ -705,7 +712,8 @@ static int h_parent(int argc, unsigned char **argv){
 	else if(!strcmp((char *)argv[2], "ftp"))chains->type = R_FTP;
 	else if(!strcmp((char *)argv[2], "admin"))chains->type = R_ADMIN;
 	else if(!strcmp((char *)argv[2], "icq"))chains->type = R_ICQ;
-	else if(!strcmp((char *)argv[2], "msn"))chains->type = R_MSN;
+	else if(!strcmp((char *)argv[2], "extip"))chains->type = R_EXTIP;
+	else if(!strcmp((char *)argv[2], "smtp"))chains->type = R_SMTP;
 	else {
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
 		return(4);
@@ -727,7 +735,7 @@ static int h_nolog(int argc, unsigned char **argv){
 		return(1);
 	}
 	while(acl->next) acl = acl->next;
-	if(!strcmp(argv[0],"nolog")) acl->nolog = 1;
+	if(!strcmp((char *)argv[0],"nolog")) acl->nolog = 1;
 	else acl->weight = atoi((char*)argv[1]);
 	return 0;
 }
@@ -740,14 +748,14 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 #endif
         char * slash, *dash;
 	int masklen, addrlen;
-	if((slash = strchr(arg, '/'))) *slash = 0;
-	if((dash = strchr(arg,'-'))) *dash = 0;
+	if((slash = strchr((char *)arg, '/'))) *slash = 0;
+	if((dash = strchr((char *)arg,'-'))) *dash = 0;
 	
 	if(!getip46(46, arg, (struct sockaddr *)&sa)) return 1;
 	memcpy(&dst->ip_from, SAADDR(&sa), SAADDRLEN(&sa));
 	dst->family = *SAFAMILY(&sa);
 	if(dash){
-		if(!getip46(46, dash+1, (struct sockaddr *)&sa)) return 2;
+		if(!getip46(46, (unsigned char *)dash+1, (struct sockaddr *)&sa)) return 2;
 		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
 		if(*SAFAMILY(&sa) != dst->family || memcmp(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa)) < 0) return 3;
 		return 0;
@@ -1254,7 +1262,7 @@ static int h_plugin(int argc, unsigned char **argv){
 #ifdef _WINCE
 	hi = LoadLibraryW((LPCWSTR)CEToUnicode(argv[1]));
 #else
-	hi = LoadLibrary(argv[1]);
+	hi = LoadLibrary((char *)argv[1]);
 #endif
 	if(!hi) {
 		fprintf(stderr, "Failed to load %s, code %d\n", argv[1], (int)GetLastError());
@@ -1263,7 +1271,7 @@ static int h_plugin(int argc, unsigned char **argv){
 #ifdef _WINCE
 	fp = GetProcAddressW(hi, (LPCWSTR)CEToUnicode(argv[2]));
 #else
-	fp = GetProcAddress(hi, argv[2]);
+	fp = GetProcAddress(hi, (char *)argv[2]);
 #endif
 	if(!fp) {
 		printf("%s not found in %s, code: %d\n", argv[2], argv[1], (int)GetLastError());
@@ -1390,6 +1398,7 @@ struct commands commandhandlers[]={
 	{commandhandlers+55, "msnpr", h_proxy, 4, 0},
 	{commandhandlers+56, "delimchar",h_delimchar, 2, 2},
 	{commandhandlers+57, "authnserver", h_authnserver, 2, 2},
+	{commandhandlers+58, "stacksize", h_stacksize, 2, 2},
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
 

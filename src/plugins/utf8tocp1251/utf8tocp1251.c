@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
 unsigned char * conv_utf8_to_cp1251(unsigned char *s){
-	int i, j=0, n=(int)strlen(s);
+	int i, j=0, n=(int)strlen((char *)s);
 	int byte2 = 0;
 	int c1, new_c1, new_c2, new_i;
 	for(i = 0; i < n; i++){

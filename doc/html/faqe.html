@@ -64,6 +64,14 @@ to automatically reload configuration on address change.
 A: Check you use system DSN. 
 Check SQL request is valid. 
 The best way to check is to make file or stdout logging, get SQL request from log file or console and execute this request manually.
+Under Unix, you may also want to adjust 'stacksize' parameter.
+
+<p><i>Q: Why proxy crash on request processing?</a></i></p>
+<i>A:</i> default stacksize may be insufficient, if some non-default plugins
+  are used (e.g. PAM and ODBC on Linux) or if compiled on some platforms with
+  invalid system defined values (few versionds of FreeBSD on amd64).
+  Problem can be resolved with 'stacksize' command or '-S' option starting 3proxy 0.8.4.
+
 
 <p><i>Q: Why doesn't APOP/CRAM-MD5 authentication work with POP3 proxy?</i></p>
 A: Any Challenge-response authentication require challenge to be transmitted from server. Pop3p doesn't know which server to use before authentication, it makes it impossible to obtain challenge. You can encrypt your POP3 communications with TLS (i.e. stunnel) or IPSec.

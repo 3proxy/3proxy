@@ -144,7 +144,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 	if(!pcrefd->re) return pcrefd->action;
 	for(; offset < *length_p; nreplaces++){
 
-		count = pcre_exec(pcrefd->re, NULL, *buf_p, *length_p, offset, 0, ovector, 48);
+		count = pcre_exec(pcrefd->re, NULL, (char *)*buf_p, *length_p, offset, 0, ovector, 48);
 		if(count <= 0) break;
 		if(!(replace = pcrefd->replace) || param->nooverwritefilter) return pcrefd->action;
 
@@ -195,7 +195,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 			}
 			memcpy(newbuf, *buf_p, ovector[0]);
 			(*pl->myfree)(*buf_p);
-			*buf_p = newbuf;
+			*buf_p = (unsigned char *)newbuf;
 			*bufsize_p = ovector[0] + replen + 1;
 		}
 		memcpy(*buf_p + ovector[0], tmpbuf, replen);
@@ -229,15 +229,15 @@ static int h_pcre(int argc, unsigned char **argv){
 	struct filter *newf;
 	char *replace = NULL;
 	
-	if(!strncmp(argv[2], "allow",5)) action = PASS;
-	else if(!strncmp(argv[2], "deny",4)) action = REJECT;
-	else if(!strncmp(argv[2], "remove",6)) action = REMOVE;
-	else if(!strncmp(argv[2], "dunno",5)) action = CONTINUE;
+	if(!strncmp((char *)argv[2], "allow",5)) action = PASS;
+	else if(!strncmp((char *)argv[2], "deny",4)) action = REJECT;
+	else if(!strncmp((char *)argv[2], "remove",6)) action = REMOVE;
+	else if(!strncmp((char *)argv[2], "dunno",5)) action = CONTINUE;
 	else return 1;
-	if(!strncmp(argv[0], "pcre_rewrite", 12)) {
+	if(!strncmp((char *)argv[0], "pcre_rewrite", 12)) {
 		int i,j;
 		offset = 5;
-		replace = pl->mystrdup(argv[4]);
+		replace = pl->mystrdup((char *)argv[4]);
 		if(!replace) return 9;
 		for(i=0, j=0; replace[i]; i++, j++){
 			if(replace[i] == '\\'){
@@ -266,7 +266,7 @@ static int h_pcre(int argc, unsigned char **argv){
 		replace[j] = 0;
 	}
 	if(!(acl = pl->make_ace(argc - offset, argv + offset))) return 2;
-	acl->nolog = (strstr(argv[2],"log") == 0);
+	acl->nolog = (strstr((char *)argv[2],"log") == 0);
 	if(*argv[3] && !(*argv[3] == '*' && !argv[3][1]) ){
 		re = pcre_compile((char *)argv[3], pcre_options, &errptr, &offset, NULL);
 		if(!re) {
@@ -296,11 +296,11 @@ static int h_pcre(int argc, unsigned char **argv){
 	newf->data = flt;
 	newf->filter_open = pcre_filter_open;
 	newf->filter_client = pcre_filter_client;
-	if(strstr(argv[1], "request"))newf->filter_request = pcre_filter_buffer;
-	if(strstr(argv[1], "cliheader"))newf->filter_header_cli = pcre_filter_buffer;
-	if(strstr(argv[1], "clidata"))newf->filter_data_cli = pcre_filter_buffer;
-	if(strstr(argv[1], "srvheader"))newf->filter_header_srv = pcre_filter_buffer;
-	if(strstr(argv[1], "srvdata"))newf->filter_data_srv = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "request"))newf->filter_request = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "cliheader"))newf->filter_header_cli = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "clidata"))newf->filter_data_cli = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "srvheader"))newf->filter_header_srv = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "srvdata"))newf->filter_data_srv = pcre_filter_buffer;
 	newf->filter_clear = pcre_filter_clear;
 	newf->filter_close = pcre_filter_close;
 	
@@ -334,7 +334,7 @@ static int h_pcre_options(int argc, unsigned char **argv){
 	pcre_options = 0;
 	for(j=1; j<argc; j++)
 		for(i=0; pcreopts[i].name; i++)
-			if(!strcmp(pcreopts[i].name, argv[j]))
+			if(!strcmp(pcreopts[i].name, (char *)argv[j]))
 				pcre_options |= pcreopts[i].value;
 		 
 	return 0;

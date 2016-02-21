@@ -104,7 +104,7 @@
 #define PTHREAD_STACK_MIN 32768
 #define sockerror strerror
 #endif
-#define daemonize() daemon(1,1)
+#define daemonize() {if(fork())exit(0); else setsid();}
 #define SLEEPTIME 1000
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -122,8 +122,6 @@
 #ifdef _WIN32
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
-#else
-extern pthread_attr_t pa;
 #endif
 
 #ifndef SOCKET_ERROR
@@ -235,7 +233,7 @@ void mschap(const unsigned char *win_password,
 struct hashtable;
 void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires);
 
-void parsehost(int family, char *host, struct sockaddr *sa);
+void parsehost(int family, unsigned char *host, struct sockaddr *sa);
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
@@ -316,7 +314,6 @@ extern pthread_mutex_t hash_mutex;
 extern pthread_mutex_t tc_mutex;
 extern pthread_mutex_t pwl_mutex;
 extern pthread_mutex_t log_mutex;
-extern int logmutexinit;
 
 extern struct datatype datatypes[64];
 
