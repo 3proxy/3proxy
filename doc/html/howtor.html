@@ -304,7 +304,9 @@
   При использовании ODBC, logformat должен задавать формат SQL команды,
   которую необходимо дать для внесения записи в журнал, например:
   <pre>
-  logformat "GINSERT INTO proxystat VALUES (%t, '%c', '%U', %I)"</pre>
+  logformat "-\'+_GINSERT INTO proxystat VALUES (%t, '%c', '%U', %I)"</pre>
+  префикс -\'+_ указывает, что символы \ и ' следует заменить на _ .
+
   </p>
   <li><a name="LOGANALIZERS"><i>Как использовать лог-анализаторы с 3proxy</i></a>
   <p>

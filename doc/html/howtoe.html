@@ -287,10 +287,10 @@ logformat "L%t.%. %N.%p %E %U %C:%c %R:%r %O %I %h %T"
 <p>
 	If ODBC used, logformat should specify SQL command,
 	to insert record into log, for example
-<p><font face="courier">
-logformat "GINSERT INTO proxystat  VALUES (%t, '%c', '%U', %I)"
-</font>
+<p><pre>
+logformat "-\'+_GINSERT INTO proxystat  VALUES (%t, '%c', '%U', %I)"</pre>
 <br>(no line breaks)
+<br>-\'+_ instructs to replace characters \ and ' with _
 </p>
 		<li><A NAME="LOGANALIZERS">How to use log analizers with 3proxy</A>
 <p>
