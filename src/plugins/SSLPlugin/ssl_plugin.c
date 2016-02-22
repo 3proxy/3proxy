@@ -326,8 +326,13 @@ static struct filter ssl_filter = {
 };
 
 int mitm = 0;
+int ssl_inited = 0;
 
 static int h_mitm(int argc, unsigned char **argv){
+	if(!ssl_inited) {
+		ssl_init();
+		ssl_inited = 1;
+	}
 	if((mitm&1)) return 1;
 	if(mitm) usleep(100*SLEEPTIME);
 	ssl_filter.next = pl->conf->filters;
@@ -389,9 +394,9 @@ __declspec(dllexport)
 	}
 	else {
 		ssl_release();
+		ssl_inited = 0;
 	}
 
-	ssl_init();
 	tcppmfunc = (PROXYFUNC)pl->findbyname("tcppm");	
 	if(!tcppmfunc){return 13;}
 	proxyfunc = (PROXYFUNC)pl->findbyname("proxy");	
