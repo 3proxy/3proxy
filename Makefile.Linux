@@ -30,7 +30,7 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.Linux
-PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin PamAuth
 
 include Makefile.inc
 
