@@ -19,6 +19,8 @@ DLFLAGS = -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
 LIBS = -lcrypto -lssl -ldl 
+LIBSPREFIX = -l
+LIBSSUFFIX = 
 LNOUT = -o 
 EXESUFFICS =
 OBJSUFFICS = .o
