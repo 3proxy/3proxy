@@ -18,6 +18,15 @@ tmp/
 res
 version.c
 3proxy.res
+
+src/3proxy
+src/proxy
+src/socks
+src/tcppm
+src/udppm
+src/pop3p
+src/smtpp
+
 doc/html/man3/
 doc/html/man8/
 doc/html/index.html
