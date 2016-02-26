@@ -26,7 +26,8 @@ src/tcppm
 src/udppm
 src/pop3p
 src/smtpp
-
+*.ld.so
+*.dSYM
 doc/html/man3/
 doc/html/man8/
 doc/html/index.html
