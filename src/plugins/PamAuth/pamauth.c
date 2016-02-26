@@ -124,7 +124,7 @@ int start(struct pluginlink * pluginlink, int argc, unsigned char** argv)
  if(argc < 2) return 1;
  pl = pluginlink;
  if(service) pl->myfree(service);
- service=pl->mystrdup(argv[1]); 
+ service=(unsigned char *)pl->mystrdup((char *)argv[1]); 
 
  if (already_loaded) { return (0); }
 
