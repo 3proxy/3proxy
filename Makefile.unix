@@ -32,7 +32,7 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.unix
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin PamAuth
 
 include Makefile.inc
 
