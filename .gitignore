@@ -26,6 +26,10 @@ src/tcppm
 src/udppm
 src/pop3p
 src/smtpp
+src/ftppr
+src/icqpr
+src/mycrypt
+src/dighosts
 *.ld.so
 *.dSYM
 doc/html/man3/
