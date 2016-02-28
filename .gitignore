@@ -34,7 +34,6 @@ src/dighosts
 *.dSYM
 doc/html/man3/
 doc/html/man8/
-doc/html/index.html
 *.var
 verfile.sh
 Makefile
