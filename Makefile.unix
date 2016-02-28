@@ -21,6 +21,8 @@ DCFLAGS = -fpic
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 LIBS =
+LIBSPREFIX = -l
+LIBSSUFFIX = 
 LNOUT = -o 
 EXESUFFICS =
 OBJSUFFICS = .o
@@ -30,7 +32,7 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.unix
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin PamAuth
 
 include Makefile.inc
 

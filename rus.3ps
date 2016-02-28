@@ -1,0 +1,256 @@
+[--admin--]
+HTTP/1.0 401 Authentication Required\n
+WWW-Authenticate: Basic realm="proxy", encoding="utf-8"\n
+Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>401 Authentication Required</title></head>\n
+<body><h2>401 Authentication Required</h2>
+<h3>Access to requested resource disallowed by administrator or you need valid username/password to use this resource<br><hr>
+Доступ запрещен администратором или Вы ввели неправильное имя/пароль.
+</h3></body></html>\n
+[end]
+HTTP/1.0 200 OK\n
+Connection: close\n
+Expires: Thu, 01 Dec 1994 16:00:00 GMT\n
+Cache-Control: no-cache\n
+Content-type: text/html; charset=utf-8\n
+\n
+<http><head><title>%s Страница конфигурации</title></head>\n
+<table width='100%%' border='0'>\n
+<tr><td width='150' valign='top'>\n
+<h2>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h2>\n
+<A HREF='/C'>Счетчики</A><br><br>\n
+<A HREF='/R'>Перезагрузка конфигурации сервера</A><br><br>\n
+<A HREF='/S'>Запущенные сервисы</A><br><br>\n
+<A HREF='/F'>Настройка сервера</A>\n
+</td><td>
+<h2>%s %s Конфигурация</h2>
+[end]
+HTTP/1.0 200 OK\n
+Connection: close\n
+Cache-Control: no-cache\n
+Content-type: text/xml; charset=utf-8 \n
+\n
+<?xml version="1.0"?>\n
+<?xml-stylesheet href="/SX" type="text/css"?>\n
+<services>\n
+<description>Текущие запущенные сервисы и подключившиеся клиенты</description>\n
+[end]
+</services>\n
+[end]
+HTTP/1.0 200 OK\n
+Connection: close\n
+Cache-Control: no-cache\n
+Content-type: text/css\n
+\n
+services {\n
+	display: block;\n
+	margin: 10px auto 10px auto;\n
+	width: 80%;\n
+	background: black;\n"
+	font-family: sans-serif;\n
+	font-size: small;\n
+	color: silver;\n
+	}\n
+item {\n
+	display: block;\n
+	margin-bottom: 10px;\n
+	border: 2px solid #CCC;\n
+	padding: 10px;\n
+	spacing: 2px;\n
+	}\n
+parameter {\n
+	display: block;\n
+	padding: 2px;\n
+	margin-top: 10px;\n
+	border: 1px solid grey;\n
+	background: #EEE;\n
+	color: black;\n
+	}\n
+name {\n
+	display: inline;\n
+	float: left;\n
+	margin-right: 5px;\n
+	font-weight: bold;\n
+	}\n
+type {\n
+	display: inline;\n
+	font-size: x-small;\n
+	margin-right: 5px;\n
+	color: #666;\n
+	white-space: nowrap;\n
+	font-style: italic;\n
+	}\n
+description {\n
+	display: inline;\n
+	margin-right: 5px;\n
+	white-space: nowrap;\n
+	}\n
+value {\n
+	display: block;\n
+	margin-right: 5px;\n
+	}\n
+[end]
+<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br />\n
+<pre><font size='-2'><b>
+(c)3APA3A, Владимир Дубровин и <A href='http://3proxy.ru/'>3proxy.ru</A>\n
+</b></font>\n
+</td></tr></table></body></html>
+[end]
+<h3>Счетчики</h3>\n
+<table border = '1'>\n
+<tr align='center'><td>Описание</td><td>Активный</td>
+<td>Пользователи</td><td>Адрес источника</td><td>Адрес назначения</td>
+<td>Порты</td>
+<td>Лимит</td><td>Ед.</td><td>Значение</td>
+<td>Дата сброса</td><td>Дата обновения</td><td>Номер</td></tr>\n
+[end]
+</table>\n
+[end]
+[/--admin--]
+[--proxy--]
+HTTP/1.0 400 Bad Request\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>400 Bad Request</title></head>\n
+<body><h2>400 Bad Request</h2>
+<h2>400 Ошибка: Неправильный запрос.</h2>
+</body>
+</html>\n
+[end]
+HTTP/1.0 502 Bad Gateway\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>502 Bad Gateway</title></head>\n
+<body><h2>502 Bad Gateway</h2><h3>Host Not Found or connection failed <br><hr>
+Ошибка: Удалённый сервер не найден или не удалось связаться с ним.</h3>
+</body></html>\n
+[end]
+HTTP/1.0 503 Service Unavailable\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>503 Service Unavailable</title></head>\n
+<body><h2>503 Service Unavailable</h2><h3>You have exceeded your traffic limit <br><hr> 
+Вы превысили свой лимит трафика.
+</h3></body></html>\n
+[end]
+HTTP/1.0 503 Service Unavailable\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>503 Service Unavailable</title></head>\n
+<body><h2>503 Service Unavailable</h2><h3>Recursion detected<br><hr>
+Ошибка: Сервис не доступен, обнаружена рекурсия
+</h3></body></html>\n
+[end]
+HTTP/1.0 501 Not Implemented\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>501 Not Implemented</title></head>\n
+<body><h2>501 Not Implemented</h2><h3>Required action is not supported by proxy server <br><hr>
+Ошибка: Действие не поддерживается в данном proxy сервере
+</h3></body></html>\n
+[end]
+HTTP/1.0 502 Bad Gateway\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>502 Bad Gateway</title></head>\n
+<body><h2>502 Bad Gateway</h2><h3>Failed to connect parent proxy <br><hr>
+Ошибка: Невозможно соединиться c вышестоящим proxy сервером
+</h3></body></html>\n",
+[end]
+HTTP/1.0 500 Internal Error\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>500 Internal Error</title></head>\n
+<body><h2>500 Internal Error</h2><h3>Internal proxy error during processing your request <br><hr>
+Ошибка: Возникла внутренняя ошибка proxy сервера при обработке вашего запроса
+</h3></body></html>\n
+[end]
+HTTP/1.0 407 Proxy Authentication Required\n
+Proxy-Authenticate: Basic realm="proxy", encoding="utf-8"\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>407 Proxy Authentication Required</title></head>\n
+<body><h2>407 Proxy Authentication Required</h2><h3>Access to requested resource disallowed by administrator or you need valid username/password to use this resource.<br><hr>
+Доступ запрещен администратором или Вы ввели неправильное имя/пароль.
+</h3></body></html>\n
+[end]
+HTTP/1.0 200 Connection established\n\n
+[end]
+HTTP/1.0 200 Connection established\n
+Content-Type: text/html\n\n
+[end]
+HTTP/1.0 404 Not Found\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>404 Not Found</title></head>\n
+<body><h2>404 Not Found</h2><h3>File not found <br><hr>
+Файл не найден
+</h3></body></html>\n
+[end]	
+HTTP/1.0 403 Forbidden\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>403 Access Denied</title></head>\n
+<body><h2>403 Access Denied</h2><h3>Access control list denies you to access this resource.<br><hr>
+Доступ к данному ресурсу запрещен списком доступа на proxy сервер. 
+Если Вы считаете, что это ошибка обратитесь к администратору
+</h3></body></html>\n
+[end]
+HTTP/1.0 407 Proxy Authentication Required\n
+Proxy-Authenticate: NTLM\n
+Proxy-Authenticate: basic realm="proxy", encoding="utf-8"\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>407 Proxy Authentication Required</title></head>\n
+<body><h2>407 Proxy Authentication Required</h2><h3>Access to requested resource disallowed by administrator or you need valid username/password to use this resource.<br><hr>
+Доступ запрещен администратором или Вы ввели неправильное имя/пароль.
+</h3></body></html>\n
+[end]
+HTTP/1.0 407 Proxy Authentication Required\n
+Proxy-Connection: keep-alive\n
+Content-Length: 0\n
+Proxy-Authenticate: NTLM 
+[end]
+HTTP/1.0 403 Forbidden\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=us-ascii\n
+\n
+<pre>
+[end]
+HTTP/1.0 503 Service Unavailable\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>503 Service Unavailable</title></head>\n
+<body><h2>503 Service Unavailable</h2><h3>Your request violates configured policy<br><hr>
+Запрос не сответствует сконфигурированной политике.
+</h3></body></html>\n
+[end]
+HTTP/1.0 401 Authentication Required\n
+WWW-Authenticate: basic realm="FTP Server", encoding="utf-8"\n
+Proxy-Connection: close\n
+Content-type: text/html; charset=utf-8\n
+\n
+<html><head><title>401 FTP Server requires authentication</title></head>\n
+<body><h2>401 FTP Server requires authentication</h2><h3>This FTP server rejects anonymous access<br><hr>
+Этот  FTP  сервер отвергает анонимный доступ.
+</h3></body></html>\n
+[end]
+HTTP/1.1 100 Continue\n
+\n
+[end]
+[/--proxy--]

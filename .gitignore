@@ -15,9 +15,23 @@ tmp/
 *.swp
 *.o
 *.idb
-src/res
+res
 version.c
 3proxy.res
+
+src/3proxy
+src/proxy
+src/socks
+src/tcppm
+src/udppm
+src/pop3p
+src/smtpp
+src/ftppr
+src/icqpr
+src/mycrypt
+src/dighosts
+*.ld.so
+*.dSYM
 doc/html/man3/
 doc/html/man8/
 doc/html/index.html
@@ -25,7 +39,6 @@ doc/html/index.html
 verfile.sh
 Makefile
 Changelog
-res
 copytgz.sh
 *~.nib
 local.properties
@@ -157,7 +170,6 @@ csx
 AppPackages/
 
 # Others
-sql/
 *.Cache
 ClientBin/
 [Ss]tyle[Cc]op.*
