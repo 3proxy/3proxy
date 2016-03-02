@@ -18,7 +18,6 @@ LDFLAGS = -O2 -pthread
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
-LIBS = -lcrypto -lssl -ldl 
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -30,7 +29,12 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.Linux
-PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin PamAuth
+# PamAuth requires libpam, you may require pam-devel package to be installed
+# SSLPlugin requires  -lcrypto -lssl
+#LIBS = -lcrypto -lssl -ldl 
+LIBS = -ldl 
+#PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin PamAuth
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
 
 include Makefile.inc
 
