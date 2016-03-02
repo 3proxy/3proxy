@@ -314,7 +314,6 @@ extern pthread_mutex_t hash_mutex;
 extern pthread_mutex_t tc_mutex;
 extern pthread_mutex_t pwl_mutex;
 extern pthread_mutex_t log_mutex;
-
 extern struct datatype datatypes[64];
 
 extern struct commands commandhandlers[];

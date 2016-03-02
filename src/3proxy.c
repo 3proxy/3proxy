@@ -515,6 +515,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   pthread_mutex_init(&hash_mutex, NULL);
   pthread_mutex_init(&tc_mutex, NULL);
   pthread_mutex_init(&pwl_mutex, NULL);
+  pthread_mutex_init(&log_mutex, NULL);
 
   freeconf(&conf);
   res = readconfig(fp);
