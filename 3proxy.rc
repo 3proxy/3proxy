@@ -2,8 +2,8 @@
 
 
 1 VERSIONINFO
-FILEVERSION 0,8,5,0
-PRODUCTVERSION 0,5,4,0
+FILEVERSION 0,8,6,0
+PRODUCTVERSION 0,8,6,0
 FILETYPE 1
 FILESUBTYPE 0x0L
 BEGIN
@@ -14,12 +14,12 @@ BEGIN
             VALUE "Comments", "3proxy - tiny proxy server, http://3proxy.ru/\0"
             VALUE "CompanyName", "Vladimir Dubrovin\0"
             VALUE "FileDescription", "3proxy - tiny proxy server\0"
-            VALUE "FileVersion", "0.8.5\0"
+            VALUE "FileVersion", "0.8.6\0"
             VALUE "InternalName", "3proxy\0"
             VALUE "LegalCopyright", "Copyright (C) 2002-2016 Vladimir Dubrovin\0"
             VALUE "OriginalFilename", "3proxy.exe\0"
             VALUE "ProductName", "3proxy\0"
-            VALUE "ProductVersion", "0.8.5\0"
+            VALUE "ProductVersion", "0.8.6\0"
         END
     END
     BLOCK "VarFileInfo"
