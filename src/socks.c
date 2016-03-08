@@ -121,7 +121,7 @@ void * sockschild(struct clientparam* param) {
 		}
 #endif
 		if(SAISNULL(&param->req)) {
-			RETURN(421);
+			RETURN(431);
 		}
 		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);
 		break;
@@ -164,7 +164,7 @@ void * sockschild(struct clientparam* param) {
  }
 
  *SAPORT(&param->sinsr) = *SAPORT(&param->req) = port;
- if(command == 1 && !*SAPORT(&param->sinsr)) {RETURN(421);}
+ if(command == 1 && !*SAPORT(&param->sinsr)) {RETURN(461);}
  switch(command) { 
 	case 1:
 	 param->operation = CONNECT;
