@@ -120,7 +120,7 @@ void * sockschild(struct clientparam* param) {
 #ifndef NOIPV6
 		}
 #endif
-		if(SAISNULL(&param->req)) {
+		if(command == 1 && SAISNULL(&param->req)) {
 			RETURN(431);
 		}
 		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);
