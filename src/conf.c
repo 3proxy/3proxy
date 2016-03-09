@@ -1293,7 +1293,7 @@ static int h_plugin(int argc, unsigned char **argv){
 static int h_setuid(int argc, unsigned char **argv){
   int res;
 	res = atoi((char *)argv[1]);
-	if(!res || setuid(res)) {
+	if(!res || setreuid(res,res)) {
 		fprintf(stderr, "Unable to set uid %d", res);
 		return(1);
 	}
@@ -1304,7 +1304,7 @@ static int h_setgid(int argc, unsigned char **argv){
   int res;
 
 	res = atoi((char *)argv[1]);
-	if(!res || setgid(res)) {
+	if(!res || setregid(res,res)) {
 		fprintf(stderr, "Unable to set gid %d", res);
 		return(1);
 	}
