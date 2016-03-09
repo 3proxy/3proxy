@@ -28,7 +28,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 		*innbuf = i;
 		return 702;
 	}
-	sprintf(buf, "USER %.32s\r\n", param->extusername?param->extusername:(unsigned char *)"anonymous");
+	sprintf(buf, "USER %.128s\r\n", param->extusername?param->extusername:(unsigned char *)"anonymous");
 	if((int)socksend(param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
 		return 703;
 	}
@@ -40,7 +40,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 	buf[i] = 0;
 	res = atoi(buf)/100;
 	if(res == 3){
-		sprintf(buf, "PASS %.32s\r\n", 
+		sprintf(buf, "PASS %.128s\r\n", 
 			param->extusername?
 				(param->extpassword?
 					param->extpassword:(unsigned char *)"")
