@@ -9,17 +9,17 @@
 
 
 int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
-	char tbuf[1024];
+	char tbuf[256];
 	int i;
 	char *buf;
 	int len;
 	int res;
 
 	buf = nbuf?nbuf:tbuf;
-	len = nbuf?*innbuf:1024;
+	len = nbuf?*innbuf:sizeof(tbuf);
 
 	if(innbuf)*innbuf = 0;
-	if(len < 48) return 707;
+	if(len < 140) return 707;
 	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 3) return 706;
@@ -28,7 +28,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 		*innbuf = i;
 		return 702;
 	}
-	sprintf(buf, "USER %.32s\r\n", param->extusername?param->extusername:(unsigned char *)"anonymous");
+	sprintf(buf, "USER %.128s\r\n", param->extusername?param->extusername:(unsigned char *)"anonymous");
 	if((int)socksend(param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
 		return 703;
 	}
@@ -40,7 +40,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 	buf[i] = 0;
 	res = atoi(buf)/100;
 	if(res == 3){
-		sprintf(buf, "PASS %.32s\r\n", 
+		sprintf(buf, "PASS %.128s\r\n", 
 			param->extusername?
 				(param->extpassword?
 					param->extpassword:(unsigned char *)"")

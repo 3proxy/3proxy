@@ -57,7 +57,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(*SAPORT(addr)));
 			if(user){
 				len += sprintf((char *)buf + len, "Proxy-authorization: basic ");
-				sprintf((char *)username, "%.128s:%.64s", user, pass?pass:(unsigned char *)"");
+				sprintf((char *)username, "%.128s:%.128s", user, pass?pass:(unsigned char *)"");
 				en64(username, buf+len, (int)strlen((char *)username));
 				len = (int)strlen((char *)buf);
 				len += sprintf((char *)buf + len, "\r\n");

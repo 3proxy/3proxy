@@ -131,8 +131,8 @@ char * proxy_stringtable[] = {
 	NULL
 };
 
-#define BUFSIZE 8192
 #define LINESIZE 4096
+#define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
 
 static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
@@ -843,7 +843,7 @@ for(;;){
  if(keepalive <= 1) sprintf((char*)buf+strlen((char *)buf), "%s: %s\r\n", (param->redirtype == R_HTTP)?"Proxy-Connection":"Connection", keepalive? "keep-alive":"close");
  if(param->extusername){
 	sprintf((char*)buf + strlen((char *)buf), "%s: basic ", (redirect)?"Proxy-Authorization":"Authorization");
-	sprintf((char*)username, "%.128s:%.64s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
+	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
 	en64(username, buf+strlen((char *)buf), (int)strlen((char *)username));
 	sprintf((char*)buf + strlen((char *)buf), "\r\n");
  }
