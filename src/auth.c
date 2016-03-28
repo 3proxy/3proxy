@@ -476,8 +476,8 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 	
 	if(!nbytesin && !nbytesout) return 0;
 	pthread_mutex_lock(&bandlim_mutex);
-	if(param->srv->version != conf.paused){
-		initbandlims(param);
+	if(param->paused != conf.paused){
+		return (1);
 	}
 	for(i=0; nbytesin&& i<MAXBANDLIMS && param->bandlims[i]; i++){
 		if( !param->bandlims[i]->basetime || 
@@ -558,7 +558,7 @@ int alwaysauth(struct clientparam * param){
 
 	res = doconnect(param);
 	if(!res){
-		if(param->srv->version != conf.paused) return 333;
+		if(param->srv->paused != conf.paused) return 333;
 		initbandlims(param);
 		for(tc = conf.trafcounter; tc; tc = tc->next) {
 			if(tc->disabled) continue;

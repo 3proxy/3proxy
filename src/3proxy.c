@@ -59,8 +59,8 @@ void __stdcall CommandHandler( DWORD dwCommand )
     case SERVICE_CONTROL_STOP:
     case SERVICE_CONTROL_SHUTDOWN:
         SetStatus( SERVICE_STOP_PENDING, 0, 1 );
-	conf.paused++;
 	conf.timetoexit = 1;
+	conf.paused++;
 	Sleep(2000);
         SetStatus( SERVICE_STOPPED, 0, 0 );
 #ifndef NOODBC

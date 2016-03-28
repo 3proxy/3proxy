@@ -1685,6 +1685,7 @@ int reload (void){
 
 	fp = confopen();
 	if(fp){
+		conf.version++;
 		error = readconfig(fp);
 		if(error) {
 			 freeconf(&conf);

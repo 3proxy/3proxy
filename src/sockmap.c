@@ -68,6 +68,11 @@ int sockmap(struct clientparam * param, int timeo){
 
  while (!stop&&!conf.timetoexit){
 	sasize = sizeof(struct sockaddr_in);
+	if(param->version != conf.version){
+		if (res = (*param->srv->authfunc)(param)) {return(res);}
+		param->paused = conf.paused;
+		param->version = conf.version;
+	}
 	if((param->maxtrafin64 && param->statssrv64 >= param->maxtrafin64) || (param->maxtrafout64 && param->statscli64 >= param->maxtrafout64)){
 		return (10);
 	}
