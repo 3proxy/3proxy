@@ -519,6 +519,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
   freeconf(&conf);
   res = readconfig(fp);
+  conf.version++;
 
   if(res) RETURN(res);
   if(!writable)fclose(fp);

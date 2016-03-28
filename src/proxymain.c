@@ -710,7 +710,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 void srvinit(struct srvparam * srv, struct clientparam *param){
 
  memset(srv, 0, sizeof(struct srvparam));
- srv->version = conf.version;
+ srv->version = conf.version + 1;
  srv->paused = conf.paused;
  srv->logfunc = conf.logfunc;
  if(srv->logformat)myfree(srv->logformat);
