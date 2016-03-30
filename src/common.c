@@ -669,11 +669,13 @@ int doconnect(struct clientparam * param){
 	}
 #endif
 
+	if(SAISNULL(&param->sinsl)){
 #ifndef NOIPV6
-	if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
-	else
+		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
+		else
 #endif
-		param->sinsl = param->srv->extsa;
+			param->sinsl = param->srv->extsa;
+	}
 	*SAPORT(&param->sinsl) = 0;
 	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;

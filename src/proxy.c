@@ -152,7 +152,7 @@ static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
 		strcpy(se, sb);
 	}
  }
- if(param->res != 555)(*param->srv->logfunc)(param, (unsigned char *)(req?buf:NULL));
+ if(param->res != 555 && param->res != 508)(*param->srv->logfunc)(param, (unsigned char *)(req?buf:NULL));
 }
 
 void decodeurl(unsigned char *s, int allowcr){
@@ -264,6 +264,9 @@ for(;;){
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
+		memset(&param->sinsl, 0, sizeof(param->sinsl));
+		memset(&param->sinsr, 0, sizeof(param->sinsr));
+		memset(&param->req, 0, sizeof(param->req));
 	}
  }
 
@@ -284,6 +287,9 @@ for(;;){
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
+		memset(&param->sinsl, 0, sizeof(param->sinsl));
+		memset(&param->sinsr, 0, sizeof(param->sinsr));
+		memset(&param->req, 0, sizeof(param->req));
 	}
 	myfree(req);
  }
