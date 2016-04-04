@@ -314,22 +314,23 @@ static int h_log(int argc, unsigned char ** argv){
 			}
 			conf.logtime = time(0);
 			if(conf.logname)myfree(conf.logname);
+			pthread_mutex_lock(&log_mutex);
 			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
 			fp = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
 			if(!fp){
-				perror("fopen()");
+				perror(tmpbuf);
+				pthread_mutex_unlock(&log_mutex);
 				return 1;
 			}
 			else {
-				pthread_mutex_lock(&log_mutex);
 				if(conf.stdlog)fclose(conf.stdlog);
 				conf.stdlog = fp;
-				pthread_mutex_unlock(&log_mutex);
 #ifdef _WINCE
 				freopen(tmpbuf, "w", stdout);
 				freopen(tmpbuf, "w", stderr);
 #endif
 			}
+			pthread_mutex_unlock(&log_mutex);
 		}
 	}
 	return 0;
