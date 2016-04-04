@@ -713,6 +713,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->version = conf.version + 1;
  srv->paused = conf.paused;
  srv->logfunc = conf.logfunc;
+ srv->noforce = conf.noforce;
  if(srv->logformat)myfree(srv->logformat);
  srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
  srv->authfunc = conf.authfunc;

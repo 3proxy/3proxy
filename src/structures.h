@@ -373,6 +373,7 @@ struct srvparam {
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
 	int stacksize;
+	int noforce;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
 #ifndef NOIPV6
@@ -496,7 +497,7 @@ struct extparam {
 	struct trafcount * trafcounter;
 	struct srvparam *services;
 	int stacksize, threadinit, counterd, haveerror, rotate, paused, archiverc,
-		demon, maxchild, singlepacket, needreload, timetoexit, version;
+		demon, maxchild, singlepacket, needreload, timetoexit, version, noforce;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
 	unsigned char *logname, **archiver;

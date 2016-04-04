@@ -341,6 +341,17 @@ static int h_stacksize(int argc, unsigned char **argv){
 	return 0;
 }
 
+
+static int h_force(int argc, unsigned char **argv){
+	conf.noforce = 0;
+	return 0;
+}
+
+static int h_noforce(int argc, unsigned char **argv){
+	conf.noforce = 1;
+	return 0;
+}
+
 static int h_service(int argc, unsigned char **argv){
 	return 0;
 }
@@ -1400,6 +1411,8 @@ struct commands commandhandlers[]={
 	{commandhandlers+56, "delimchar",h_delimchar, 2, 2},
 	{commandhandlers+57, "authnserver", h_authnserver, 2, 2},
 	{commandhandlers+58, "stacksize", h_stacksize, 2, 2},
+	{commandhandlers+59, "force", h_force, 1, 1},
+	{commandhandlers+60, "noforce", h_noforce, 1, 1},
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
 
