@@ -285,6 +285,7 @@ static int h_external(int argc, unsigned char ** argv){
 }
 
 static int h_log(int argc, unsigned char ** argv){ 
+	unsigned char tmpbuf[8192];
 	conf.logfunc = logstdout;
 	if(conf.logtarget){
 		myfree(conf.logtarget);
@@ -314,12 +315,10 @@ static int h_log(int argc, unsigned char ** argv){
 			}
 			conf.logtime = time(0);
 			if(conf.logname)myfree(conf.logname);
-			pthread_mutex_lock(&log_mutex);
 			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
 			fp = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
 			if(!fp){
 				perror(tmpbuf);
-				pthread_mutex_unlock(&log_mutex);
 				return 1;
 			}
 			else {
@@ -330,7 +329,6 @@ static int h_log(int argc, unsigned char ** argv){
 				freopen(tmpbuf, "w", stderr);
 #endif
 			}
-			pthread_mutex_unlock(&log_mutex);
 		}
 	}
 	return 0;
