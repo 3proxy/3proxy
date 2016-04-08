@@ -405,17 +405,22 @@ static int h_counter(int argc, unsigned char **argv){
 			fprintf(stderr, "Not a counter file %s, line %d\n", argv[1], linenum);
 			return 2;
 		}
-#ifdef  _MSC_VER
 #ifdef _TIME64_T_DEFINED
-#ifndef _MAX__TIME64_T
-#define _MAX__TIME64_T     0x793406fffi64
+#ifdef _MAX__TIME64_T
+#define MAX_COUNTER_TIME (_MAX__TIME64_T)
+#elif defined (MAX__TIME64_T)
+#define MAX_COUNTER_TIME (MAX__TIME64_T)
+#else
+#define MAX_COUNTER_TIME (0x793406fff)
 #endif 
+#else
+#define MAX_COUNTER_TIME ((sizeof(time_t)>4)?0x793406fff:LONG_MAX)
 #endif
-		if(ch1.updated >= _MAX__TIME64_T){
+
+		if(ch1.updated < 0 || ch1.updated >= MAX_COUNTER_TIME){
 			fprintf(stderr, "Invalid or corrupted counter file %s. Use countersutil utility to convert from older version\n", argv[1]);
 			return 3;
 		}
-#endif
 		cheader.updated = ch1.updated;
 	}
 	if(argc >=4) {
@@ -1209,12 +1214,10 @@ static int h_ace(int argc, unsigned char **argv){
 				tl->traf64 = crecord.traf64;
 				tl->cleared = crecord.cleared;
 				tl->updated = crecord.updated;
-#ifdef _MAX__TIME64_T
-				if(tl->cleared >=  _MAX__TIME64_T || tl->updated >=  _MAX__TIME64_T){
-					fprintf(stderr, "Invalid or corrupted counter file. Use countersutil utility to convert from older version\n");
+				if(tl->cleared < 0 || tl->cleared >=  MAX_COUNTER_TIME || tl->updated < 0 || tl->updated >=  MAX_COUNTER_TIME){
+					fprintf(stderr, "Invalid, incompatible or corrupted counter file.\n");
 					return(6);
 				}
-#endif
 			}
 		}
 		pthread_mutex_lock(&tc_mutex);
