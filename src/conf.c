@@ -410,11 +410,11 @@ static int h_counter(int argc, unsigned char **argv){
 #ifndef _MAX__TIME64_T
 #define _MAX__TIME64_T     0x793406fffi64
 #endif 
-#endif
 		if(ch1.updated >= _MAX__TIME64_T){
 			fprintf(stderr, "Invalid or corrupted counter file %s. Use countersutil utility to convert from older version\n", argv[1]);
 			return 3;
 		}
+#endif
 #endif
 		cheader.updated = ch1.updated;
 	}
