@@ -414,7 +414,7 @@ static int h_counter(int argc, unsigned char **argv){
 #define MAX_COUNTER_TIME (0x793406fff)
 #endif 
 #else
-#define MAX_COUNTER_TIME ((sizeof(time_t)>4)?0x793406fff:LONG_MAX)
+#define MAX_COUNTER_TIME ((sizeof(time_t)>4)?(time_t)0x793406fff:(time_t)0x7fffffff)
 #endif
 
 		if(ch1.updated < 0 || ch1.updated >= MAX_COUNTER_TIME){
