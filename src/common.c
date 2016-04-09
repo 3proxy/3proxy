@@ -58,11 +58,7 @@ struct extparam conf = {
 	NULL, NULL,
 	NULL,
 	NULL,
-#ifdef __FreeBSD__
-	8192, 
-#else
 	0,
-#endif
 	0, -1, 0, 0, 0, 0, 0, 500, 0, 0, 0, 0, 0,
 	6, 600,
 	1048576,
@@ -173,53 +169,6 @@ struct sockfuncs so = {
 	close
 #endif
 };
-
-#ifdef _WINCE
-
-static char cebuf[1024];
-static char ceargbuf[256];
-char * ceargv[32];
-
-char * CEToUnicode (const char *str){
-	int i;
-
-	for(i=0; i<510 && str[i]; i++){
-		cebuf[(i*2)] = str[i];
-		cebuf[(i*2)+1] = 0;
-	}
-	cebuf[(i*2)] = 0;
-	cebuf[(i*2)+1] = 0;
-	return cebuf;
-};
-
-int cesystem(const char *str){
-	STARTUPINFO startupInfo = {0};
-	startupInfo.cb = sizeof(startupInfo);
-
-	PROCESS_INFORMATION processInformation;
-
-	return CreateProcessW((LPWSTR)CEToUnicode(str), NULL, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS, NULL, NULL, &startupInfo, &processInformation);
-}
-
-int ceparseargs(const char *str){
-	int argc = 0, i;
-	int space = 1;
-
-	for(i=0; i<250 && argc<30 && str[2*i]; i++){
-		ceargbuf[i] = str[2*i];
-		if(space && ceargbuf[i]!=' '&& ceargbuf[i]!='\t'&& ceargbuf[i]!='\r'&& ceargbuf[i]!='\n'){
-			ceargv[argc++] = ceargbuf + i;
-			space = 0;
-		}
-		else if(!space && (ceargbuf[i]==' ' || ceargbuf[i]=='\t' || ceargbuf[i]=='\r' || ceargbuf[i]=='\n')){
-			ceargbuf[i] = 0;
-			space = 1;
-		}
-	}
-	return argc;
-}
-
-#endif
 
 void parsehost(int family, unsigned char *host, struct sockaddr *sa){
 	char *sp=NULL,*se=NULL;
@@ -367,11 +316,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 
 	sec = (time_t)tv.tv_sec;
 	msec = tv.tv_usec / 1000;
-#ifdef _SOLARIS
-	timezone = -altzone / 60;
-#else
 	timezone = tm->tm_gmtoff / 60;
-#endif
 #endif
 
 	delay = param->time_start?((unsigned) ((sec - param->time_start))*1000 + msec) - param->msec_start : 0;
@@ -723,13 +668,9 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 	struct hostent *result;
 	int gherrno;
 
-#ifdef _SOLARIS
-	return gethostbyname_r(name, hp, buf, 1024, &gherrno);
-#else
 	if(gethostbyname_r(name, hp, buf, 1024, &result, &gherrno) != 0)
 		return NULL;
 	return result;
-#endif
 }
 #endif
 

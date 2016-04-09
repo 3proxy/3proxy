@@ -46,11 +46,7 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
-#ifndef _WINCE
 #include <io.h>
-#else
-#include <sys/unistd.h>
-#endif
 #include <process.h>
 #define SASIZETYPE int
 #define SHUT_RDWR SD_BOTH
@@ -67,38 +63,6 @@
 #include <errno.h>
 #endif
 
-#ifdef __CYGWIN__
-#include <windows.h>
-#define daemonize() FreeConsole()
-#define SLEEPTIME 1000
-#undef _WIN32
-#elif _WIN32
-#ifdef errno
-#undef errno
-#endif
-#define errno WSAGetLastError()
-#ifdef EAGAIN
-#undef EAGAIN
-#endif
-#define EAGAIN WSAEWOULDBLOCK
-#ifdef EINTR
-#undef EINTR
-#endif
-#define EINTR WSAEWOULDBLOCK
-#define SLEEPTIME 1
-#define usleep Sleep
-#define pthread_self GetCurrentThreadId
-#define getpid GetCurrentProcessId
-#define pthread_t unsigned
-#ifndef _WINCE
-#define daemonize() FreeConsole()
-#else
-#define daemonize()
-#endif
-#define socket(x, y, z) WSASocket(x, y, z, NULL, 0, 0)
-#define accept(x, y, z) WSAAccept(x, y, z, NULL, 0)
-#define ftruncate chsize
-#else
 #include <pthread.h>
 #ifndef PTHREAD_STACK_MIN
 #define PTHREAD_STACK_MIN 32768
@@ -108,7 +72,6 @@
 #define SLEEPTIME 1000
 #ifndef O_BINARY
 #define O_BINARY 0
-#endif
 #endif
 
 #ifndef NOODBC
@@ -317,16 +280,6 @@ extern pthread_mutex_t log_mutex;
 extern struct datatype datatypes[64];
 
 extern struct commands commandhandlers[];
-
-#ifdef _WINCE
-char * CEToUnicode (const char *str);
-int cesystem(const char *str);
-int ceparseargs(const char *str);
-extern char * ceargv[32];
-
-
-#define system(S) cesystem(S)
-#endif
 
 #define WEBBANNERS 35
 

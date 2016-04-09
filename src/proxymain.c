@@ -66,19 +66,7 @@ void * threadfunc (void *p) {
 #define MODULEMAINFUNC main
 #define STDMAIN
 
-#ifndef _WINCE
-
 int main (int argc, char** argv){
-
-#else
-
-int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow){
- int argc;
- char ** argv;
- WNDCLASS wc;
- HWND hwnd = 0;
-
-#endif
 
 #else
  extern int linenum;
@@ -149,23 +137,6 @@ int MODULEMAINFUNC (int argc, char** argv){
  HANDLE h;
 #endif
 #ifdef STDMAIN
-
-#ifdef _WINCE
- argc = ceparseargs((char *)lpCmdLine);
- argv = ceargv;
- if(FindWindow(lpCmdLine, lpCmdLine)) return 0;
- ZeroMemory(&wc,sizeof(wc));
- wc.hbrBackground=(HBRUSH)GetStockObject(BLACK_BRUSH);
- wc.hInstance=hInstance;
- wc.hCursor=LoadCursor(NULL,IDC_ARROW);
- wc.lpfnWndProc=DefWindowProc;
- wc.style=CS_HREDRAW|CS_VREDRAW;
- wc.lpszClassName=lpCmdLine;
- RegisterClass(&wc);
-
- hwnd = CreateWindowEx(WS_EX_TOOLWINDOW,lpCmdLine,lpCmdLine,WS_VISIBLE|WS_POPUP,0,0,0,0,0,0,hInstance,0);
-#endif
-
 
 #ifdef _WIN32
  WSADATA wd;
