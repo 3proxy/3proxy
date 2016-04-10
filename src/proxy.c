@@ -8,8 +8,23 @@
 
 
 #include "proxy.h"
+#include "libs/regex.h"
 
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
+
+char * website_white_list[] = {
+		"^.*\.baidu\.com",
+		"^.*\.news\.cn"
+		"^.*\.zjol\.com\.cn",
+		"^.*\.hangzhou\.com\.cn",
+		"^.*\.sina\.com\.cn",
+		"^.*\.163\.com",
+		"^.*\.sohu\.com",
+		"^.*\.qq\.com",
+		"^.*\.youku\.com",
+		"^.*\.soku\.com",
+		NULL
+};
 
 char * proxy_stringtable[] = {
 /* 0 */	"HTTP/1.0 400 Bad Request\r\n"
@@ -214,7 +229,6 @@ void file2url(unsigned char *sb, unsigned char *buf, unsigned bufsize, int * inb
 
 
 void * proxychild(struct clientparam* param) {
- RETURN(1000);
  int res=0, i=0;
  unsigned char* buf = NULL, *newbuf;
  int inbuf;
@@ -352,6 +366,26 @@ for(;;){
 		if(se==sg)*se-- = ' ';
 		*se = '/';
 		memmove(ss, se, i - (se - sb) + 1);
+	}
+ }
+ {
+	regex_t reg;
+	size_t nmatch = 1;
+	regmatch_t pmatch[nmatch];
+	int wwli = 0;
+	int result;
+	for(;;){
+		if(website_white_list[wwli]){
+			regcomp(&reg,website_white_list[wwli],0);
+			result = regexec(&reg,param->hostname,nmatch,pmatch,0);
+			regfree(&reg);
+			wwli++;
+			if(result == 0){
+				break;
+			}
+		}else{
+			RETURN(1000);
+		}
 	}
  }
  reqlen = i = (int)strlen((char *)buf);

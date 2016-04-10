@@ -23,7 +23,7 @@ ftp$(OBJSUFFICS): ftp.c proxy.h structures.h
 sockgetchar$(OBJSUFFICS): sockgetchar.c proxy.h structures.h
 	$(CC) $(CFLAGS) sockgetchar.c
 
-proxy$(OBJSUFFICS): proxy.c proxy.h structures.h proxymain.c
+proxy$(OBJSUFFICS): proxy.c proxy.h structures.h proxymain.c libs/regex.c libs/regex.h
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP $(DEFINEOPTION)ANONYMOUS proxy.c
 
 $(BUILDDIR)proxy$(EXESUFFICS): sockmap$(OBJSUFFICS) proxy$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) myalloc$(OBJSUFFICS) common$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) $(COMPATLIBS)
