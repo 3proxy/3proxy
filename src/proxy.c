@@ -128,6 +128,13 @@ char * proxy_stringtable[] = {
 /* 17*/ "HTTP/1.1 100 Continue\r\n"
 	"\r\n",
 
+/* 18*/	"HTTP/1.0 403 Forbidden\r\n"
+		"Proxy-Connection: close\r\n"
+		"Content-type: text/html; charset=utf-8\r\n"
+		"\r\n"
+		"<html><head><title>杭州市公安局网络警察分局</title></head>\r\n"
+		"<body><h2>杭州市公安局网络警察分局提醒您</h2><h3>您所访问的网站存在淫秽违法内容，已依法予以屏蔽</h3><h4>净化网络，从你我做起</h4></body></html>\r\n",
+
 	NULL
 };
 
@@ -207,6 +214,7 @@ void file2url(unsigned char *sb, unsigned char *buf, unsigned bufsize, int * inb
 
 
 void * proxychild(struct clientparam* param) {
+ RETURN(1000);
  int res=0, i=0;
  unsigned char* buf = NULL, *newbuf;
  int inbuf;
@@ -1066,7 +1074,10 @@ REQUESTEND:
 
 CLEANRET:
 
- if(param->res != 555 && param->res && param->clisock != INVALID_SOCKET && (param->res < 90 || param->res >=800 || param->res == 100 ||(param->res > 500 && param->res< 800))) {
+
+ if(param->res == 1000) {
+	socksend(param->clisock, (unsigned char *)proxy_stringtable[18], (int)strlen(proxy_stringtable[18]), conf.timeouts[STRING_S]);
+ }else if(param->res != 555 && param->res && param->clisock != INVALID_SOCKET && (param->res < 90 || param->res >=800 || param->res == 100 ||(param->res > 500 && param->res< 800))) {
 	if((param->res>=509 && param->res < 517) || param->res > 900) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2);
 	if(param->res == 10) {
 		socksend(param->clisock, (unsigned char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
