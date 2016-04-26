@@ -558,7 +558,6 @@ int alwaysauth(struct clientparam * param){
 
 	res = doconnect(param);
 	if(!res){
-		if(param->srv->paused != conf.paused) return 333;
 		initbandlims(param);
 		for(tc = conf.trafcounter; tc; tc = tc->next) {
 			if(tc->disabled) continue;
