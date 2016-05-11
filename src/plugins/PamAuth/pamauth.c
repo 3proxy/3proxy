@@ -94,7 +94,6 @@ static int pamfunc(struct clientparam *param)
     {
 	retval = pam_start ((char *)service, "3proxy@" , &conv, &pamh);
     }
-  pthread_mutex_unlock(&pam_mutex);
    if (retval == PAM_SUCCESS)
        retval = pam_set_item (pamh, PAM_USER, param->username); 
 /*fprintf(stderr,"pam_set_item1 rc=%d\n",retval);*/
@@ -112,6 +111,7 @@ static int pamfunc(struct clientparam *param)
       retval = pam_end (pamh, retval);
    if (retval != PAM_SUCCESS)
       {  pamh = NULL;   }
+  pthread_mutex_unlock(&pam_mutex);
 
   return rc;
 
