@@ -13,6 +13,7 @@ Kirill Lopuchov <lopuchov@mail.ru>
 
 
 pthread_mutex_t pam_mutex;
+pam_handle_t *pamh = NULL;
 
 static int         already_loaded = 0;
 
@@ -69,7 +70,6 @@ static void lower (char *string)
 /* --------------------------------------------------------------------------*/
 static int pamfunc(struct clientparam *param)
  {
-  pam_handle_t *pamh = NULL;
   int retval;
   int rc=0;
 
@@ -90,10 +90,8 @@ static int pamfunc(struct clientparam *param)
   conv.appdata_ptr = (char *) param->password;
 
   pthread_mutex_lock(&pam_mutex);
-  if (!pamh)
-    {
+   if (!pamh)
 	retval = pam_start ((char *)service, "3proxy@" , &conv, &pamh);
-    }
    if (retval == PAM_SUCCESS)
        retval = pam_set_item (pamh, PAM_USER, param->username); 
 /*fprintf(stderr,"pam_set_item1 rc=%d\n",retval);*/
@@ -104,14 +102,10 @@ static int pamfunc(struct clientparam *param)
          retval = pam_authenticate (pamh, 0);  
 /*fprintf(stderr,"pam_authenticate rc=%d\n",retval);*/
    
+   pthread_mutex_unlock(&pam_mutex);
+
    if (retval == PAM_SUCCESS) {  /*auth OK*/  rc=0;   }
    else  { /*auth ERR*/  rc=5;     }
-
-   if (pamh)
-      retval = pam_end (pamh, retval);
-   if (retval != PAM_SUCCESS)
-      {  pamh = NULL;   }
-  pthread_mutex_unlock(&pam_mutex);
 
   return rc;
 
