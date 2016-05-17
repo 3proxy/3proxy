@@ -563,8 +563,8 @@ static int h_nserver(int argc, unsigned char **argv){
 	if(numservers < MAXNSERVERS) {
 		if((str = strchr((char *)argv[1], '/')))
 			*str = 0;
-		if(!getip46(46, argv[1], (struct sockaddr *)&nservers[numservers].addr)) return 1;
 		*SAPORT(&nservers[numservers].addr) = htons(53);
+		if(parsehost(46, argv[1], (struct sockaddr *)&nservers[numservers].addr)) return 1;
 		if(str) {
 			nservers[numservers].usetcp = strstr(str + 1, "tcp")? 1:0;
 			*str = '/';
@@ -581,7 +581,7 @@ static int h_authnserver(int argc, unsigned char **argv){
 
 	if((str = strchr((char *)argv[1], '/')))
 		*str = 0;
-	if(!getip46(46, argv[1], (struct sockaddr *)&authnserver.addr)) return 1;
+	if(parsehost(46, argv[1], (struct sockaddr *)&authnserver.addr)) return 1;
 	*SAPORT(&authnserver.addr) = htons(53);
 	if(str) {
 		authnserver.usetcp = strstr(str + 1, "tcp")? 1:0;

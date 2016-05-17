@@ -221,30 +221,34 @@ int ceparseargs(const char *str){
 
 #endif
 
-void parsehost(int family, unsigned char *host, struct sockaddr *sa){
+int parsehost(int family, unsigned char *host, struct sockaddr *sa){
 	char *sp=NULL,*se=NULL;
-	unsigned short port;
+	unsigned short port=0;
+	int ret = 0;
 
+	if(!host) return 2;
 	if(*host == '[') se=strchr((char *)host, ']');
-	if ( (sp = strchr(se?se:(char *)host, ':')) ) *sp = 0;
+	if ( (sp = strchr(se?se:(char *)host, ':')) && !strchr(sp+1, ':')) *sp = 0;
 	if(se){
 		*se = 0;
 	}
 	if(sp){
 		port = atoi(sp+1);
 	}
-	getip46(family, host + (se!=0), (struct sockaddr *)sa);
+	ret = !getip46(family, host + (se!=0), (struct sockaddr *)sa);
 	if(se) *se = ']';
 	if(sp) *sp = ':';
-	*SAPORT(sa) = htons(port);
+	if(port)*SAPORT(sa) = htons(port);
+	return ret;
 }
 
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port){
 	char *sp=NULL,*se=NULL;
+	int ret = 0;
 
-	if(!hostname || !*hostname)return 1;
+	if(!hostname || !*hostname)return 2;
 	if(*hostname == '[') se=strchr(hostname, ']');
-	if ( (sp = strchr(se?se:hostname, ':')) ) *sp = 0;
+	if ( (sp = strchr(se?se:hostname, ':'))  && !strchr(sp+1, ':')) *sp = 0;
 	if(se){
 		*se = 0;
 	}
@@ -255,12 +259,12 @@ int parsehostname(char *hostname, struct clientparam *param, unsigned short port
 	if(sp){
 		port = atoi(sp+1);
 	}
-	getip46(param->srv->family, param->hostname, (struct sockaddr *)&param->req);
+	ret = !getip46(param->srv->family, param->hostname, (struct sockaddr *)&param->req);
 	if(se) *se = ']';
 	if(sp) *sp = ':';
 	*SAPORT(&param->req) = htons(port);
 	memset(&param->sinsr, 0, sizeof(param->sinsr));
-	return 0;
+	return ret;
 }
 
 int parseusername(char *username, struct clientparam *param, int extpasswd){

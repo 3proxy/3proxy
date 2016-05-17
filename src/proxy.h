@@ -233,7 +233,7 @@ void mschap(const unsigned char *win_password,
 struct hashtable;
 void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires);
 
-void parsehost(int family, unsigned char *host, struct sockaddr *sa);
+int parsehost(int family, unsigned char *host, struct sockaddr *sa);
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
