@@ -502,6 +502,9 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				case 'e':
 				 i += myinet_ntop(*SAFAMILY(&param->sinsl), SAADDR(&param->sinsl), (char *)buf + i, 64);
 				 break;
+				case 'i':
+				 i += myinet_ntop(*SAFAMILY(&param->sincl), SAADDR(&param->sinsl), (char *)buf + i, 64);
+				 break;
 				case 'C':
 				 i += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + i, 64);
 				 break;
