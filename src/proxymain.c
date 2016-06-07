@@ -685,7 +685,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	memset(&defparam.sincr, 0, sizeof(defparam.sincr));
 	if(isudp) while(!srv.fds.events)usleep(SLEEPTIME);
  }
- while(!conf.timetoexit && conf.version <= srv.version) usleep(SLEEPTIME);
+
  if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
  if(fp) fclose(fp);
 
