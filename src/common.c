@@ -503,7 +503,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i += myinet_ntop(*SAFAMILY(&param->sinsl), SAADDR(&param->sinsl), (char *)buf + i, 64);
 				 break;
 				case 'i':
-				 i += myinet_ntop(*SAFAMILY(&param->sincl), SAADDR(&param->sinsl), (char *)buf + i, 64);
+				 i += myinet_ntop(*SAFAMILY(&param->sincl), SAADDR(&param->sincl), (char *)buf + i, 64);
 				 break;
 				case 'C':
 				 i += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + i, 64);
@@ -638,7 +638,8 @@ void logsyslog(struct clientparam * param, const unsigned char *s) {
 #endif
 
 int doconnect(struct clientparam * param){
- SASIZETYPE size = sizeof(param->sinsr);
+ SASIZETYPE size;
+
 
  if (*SAFAMILY(&param->sincr) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincr), SAADDR(&param->req), SAADDRLEN(&param->req)) &&
 	*SAPORT(&param->sincr) == *SAPORT(&param->req)) return 519;
@@ -646,6 +647,7 @@ int doconnect(struct clientparam * param){
  if (param->operation == ADMIN || param->operation == DNSRESOLVE || param->operation == BIND || param->operation == UDPASSOC)
 	return 0;
  if (param->remsock != INVALID_SOCKET){
+	size = sizeof(param->sinsr);
 	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (15);}
  }
  else {
