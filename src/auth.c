@@ -317,8 +317,8 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		connected = 1;
 	}
 
-	if(!connected) return 9;
-	return (redir)?clientnegotiate(redir, param, (struct sockaddr *)&param->req):0;
+	if(!connected || !redir) return 0;
+	return clientnegotiate(redir, param, (struct sockaddr *)&param->req);
 }
 
 int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
