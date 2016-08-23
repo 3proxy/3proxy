@@ -17,6 +17,13 @@ int randomizer = 1;
 
 #ifndef _WIN32
  pthread_attr_t pa;
+
+
+ void daemonize(void){
+	if(fork()) exit(0); 
+	else setsid();
+ }
+
 #endif
 
 unsigned char **stringtable = NULL;
