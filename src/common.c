@@ -20,8 +20,11 @@ int randomizer = 1;
 
 
  void daemonize(void){
-	if(fork()) exit(0); 
-	else setsid();
+	if(fork() > 0) {
+		usleep(SLEEPTIME);
+		_exit(0); 
+	}
+	setsid();
  }
 
 #endif
