@@ -1,0 +1,43 @@
+#
+# 3 proxy Makefile for Open Watcom 2
+#
+# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
+# libraries
+#
+# Add /DSAFESQL to CFLAGS if you are using poorely written/tested ODBC driver
+
+BUILDDIR = ../bin/
+CC = cl
+CFLAGS = /nologo /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "MSVC" /D "WITH_STD_MALLOC" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /c
+COUT = /Fo
+LN = link
+LDFLAGS = /nologo /subsystem:console /incremental:no 
+DLFLAGS = /DLL
+DLSUFFICS = .dll
+LIBS = ws2_32.lib advapi32.lib user32.lib kernel32.lib
+LIBSOLD = libeay32MT.lib ssleay32MT.lib
+LIBSPREFIX = 
+LIBSSUFFIX = .lib
+LIBEXT = .lib                                                                                               
+LNOUT = /out:
+EXESUFFICS = .exe
+OBJSUFFICS = .obj
+DEFINEOPTION = /D 
+COMPFILES = *.pch *.idb *.err
+REMOVECOMMAND = del 2>NUL >NUL
+TYPECOMMAND = type
+COMPATLIBS =
+MAKEFILE = Makefile.watcom
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
+VERFILE = $(VERFILE)
+
+include Makefile.inc
+
+../3proxy.res:
+	rc /fo../3proxy.res ../3proxy.rc
+
+3proxyres.obj: ../3proxy.res
+	cvtres /out:3proxyres.obj ../3proxy.res
+
+allplugins:
+	call ../makeplugins.bat	
