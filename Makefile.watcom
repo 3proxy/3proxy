@@ -8,7 +8,7 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "MSVC" /D "WITH_STD_MALLOC" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /c
+CFLAGS = /nologo /Ox /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "MSVC" /D "WITH_STD_MALLOC" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /c
 COUT = /Fo
 LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no 
