@@ -61,14 +61,16 @@ static void pr_ip(struct node *node, CBFUNC cbf, void*cb){
 	if(node->value)(*cbf)(cb, buf, myinet_ntop(AF_INET, node -> value, buf, 4));
 }
 
+#ifndef NOIPV6
 static void pr_ip6(struct node *node, CBFUNC cbf, void*cb){
 	char buf[64];
 	if(node->value)(*cbf)(cb, buf, myinet_ntop(AF_INET6, node -> value, buf, 16));
 }
+#endif
 
 static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
 #ifdef NOIPV6
-	if(node->value)return pr_ip(node, cbf, cb);
+	if(node->value)pr_ip(node, cbf, cb);
 #else
 	char buf[64];
 	buf[0] = '[';

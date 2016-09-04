@@ -25,20 +25,20 @@ struct flap_header {
 	unsigned char chan;
 	unsigned short seq;
 	unsigned short size;
-	char data[0];
+	char data[1];
 };
 
 struct snack_header {
 	unsigned family;
 	unsigned short flags;
 	unsigned id;
-	char data[0];
+	char data[1];
 };
 
 struct tlv_header {
 	unsigned short type;
 	unsigned short size;
-	char data[0];
+	char data[1];
 };
 
 
