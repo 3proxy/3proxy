@@ -104,7 +104,7 @@
 #define PTHREAD_STACK_MIN 32768
 #define sockerror strerror
 #endif
-#define daemonize() {if(fork())exit(0); else setsid();}
+void daemonize(void);
 #define SLEEPTIME 1000
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -188,7 +188,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
 extern struct nserver nservers[MAXNSERVERS];
-struct nserver authnserver;
+extern struct nserver authnserver;
 unsigned long getip(unsigned char *name);
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
 unsigned long myresolver(int, unsigned char *, unsigned char *);
@@ -233,7 +233,7 @@ void mschap(const unsigned char *win_password,
 struct hashtable;
 void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires);
 
-void parsehost(int family, unsigned char *host, struct sockaddr *sa);
+int parsehost(int family, unsigned char *host, struct sockaddr *sa);
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);

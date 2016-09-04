@@ -9,17 +9,17 @@
 
 
 int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
-	char tbuf[1024];
+	char tbuf[256];
 	int i;
 	char *buf;
 	int len;
 	int res;
 
 	buf = nbuf?nbuf:tbuf;
-	len = nbuf?*innbuf:1024;
+	len = nbuf?*innbuf:sizeof(tbuf);
 
 	if(innbuf)*innbuf = 0;
-	if(len < 48) return 707;
+	if(len < 140) return 707;
 	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 3) return 706;
@@ -28,7 +28,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 		*innbuf = i;
 		return 702;
 	}
-	sprintf(buf, "USER %.32s\r\n", param->extusername?param->extusername:(unsigned char *)"anonymous");
+	sprintf(buf, "USER %.128s\r\n", param->extusername?param->extusername:(unsigned char *)"anonymous");
 	if((int)socksend(param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
 		return 703;
 	}
@@ -40,7 +40,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 	buf[i] = 0;
 	res = atoi(buf)/100;
 	if(res == 3){
-		sprintf(buf, "PASS %.32s\r\n", 
+		sprintf(buf, "PASS %.128s\r\n", 
 			param->extusername?
 				(param->extpassword?
 					param->extpassword:(unsigned char *)"")
@@ -174,6 +174,7 @@ SOCKET ftpdata(struct clientparam *param){
 	SOCKET s = INVALID_SOCKET, rem;
 	unsigned long b1, b2, b3, b4;
 	unsigned short b5, b6;
+	SASIZETYPE sasize;
 
 	if(socksend(param->remsock, (unsigned char *)"PASV\r\n", 6, conf.timeouts[STRING_S]) != 6){
 		return INVALID_SOCKET;
@@ -187,15 +188,27 @@ SOCKET ftpdata(struct clientparam *param){
 	buf[i-2] = 0;
 	if(!(sb = strchr(buf+4, '(')) || !(se= strchr(sb, ')'))) return INVALID_SOCKET;
 	if(sscanf(sb+1, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) return INVALID_SOCKET;
+	sasize = sizeof(param->sinsl);
+	if(so._getsockname(param->remsock, (struct sockaddr *)&param->sinsl, &sasize)){return INVALID_SOCKET;}
+	sasize = sizeof(param->sinsr);
+	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &sasize)){return INVALID_SOCKET;}
 	rem = param->remsock;
 	param->remsock = INVALID_SOCKET;
 	param->req = param->sinsr;
 	*SAPORT(&param->req) = *SAPORT(&param->sinsr) = htons((unsigned short)((b5<<8)^b6));
+	*SAPORT(&param->sinsl) = 0;
 	i = param->operation;
 	param->operation = FTP_DATA;
 	if((param->res = (*param->srv->authfunc)(param))) {
-		param->remsock = rem;
-		return INVALID_SOCKET;
+		if(param->remsock != INVALID_SOCKET) {
+			so._closesocket(param->remsock);
+			param->remsock = INVALID_SOCKET;
+		}
+		memset(&param->sinsl, 0, sizeof(param->sinsl));
+		if((param->res = (*param->srv->authfunc)(param))) {
+			param->remsock = rem;
+			return INVALID_SOCKET;
+		}
 	}
 	param->operation = i;
 	s = param->remsock;

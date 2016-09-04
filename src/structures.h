@@ -364,7 +364,7 @@ struct srvparam {
 	SOCKET srvsock, cbsock;
 	int childcount;
 	int maxchild;
-	int version;
+	int paused, version;
 	int singlepacket;
 	int usentlm;
 	int needuser;
@@ -373,6 +373,7 @@ struct srvparam {
 	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
 	int stacksize;
+	int noforce;
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
 #ifndef NOIPV6
@@ -440,7 +441,9 @@ struct clientparam {
 		nolongdatfilter,
 		nooverwritefilter,
 		transparent,
-		chunked;
+		chunked,
+		paused,
+		version;
 
 	unsigned char 	*hostname,
 			*username,
@@ -494,7 +497,7 @@ struct extparam {
 	struct trafcount * trafcounter;
 	struct srvparam *services;
 	int stacksize, threadinit, counterd, haveerror, rotate, paused, archiverc,
-		demon, maxchild, singlepacket, needreload, timetoexit;
+		demon, maxchild, singlepacket, needreload, timetoexit, version, noforce;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
 	unsigned char *logname, **archiver;

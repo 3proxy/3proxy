@@ -509,7 +509,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
  for (;;) {
 	for(;;){
-		while((conf.paused == srv.version && srv.childcount >= srv.maxchild)){
+		while((conf.paused == srv.paused && srv.childcount >= srv.maxchild)){
 			nlog++;			
 			if(!srv.silent && nlog > 5000) {
 				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv.childcount, srv.maxchild);
@@ -519,7 +519,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			usleep(SLEEPTIME);
 		}
 		if (iscbc) break;
-		if (conf.paused != srv.version) break;
+		if (conf.paused != srv.paused) break;
 		if (srv.fds.events & POLLIN) {
 			error = so._poll(&srv.fds, 1, 1000);
 		}
@@ -535,7 +535,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		}
 	}
-	if((conf.paused != srv.version) || (error < 0)) break;
+	if((conf.paused != srv.paused) || (error < 0)) break;
 	error = 0;
 	if(!isudp){
 		size = sizeof(defparam.sincr);
@@ -710,8 +710,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 void srvinit(struct srvparam * srv, struct clientparam *param){
 
  memset(srv, 0, sizeof(struct srvparam));
- srv->version = conf.paused;
+ srv->version = conf.version + 1;
+ srv->paused = conf.paused;
  srv->logfunc = conf.logfunc;
+ srv->noforce = conf.noforce;
  if(srv->logformat)myfree(srv->logformat);
  srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
  srv->authfunc = conf.authfunc;
@@ -730,6 +732,8 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->needuser = 1;
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
+ param->version = srv->version;
+ param->paused = srv->paused;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);

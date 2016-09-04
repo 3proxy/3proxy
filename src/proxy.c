@@ -131,8 +131,8 @@ char * proxy_stringtable[] = {
 	NULL
 };
 
-#define BUFSIZE 8192
 #define LINESIZE 4096
+#define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
 
 static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
@@ -152,7 +152,7 @@ static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
 		strcpy(se, sb);
 	}
  }
- if(param->res != 555)(*param->srv->logfunc)(param, (unsigned char *)(req?buf:NULL));
+ if(param->res != 555 && param->res != 508)(*param->srv->logfunc)(param, (unsigned char *)(req?buf:NULL));
 }
 
 void decodeurl(unsigned char *s, int allowcr){
@@ -264,6 +264,9 @@ for(;;){
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
+		memset(&param->sinsl, 0, sizeof(param->sinsl));
+		memset(&param->sinsr, 0, sizeof(param->sinsr));
+		memset(&param->req, 0, sizeof(param->req));
 	}
  }
 
@@ -284,6 +287,9 @@ for(;;){
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
+		memset(&param->sinsl, 0, sizeof(param->sinsl));
+		memset(&param->sinsr, 0, sizeof(param->sinsr));
+		memset(&param->req, 0, sizeof(param->req));
 	}
 	myfree(req);
  }
@@ -546,6 +552,7 @@ for(;;){
 
 #endif
 
+ if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
 
  if(ftp && param->redirtype != R_HTTP){
@@ -843,7 +850,7 @@ for(;;){
  if(keepalive <= 1) sprintf((char*)buf+strlen((char *)buf), "%s: %s\r\n", (param->redirtype == R_HTTP)?"Proxy-Connection":"Connection", keepalive? "keep-alive":"close");
  if(param->extusername){
 	sprintf((char*)buf + strlen((char *)buf), "%s: basic ", (redirect)?"Proxy-Authorization":"Authorization");
-	sprintf((char*)username, "%.128s:%.64s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
+	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
 	en64(username, buf+strlen((char *)buf), (int)strlen((char *)username));
 	sprintf((char*)buf + strlen((char *)buf), "\r\n");
  }

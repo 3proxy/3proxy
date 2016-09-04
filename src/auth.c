@@ -57,7 +57,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(*SAPORT(addr)));
 			if(user){
 				len += sprintf((char *)buf + len, "Proxy-authorization: basic ");
-				sprintf((char *)username, "%.128s:%.64s", user, pass?pass:(unsigned char *)"");
+				sprintf((char *)username, "%.128s:%.128s", user, pass?pass:(unsigned char *)"");
 				en64(username, buf+len, (int)strlen((char *)username));
 				len = (int)strlen((char *)buf);
 				len += sprintf((char *)buf + len, "\r\n");
@@ -317,8 +317,8 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		connected = 1;
 	}
 
-	if(!connected) return 9;
-	return (redir)?clientnegotiate(redir, param, (struct sockaddr *)&param->req):0;
+	if(!connected || !redir) return 0;
+	return clientnegotiate(redir, param, (struct sockaddr *)&param->req);
 }
 
 int IPInentry(struct sockaddr *sa, struct iplist *ipentry){
@@ -476,8 +476,8 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 	
 	if(!nbytesin && !nbytesout) return 0;
 	pthread_mutex_lock(&bandlim_mutex);
-	if(param->srv->version != conf.paused){
-		initbandlims(param);
+	if(param->paused != conf.paused){
+		return (1);
 	}
 	for(i=0; nbytesin&& i<MAXBANDLIMS && param->bandlims[i]; i++){
 		if( !param->bandlims[i]->basetime || 
@@ -558,7 +558,6 @@ int alwaysauth(struct clientparam * param){
 
 	res = doconnect(param);
 	if(!res){
-		if(param->srv->version != conf.paused) return 333;
 		initbandlims(param);
 		for(tc = conf.trafcounter; tc; tc = tc->next) {
 			if(tc->disabled) continue;
@@ -655,7 +654,7 @@ int cacheauth(struct clientparam * param){
 			
 		}
 		if(((!(conf.authcachetype&2)) || (param->username && ac->username && !strcmp(ac->username, (char *)param->username))) &&
-		   ((!(conf.authcachetype&1)) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa)))) && 
+		   ((!(conf.authcachetype&1)) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), SAADDR(&param->sincr), SAADDRLEN(&ac->sa)))) && 
 		   (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, (char *)param->password)))) {
 			if(param->username){
 				myfree(param->username);
@@ -689,7 +688,7 @@ int doauth(struct clientparam * param){
 				pthread_mutex_lock(&hash_mutex);
 				for(ac = authc; ac; ac = ac->next){
 					if((!(conf.authcachetype&2) || !strcmp(ac->username, (char *)param->username)) &&
-					   (!(conf.authcachetype&1) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), &param->sincr, SAADDRLEN(&ac->sa))))  &&
+					   (!(conf.authcachetype&1) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), SAADDR(&param->sincr), SAADDRLEN(&ac->sa))))  &&
 					   (!(conf.authcachetype&4) || (ac->password && !strcmp(ac->password, (char *)param->password)))) {
 						ac->expires = conf.time + conf.authcachetime;
 						if(strcmp(ac->username, (char *)param->username)){
@@ -710,7 +709,7 @@ int doauth(struct clientparam * param){
 					ac = myalloc(sizeof(struct authcache));
 					if(ac){
 						ac->expires = conf.time + conf.authcachetime;
-						ac->username = mystrdup((char *)param->username);
+						ac->username = param->username?mystrdup((char *)param->username):NULL;
 						ac->sa = param->sincr;
 						ac->password = NULL;
 						if((conf.authcachetype&4) && param->password) ac->password = mystrdup((char *)param->password);

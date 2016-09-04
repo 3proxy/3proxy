@@ -17,6 +17,16 @@ int randomizer = 1;
 
 #ifndef _WIN32
  pthread_attr_t pa;
+
+
+ void daemonize(void){
+	if(fork() > 0) {
+		usleep(SLEEPTIME);
+		_exit(0); 
+	}
+	setsid();
+ }
+
 #endif
 
 unsigned char **stringtable = NULL;
@@ -63,7 +73,7 @@ struct extparam conf = {
 #else
 	0,
 #endif
-	0, -1, 0, 0, 0, 0, 0, 500, 0, 0, 0,
+	0, -1, 0, 0, 0, 0, 0, 500, 0, 0, 0, 0, 0,
 	6, 600,
 	1048576,
 	NULL, NULL,
@@ -221,30 +231,34 @@ int ceparseargs(const char *str){
 
 #endif
 
-void parsehost(int family, unsigned char *host, struct sockaddr *sa){
+int parsehost(int family, unsigned char *host, struct sockaddr *sa){
 	char *sp=NULL,*se=NULL;
-	unsigned short port;
+	unsigned short port=0;
+	int ret = 0;
 
+	if(!host) return 2;
 	if(*host == '[') se=strchr((char *)host, ']');
-	if ( (sp = strchr(se?se:(char *)host, ':')) ) *sp = 0;
+	if ( (sp = strchr(se?se:(char *)host, ':')) && !strchr(sp+1, ':')) *sp = 0;
 	if(se){
 		*se = 0;
 	}
 	if(sp){
 		port = atoi(sp+1);
 	}
-	getip46(family, host + (se!=0), (struct sockaddr *)sa);
+	ret = !getip46(family, host + (se!=0), (struct sockaddr *)sa);
 	if(se) *se = ']';
 	if(sp) *sp = ':';
-	*SAPORT(sa) = htons(port);
+	if(port)*SAPORT(sa) = htons(port);
+	return ret;
 }
 
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port){
 	char *sp=NULL,*se=NULL;
+	int ret = 0;
 
-	if(!hostname || !*hostname)return 1;
+	if(!hostname || !*hostname)return 2;
 	if(*hostname == '[') se=strchr(hostname, ']');
-	if ( (sp = strchr(se?se:hostname, ':')) ) *sp = 0;
+	if ( (sp = strchr(se?se:hostname, ':'))  && !strchr(sp+1, ':')) *sp = 0;
 	if(se){
 		*se = 0;
 	}
@@ -255,12 +269,12 @@ int parsehostname(char *hostname, struct clientparam *param, unsigned short port
 	if(sp){
 		port = atoi(sp+1);
 	}
-	getip46(param->srv->family, param->hostname, (struct sockaddr *)&param->req);
+	ret = !getip46(param->srv->family, param->hostname, (struct sockaddr *)&param->req);
 	if(se) *se = ']';
 	if(sp) *sp = ':';
 	*SAPORT(&param->req) = htons(port);
 	memset(&param->sinsr, 0, sizeof(param->sinsr));
-	return 0;
+	return ret;
 }
 
 int parseusername(char *username, struct clientparam *param, int extpasswd){
@@ -498,6 +512,9 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				case 'e':
 				 i += myinet_ntop(*SAFAMILY(&param->sinsl), SAADDR(&param->sinsl), (char *)buf + i, 64);
 				 break;
+				case 'i':
+				 i += myinet_ntop(*SAFAMILY(&param->sincl), SAADDR(&param->sincl), (char *)buf + i, 64);
+				 break;
 				case 'C':
 				 i += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + i, 64);
 				 break;
@@ -631,7 +648,8 @@ void logsyslog(struct clientparam * param, const unsigned char *s) {
 #endif
 
 int doconnect(struct clientparam * param){
- SASIZETYPE size = sizeof(param->sinsr);
+ SASIZETYPE size;
+
 
  if (*SAFAMILY(&param->sincr) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincr), SAADDR(&param->req), SAADDRLEN(&param->req)) &&
 	*SAPORT(&param->sincr) == *SAPORT(&param->req)) return 519;
@@ -639,6 +657,7 @@ int doconnect(struct clientparam * param){
  if (param->operation == ADMIN || param->operation == DNSRESOLVE || param->operation == BIND || param->operation == UDPASSOC)
 	return 0;
  if (param->remsock != INVALID_SOCKET){
+	size = sizeof(param->sinsr);
 	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (15);}
  }
  else {
@@ -669,11 +688,13 @@ int doconnect(struct clientparam * param){
 	}
 #endif
 
+	if(SAISNULL(&param->sinsl)){
 #ifndef NOIPV6
-	if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
-	else
+		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
+		else
 #endif
-		param->sinsl = param->srv->extsa;
+			param->sinsl = param->srv->extsa;
+	}
 	*SAPORT(&param->sinsl) = 0;
 	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;
@@ -692,8 +713,8 @@ int doconnect(struct clientparam * param){
 #else
 		fcntl(param->remsock,F_SETFL,O_NONBLOCK);
 #endif
-		size = sizeof(param->sinsl);
 	}
+	size = sizeof(param->sinsl);
 	if(so._getsockname(param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
  }
  return 0;

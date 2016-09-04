@@ -59,8 +59,8 @@ void __stdcall CommandHandler( DWORD dwCommand )
     case SERVICE_CONTROL_STOP:
     case SERVICE_CONTROL_SHUTDOWN:
         SetStatus( SERVICE_STOP_PENDING, 0, 1 );
-	conf.paused++;
 	conf.timetoexit = 1;
+	conf.paused++;
 	Sleep(2000);
         SetStatus( SERVICE_STOPPED, 0, 0 );
 #ifndef NOODBC
@@ -192,6 +192,7 @@ void doschedule(void){
 
 void dumpcounters(struct trafcount *tlin, int counterd){
 
+ unsigned char tmpbuf[8192];
  struct trafcount *tl;
  if(counterd >= 0 && tlin) {
 
@@ -234,6 +235,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 void cyclestep(void){
  struct tm *tm;
  time_t minutecounter;
+ unsigned char tmpbuf[8192];
 
  minutecounter = time(0);
  for(;;){
@@ -362,6 +364,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #ifdef _WIN32
   unsigned char * arg;
   WSADATA wd;
+  unsigned char tmpbuf[8192];
 
   WSAStartup(MAKEWORD( 1, 1 ), &wd);
   osv.dwOSVersionInfoSize = sizeof(osv);
@@ -519,6 +522,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
   freeconf(&conf);
   res = readconfig(fp);
+  conf.version++;
 
   if(res) RETURN(res);
   if(!writable)fclose(fp);
