@@ -318,7 +318,7 @@ static int h_log(int argc, unsigned char ** argv){
 			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
 			fp = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
 			if(!fp){
-				perror(tmpbuf);
+				perror((char *)tmpbuf);
 				return 1;
 			}
 			else {
