@@ -16,9 +16,7 @@ emulation function will be used. */
 character codes, define this macro as 1. On systems that can use "configure",
 this can be done via --enable-ebcdic. */
 
-#ifndef EBCDIC
-#define EBCDIC 0
-#endif
+//#define EBCDIC
 
 #define PCRE_STATIC
 
