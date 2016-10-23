@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+# Init file for Software Watchdog daemon.
+#
+# Written by Dag Wieers <dag@wieers.com>.
+# Rewrote for ALT Linux by Pavlov Konstantin <thresh@altlinux.ru>
+# Modifyed for Fedora by Pavel Alexeev aka Pahan-Hubbitus <Pahan@hubbitus.info>
+#
+# chkconfig: - 02 98
+# description: 3proxy Proxy Server
+#
+# processname: 3proxy
+# config: /etc/3proxy.cfg
+
+WITHOUT_RC_COMPAT=1
+
+. /etc/init.d/functions
+
+### Default variables
+prog=3proxy
+CONFIG=/etc/3proxy.cfg
+PROXY=/usr/bin/3proxy
+RETVAL=0
+LOCKFILE=/var/lock/subsys/3proxy
+#LOGFILE=/var/log/3proxy.log
+
+start() {
+	echo -n $"Starting $prog: "
+	# daemon --pidfile "${PIDFILE}" sh -c "exec \"$PROXY\" \"$CONFIG\" 2>&1 > \"$LOGFILE\" &"
+	daemon "$PROXY" "$CONFIG"
+	RETVAL=$?
+	echo
+		[ 0 -eq $RETVAL ] && touch ${LOCKFILE}
+	return $RETVAL
+}
+
+stop() {
+	echo -n $"Stopping $prog: "
+	killproc -d 3 "$prog"
+	RETVAL=$?
+	echo
+		[ 0 -eq $RETVAL ] && rm -f ${LOCKFILE}
+	return $RETVAL
+}
+
+restart() {
+	stop
+	start
+}
+
+reload(){
+	echo -n $"Reloading $prog: "
+	killproc $prog -USR1
+	RETVAL=$?
+	echo
+}
+
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  restart)
+  	restart
+	;;
+  reload)
+	reload
+	;;
+  condrestart)
+	[ -e $LOCKFILE ] && restart
+	RETVAL=$?
+	;;
+  status)
+	status "$PROXY"
+	RETVAL=$?
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|restart|condrestart|status|reload}"
+	RETVAL=1
+	;;
+esac
+
+exit $RETVAL

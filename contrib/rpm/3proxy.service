@@ -1,0 +1,10 @@
+[Unit]
+Description=3proxy Proxy Server
+After=syslog.target network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/3proxy /etc/3proxy.cfg
+
+[Install]
+WantedBy=multi-user.target
