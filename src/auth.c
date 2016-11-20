@@ -190,11 +190,21 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			if(buf[1] != 0) {
 				return 60 + (buf[1] % 10);
 			}
-			if(buf[3] != 1) {
-				return 58;
-			}
-			if (redir->type != R_SOCKS5B && sockgetlinebuf(param, SERVER, buf, 6, EOF, conf.timeouts[CHAIN_TO]) != 6){
-				return 59;
+			switch (buf[3]) {
+			case 1:
+			    if (redir->type == R_SOCKS5B ||  sockgetlinebuf(param, SERVER, buf, 6, EOF, conf.timeouts[CHAIN_TO]) == 6)
+				    break;
+			    return 59;
+			case 3:
+			    if (sockgetlinebuf(param, SERVER, buf, 256, 0, conf.timeouts[CHAIN_TO]) > 1)
+				    break;
+			    return 59;
+			case 4:
+			    if (sockgetlinebuf(param, SERVER, buf, 18, EOF, conf.timeouts[CHAIN_TO]) == 18)
+				    break;
+			    return 59;
+			default:
+			    return 58;
 			}
 			return 0;
 		}
