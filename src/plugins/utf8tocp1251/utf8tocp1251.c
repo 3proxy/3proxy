@@ -14,9 +14,6 @@
 extern "C" {
 #endif
 
- __declspec(dllexport) int utf8tocp1251(struct pluginlink * pluginlink, 
-					 int argc, char** argv);
-
 static struct auth alwaysauth;
 
 
@@ -64,12 +61,9 @@ unsigned char * conv_utf8_to_cp1251(unsigned char *s){
 	return 4;
  }
 
-#ifdef  __cplusplus
-}
-#endif
 
 
-int utf8tocp1251(struct pluginlink * pluginlink, int argc, char** argv){
+ __declspec(dllexport) int utf8tocp1251(struct pluginlink * pluginlink, int argc, char** argv){
 	static int loaded = 0;
 
 
@@ -85,4 +79,7 @@ int utf8tocp1251(struct pluginlink * pluginlink, int argc, char** argv){
 }
 
 
+#ifdef  __cplusplus
+}
+#endif
 

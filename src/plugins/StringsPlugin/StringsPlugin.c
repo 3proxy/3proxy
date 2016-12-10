@@ -151,8 +151,6 @@ static int restore_old_table(void * v)
 /*-------------------------------------------------------------------*/
 
 #ifdef _WIN32
-__declspec(dllexport) int start(struct pluginlink * pluginlink, 
-				 int argc, char** argv);
 BOOL WINAPI DllMain( HINSTANCE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
@@ -165,17 +163,18 @@ BOOL WINAPI DllMain( HINSTANCE hModule,
       }
      return TRUE;
 }
+
+__declspec(dllexport) int start(struct pluginlink * pluginlink, 
+				 int argc, char** argv)
+
 #else
 
 int start(struct pluginlink * pluginlink, 
-					 int argc, char** argv);
-
+				 int argc, char** argv)
 #endif
 
 
 
-/*---------------------- start plugin init ------------------------------ */
-int start(struct pluginlink * pluginlink, int argc, char** argv)
 {
  FILE *f=NULL;
 

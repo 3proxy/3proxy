@@ -100,17 +100,7 @@ int savecouters(void)
 
  return (0); 
 }
-/*--------------------------------------------------------------------------*/
 
-#ifdef _WIN32
-__declspec(dllexport) int start(struct pluginlink * pluginlink, 
-				 int argc, char** argv);
-#else
-
-int start(struct pluginlink * pluginlink, 
-					 int argc, char** argv);
-
-#endif
 
 /* --------------------------------------------------------------------------*/
 static int ldapfunc(struct clientparam *param)
@@ -467,7 +457,15 @@ int h_dircount(int argc, unsigned char ** argv)
 
 /*------------------------------- MAIN --------------------------------------
  start plugin init  */
-int start(struct pluginlink * pluginlink, int argc, char** argv)
+#ifdef _WIN32
+__declspec(dllexport) int start(struct pluginlink * pluginlink, 
+				 int argc, char** argv)
+#else
+
+int start(struct pluginlink * pluginlink, 
+					 int argc, char** argv)
+
+#endif
 {
   
 

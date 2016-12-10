@@ -15,10 +15,6 @@
 extern "C" {
 #endif
 
- __declspec(dllexport) int WindowsAuthentication(struct pluginlink * pluginlink, 
-					 int argc, char** argv);
-
-
 static struct auth alwaysauth;
 
 static char sidbuf[4096];
@@ -62,12 +58,7 @@ extern "C" {
 	return 7;
  }
 
-#ifdef  __cplusplus
-}
-#endif
-
-
-int WindowsAuthentication(struct pluginlink * pluginlink, int argc, char** argv){
+__declspec(dllexport) int WindowsAuthentication(struct pluginlink * pluginlink, int argc, char** argv){
 	char tmpbuf[4096];
 	DWORD dlen, sidlen;
 	SID_NAME_USE snu;
@@ -91,4 +82,7 @@ int WindowsAuthentication(struct pluginlink * pluginlink, int argc, char** argv)
 	return 0;
 }
 
+#ifdef  __cplusplus
+}
+#endif
 
