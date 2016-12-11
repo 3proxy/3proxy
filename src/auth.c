@@ -1161,6 +1161,8 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 		k += 4;
 		if(na > 255) na = 255;			/* somebody is very evil */
 		for (j = 0; j < na; j++) {		/* now there should be answers */
+			while(buf[k] < 192 && buf[k] !=0 && (k+buf[k]) < len) k+= buf[k];
+			if(!buf[k]) k--;
 			if((k+(af == AF_INET6?28:16)) > len) {
 				break;
 			}
