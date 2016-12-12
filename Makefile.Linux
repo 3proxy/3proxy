@@ -4,7 +4,7 @@
 # You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
 # libraries
 #
-# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
+# remove -DNOODBC from CFLAGS and add -lodbc to LIBS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR =

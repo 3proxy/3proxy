@@ -372,12 +372,15 @@ static struct commands ssl_commandhandlers[] = {
 };
 
 
-#ifdef _WIN32
-__declspec(dllexport)
+#ifdef WATCOM
+#pragma aux ssl_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
 #endif
 
- int ssl_plugin (struct pluginlink * pluginlink, 
+PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
+
 	pl = pluginlink;
 	if(!ssl_loaded){
 		ssl_loaded = 1;

@@ -151,8 +151,6 @@ static int restore_old_table(void * v)
 /*-------------------------------------------------------------------*/
 
 #ifdef _WIN32
-__declspec(dllexport) int start(struct pluginlink * pluginlink, 
-				 int argc, char** argv);
 BOOL WINAPI DllMain( HINSTANCE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
@@ -165,17 +163,17 @@ BOOL WINAPI DllMain( HINSTANCE hModule,
       }
      return TRUE;
 }
-#else
-
-int start(struct pluginlink * pluginlink, 
-					 int argc, char** argv);
 
 #endif
 
+#ifdef WATCOM
+#pragma aux start "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
+#endif
 
-
-/*---------------------- start plugin init ------------------------------ */
-int start(struct pluginlink * pluginlink, int argc, char** argv)
+PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, 
+				 int argc, char** argv)
 {
  FILE *f=NULL;
 

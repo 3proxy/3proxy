@@ -100,17 +100,7 @@ int savecouters(void)
 
  return (0); 
 }
-/*--------------------------------------------------------------------------*/
 
-#ifdef _WIN32
-__declspec(dllexport) int start(struct pluginlink * pluginlink, 
-				 int argc, char** argv);
-#else
-
-int start(struct pluginlink * pluginlink, 
-					 int argc, char** argv);
-
-#endif
 
 /* --------------------------------------------------------------------------*/
 static int ldapfunc(struct clientparam *param)
@@ -467,7 +457,16 @@ int h_dircount(int argc, unsigned char ** argv)
 
 /*------------------------------- MAIN --------------------------------------
  start plugin init  */
-int start(struct pluginlink * pluginlink, int argc, char** argv)
+
+#ifdef WATCOM
+#pragma aux start "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
+#endif
+
+PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, 
+					 int argc, char** argv)
+
 {
   
 

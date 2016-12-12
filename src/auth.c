@@ -190,11 +190,21 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			if(buf[1] != 0) {
 				return 60 + (buf[1] % 10);
 			}
-			if(buf[3] != 1) {
-				return 58;
-			}
-			if (redir->type != R_SOCKS5B && sockgetlinebuf(param, SERVER, buf, 6, EOF, conf.timeouts[CHAIN_TO]) != 6){
-				return 59;
+			switch (buf[3]) {
+			case 1:
+			    if (redir->type == R_SOCKS5B ||  sockgetlinebuf(param, SERVER, buf, 6, EOF, conf.timeouts[CHAIN_TO]) == 6)
+				    break;
+			    return 59;
+			case 3:
+			    if (sockgetlinebuf(param, SERVER, buf, 256, 0, conf.timeouts[CHAIN_TO]) > 1)
+				    break;
+			    return 59;
+			case 4:
+			    if (sockgetlinebuf(param, SERVER, buf, 18, EOF, conf.timeouts[CHAIN_TO]) == 18)
+				    break;
+			    return 59;
+			default:
+			    return 58;
 			}
 			return 0;
 		}
@@ -1151,6 +1161,8 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 		k += 4;
 		if(na > 255) na = 255;			/* somebody is very evil */
 		for (j = 0; j < na; j++) {		/* now there should be answers */
+			while(buf[k] < 192 && buf[k] !=0 && (k+buf[k]+14) < len) k+= (buf[k] + 1);
+			if(!buf[k]) k--;
 			if((k+(af == AF_INET6?28:16)) > len) {
 				break;
 			}
@@ -1166,10 +1178,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 				ttl = ntohl(*(unsigned long *)(buf + k + 6));
 				memcpy(value, buf + k + 12, af == AF_INET6? 16:4);
 				if(ttl < 60 || ttl > (3600*12)) ttl = 300;
-				if(ttl){
-					hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, conf.time+ttl);
-
-				}
+				hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, conf.time+ttl);
 				if(retttl) *retttl = ttl;
 				return 1;
 			}

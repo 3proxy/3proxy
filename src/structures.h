@@ -162,7 +162,21 @@ typedef void (*TRAFCOUNTFUNC)(struct clientparam * param);
 typedef void * (*EXTENDFUNC) (struct node *node);
 typedef void (*CBFUNC)(void *cb, char * buf, int inbuf);
 typedef void (*PRINTFUNC) (struct node *node, CBFUNC cbf, void*cb);
-typedef int (*PLUGINFUNC) (struct pluginlink *pluginlink, int argc, char** argv);
+
+#ifdef WIN32
+
+#define PLUGINAPI __declspec(dllexport)
+typedef int (__cdecl *PLUGINFUNC) (struct pluginlink *pluginlink, int argc, char** argv);
+#define PLUGINCALL __cdecl
+
+#else
+
+#define PLUGINCALL
+#define PLUGINAPI
+typedef int (*PLUGINFUNC)(struct pluginlink *pluginlink, int argc, char** argv);
+
+#endif
+
 
 struct auth {
 	struct auth *next;
@@ -751,8 +765,6 @@ typedef enum {
 	TYPE_PERIOD,
 	TYPE_SERVER
 }DATA_TYPE;
-
-
 
 #ifdef  __cplusplus
 }

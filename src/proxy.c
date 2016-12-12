@@ -336,10 +336,10 @@ for(;;){
 	if(su) {
 		su = (unsigned char *)mystrdup((char *)sb);
 		decodeurl(su, 0);
-		parseconnusername((char *)su, (struct clientparam *)param, 1, (unsigned short)((ftp)?21:80));
+		if(parseconnusername((char *)su, (struct clientparam *)param, 1, (unsigned short)((ftp)?21:80))) RETURN (100);
 		myfree(su);
 	}
-	else parsehostname((char *)sb, (struct clientparam *)param, (unsigned short)((ftp)? 21:80));
+	else if(parsehostname((char *)sb, (struct clientparam *)param, (unsigned short)((ftp)? 21:80))) RETURN(100);
 	if(!isconnect){
 		if(se==sg)*se-- = ' ';
 		*se = '/';
@@ -460,7 +460,7 @@ for(;;){
 			*se = 0;
 		}
 		if(!param->hostname){
-			parsehostname((char *)sb, param, 80);
+			if(parsehostname((char *)sb, param, 80)) RETURN(100);
 		}
 		newbuf = myalloc(strlen((char *)req) + strlen((char *)(buf+inbuf)) + 8);
 		if(newbuf){
