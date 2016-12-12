@@ -358,12 +358,15 @@ static struct symbol regexp_symbols[] = {
 	{NULL, "pcre_free", NULL},
 };
 
-#ifdef _WIN32
-__declspec(dllexport)
+#ifdef WATCOM
+#pragma aux pcre_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
 #endif
 
- int pcre_plugin (struct pluginlink * pluginlink, 
+PLUGINAPI int PLUGINCALL pcre_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
+
 	struct filter *flt, *tmpflt;
 	pl = pluginlink;
 	pcre_options = 0;

@@ -677,13 +677,18 @@ static struct commands lfm_commandhandlers[] = {
 	{NULL,                  "lfm_format",  h_lfm_format, 2, 2}
 };
 
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
-#ifdef _WIN32
-__declspec(dllexport)
+
+#ifdef WATCOM
+#pragma aux lfm_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
 #endif
-int lfm_plugin( struct pluginlink * pluginlink, int argc, char** argv )
+
+PLUGINAPI int PLUGINCALL lfm_plugin( struct pluginlink * pluginlink, int argc, char** argv )
 {
 	pl = pluginlink;
 	myOutputDebugStringA1( "lfm_plugin" );

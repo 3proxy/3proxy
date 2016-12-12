@@ -62,8 +62,13 @@ unsigned char * conv_utf8_to_cp1251(unsigned char *s){
  }
 
 
+#ifdef WATCOM
+#pragma aux utf8tocp1251 "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
+#endif
 
- __declspec(dllexport) int utf8tocp1251(struct pluginlink * pluginlink, int argc, char** argv){
+PLUGINAPI int PLUGINCALL utf8tocp1251(struct pluginlink * pluginlink, int argc, char** argv){
 	static int loaded = 0;
 
 

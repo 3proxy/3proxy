@@ -117,9 +117,15 @@ static int pamfunc(struct clientparam *param)
 
 }
 
+#ifdef WATCOM
+#pragma aux start "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
+#endif
+
 /*------------------------------- MAIN --------------------------------------
  start plugin init  */
-int start(struct pluginlink * pluginlink, int argc, unsigned char** argv)
+PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, unsigned char** argv)
 {
   
   

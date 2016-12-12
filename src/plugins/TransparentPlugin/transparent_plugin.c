@@ -89,11 +89,13 @@ static struct filter transparent_filter = {
 };
 
 
-#ifdef _WIN32
-__declspec(dllexport)
+#ifdef WATCOM
+#pragma aux transparent_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
 #endif
 
- int transparent_plugin (struct pluginlink * pluginlink, 
+PLUGINAPI int PLUGINCALL transparent_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
 	pl = pluginlink;
 	if(!transparent_loaded){

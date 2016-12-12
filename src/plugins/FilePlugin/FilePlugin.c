@@ -878,13 +878,13 @@ static struct commands file_commandhandlers[] = {
 
 static int file_loaded=0;
 
-
-#ifdef _WIN32
-__declspec(dllexport)
+#ifdef WATCOM
+#pragma aux file_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
+#undef PLUGINCALL
+#define PLUGINCALL
 #endif
 
-
- int file_plugin (struct pluginlink * pluginlink, 
+ PLUGINAPI int PLUGINCALL file_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
 
 	if(!file_loaded){
