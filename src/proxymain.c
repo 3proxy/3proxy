@@ -122,6 +122,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -u never ask for username\n"
 	" -u2 always ask for username\n"
 #endif
+#ifdef WITHSLICE
+	" -s Use slice() - faster proxing, but no filtering for data\n"
+#endif
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
 	" -lFILENAME log to FILENAME\n"
@@ -303,7 +306,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		case 's':
 		case 'a':
-			srv.singlepacket = 1 + atoi(argv[i]+2);
+			if(isudp)
+				srv.singlepacket = 1 + atoi(argv[i]+2);
+			else
+				srv.usesplice = 1 + atoi(argv[i]+2);
 			break;
 		 default:
 			error = 1;

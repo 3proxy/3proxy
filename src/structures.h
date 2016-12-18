@@ -388,6 +388,9 @@ struct srvparam {
 	int family;
 	int stacksize;
 	int noforce;
+#ifdef WITHSPLICE
+	int usesplice;
+#endif
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
 #ifndef NOIPV6

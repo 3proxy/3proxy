@@ -10,6 +10,221 @@
 
 #define BUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))
 
+#ifdef WITHSPLICE
+
+#include <fcntl.h>
+ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags);
+#ifndef SPLICE_F_MOVE
+#define SPLICE_F_MOVE           0x01
+#endif
+#ifndef SPLICE_F_NONBLOCK
+#define SPLICE_F_NONBLOCK       0x02
+#endif
+#ifndef SPLICE_F_MORE
+#define SPLICE_F_MORE           0x04
+#endif
+#ifndef SPLICE_F_GIFT
+#define SPLICE_F_GIFT           0x08
+#endif
+
+#define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
+#define MIN(a,b) ((a>b)?b:a)
+
+#define MAXSPLICE 65536
+
+int splicemap(struct clientparam * param, int timeo){
+ struct pollfd fds[2];
+ int pipesrv[2] = {-1,-1};
+ int pipecli[2] = {-1,-1};
+ uint64_t sent=0, received=0;
+ int res = 0, stop = 0;
+ int srvstate = 0, clistate = 0;
+ int insrvpipe = 0, inclipipe = 0;
+ int rfromserver = 0, rfromclient = 0;
+ int sleeptime = 0;
+
+
+ param->res = 0;
+ if(pipe(pipecli) < 0) RETURN(21);
+ if(pipe(pipesrv) < 0) RETURN(21);
+
+ fds[0].fd = param->clisock;
+ fds[1].fd = param->remsock;
+
+ while(!stop && !conf.timetoexit){
+
+    fds[0].events = fds[1].events = 0;
+
+    if(srvstate && !param->waitclient64){
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: will send to client");
+#endif
+	fds[0].events |= POLLOUT;
+    }
+    rfromserver = MAXSPLICE;
+    if(param->waitserver64) rfromserver = MIN(MAXSPLICE, param->waitserver64 - (received + insrvpipe));
+    if(srvstate < 2 && rfromserver > 0) {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: will recv from server");
+#endif
+	fds[1].events |= POLLIN;
+    }
+    if(clistate && !param->waitserver64){
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: will send to server");
+#endif
+	fds[1].events |= POLLOUT;
+    }
+    rfromclient = MAXSPLICE;
+    if(param->waitclient64) rfromclient = MIN(MAXSPLICE, param->waitclient64 - (sent + inclipipe));
+    if(clistate < 2 && rfromclient > 0) {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice :will recv from client");
+#endif
+	fds[0].events |= POLLIN;
+    }
+    if(!fds[0].events && !fds[1].events) RETURN (666);
+    res = so._poll(fds, 2, timeo*1000);
+    if(res < 0){
+	if(errno != EAGAIN && errno != EINTR) RETURN(91);
+	if(errno == EINTR) usleep(SLEEPTIME);
+        continue;
+    }
+    if(res < 1){
+	RETURN(92);
+    }
+    if( (fds[0].revents & (POLLERR|POLLHUP|POLLNVAL)) && !(fds[0].revents & POLLIN)) {
+	fds[0].revents = 0;
+	stop = 1;
+	param->res = 90;
+    }
+    if( (fds[1].revents & (POLLERR|POLLHUP|POLLNVAL)) && !(fds[1].revents & POLLIN)){
+	fds[1].revents = 0;
+	stop = 1;
+	param->res = 90;
+    }
+    if((fds[0].revents & POLLOUT)){
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: send to client");
+#endif
+	res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	if(res < 0) {
+	    if(errno != EAGAIN && errno != EINTR) RETURN(96);
+	    if(errno == EINTR) usleep(SLEEPTIME);
+	    continue;
+	}
+	if(res){
+	    insrvpipe -= res;
+	    received += res;
+
+	    if(param->bandlimfunc) {
+		    sleeptime = (*param->bandlimfunc)(param, res, 0);
+	    }
+	    srvstate = 0;
+	}
+	else srvstate = 2;
+	if(param->waitserver64 && param->waitserver64 <= received){
+	    RETURN (98);
+	}
+    }
+    if((fds[1].revents & POLLOUT)){
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: send to server");
+#endif
+	res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	if(res < 0) {
+	    if(errno != EAGAIN && errno != EINTR) RETURN(97);
+	    if(errno == EINTR) usleep(SLEEPTIME);
+	    continue;
+	}
+	if(res){
+	    inclipipe -= res;
+	    sent += res;
+    	    param->nwrites++;
+	    param->statscli64 += res;
+
+	    if(param->bandlimfunc) {
+		int sl1;
+		sl1 = (*param->bandlimfunc)(param, 0, res);
+		if(sl1 > sleeptime) sleeptime = sl1;
+	    }
+	    clistate = 0;
+	}
+	else clistate = 2;
+	if(param->waitclient64 && param->waitclient64 <= sent){
+	    RETURN (99);
+	}
+    }
+    if ((fds[0].revents & POLLIN)) {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: recv from client");
+#endif
+	res = splice(param->clisock, NULL, pipecli[1], NULL, rfromclient, SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	if (res < 0){
+	    if(errno != EAGAIN && errno != EINTR) RETURN(94);
+	    if(errno == EINTR) usleep(SLEEPTIME);
+	    continue;
+	}
+	if (res==0) {
+	    so._shutdown(param->clisock, SHUT_RDWR);
+	    so._closesocket(param->clisock);
+	    fds[0].fd = param->clisock = INVALID_SOCKET;
+	    stop = 1;
+	}
+	else {
+	    inclipipe += res;
+	    clistate = 1;
+	    if(insrvpipe >= MAXSPLICE) clistate = 2;
+	}
+    }
+    if ((fds[1].revents & POLLIN)) {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: recv from server");
+#endif
+	res = splice(param->remsock, NULL, pipesrv[1], NULL, rfromserver, SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	if (res < 0){
+	    if(errno != EAGAIN && errno != EINTR) RETURN(93);
+	    if(errno == EINTR) usleep(SLEEPTIME);
+	    continue;
+	}
+	if (res==0) {
+	    so._shutdown(param->remsock, SHUT_RDWR);
+	    so._closesocket(param->remsock);
+	    fds[1].fd = param->remsock = INVALID_SOCKET;
+	    stop = 2;
+	}
+	else {
+	    insrvpipe += res;
+	    param->statssrv64 += res;
+	    param->nreads++;
+	    srvstate = 1;
+	    if(insrvpipe >= MAXSPLICE) srvstate = 2;
+	}
+    }
+    if(sleeptime > 0) {
+	if(sleeptime > (timeo * 1000)){RETURN (95);}
+	usleep(sleeptime * SLEEPTIME);
+	sleeptime = 0;
+    }
+ }
+
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: finished with mapping");
+#endif
+
+CLEANRET:
+
+ if(pipecli[0] >= 0) close(pipecli[0]);
+ if(pipecli[1] >= 0) close(pipecli[1]);
+ if(pipesrv[0] >= 0) close(pipesrv[0]);
+ if(pipesrv[1] >= 0) close(pipesrv[1]);
+
+ return param->res;
+}
+
+#endif
+
+
 int sockmap(struct clientparam * param, int timeo){
  int res=0;
  uint64_t sent=0, received=0;

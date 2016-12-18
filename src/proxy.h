@@ -150,6 +150,7 @@ extern int timetoexit;
 extern struct extparam conf;
 
 int sockmap(struct clientparam * param, int timeo);
+int splicemap(struct clientparam * param, int timeo);
 int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to);
 int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
@@ -317,6 +318,13 @@ extern pthread_mutex_t log_mutex;
 extern struct datatype datatypes[64];
 
 extern struct commands commandhandlers[];
+
+#ifdef WITHSPLICE
+#define mapsocket(a,b) (a->srv->usesplice?splicemap(a,b):sockmap(a,b))
+#else
+#define mapsocket(a,b) sockmap(a,b)
+#endif
+
 
 #ifdef _WINCE
 char * CEToUnicode (const char *str);

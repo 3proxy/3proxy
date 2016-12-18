@@ -20,7 +20,7 @@ void * tcppmchild(struct clientparam* param) {
  param->operation = CONNECT;
  res = (*param->srv->authfunc)(param);
  if(res) {RETURN(res);}
- RETURN (sockmap(param, conf.timeouts[CONNECTION_L]));
+ RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
 CLEANRET:
  
  (*param->srv->logfunc)(param, NULL);
@@ -34,7 +34,7 @@ struct proxydef childdef = {
 	0,
 	0,
 	S_TCPPM,
-	""
+	" -s use splice() (Fast proxying but no filtering)\n"
 };
 #include "proxymain.c"
 #endif
