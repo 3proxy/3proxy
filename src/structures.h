@@ -388,6 +388,7 @@ struct srvparam {
 	int family;
 	int stacksize;
 	int noforce;
+	int anonymous;
 #ifdef WITHSPLICE
 	int usesplice;
 #endif
@@ -513,8 +514,9 @@ struct extparam {
 	struct bandlim * bandlimiter,  *bandlimiterout;
 	struct trafcount * trafcounter;
 	struct srvparam *services;
-	int stacksize, threadinit, counterd, haveerror, rotate, paused, archiverc,
-		demon, maxchild, singlepacket, needreload, timetoexit, version, noforce;
+	int stacksize,
+		threadinit, counterd, haveerror, rotate, paused, archiverc,
+		demon, maxchild, needreload, timetoexit, version, noforce;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
 	unsigned char *logname, **archiver;

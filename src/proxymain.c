@@ -304,8 +304,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'S':
 			srv.stacksize = atoi(argv[i]+2);
 			break;
-		case 's':
 		case 'a':
+			srv.anonymous = 1 + atoi(argv[i]+2);
+			break;
+		case 's':
 			if(isudp)
 				srv.singlepacket = 1 + atoi(argv[i]+2);
 			else

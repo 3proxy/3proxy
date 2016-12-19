@@ -240,7 +240,7 @@ void * proxychild(struct clientparam* param) {
  
  if(!(buf = myalloc(BUFSIZE))) {RETURN(21);}
  bufsize = BUFSIZE;
- anonymous = param->srv->singlepacket;
+ anonymous = param->srv->anonymous;
 for(;;){
  memset(buf, 0, bufsize);
  inbuf = 0;

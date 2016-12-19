@@ -1642,7 +1642,6 @@ void freeconf(struct extparam *confp){
 #endif
  *SAFAMILY(&confp->intsa) = AF_INET;
  *SAFAMILY(&confp->extsa) = AF_INET;
- confp->singlepacket = 0;
  confp->maxchild = 100;
  resolvfunc = NULL;
  numservers = 0;
