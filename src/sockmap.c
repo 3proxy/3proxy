@@ -37,6 +37,7 @@ int splicemap(struct clientparam * param, int timeo){
  int pipesrv[2] = {-1,-1};
  int pipecli[2] = {-1,-1};
  uint64_t sent=0, received=0;
+ SASIZETYPE sasize;
  int res = 0, stop = 0;
  int srvstate = 0, clistate = 0;
  int insrvpipe = 0, inclipipe = 0;
@@ -44,6 +45,23 @@ int splicemap(struct clientparam * param, int timeo){
  int sleeptime = 0;
 
 
+
+ if(param->srv->usesplice > 1 && !param->waitserver64 && !param->waitclient64){
+	if(param->clioffset == param->cliinbuf){
+	    param->clioffset = param->cliinbuf = 0;
+	    if(param->clibuf){
+		myfree(param->clibuf);
+		param->clibuf = NULL;
+	    }
+	}
+	if(param->srvoffset == param->srvinbuf){
+	    param->srvoffset = param->srvinbuf = 0;
+	    if(param->srvbuf){
+		myfree(param->srvbuf);
+		param->srvbuf = NULL;
+	    }
+	}
+ }
  param->res = 0;
  if(pipe(pipecli) < 0) RETURN(21);
  if(pipe(pipesrv) < 0) RETURN(21);
@@ -53,30 +71,37 @@ int splicemap(struct clientparam * param, int timeo){
 
  while(!stop && !conf.timetoexit){
 
+#ifdef NOIPV6
+    sasize = sizeof(struct sockaddr_in);
+#else
+    sasize = sizeof(struct sockaddr_in6);
+#endif
     fds[0].events = fds[1].events = 0;
 
-    if(srvstate && !param->waitclient64){
+    if((srvstate || param->srvinbuf > param->srvoffset) && !param->waitclient64){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will send to client");
 #endif
 	fds[0].events |= POLLOUT;
     }
     rfromserver = MAXSPLICE;
-    if(param->waitserver64) rfromserver = MIN(MAXSPLICE, param->waitserver64 - (received + insrvpipe));
+    if(param->srvinbuf > param->srvoffset) rfromserver = 0;
+    else if(param->waitserver64) rfromserver = MIN(MAXSPLICE, param->waitserver64 - (received + insrvpipe));
     if(srvstate < 2 && rfromserver > 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will recv from server");
 #endif
 	fds[1].events |= POLLIN;
     }
-    if(clistate && !param->waitserver64){
+    if((clistate || param->cliinbuf > param->clioffset)&& !param->waitserver64){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will send to server");
 #endif
 	fds[1].events |= POLLOUT;
     }
     rfromclient = MAXSPLICE;
-    if(param->waitclient64) rfromclient = MIN(MAXSPLICE, param->waitclient64 - (sent + inclipipe));
+    if(param->cliinbuf > param->clioffset) rfromclient = 0;
+    else if(param->waitclient64) rfromclient = MIN(MAXSPLICE, param->waitclient64 - (sent + inclipipe));
     if(clistate < 2 && rfromclient > 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice :will recv from client");
@@ -104,17 +129,37 @@ int splicemap(struct clientparam * param, int timeo){
 	param->res = 90;
     }
     if((fds[0].revents & POLLOUT)){
+	if (param->srvinbuf > param->srvoffset) {
 #if DEBUGLEVEL > 2
-(*param->srv->logfunc)(param, "splice: send to client");
+(*param->srv->logfunc)(param, "splice: non-spliced send to client");
 #endif
-	res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	    res = so._sendto(param->clisock, (char *)param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sincr, sasize);
+	}
+	else {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: spliced send to client");
+#endif
+	    res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	}
 	if(res < 0) {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: send to client error");
+#endif
 	    if(errno != EAGAIN && errno != EINTR) RETURN(96);
 	    if(errno == EINTR) usleep(SLEEPTIME);
 	    continue;
 	}
 	if(res){
-	    insrvpipe -= res;
+	    if (param->srvinbuf > param->srvoffset){
+		param->srvinbuf = param->srvoffset = 0;
+		if(param->srv->usesplice > 1 && !param->waitclient64 && !param->waitserver64){
+		    if(param->srvbuf){
+			myfree(param->srvbuf);
+			param->srvbuf = NULL;
+		    }
+		}
+	    }
+	    else insrvpipe -= res;
 	    received += res;
 
 	    if(param->bandlimfunc) {
@@ -128,17 +173,40 @@ int splicemap(struct clientparam * param, int timeo){
 	}
     }
     if((fds[1].revents & POLLOUT)){
+	if(param->cliinbuf > param->clioffset){
 #if DEBUGLEVEL > 2
-(*param->srv->logfunc)(param, "splice: send to server");
+(*param->srv->logfunc)(param, "splice: non-spliced send to server");
 #endif
-	res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	    res = so._sendto(param->remsock, (char *)param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sinsr, sasize);
+	}
+	else {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: spliced send to server");
+#endif
+	    res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	}
 	if(res < 0) {
+#if DEBUGLEVEL > 2
+(*param->srv->logfunc)(param, "splice: send to server error");
+#endif
 	    if(errno != EAGAIN && errno != EINTR) RETURN(97);
 	    if(errno == EINTR) usleep(SLEEPTIME);
 	    continue;
 	}
 	if(res){
-	    inclipipe -= res;
+	    if(param->cliinbuf > param->clioffset){
+		param->clioffset += res;
+		if(param->clioffset == param->cliinbuf){
+		    param->clioffset = param->cliinbuf = 0;
+		    if(param->srv->usesplice > 1 && !param->waitclient64 && !param->waitserver64){
+			if(param->clibuf){
+			    myfree(param->clibuf);
+			    param->clibuf = NULL;
+			}
+		    }
+		}
+	    }
+	    else inclipipe -= res;
 	    sent += res;
     	    param->nwrites++;
 	    param->statscli64 += res;
@@ -150,7 +218,6 @@ int splicemap(struct clientparam * param, int timeo){
 	    }
 	    clistate = 0;
 	}
-	else clistate = 2;
 	if(param->waitclient64 && param->waitclient64 <= sent){
 	    RETURN (99);
 	}
@@ -282,7 +349,11 @@ int sockmap(struct clientparam * param, int timeo){
 
 
  while (!stop&&!conf.timetoexit){
+#ifdef NOIPV6
 	sasize = sizeof(struct sockaddr_in);
+#else
+	sasize = sizeof(struct sockaddr_in6);
+#endif
 	if(param->version < conf.version){
 		if((res = (*param->srv->authfunc)(param)) && res != 2 && !param->srv->noforce) {return(res);}
 		param->paused = conf.paused;
@@ -417,7 +488,11 @@ int sockmap(struct clientparam * param, int timeo){
 		}
 	}
 	if (!stop && (fds[1].revents & POLLIN)) {
+#ifdef NOIPV6
 		struct sockaddr_in sin;
+#else
+		struct sockaddr_in6 sin;
+#endif
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "recv from server");
 #endif

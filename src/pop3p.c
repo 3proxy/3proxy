@@ -44,7 +44,7 @@ void * pop3pchild(struct clientparam* param) {
 		{RETURN(623);}
  param->statscli64 += (uint64_t)(strlen((char *)param->extusername) + 7);
  param->nwrites++;
- RETURN (sockmap(param, 180));
+ RETURN (mapsocket(param, 180));
 CLEANRET:
 
  if(param->hostname&&param->extusername) {

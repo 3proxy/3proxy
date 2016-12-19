@@ -279,7 +279,7 @@ fflush(stderr);
 					if(buf)myfree(buf);
 					return (*param->redirectfunc)(param);
 				}
-				param->res = sockmap(param, conf.timeouts[CONNECTION_L]);
+				param->res = mapsocket(param, conf.timeouts[CONNECTION_L]);
 				break;
 			case 2:
 				so._listen (param->remsock, 1);
@@ -325,7 +325,7 @@ fflush(stderr);
 					socksend(param->clisock, buf, 8, conf.timeouts[STRING_S]);
 				}
 
-				param->res = sockmap(param, conf.timeouts[CONNECTION_S]);
+				param->res = mapsocket(param, conf.timeouts[CONNECTION_S]);
 				break;
 			case 3:
 				param->sinsr = param->req;

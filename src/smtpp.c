@@ -272,7 +272,7 @@ void * smtppchild(struct clientparam* param) {
 
  if(param->nhdrfilterscli || param->nhdrfilterssrv || param->ndatfilterscli || param->ndatfilterssrv){
 	do {
-		if(res == 22) RETURN (sockmap(param, 180));
+		if(res == 22) RETURN (mapsocket(param, 180));
 		if(res != 2 && (res = readreply(param)) <= 0) break;
 		if(res == 221) RETURN(0);
 		if(res == 354) res = readdata(param);
@@ -286,7 +286,7 @@ void * smtppchild(struct clientparam* param) {
 
 #endif
  
- 	RETURN (sockmap(param, 180));
+ 	RETURN (mapsocket(param, 180));
 
 CLEANRET:
 

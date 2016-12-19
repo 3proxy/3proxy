@@ -616,7 +616,7 @@ for(;;){
 		s = param->remsock;
 		param->remsock = ftps;
 		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
-		res = sockmap(param, conf.timeouts[CONNECTION_L]);
+		res = mapsocket(param, conf.timeouts[CONNECTION_L]);
 		if (res == 99) res = 0;
 		so._closesocket(ftps);
 		ftps = INVALID_SOCKET;
@@ -803,7 +803,7 @@ for(;;){
  if(isconnect && param->redirtype != R_HTTP) {
 	socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 	if(param->redirectfunc) return (*param->redirectfunc)(param);
-	param->res =  sockmap(param, conf.timeouts[CONNECTION_L]);
+	param->res =  mapsocket(param, conf.timeouts[CONNECTION_L]);
 	if(param->redirectfunc) return (*param->redirectfunc)(param);
 	RETURN(param->res);
  }
@@ -866,7 +866,7 @@ for(;;){
  if(contentlength64 > 0){
 	 param->nolongdatfilter = 0;
 	 param->waitclient64 = contentlength64;
-	 res = sockmap(param, conf.timeouts[CONNECTION_S]);
+	 res = mapsocket(param, conf.timeouts[CONNECTION_S]);
 	 param->waitclient64 = 0;
 	 if(res != 99) {
 		RETURN(res);
@@ -1034,7 +1034,7 @@ for(;;){
 		}
 		if(param->chunked != 2){
 			param->waitserver64 = contentlength64;
-		 	if((res = sockmap(param, conf.timeouts[CONNECTION_S])) != 98){
+		 	if((res = mapsocket(param, conf.timeouts[CONNECTION_S])) != 98){
 				RETURN(res);
 			}
 	 		param->waitserver64 = 0;
@@ -1042,13 +1042,13 @@ for(;;){
         } while(param->chunked);
  }
  if(isconnect && res == 200 && param->operation){
-	RETURN (sockmap(param, conf.timeouts[CONNECTION_S]));
+	RETURN (mapsocket(param, conf.timeouts[CONNECTION_S]));
  }
  else if(isconnect){
 	ckeepalive = keepalive = 1;
  }
  else if(!hascontent && !param->chunked) {
-	RETURN(sockmap(param, conf.timeouts[CONNECTION_S]));
+	RETURN(mapsocket(param, conf.timeouts[CONNECTION_S]));
  }
  contentlength64 = 0;
 REQUESTEND:

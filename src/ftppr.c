@@ -242,7 +242,7 @@ void * ftpprchild(struct clientparam* param) {
 		so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 		so._setsockopt(clidatasock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 		param->clisock = clidatasock;
-		res = sockmap(param, conf.timeouts[CONNECTION_S]);
+		res = mapsocket(param, conf.timeouts[CONNECTION_S]);
 		if(param->remsock != INVALID_SOCKET) {
 			so._shutdown (param->remsock, SHUT_RDWR);
 			so._closesocket(param->remsock);
