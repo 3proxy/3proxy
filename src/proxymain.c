@@ -310,8 +310,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 		case 's':
 			if(isudp)
 				srv.singlepacket = 1 + atoi(argv[i]+2);
+#ifdef WITHSPLICE
 			else
 				srv.usesplice = 1 + atoi(argv[i]+2);
+#endif
 			break;
 		 default:
 			error = 1;
