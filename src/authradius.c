@@ -7,7 +7,7 @@
 */
 
 
-#include <proxy.h>
+#include "proxy.h"
 #include "libs/md5.h"
 
 #define AUTH_VECTOR_LEN         16
@@ -95,6 +95,10 @@
 #define PW_NAS_PORT_ID_STRING  		87
 #define PW_FRAMED_POOL			89
 
+#define PW_NAS_IPV6_ADDRESS		95
+#define	PW_LOGIN_IPV6_HOST		98
+#define	PW_FRAMED_IPV6_ADDRESS		168
+
 #define PW_FALL_THROUGH			500
 #define PW_ADD_PORT_TO_IP_ADDRESS	501
 #define PW_EXEC_PROGRAM			502
@@ -153,6 +157,17 @@
 #define PW_STATUS_ALIVE			3
 #define PW_STATUS_ACCOUNTING_ON		7
 #define PW_STATUS_ACCOUNTING_OFF	8
+
+
+
+#ifdef NOIPV6
+struct  sockaddr_in radiuslist[MAXRADIUS];
+#else
+struct  sockaddr_in6 radiuslist[MAXRADIUS];
+#endif
+
+int nradservers = 0;
+char * radiussecret = NULL;
 
 void md5_calc(unsigned char *output, unsigned char *input,
 		     unsigned int inputlen);
@@ -274,10 +289,11 @@ void random_vector(uint8_t *vector)
 	static int	did_random = 0;
 	static int	counter = 0;
 
+	pthread_mutex_lock(&rad_mutex);
 	if (!did_random) {
 
 		for (i = 0; i < (int)sizeof(random_vector_pool); i++) {
-			random_vector_pool[i] += myrand((void *) random_vector_pool+i, 1); & 0xff;
+			random_vector_pool[i] += myrand((void *) random_vector_pool+i, 1) & 0xff;
 		}
 		did_random = 1;
 
@@ -288,7 +304,6 @@ void random_vector(uint8_t *vector)
 	 *	and put the resulting information through MD5,
 	 *	so it's all mashed together.
 	 */
-	pthread_mutex_lock(&rad_mutex);
 	counter++;
 	random_vector_pool[AUTH_VECTOR_LEN] += (counter & 0xff);
 	md5_calc((u_char *) random_vector_pool,
@@ -337,50 +352,42 @@ typedef struct radius_packet_t {
 char buf[256];
 extern int ntry;
 
+#define RETURN(xxx) { res = xxx; goto CLEANRET; }
+
+
 int radauth(struct clientparam * param){
-{
-	int port = 0;
+
 	int loop;
 	int id;
-	int res=0;
-	SOCKET sockfd;
+	int res = 4;
+	SOCKET sockfd = -1;
 	unsigned char *ptr;
 	int total_length;
 	int len;
-	unsigned dst_ipaddr;
 #ifdef NOIPV6
 	struct  sockaddr_in     saremote;
 #else
 	struct  sockaddr_in6     saremote;
 #endif
-	struct  sockaddr     *sa;	
-	struct timeval  tv;
-	fd_set          rdfdesc;
+	struct pollfd fds[1];
 	char vector[AUTH_VECTOR_LEN];
 	radius_packet_t packet, rpacket;
-	int salen;
+	SASIZETYPE salen;
 	int data_len;
 	uint8_t	*vendor_len;
 	int count=0;
 	uint8_t *attr;
-	int haveerror;
-	int loginservice;
 	long vendor=0;
 	int vendorlen=0;
-	int mailservice=0;
+
+
+	if(!radiussecret || !nradservers) return 4;
 
 	memset(&packet, 0, sizeof(packet));
 
 	random_vector(packet.vector);
 
 	id = (((int)getpid() + ntry) & 0xff);
-	*errorstring = NULL;
-	port = getport("radius");
-	if (port == 0) port = PW_AUTH_UDP_PORT;
-	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		perror("radclient: socket: ");
-		return 4;
-	}
 
 	packet.code = PW_AUTHENTICATION_REQUEST;
 	packet.id=id;
@@ -399,116 +406,132 @@ int radauth(struct clientparam * param){
 	ptr+=4;
 	total_length+=6;
 
-	/* NAS-Port */
-
-	*ptr++ =  PW_NAS_PORT_ID;
-	*ptr++ = 6;
-	(*(uint32_t *)ptr)=htonl((unsigned int)p->server_port);
-	ptr+=4;
-	total_length+=6;
-
 	/* NAS-Port-Type */
-
 	*ptr++ =  PW_NAS_PORT_TYPE;
 	*ptr++ = 6;
 	(*(uint32_t *)ptr)=htonl(PW_NAS_PORT_VIRTUAL);
 	ptr+=4;
 	total_length+=6;
 
-	/* NAS-IP-Address */
-
-	*ptr++ =  PW_NAS_IP_ADDRESS;
+	/* NAS-Port */
+	*ptr++ =  PW_NAS_PORT_ID;
 	*ptr++ = 6;
-	(*(uint32_t *)ptr)=p->server_ip;
-
+	(*(uint32_t *)ptr)=htonl(*SAPORT(&param->srv->intsa));
 	ptr+=4;
 	total_length+=6;
 
+
+	if(*SAFAMILY(&param->sincl) == AF_INET6){
+	/* NAS-IPv6-Address */
+	    *ptr++ =  PW_NAS_IPV6_ADDRESS;
+	    *ptr++ = 18;
+	}
+	else {
+	/* NAS-IP-Address */
+	    *ptr++ =  PW_NAS_IP_ADDRESS;
+	    *ptr++ = 6;
+	}
+	len = SAADDRLEN(&param->sincl);
+	memcpy(ptr, SAADDR(&param->sincl), len);
+	ptr += len;
+	total_length += len;
+
+	/* NAS-Port */
+	*ptr++ =  PW_LOGIN_TCP_PORT;
+	*ptr++ = 6;
+	(*(uint32_t *)ptr)=htonl(*SAPORT(&param->req));
+	ptr+=4;
+	total_length+=6;
+
+
+	if(*SAFAMILY(&param->req) == AF_INET6){
+	/* NAS-IPv6-Address */
+	    *ptr++ =  PW_LOGIN_IPV6_HOST;
+	    *ptr++ = 18;
+	}
+	else {
+	/* NAS-IP-Address */
+	    *ptr++ =  PW_LOGIN_IP_HOST;
+	    *ptr++ = 6;
+	}
+	len = SAADDRLEN(&param->req);
+	memcpy(ptr, SAADDR(&param->req), len);
+	ptr += len;
+	total_length += len;
+
+
 	/* Username */
-	len = strlen(p->user);
-	if(len>128)len=128;
-	*ptr++ = PW_USER_NAME;
-	*ptr++ = len + 2;
-	memcpy(ptr, p->user, len);
-	ptr+=len;
-	total_length += (len+2);
+	if(param->username){
+	    len = strlen(param->username);
+	    if(len>128)len=128;
+	    *ptr++ = PW_USER_NAME;
+	    *ptr++ = len + 2;
+	    memcpy(ptr, param->username, len);
+	    ptr+=len;
+	    total_length += (len+2);
+	}
 	
-	len = strlen(password);
-	if(len > 128) len = 128;
-	*ptr++ = PW_PASSWORD;
-	ptr++;
-	memcpy(ptr, password, len);
-	rad_pwencode(ptr,
+	if(param->password){
+    	    len = strlen(param->password);
+	    if(len > 128) len = 128;
+	    *ptr++ = PW_PASSWORD;
+	    ptr++;
+	    memcpy(ptr, param->password, len);
+	    rad_pwencode(ptr,
 		     &len,
-		     p->radiussecret, 
+		     radiussecret, 
 		     (char *)packet.vector);
-	*(ptr-1) = len + 2;
-	ptr+=len;
-	total_length+= (len+2);
+	    *(ptr-1) = len + 2;
+	    ptr+=len;
+	    total_length+= (len+2);
+	}
 	
 	total_length+=(4+AUTH_VECTOR_LEN);
 	packet.length = htons(total_length);
 	memcpy(vector, packet.vector, AUTH_VECTOR_LEN);
 	
-	for (loop = 0; p->radiuslist[loop] && loop < MAXRADIUS; loop++) {
-		*errorstring = 0;
-		haveerror = 0;
-		loginservice = 0;
-		packet.id++;
-		dst_ipaddr = ip_getaddr(p->radiuslist[loop]);
+	for (loop = 0; loop < nradservers && loop < MAXRADIUS; loop++) {
 
-		sa = (struct sockaddr_in *) &saremote;
-		memset ((char *) sa, '\0', sizeof (saremote));
-		sa->sin_family = AF_INET;
-		sa->sin_addr.s_addr = dst_ipaddr;
-/*
-		sa->sin_port = htons(port);
-*/
-		sa->sin_port = htons(1812);
-		res = sendto(sockfd, &packet, ntohs(packet.length), 0,
-		      (struct sockaddr *)&saremote, sizeof(struct sockaddr_in));
-		if(res != ntohs(packet.length)){
-			res = 1;
+		saremote = radiuslist[loop];
+#idef NOIPV6
+		if(SAFAMILY(&saremote)!= AF_INET)continue;
+#else
+		if(SAFAMILY(&saremote)!= AF_INET && SAFAMILY(&saremote)!= AF_INET6)continue;
+#endif
+		packet.id++;
+		if(sockfd >= 0) so._closesocket(sockfd);
+		if ((sockfd = so._socket(SASOCK(saremote), SOCK_DGRAM, 0)) < 0) {
+		    return 4;
+		}
+
+		len = so._sendto(sockfd, &packet, ntohs(packet.length), 0,
+		      (struct sockaddr *)&saremote, sizeof(saremote);
+		if(len != ntohs(packet.length)){
 			continue;
 		}
 		/* And wait for reply, timing out as necessary */
-		FD_ZERO(&rdfdesc);
-		FD_SET(sockfd, &rdfdesc);
 
-		tv.tv_sec = (int)timeout;
-		tv.tv_usec = 1000000 * (timeout - (int)timeout);
+	        memset(fds, 0, sizeof(fds));
+	        fds[0].fd = sockfd;
+	        fds[0].events = POLLIN;
+		if(so._poll(fds, 1, conf.timeouts[SINGLEBYTE_L]*1000) <= 0) continue;
 
-		/* Something's wrong if we don't get exactly one fd. */
-		if (select(sockfd + 1, &rdfdesc, NULL, NULL, &tv) != 1) {
-			res = 2;
-			continue;
-		}
-
-		memset(&saremote, 0, sizeof(saremote));
-		salen = sizeof(struct sockaddr_in);
+		salen = sizeof(saremote);
 				
-		data_len = recvfrom(sockfd, &rpacket, sizeof(packet)-strlen(p->radiussecret),
+		data_len = so._recvfrom(sockfd, &rpacket, sizeof(packet)-16,
 			0, (struct sockaddr *)&saremote, &salen);
 
-		if (data_len < 0) {
-			res = 3;
-			continue;
-		}
-
 		if (data_len < 20) {
-			res = 4;
 			continue;
 		}
 
 		if( rpacket.code != PW_AUTHENTICATION_ACK &&
 		    rpacket.code != PW_AUTHENTICATION_REJECT ){
-		    	res = 5;
 			continue;
 		}
 
-		if (calc_replydigest((char *)&rpacket, packet.vector, p->radiussecret,
+		if (calc_replydigest((char *)&rpacket, packet.vector, radiussecret,
 			data_len) ){
-			res = 5;
 			continue;
 		}
 
@@ -519,7 +542,6 @@ int radauth(struct clientparam * param){
 		 */
 		total_length = ntohs(rpacket.length);
 		if (data_len != total_length) {
-			res = 6;
 			continue;
 		}
 
@@ -559,7 +581,7 @@ int radauth(struct clientparam * param){
 			 *	Sanity check the attributes for length.
 			 */
 			if(!vendor && attr[0] == PW_VENDOR_SPECIFIC) {
-				if (attr[1] < 6 || count < 6) return 9;
+				if (attr[1] < 6 || count < 6) RETURN(4);
 				vendorlen = attr[1]-6;
 				vendor = htonl(*((int*)(attr +2)));
 				count -= 6;
@@ -570,9 +592,8 @@ int radauth(struct clientparam * param){
 			if (!vendor && attr[0] == PW_REPLY_MESSAGE) {
 				memcpy(buf, attr+2, attr[1]-2);
 				buf[attr[1]-2]=0;
-				haveerror = 1;
 			}
-
+/*
 			else if (vendor == SANDY && attr[0] == SANDY_MAIL_MAILBOX) {
 				memcpy (p->drop_name, attr + 2, attr[1] - 2);
 			}
@@ -582,18 +603,17 @@ int radauth(struct clientparam * param){
 			else if (vendor == SANDY && attr[0] == SANDY_MAIL_SERVICE) {
 				mailservice = ntohl(*(int *)(attr+2)) ;
 			}
-
+*/
 			count -= attr[1];	/* grab the attribute length */
 			if(vendorlen) {
 				vendorlen -= attr[1];
 				if (!vendorlen) vendor = 0;
-				else if (vendorlen < 0) return 10;
+				else if (vendorlen < 0) RETURN(4);
 			}
 			attr += attr[1];
 		}
 
 		if (count !=0 || vendorlen!=0) {
-			res = 20;
 			continue;
 		}
 		/*
@@ -602,53 +622,13 @@ int radauth(struct clientparam * param){
 		 *	If not, we complain, and throw the packet away.
 		 */
 
-		if(haveerror){
-			*errorstring=buf;
-		}
 		if(rpacket.code != PW_AUTHENTICATION_ACK){
-			res = 0;
 			continue;
 		}
-		if(mailservice != 3){
-			*errorstring = "This account is not valid for mailbox access, check your settings";
-			return 130;
-		}
-		p->auth = at;
-		return 0;
+		RETURN(0);
 	}
-	return 100+res;
+CLEANRET:
+	if(sockfd >= 0) so._closesocket(sockfd);
+	return res;
 }
 
-
-
-
-#ifdef WITH_MAIN
-
-extern int librad_debug;
-
-
-int main(int argc, char*argv[]){
-
-  char *radiuslist[] = {"195.122.226.5", NULL};
-  int dodeletes;
-  char * errorstring;
-  int result;
-/*  
-librad_debug = 1;
-*/
-
-  if(argc!=3)return 1;
-  
-  result =    radius_pass(PLAIN, argv[1], argv[2], NULL, radiuslist, "test", &dodeletes, &errorstring);
-
-  printf("Login: %s/%d, Dodeletes: %s, Errorstring: %s\n",
-  	(result)?"FAILED":"SUCCEED",
-  	result,
-  	(dodeletes)?"YES":"NO",
-  	(errorstring)?errorstring:"NONE"
-  );
-  fflush(stdout);
-  return 0;
-}
-
-#endif

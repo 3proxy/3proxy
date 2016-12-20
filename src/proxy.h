@@ -140,6 +140,7 @@ void daemonize(void);
 
 #include "structures.h"
 
+#define MAXRADIUS 5
 
 extern RESOLVFUNC resolvfunc;
 
@@ -326,6 +327,14 @@ extern struct commands commandhandlers[];
 #define mapsocket(a,b) sockmap(a,b)
 #endif
 
+#ifdef NOIPV6
+extern struct  sockaddr_in radiuslist[MAXRADIUS];
+#else
+extern struct  sockaddr_in6 radiuslist[MAXRADIUS];
+#endif
+
+extern int nradservers = 0;
+extern char * radiussecret = NULL;
 
 #ifdef _WINCE
 char * CEToUnicode (const char *str);
