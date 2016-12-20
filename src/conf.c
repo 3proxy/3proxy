@@ -1,3 +1,11 @@
+/*
+   3APA3A simpliest proxy server
+   (c) 2002-2016 by Vladimir Dubrovin <3proxy@3proxy.ru>
+
+   please read License Agreement
+
+*/
+
 #include "proxy.h"
 #ifndef _WIN32
 #include <sys/resource.h>

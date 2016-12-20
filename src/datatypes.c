@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2000-2008 3APA3A
- *
- * please read License Agreement
- *
- */
+   (c) 2002-2016 by Vladimir Dubrovin <3proxy@3proxy.ru>
+
+   please read License Agreement
+
+*/
 
 #include "proxy.h"
 

@@ -1,3 +1,11 @@
+/*
+   3APA3A simpliest proxy server
+   (c) 2002-2016 by Vladimir Dubrovin <3proxy@3proxy.ru>
+
+   please read License Agreement
+
+*/
+
 #ifndef _STRUCTURES_H_
 #define _STRUCTURES_H_
 
