@@ -166,7 +166,7 @@ struct  sockaddr_in radiuslist[MAXRADIUS];
 struct  sockaddr_in6 radiuslist[MAXRADIUS];
 #endif
 
-static int ntry;
+static int ntry = 0;
 int nradservers = 0;
 char * radiussecret = NULL;
 
@@ -220,17 +220,6 @@ static int calc_replydigest(char *packet, char *original, const char *secret, in
 	return	memcmp(calc_vector, calc_digest, AUTH_VECTOR_LEN) ? 2 : 0;
 }
 
-/*
- *	Encode password.
- *
- *	We assume that the passwd buffer passed is big enough.
- *	RFC2138 says the password is max 128 chars, so the size
- *	of the passwd buffer must be at least 129 characters.
- *	Preferably it's just MAX_STRING_LEN.
- *
- *	int *pwlen is updated to the new length of the encrypted
- *	password - a multiple of 16 bytes.
- */
 #define AUTH_PASS_LEN (16)
 int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vector)
 {
@@ -239,9 +228,6 @@ int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vecto
 	int	i, n, secretlen;
 	int	len;
 
-	/*
-	 *	Padd password to multiple of AUTH_PASS_LEN bytes.
-	 */
 	len = strlen(passwd);
 	if (len > 128) len = 128;
 	*pwlen = len;
@@ -252,26 +238,16 @@ int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vecto
 		len = *pwlen = i;
 	}
 
-	/*
-	 *	Use the secret to setup the decryption digest
-	 */
 	secretlen = strlen(secret);
 	memcpy(buffer, secret, secretlen);
 	memcpy(buffer + secretlen, vector, AUTH_VECTOR_LEN);
 	md5_calc((u_char *)digest, buffer, secretlen + AUTH_VECTOR_LEN);
 
-	/*
-	 *	Now we can encode the password *in place*
-	 */
 	for (i = 0; i < AUTH_PASS_LEN; i++)
 		passwd[i] ^= digest[i];
 
 	if (len <= AUTH_PASS_LEN) return 0;
 
-	/*
-	 *	Length > AUTH_PASS_LEN, so we need to use the extended
-	 *	algorithm.
-	 */
 	for (n = 0; n < 128 && n <= (len - AUTH_PASS_LEN); n += AUTH_PASS_LEN) { 
 		memcpy(buffer + secretlen, passwd + n, AUTH_PASS_LEN);
 		md5_calc((u_char *)digest, buffer, secretlen + AUTH_PASS_LEN);
@@ -283,9 +259,6 @@ int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vecto
 }
 
 
-/*
- *	Create a random vector of AUTH_VECTOR_LEN bytes.
- */
 void random_vector(uint8_t *vector, struct clientparam *param)
 {
 	int		i;
@@ -302,23 +275,12 @@ void random_vector(uint8_t *vector, struct clientparam *param)
 
 	}
 
-	/*
-	 *	Modify our random pool, based on the counter,
-	 *	and put the resulting information through MD5,
-	 *	so it's all mashed together.
-	 */
 	counter++;
 	random_vector_pool[AUTH_VECTOR_LEN] += (counter & 0xff);
 	md5_calc((u_char *) random_vector_pool,
 			(u_char *) random_vector_pool,
 			sizeof(random_vector_pool));
 
-	/*
-	 *	And do another MD5 hash of the result, to give
-	 *	the user a random vector.  This ensures that the
-	 *	user has a random vector, without giving them
-	 *	an exact image of what's in the random pool.
-	 */
 	md5_calc((u_char *) vector,
 			(u_char *) random_vector_pool,
 			sizeof(random_vector_pool));
@@ -335,13 +297,7 @@ typedef struct radius_packet_t {
   uint8_t       data[4096];
 } radius_packet_t;
           
-
-
-char buf[256];
-int ntry = 0;
-
 #define RETURN(xxx) { res = xxx; goto CLEANRET; }
-
 
 int radauth(struct clientparam * param){
 
@@ -549,7 +505,6 @@ int radauth(struct clientparam * param){
 		if(len != ntohs(packet.length)){
 			continue;
 		}
-		/* And wait for reply, timing out as necessary */
 
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sockfd;
@@ -578,51 +533,24 @@ int radauth(struct clientparam * param){
 			continue;
 		}
 
-		/*
-		 *	Check for packets with mismatched size.
-		 *	i.e. We've received 128 bytes, and the packet header
-		 *	says it's 256 bytes long.
-		 */
 		total_length = ntohs(rpacket.length);
 		if (data_len != total_length) {
 			continue;
 		}
 
-		/*
-		 *	Walk through the packet's attributes, ensuring that
-		 *	they add up EXACTLY to the size of the packet.
-		 *
-		 *	If they don't, then the attributes either under-fill
-		 *	or over-fill the packet.  Any parsing of the packet
-		 *	is impossible, and will result in unknown side effects.
-		 *
-		 *	This would ONLY happen with buggy RADIUS implementations,
-		 *	or with an intentional attack.  Either way, we do NOT want
-		 *	to be vulnerable to this problem.
-		 */
 		attr = rpacket.data;
 		count = total_length - 20;
 		vendor_len = 0;
 
 		while (count >= 2) {
-			/*
-			 *	Attribute number zero is NOT defined.
-			 */
 			if (!vendor && attr[0] == 0) {
 				break;
 			}
 		
-			/*
-			 *	Attributes are at LEAST as long as the ID & length
-			 *	fields.  Anything shorter is an invalid attribute.
-			 */
 	       		if (attr[1] < 2) {
 				break;
 			}
 
-			/*
-			 *	Sanity check the attributes for length.
-			 */
 			if(!vendor && attr[0] == PW_VENDOR_SPECIFIC) {
 				if (attr[1] < 6 || count < 6) RETURN(4);
 				vendorlen = attr[1]-6;
@@ -632,12 +560,7 @@ int radauth(struct clientparam * param){
 				continue;
 			}
 	
-			else if (!vendor && attr[0] == PW_REPLY_MESSAGE) {
-				memcpy(buf, attr+2, attr[1]-2);
-				buf[attr[1]-2]=0;
-			}
-
-			else if (!vendor && attr[0] == PW_FRAMED_IP_ADDRESS && attr[1] == 6) {
+			if (!vendor && attr[0] == PW_FRAMED_IP_ADDRESS && attr[1] == 6) {
 				*SAFAMILY(&param->sinsl) = AF_INET;
 				memcpy(SAADDR(&param->sinsl), attr+2, 4);
 			}
@@ -645,6 +568,10 @@ int radauth(struct clientparam * param){
 			else if (!vendor && attr[0] == PW_FRAMED_IPV6_ADDRESS && attr[1] == 18) {
 				*SAFAMILY(&param->sinsl) = AF_INET6;
 				memcpy(SAADDR(&param->sinsl), attr+2, 16);
+			}
+			else if (!vendor && attr[0] == PW_REPLY_MESSAGE && attr[1] >= 3 && isdigit(attr[2])) {
+				res = 0;
+				for(len = 2; len < attr[1] && isdigit(attr[len]); len++) res = (res * 10) + (attr[len] - '0');
 			}
 
 
@@ -659,7 +586,7 @@ int radauth(struct clientparam * param){
 				mailservice = ntohl(*(int *)(attr+2)) ;
 			}
 */
-			count -= attr[1];	/* grab the attribute length */
+			count -= attr[1];
 			if(vendorlen) {
 				vendorlen -= attr[1];
 				if (!vendorlen) vendor = 0;
@@ -671,16 +598,10 @@ int radauth(struct clientparam * param){
 		if (count !=0 || vendorlen!=0) {
 			continue;
 		}
-		/*
-		 *	If the attributes add up to a packet, it's allowed.
-		 *
-		 *	If not, we complain, and throw the packet away.
-		 */
 
-		if(rpacket.code != PW_AUTHENTICATION_ACK){
-			continue;
-		}
-		RETURN(0);
+		if(rpacket.code == PW_AUTHENTICATION_REJECT) RETURN (res);
+		if(rpacket.code == PW_AUTHENTICATION_ACK) RETURN(0);
+		res = 4;
 	}
 CLEANRET:
 	if(sockfd >= 0) so._closesocket(sockfd);
