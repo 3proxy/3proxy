@@ -632,10 +632,22 @@ int radauth(struct clientparam * param){
 				continue;
 			}
 	
-			if (!vendor && attr[0] == PW_REPLY_MESSAGE) {
+			else if (!vendor && attr[0] == PW_REPLY_MESSAGE) {
 				memcpy(buf, attr+2, attr[1]-2);
 				buf[attr[1]-2]=0;
 			}
+
+			else if (!vendor && attr[0] == PW_FRAMED_IP_ADDRESS && attr[1] == 6) {
+				*SAFAMILY(&param->sinsl) = AF_INET;
+				memcpy(SAADDR(&param->sinsl), attr+2, 4);
+			}
+
+			else if (!vendor && attr[0] == PW_FRAMED_IPV6_ADDRESS && attr[1] == 18) {
+				*SAFAMILY(&param->sinsl) = AF_INET6;
+				memcpy(SAADDR(&param->sinsl), attr+2, 16);
+			}
+
+
 /*
 			else if (vendor == SANDY && attr[0] == SANDY_MAIL_MAILBOX) {
 				memcpy (p->drop_name, attr + 2, attr[1] - 2);
