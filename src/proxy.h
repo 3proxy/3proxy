@@ -333,8 +333,8 @@ extern struct  sockaddr_in radiuslist[MAXRADIUS];
 extern struct  sockaddr_in6 radiuslist[MAXRADIUS];
 #endif
 
-extern int nradservers = 0;
-extern char * radiussecret = NULL;
+extern int nradservers;
+extern char * radiussecret;
 
 #ifdef _WINCE
 char * CEToUnicode (const char *str);

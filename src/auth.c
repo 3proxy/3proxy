@@ -641,7 +641,6 @@ struct authcache {
 	struct authcache *next;
 } *authc = NULL;
 
-
 int cacheauth(struct clientparam * param){
 	struct authcache *ac, *last=NULL;
 
@@ -850,6 +849,7 @@ int strongauth(struct clientparam * param){
 	return 5;
 }
 
+int radauth(struct clientparam * param);
 
 struct auth authfuncs[] = {
 	{authfuncs+1, NULL, NULL, ""},
@@ -858,8 +858,12 @@ struct auth authfuncs[] = {
 	{authfuncs+4, dnsauth, checkACL, "dnsname"},
 	{authfuncs+5, strongauth, checkACL, "strong"},
 	{authfuncs+6, cacheauth, checkACL, "cache"},
+#ifndef NORADIUS
+	{authfuncs+7, radauth, checkACL, "radius"},
+	{authfuncs+8, NULL, NULL, "none"},
+#else
 	{authfuncs+7, NULL, NULL, "none"},
-
+#endif
 	{NULL, NULL, NULL, ""}
 };
 

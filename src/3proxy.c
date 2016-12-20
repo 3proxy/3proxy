@@ -519,7 +519,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   pthread_mutex_init(&tc_mutex, NULL);
   pthread_mutex_init(&pwl_mutex, NULL);
   pthread_mutex_init(&log_mutex, NULL);
-#ifdef WITHRADIUS
+#ifndef NORADIUS
   pthread_mutex_init(&rad_mutex, NULL);
 #endif
 

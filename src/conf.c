@@ -1261,6 +1261,17 @@ static int h_delimchar(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_radius(int argc, unsigned char **argv){
+	char * rs = radiussecret;
+	radiussecret = mystrdup(argv[1]);
+	nradservers = 0;
+	memset(radiuslist, 0, sizeof(radiuslist));
+	for( ; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
+		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers])) return 1;
+	}
+	return 0;
+}
+
 static int h_authcache(int argc, unsigned char **argv){
 	conf.authcachetype = 0;
 	if(strstr((char *) *(argv + 1), "ip")) conf.authcachetype |= 1;
@@ -1422,6 +1433,9 @@ struct commands commandhandlers[]={
 	{commandhandlers+58, "stacksize", h_stacksize, 2, 2},
 	{commandhandlers+59, "force", h_force, 1, 1},
 	{commandhandlers+60, "noforce", h_noforce, 1, 1},
+#ifndef NORADIUS
+	{commandhandlers+61, "radius", h_radius, 3, 0},
+#endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
 

@@ -10,7 +10,7 @@
 
 BUILDDIR = ../bin/
 CC = /opt/cegcc/arm-wince-cegcc/bin/gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DNOODBC -D_WINCE -D_WIN32 -D__USE_W32_SOCKETS
+CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DNOODBC -D_WINCE -D_WIN32 -DNORADIUS -D__USE_W32_SOCKETS
 COUT = -o 
 LN = /opt/cegcc/arm-wince-cegcc/bin/gcc
 LDFLAGS = -O2 -s -mthreads

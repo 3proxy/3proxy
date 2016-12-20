@@ -6,7 +6,7 @@
 
 */
 
-
+#ifndef NORADIUS
 #include "proxy.h"
 #include "libs/md5.h"
 
@@ -166,8 +166,11 @@ struct  sockaddr_in radiuslist[MAXRADIUS];
 struct  sockaddr_in6 radiuslist[MAXRADIUS];
 #endif
 
+static int ntry;
 int nradservers = 0;
 char * radiussecret = NULL;
+
+pthread_mutex_t rad_mutex;
 
 void md5_calc(unsigned char *output, unsigned char *input,
 		     unsigned int inputlen);
@@ -283,17 +286,17 @@ int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vecto
 /*
  *	Create a random vector of AUTH_VECTOR_LEN bytes.
  */
-void random_vector(uint8_t *vector)
+void random_vector(uint8_t *vector, struct clientparam *param)
 {
 	int		i;
 	static int	did_random = 0;
 	static int	counter = 0;
 
-	pthread_mutex_lock(&rad_mutex);
 	if (!did_random) {
 
+		ntry = (int)basetime;
 		for (i = 0; i < (int)sizeof(random_vector_pool); i++) {
-			random_vector_pool[i] += myrand((void *) random_vector_pool+i, 1) & 0xff;
+			random_vector_pool[i] += myrand((void *) &param->msec_start, sizeof(param->msec_start)) & 0xff;
 		}
 		did_random = 1;
 
@@ -319,25 +322,10 @@ void random_vector(uint8_t *vector)
 	md5_calc((u_char *) vector,
 			(u_char *) random_vector_pool,
 			sizeof(random_vector_pool));
-	pthread_mutex_unlock(&rad_mutex);
 }
 
 
 static float timeout = 5;
-
-static int getport(const char *name)
-{
-	struct	servent		*svp;
-
-	svp = getservbyname (name, "udp");
-	if (!svp) {
-		return 0;
-	}
-
-	return ntohs(svp->s_port);
-}
-
-
 
 typedef struct radius_packet_t {
   uint8_t       code;
@@ -350,7 +338,7 @@ typedef struct radius_packet_t {
 
 
 char buf[256];
-extern int ntry;
+int ntry = 0;
 
 #define RETURN(xxx) { res = xxx; goto CLEANRET; }
 
@@ -385,9 +373,11 @@ int radauth(struct clientparam * param){
 
 	memset(&packet, 0, sizeof(packet));
 
-	random_vector(packet.vector);
+	pthread_mutex_lock(&rad_mutex);
+	random_vector(packet.vector, param);
 
-	id = (((int)getpid() + ntry) & 0xff);
+	id = ((ntry++) & 0xff);
+	pthread_mutex_unlock(&rad_mutex);
 
 	packet.code = PW_AUTHENTICATION_REQUEST;
 	packet.id=id;
@@ -493,19 +483,20 @@ int radauth(struct clientparam * param){
 	for (loop = 0; loop < nradservers && loop < MAXRADIUS; loop++) {
 
 		saremote = radiuslist[loop];
-#idef NOIPV6
-		if(SAFAMILY(&saremote)!= AF_INET)continue;
+		*SAPORT(&saremote) = htons(1812);
+#ifdef NOIPV6
+		if(*SAFAMILY(&saremote)!= AF_INET)continue;
 #else
-		if(SAFAMILY(&saremote)!= AF_INET && SAFAMILY(&saremote)!= AF_INET6)continue;
+		if(*SAFAMILY(&saremote)!= AF_INET && *SAFAMILY(&saremote)!= AF_INET6)continue;
 #endif
 		packet.id++;
 		if(sockfd >= 0) so._closesocket(sockfd);
-		if ((sockfd = so._socket(SASOCK(saremote), SOCK_DGRAM, 0)) < 0) {
+		if ((sockfd = so._socket(SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
 		    return 4;
 		}
 
-		len = so._sendto(sockfd, &packet, ntohs(packet.length), 0,
-		      (struct sockaddr *)&saremote, sizeof(saremote);
+		len = so._sendto(sockfd, (char *)&packet, ntohs(packet.length), 0,
+		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
 			continue;
 		}
@@ -518,7 +509,7 @@ int radauth(struct clientparam * param){
 
 		salen = sizeof(saremote);
 				
-		data_len = so._recvfrom(sockfd, &rpacket, sizeof(packet)-16,
+		data_len = so._recvfrom(sockfd, (char *)&rpacket, sizeof(packet)-16,
 			0, (struct sockaddr *)&saremote, &salen);
 
 		if (data_len < 20) {
@@ -632,3 +623,4 @@ CLEANRET:
 	return res;
 }
 
+#endif
