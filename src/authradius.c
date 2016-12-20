@@ -352,6 +352,7 @@ int radauth(struct clientparam * param){
 	unsigned char *ptr;
 	int total_length;
 	int len;
+	int op;
 #ifdef NOIPV6
 	struct  sockaddr_in     saremote;
 #else
@@ -369,7 +370,9 @@ int radauth(struct clientparam * param){
 	int vendorlen=0;
 
 
-	if(!radiussecret || !nradservers) return 4;
+	if(!radiussecret || !nradservers) {
+		return 4;
+	}
 
 	memset(&packet, 0, sizeof(packet));
 
@@ -389,7 +392,6 @@ int radauth(struct clientparam * param){
 
 
 	/* Service Type */
-
 	*ptr++ =  PW_SERVICE_TYPE;
 	*ptr++ = 6;
 	(*(uint32_t *)ptr)=htonl(PW_AUTHENTICATE_ONLY);
@@ -406,7 +408,7 @@ int radauth(struct clientparam * param){
 	/* NAS-Port */
 	*ptr++ =  PW_NAS_PORT_ID;
 	*ptr++ = 6;
-	(*(uint32_t *)ptr)=htonl(*SAPORT(&param->srv->intsa));
+	(*(uint32_t *)ptr)=htonl((uint32_t)ntohs((*SAPORT(&param->srv->intsa))));
 	ptr+=4;
 	total_length+=6;
 
@@ -424,30 +426,74 @@ int radauth(struct clientparam * param){
 	len = SAADDRLEN(&param->sincl);
 	memcpy(ptr, SAADDR(&param->sincl), len);
 	ptr += len;
-	total_length += len;
+	total_length += (2+len);
 
-	/* NAS-Port */
+	/* NAS-Identifier */
+	if(conf.stringtable){
+		*ptr++ = PW_NAS_IDENTIFIER;
+		len = strlen(conf.stringtable[SERVICES+param->service]);
+		*ptr++ = (2 + len);
+		memcpy(ptr, conf.stringtable[SERVICES+param->service], len);
+		ptr += len;
+		total_length+=(len+2);
+	}
+
+	if(*SAFAMILY(&param->sincr) == AF_INET6){
+	/* Framed-IPv6-Address */
+	    *ptr++ =  PW_FRAMED_IPV6_ADDRESS;
+	    *ptr++ = 18;
+	}
+	else {
+	/* Framed-IP-Address */
+	    *ptr++ =  PW_FRAMED_IP_ADDRESS;
+	    *ptr++ = 6;
+	}
+	len = SAADDRLEN(&param->sincr);
+	memcpy(ptr, SAADDR(&param->sincr), len);
+	ptr += len;
+	total_length += (2+len);
+
+	/* Called-Station-ID */
+	if(param->hostname){
+		*ptr++ = PW_CALLED_STATION_ID;
+		len = strlen(param->hostname);
+		*ptr++ = (2 + len);
+		memcpy(ptr, param->hostname, len);
+		ptr += len;
+		total_length+=(len+2);
+	}
+
+	/* Login-Service */
+	op = param->operation;
+	for(len=0; op; len++)op>>=1;
+	*ptr++ =  PW_LOGIN_SERVICE;
+	*ptr++ = 4;
+	(*(uint16_t *)ptr)=htons((uint16_t)(len + 1000));
+	ptr+=2;
+	total_length+=4;
+
+	/* Login-TCP-Port */
 	*ptr++ =  PW_LOGIN_TCP_PORT;
-	*ptr++ = 6;
-	(*(uint32_t *)ptr)=htonl(*SAPORT(&param->req));
-	ptr+=4;
-	total_length+=6;
+	*ptr++ = 4;
+	(*(uint16_t *)ptr)=*SAPORT(&param->req);
+	ptr+=2;
+	total_length+=4;
 
 
 	if(*SAFAMILY(&param->req) == AF_INET6){
-	/* NAS-IPv6-Address */
+	/* Login-IPv6-Host */
 	    *ptr++ =  PW_LOGIN_IPV6_HOST;
 	    *ptr++ = 18;
 	}
 	else {
-	/* NAS-IP-Address */
+	/* Login-IP-Host */
 	    *ptr++ =  PW_LOGIN_IP_HOST;
 	    *ptr++ = 6;
 	}
 	len = SAADDRLEN(&param->req);
 	memcpy(ptr, SAADDR(&param->req), len);
 	ptr += len;
-	total_length += len;
+	total_length += (2+len);
 
 
 	/* Username */
@@ -483,19 +529,22 @@ int radauth(struct clientparam * param){
 	for (loop = 0; loop < nradservers && loop < MAXRADIUS; loop++) {
 
 		saremote = radiuslist[loop];
-		*SAPORT(&saremote) = htons(1812);
 #ifdef NOIPV6
-		if(*SAFAMILY(&saremote)!= AF_INET)continue;
+		if(*SAFAMILY(&saremote)!= AF_INET) {
+			continue;
+		}
 #else
-		if(*SAFAMILY(&saremote)!= AF_INET && *SAFAMILY(&saremote)!= AF_INET6)continue;
+		if(*SAFAMILY(&saremote)!= AF_INET && *SAFAMILY(&saremote)!= AF_INET6){
+			continue;
+		}
 #endif
+		if(!*SAPORT(&saremote))*SAPORT(&saremote) = htons(1812);
 		packet.id++;
 		if(sockfd >= 0) so._closesocket(sockfd);
 		if ((sockfd = so._socket(SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
 		    return 4;
 		}
-
-		len = so._sendto(sockfd, (char *)&packet, ntohs(packet.length), 0,
+		len = so._sendto(sockfd, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
 			continue;
@@ -505,12 +554,15 @@ int radauth(struct clientparam * param){
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sockfd;
 	        fds[0].events = POLLIN;
-		if(so._poll(fds, 1, conf.timeouts[SINGLEBYTE_L]*1000) <= 0) continue;
+		if(so._poll(fds, 1, conf.timeouts[SINGLEBYTE_L]*1000) <= 0) {
+			continue;
+		}
 
 		salen = sizeof(saremote);
 				
 		data_len = so._recvfrom(sockfd, (char *)&rpacket, sizeof(packet)-16,
 			0, (struct sockaddr *)&saremote, &salen);
+
 
 		if (data_len < 20) {
 			continue;
