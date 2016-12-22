@@ -84,6 +84,9 @@
 #ifdef EINTR
 #undef EINTR
 #endif
+#ifndef EINPROGRESS
+#define EINPROGRESS WSAEWOULDBLOCK
+#endif
 #define EINTR WSAEWOULDBLOCK
 #define SLEEPTIME 1
 #define usleep Sleep
