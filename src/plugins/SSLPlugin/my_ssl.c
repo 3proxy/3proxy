@@ -112,11 +112,11 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	unsigned char p2[] = "3proxy";
 	unsigned char p3[] = "3proxy CA";
 
-	static char hash_name[sizeof(src_cert->sha1_hash)*2 + 1];
+	static char hash_name_sha1[sizeof(src_cert->sha1_hash)*2 + 1];
 	static char cache_name[200];
 
-	bin2hex(src_cert->sha1_hash, sizeof(src_cert->sha1_hash), hash_name, sizeof(hash_name));
-	sprintf(cache_name, "%s%s.pem", cert_path, hash_name);
+	bin2hex(src_cert->sha1_hash, sizeof(src_cert->sha1_hash), hash_name_sha1, sizeof(hash_name_sha1));
+	sprintf(cache_name, "%s%s.pem", cert_path, hash_name_sha1);
 	/* check if certificate is already cached */
 	fcache = fopen(cache_name, "rb");
 	if ( fcache != NULL ) {
@@ -163,7 +163,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 		X509_free(dst_cert);
 		return NULL;
 	}
-	err = X509_sign(dst_cert, CA_key, EVP_sha1());
+	err = X509_sign(dst_cert, CA_key, EVP_sha256());
 	if(!err){
 		X509_free(dst_cert);
 		return NULL;
