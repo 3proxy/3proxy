@@ -707,11 +707,10 @@ int doconnect(struct clientparam * param){
 		unsigned long ul = 1;
 		ioctlsocket(param->remsock, FIONBIO, &ul);
 #else
-		socklen_t us = sizeof(ul);
 		fcntl(param->remsock,F_SETFL,O_NONBLOCK);
 #endif
 		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) {
-			if(errno != EAGAIN) return (13);
+			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
 		}
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = param->remsock;
@@ -719,15 +718,6 @@ int doconnect(struct clientparam * param){
 		if(so._poll(fds, 1, conf.timeouts[STRING_S]*1000) <= 0) {
 			return (13);
 		}
-#ifndef  _WIN32
-#ifdef SO_ERROR
-		getsockopt(param->remsock, SOL_SOCKET, SO_ERROR, &ul, &us);
-
-		if (ul != 0) {
-			return (13);
-		}
-#endif
-#endif
 	}
 	size = sizeof(param->sinsl);
 	if(so._getsockname(param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
