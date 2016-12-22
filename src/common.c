@@ -648,6 +648,27 @@ void logsyslog(struct clientparam * param, const unsigned char *s) {
 }
 #endif
 
+int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size){
+		struct pollfd fds[1];
+#ifdef _WIN32
+		unsigned long ul = 1;
+		ioctlsocket(sock, FIONBIO, &ul);
+#else
+		fcntl(sock,F_SETFL,O_NONBLOCK);
+#endif
+		if(so._connect(sock,sa,size)) {
+			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
+		}
+	        memset(fds, 0, sizeof(fds));
+	        fds[0].fd = sock;
+	        fds[0].events = POLLOUT;
+		if(so._poll(fds, 1, conf.timeouts[STRING_S]*1000) <= 0) {
+			return (13);
+		}
+		return 0;
+}
+
+
 int doconnect(struct clientparam * param){
  SASIZETYPE size;
 
@@ -702,21 +723,8 @@ int doconnect(struct clientparam * param){
 	}
 	
 	if(param->operation >= 256 || (param->operation & CONNECT)){
-		struct pollfd fds[1];
-#ifdef _WIN32
-		unsigned long ul = 1;
-		ioctlsocket(param->remsock, FIONBIO, &ul);
-#else
-		fcntl(param->remsock,F_SETFL,O_NONBLOCK);
-#endif
-		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) {
-			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
-		}
-	        memset(fds, 0, sizeof(fds));
-	        fds[0].fd = param->remsock;
-	        fds[0].events = POLLOUT;
-		if(so._poll(fds, 1, conf.timeouts[STRING_S]*1000) <= 0) {
-			return (13);
+		if(connectwithpoll(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) {
+			return 13;
 		}
 	}
 	size = sizeof(param->sinsl);

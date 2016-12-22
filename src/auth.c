@@ -1090,7 +1090,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			*sinsr = nservers[i].addr;
 		}
 		if(usetcp){
-			if(so._connect(sock,(struct sockaddr *)sinsr,SASIZE(sinsr))) {
+			if(connectwithpoll(sock,(struct sockaddr *)sinsr,SASIZE(sinsr))) {
 				so._shutdown(sock, SHUT_RDWR);
 				so._closesocket(sock);
 				break;

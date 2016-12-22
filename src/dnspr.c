@@ -140,7 +140,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	param->sinsr = nservers[0].addr;
 	if(nservers[0].usetcp) {
-		if(so._connect(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) RETURN(830);
+		if(connectwithpoll(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) RETURN(830);
 		buf-=2;
 		*(unsigned short*)buf = htons(i);
 		i+=2;
