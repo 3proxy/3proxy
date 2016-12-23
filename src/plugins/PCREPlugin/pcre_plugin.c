@@ -9,7 +9,6 @@
 #include "../../structures.h"
 #include <string.h>
 #include "pcre.h"
-#include "pcreposix.h"
 
 #ifdef  __cplusplus
 extern "C" {
@@ -349,12 +348,8 @@ static struct commands pcre_commandhandlers[] = {
 };
 
 static struct symbol regexp_symbols[] = {
-	{regexp_symbols+1, "regcomp", (void*) regcomp},
-	{regexp_symbols+2, "regexec", (void*) regexec},
-	{regexp_symbols+3, "regerror", (void*) regerror},
-	{regexp_symbols+4, "regfree", (void*) regfree},
-	{regexp_symbols+5, "pcre_compile", (void*) pcre_compile},
-	{regexp_symbols+6, "pcre_exec", (void*) pcre_exec},
+	{regexp_symbols+1, "pcre_compile", (void*) pcre_compile},
+	{regexp_symbols+2, "pcre_exec", (void*) pcre_exec},
 	{NULL, "pcre_free", NULL},
 };
 
