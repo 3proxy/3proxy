@@ -2,7 +2,7 @@
 # 3 proxy common Makefile
 #
 
-all:	$(BUILDDIR)3proxy$(EXESUFFICS) $(BUILDDIR)mycrypt$(EXESUFFICS) $(BUILDDIR)dighosts$(EXESUFFICS) $(BUILDDIR)pop3p$(EXESUFFICS) $(BUILDDIR)smtpp$(EXESUFFICS) $(BUILDDIR)ftppr$(EXESUFFICS) $(BUILDDIR)tcppm$(EXESUFFICS) $(BUILDDIR)icqpr$(EXESUFFICS) $(BUILDDIR)udppm$(EXESUFFICS) $(BUILDDIR)socks$(EXESUFFICS) $(BUILDDIR)proxy$(EXESUFFICS) allplugins
+all:	$(BUILDDIR)3proxy$(EXESUFFICS) $(BUILDDIR)mycrypt$(EXESUFFICS) $(BUILDDIR)pop3p$(EXESUFFICS) $(BUILDDIR)smtpp$(EXESUFFICS) $(BUILDDIR)ftppr$(EXESUFFICS) $(BUILDDIR)tcppm$(EXESUFFICS) $(BUILDDIR)icqpr$(EXESUFFICS) $(BUILDDIR)udppm$(EXESUFFICS) $(BUILDDIR)socks$(EXESUFFICS) $(BUILDDIR)proxy$(EXESUFFICS) allplugins
 
 
 sockmap$(OBJSUFFICS): sockmap.c proxy.h structures.h
@@ -129,12 +129,6 @@ datatypes$(OBJSUFFICS): datatypes.c proxy.h structures.h
 
 mycrypt$(OBJSUFFICS): mycrypt.c
 	$(CC) $(COUT)mycrypt$(OBJSUFFICS) $(CFLAGS) mycrypt.c
-
-dighosts$(OBJSUFFICS): dighosts.c
-	$(CC) $(COUT)dighosts$(OBJSUFFICS) $(CFLAGS) dighosts.c
-
-$(BUILDDIR)dighosts$(EXESUFFICS): dighosts$(OBJSUFFICS) myalloc$(OBJSUFFICS) common$(OBJSUFFICS)  $(COMPATLIBS)
-	$(LN) $(LNOUT)$(BUILDDIR)dighosts$(EXESUFFICS) $(LDFLAGS) dighosts$(OBJSUFFICS) myalloc$(OBJSUFFICS) common$(OBJSUFFICS) $(COMPATLIBS) $(LIBS)
 
 mycryptmain$(OBJSUFFICS): mycrypt.c
 	$(CC) $(COUT)mycryptmain$(OBJSUFFICS) $(CFLAGS) $(DEFINEOPTION)WITHMAIN mycrypt.c

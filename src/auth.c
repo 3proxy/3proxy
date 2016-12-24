@@ -1098,7 +1098,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 #ifdef TCP_NODELAY
 			{
 				int opt = 1;
-				setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+				setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *)&opt, sizeof(opt));
 			}
 #endif
 		}

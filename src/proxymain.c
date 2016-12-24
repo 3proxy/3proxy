@@ -61,6 +61,54 @@ void * threadfunc (void *p) {
 #undef param
 
 
+struct socketoptions sockopts[] = {
+#ifdef TCP_NODELAY
+	{TCP_NODELAY, "TCP_NODELAY"},
+#endif
+#ifdef TCP_CORK
+	{TCP_CORK, "TCP_CORK"},
+#endif
+#ifdef TCP_DEFER_ACCEPT
+	{TCP_DEFER_ACCEPT, "TCP_DEFER_ACCEPT"},
+#endif
+#ifdef TCP_QUICKACK
+	{TCP_QUICKACK, "TCP_QUICKACK"},
+#endif
+#ifdef TCP_TIMESTAMPS
+	{TCP_TIMESTAMPS, "TCP_TIMESTAMPS"},
+#endif
+#ifdef USE_TCP_FASTOPEN
+	{USE_TCP_FASTOPEN, "USE_TCP_FASTOPEN"},
+#endif
+#ifdef SO_REUSEADDR
+	{SO_REUSEADDR, "SO_REUSEADDR"},
+#endif
+#ifdef SO_REUSEPORT
+	{SO_REUSEPORT, "SO_REUSEPORT"},
+#endif
+#ifdef SO_KEEPALIVE
+	{SO_KEEPALIVE, "SO_KEEPALIVE"},
+#endif
+#ifdef SO_DONTROUTE
+	{SO_DONTROUTE, "SO_DONTROUTE"},
+#endif
+	{0, NULL}
+};
+
+int getopts(const char *s){
+	int i=0, ret=0;
+	for(; sockopts[i].optname; i++)if(strstr(s,sockopts[i].optname)) ret |= (1<<i);
+	return ret;
+}
+
+void setopts(SOCKET s, int opts){
+	int i, opt, set;
+	for(i = 0; opts >= (opt = (1<<i)); i++){
+		set = 1;
+		if(opts & opt) setsockopt(s, *sockopts[i].optname == 'T'? IPPROTO_TCP:SOL_SOCKET, sockopts[i].opt, (char *)&set, sizeof(set));
+	}
+}
+
 
 #ifndef MODULEMAINFUNC
 #define MODULEMAINFUNC main
@@ -131,6 +179,39 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -b(BUFSIZE) size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
 	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
+	" -ocOPTIONS, -osOPTIONS, -olOPTIONS - options for client (oc), server (os) or listening (ol) socket,"
+	" where possible options are: "
+#ifdef TCP_NODELAY
+	"TCP_NODELAY "
+#endif
+#ifdef TCP_CORK
+	"TCP_CORK "
+#endif
+#ifdef TCP_DEFER_ACCEPT
+	"TCP_DEFER_ACCEPT "
+#endif
+#ifdef TCP_QUICKACK
+	"TCP_QUICKACK "
+#endif
+#ifdef TCP_TIMESTAMPS
+	"TCP_TIMESTAMPS "
+#endif
+#ifdef USE_TCP_FASTOPEN
+	"USE_TCP_FASTOPEN "
+#endif
+#ifdef SO_REUSEADDR
+	"SO_REUSEADDR "
+#endif
+#ifdef SO_REUSEPORT
+	"SO_REUSEPORT "
+#endif
+#ifdef SO_KEEPALIVE
+	"SO_KEEPALIVE "
+#endif
+#ifdef SO_DONTROUTE
+	"SO_DONTROUTE "
+#endif
+	"\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
 	" -rHOST:PORT Use IP:port for connect back proxy instead of listen port\n"
@@ -315,6 +396,19 @@ int MODULEMAINFUNC (int argc, char** argv){
 				srv.usesplice = 1 + atoi(argv[i]+2);
 #endif
 			break;
+		 case 'o':
+			 if(argv[i][2] == 's'){
+				srv.srvsockopts = getopts(argv[i]+3);
+				break;
+			 }
+			 else if(argv[i][2] == 'c'){
+				srv.clisockopts = getopts(argv[i]+3);
+				break;
+			 }
+			 else if(argv[i][2] == 'l'){
+				srv.lissockopts = getopts(argv[i]+3);
+				break;
+			 }
 		 default:
 			error = 1;
 			break;
@@ -447,6 +541,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			perror("socket()");
 			return -2;
 		}
+		setopts(sock, srv.lissockopts);
 #ifdef _WIN32
 		ioctlsocket(sock, FIONBIO, &ul);
 #else
@@ -618,6 +713,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 				continue;
 			}
 		}
+		setopts(new_sock, srv.clisockopts);
 		size = sizeof(defparam.sincl);
 		if(so._getsockname(new_sock, (struct sockaddr *)&defparam.sincl, &size)){
 			sprintf((char *)buf, "getsockname(): %s", strerror(errno));

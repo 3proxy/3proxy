@@ -339,13 +339,17 @@ extern struct  sockaddr_in6 radiuslist[MAXRADIUS];
 
 extern int nradservers;
 extern char * radiussecret;
+extern struct socketoptions {
+	int opt;
+	char * optname;
+} sockopts[];
+void setopts(SOCKET s, int opts);
 
 #ifdef _WINCE
 char * CEToUnicode (const char *str);
 int cesystem(const char *str);
 int ceparseargs(const char *str);
 extern char * ceargv[32];
-
 
 #define system(S) cesystem(S)
 #endif

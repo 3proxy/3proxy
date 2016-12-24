@@ -397,6 +397,7 @@ struct srvparam {
 	int stacksize;
 	int noforce;
 	int anonymous;
+	int clisockopts, srvsockopts, lissockopts;
 #ifdef WITHSPLICE
 	int usesplice;
 #endif
