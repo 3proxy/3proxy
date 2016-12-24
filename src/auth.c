@@ -1095,6 +1095,12 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 				so._closesocket(sock);
 				break;
 			}
+#ifdef TCP_NODELAY
+			{
+				int opt = 1;
+				setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+			}
+#endif
 		}
 		len = (int)strlen((char *)name);
 		
