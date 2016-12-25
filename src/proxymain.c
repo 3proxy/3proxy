@@ -86,6 +86,12 @@ struct socketoptions sockopts[] = {
 #ifdef SO_REUSEPORT
 	{SO_REUSEPORT, "SO_REUSEPORT"},
 #endif
+#ifdef SO_PORT_SCALABILITY
+	{SO_PORT_SCALABILITY, "SO_PORT_SCALABILITY"},
+#endif
+#ifdef SO_REUSE_UNICASTPORT
+	{SO_REUSE_UNICASTPORT, "SO_REUSE_UNICASTPORT"},
+#endif
 #ifdef SO_KEEPALIVE
 	{SO_KEEPALIVE, "SO_KEEPALIVE"},
 #endif
@@ -204,6 +210,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 #ifdef SO_REUSEPORT
 	"SO_REUSEPORT "
+#endif
+#ifdef SO_PORT_SCALABILITY
+	"SO_PORT_SCALABILITY "
+#endif
+#ifdef SO_REUSE_UNICASTPORT
+	"SO_REUSE_UNICASTPORT "
 #endif
 #ifdef SO_KEEPALIVE
 	"SO_KEEPALIVE "
