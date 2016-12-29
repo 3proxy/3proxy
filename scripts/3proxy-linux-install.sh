@@ -1,6 +1,7 @@
 #!/bin/bash
-# 3proxy build and install script for Debian Linux v 2.0
-# (с) Evgeniy Solovyev 2016
+# 3proxy build and install script for Debian Linux 
+# Release 2.0 at 29.12.2016
+# (с) Evgeniy Solovyev 
 # mail-to: eugen-soloviov@yandex.ru
 
 ScriptPath=""
@@ -63,12 +64,12 @@ CheckLocation()
 {
 	Src3proxyDirPath="${ScriptPath}"
 	
-	if echo ${ScriptPath} | grep -e "/scripts/debian$"
+	if echo ${ScriptPath} | grep -e "/scripts$"
 	then
-		if [ -e "../../src/version.h" ]
+		if [ -e "../src/version.h" ]
 		then
-			ProxyVersion=`cat "../../src/version.h" | awk '/VERSION/ { gsub("\"", "\n"); print; exit }' | grep "3proxy"`
-			cd ../../
+			ProxyVersion=`cat "../src/version.h" | awk '/VERSION/ { gsub("\"", "\n"); print; exit }' | grep "3proxy"`
+			cd ../
 			SourceRoot="${PWD}"
 			cd ../
 			Src3proxyDirPath="${PWD}"
