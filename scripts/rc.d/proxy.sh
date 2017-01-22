@@ -20,7 +20,7 @@ case "$1" in
 
    stop)
        echo Stopping 3Proxy
-       if [ /usr/local/etc/3proxy/3proxy.pid ]; then
+       if [ -f /usr/local/etc/3proxy/3proxy.pid ]; then
 	       /bin/kill `cat /usr/local/etc/3proxy/3proxy.pid`
        else
                /usr/bin/killall 3proxy
@@ -33,7 +33,7 @@ case "$1" in
 
    restart|reload)
        echo Reloading 3Proxy
-       if [ /usr/local/etc/3proxy/3proxy.pid ]; then
+       if [ -f /usr/local/etc/3proxy/3proxy.pid ]; then
 	       /bin/kill -s USR1 `cat /usr/local/etc/3proxy/3proxy.pid`
        else
                /usr/bin/killall -s USR1 3proxy
