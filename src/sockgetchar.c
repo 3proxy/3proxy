@@ -7,9 +7,6 @@
 
 #include "proxy.h"
 
-#define BUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))
-
-
 int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to){
  int sent = 0;
  int res;
@@ -75,8 +72,8 @@ int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
 	int len;
 
 	if(!param->clibuf){
-		if(!(param->clibuf = myalloc(BUFSIZE))) return 0;
-		param->clibufsize = BUFSIZE;
+		if(!(param->clibuf = myalloc(SRVBUFSIZE))) return 0;
+		param->clibufsize = SRVBUFSIZE;
 		param->clioffset = param->cliinbuf = 0;
 	}
 	if(param->cliinbuf && param->clioffset < param->cliinbuf){
@@ -137,7 +134,7 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec){
 	int bufsize;
 
 	if(!param->srvbuf){
-		bufsize = BUFSIZE;
+		bufsize = SRVBUFSIZE;
 		if(param->ndatfilterssrv > 0 && bufsize < 32768) bufsize = 32768;
 		if(!(param->srvbuf = myalloc(bufsize))) return 0;
 		param->srvbufsize = bufsize;

@@ -19,10 +19,9 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 
 	user = redir->extuser;
 	pass = redir->extpass;
-	if (param->srvinbuf < 4096){
-		if(param->srvbuf)myfree(param->srvbuf);
-		param->srvbuf = myalloc(4096);
-		param->srvbufsize = 4096;
+	if (!param->srvbufsize){
+		param->srvbufsize = SRVBUFSIZE;
+		param->srvbuf = myalloc(param->srvbufsize);
 	}
 	buf = param->srvbuf;
 	username = buf + 2048;

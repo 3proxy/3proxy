@@ -8,8 +8,6 @@
 
 #include "proxy.h"
 
-#define BUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))
-
 #ifdef WITHSPLICE
 
 #include <fcntl.h>
@@ -303,13 +301,16 @@ int sockmap(struct clientparam * param, int timeo){
  FILTER_ACTION action;
  int retcode = 0;
 
- bufsize = BUFSIZE; 
+ bufsize = SRVBUFSIZE; 
 
  minsize = (param->service == S_UDPPM || param->service == S_TCPPM)? bufsize - 1 : (bufsize>>2);
 
  fds[0].fd = param->clisock;
  fds[1].fd = param->remsock;
 
+
+ if(param->cliinbuf == param->clioffset) param->cliinbuf = param->clioffset = 0;
+ if(param->srvinbuf == param->srvoffset) param->srvinbuf = param->srvoffset = 0;
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "Starting sockets mapping");
 #endif
