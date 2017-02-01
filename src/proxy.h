@@ -42,6 +42,7 @@
 
 #define UDPBUFSIZE 16384
 #define TCPBUFSIZE  8192
+#define SRVBUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))
 
 
 #ifdef _WIN32
