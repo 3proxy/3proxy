@@ -1,0 +1,58 @@
+#
+# 3 proxy Makefile for GCC/Unix
+#
+# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
+# libraries
+#
+# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
+# library support. Add -DSAFESQL for poorely written ODBC library / drivers.
+
+BUILDDIR =
+CC ?= gcc
+
+CFLAGS = -c %%CFLAGS%% -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+COUT = -o 
+LN ?= ${CC}
+LDFLAGS = -pthread
+# -lpthreads may be reuqired on some platforms instead of -pthreads
+# -ldl or -lld may be required for some platforms
+DCFLAGS = -fpic
+DLFLAGS = -shared
+DLSUFFICS = .so
+LIBS =
+LIBSPREFIX = -l
+LIBSSUFFIX = 
+LNOUT = -o 
+EXESUFFICS =
+OBJSUFFICS = .o
+DEFINEOPTION = -D
+COMPFILES = *~
+REMOVECOMMAND = rm -f
+TYPECOMMAND = cat
+COMPATLIBS =
+MAKEFILE = Makefile.unix
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin PamAuth
+
+include Makefile.inc
+
+install: all
+	if [ ! -d /usr/local/etc/3proxy/bin ]; then mkdir -p /usr/local/etc/3proxy/bin/; fi
+	install src/3proxy /usr/local/etc/3proxy/bin/3proxy
+	install src/mycrypt /usr/local/etc/3proxy/bin/mycrypt
+	install scripts/rc.d/proxy.sh /usr/local/etc/rc.d/proxy.sh
+	install scripts/add3proxyuser.sh /usr/local/etc/3proxy/bin/
+	if [ -s /usr/local/etc/3proxy/3proxy.cfg ]; then
+	echo /usr/local/etc/3proxy/3proxy.cfg already exists
+	else
+	install scripts/3proxy.cfg /usr/local/etc/3proxy/
+	if [ ! -d /var/log/3proxy/ ]; then
+	mkdir /var/log/3proxy/
+	fi
+	touch /usr/local/etc/3proxy/passwd
+	touch /usr/local/etc/3proxy/counters
+	touch /usr/local/etc/3proxy/bandlimiters
+	echo Run /usr/local/etc/3proxy/bin/add3proxyuser.sh to add \'admin\' user
+	fi
+
+allplugins:
+	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done
