@@ -9,7 +9,7 @@
 #include "proxy.h"
 
 
-int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr){
+int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr, unsigned char * hostname){
 	unsigned char *buf;
 	unsigned char *username;
 	int res;
@@ -40,11 +40,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 		case R_CONNECTP:
 		{
 			len = sprintf((char *)buf, "CONNECT ");
-			if(redir->type == R_CONNECTP && param->hostname) {
+			if(redir->type == R_CONNECTP && hostname) {
 				char * needreplace;
-				needreplace = strchr((char *)param->hostname, ':');
+				needreplace = strchr((char *)hostname, ':');
 				if(needreplace) buf[len++] = '[';
-				len += sprintf((char *)buf + len, "%.256s", (char *)param->hostname);
+				len += sprintf((char *)buf + len, "%.256s", (char *)hostname);
 				if(needreplace) buf[len++] = ']';
 			}
 			else {
@@ -82,7 +82,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			buf[0] = 4;
 			buf[1] = 1;
 			memcpy(buf+2, SAPORT(addr), 2);
-			if(redir->type == R_SOCKS4P && param->hostname) {
+			if(redir->type == R_SOCKS4P && hostname) {
 				buf[4] = buf[5] = buf[6] = 0;
 				buf[7] = 3;
 			}
@@ -91,12 +91,12 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			len = (int)strlen((char *)user) + 1;
 			memcpy(buf+8, user, len);
 			len += 8;
-			if(redir->type == R_SOCKS4P && param->hostname) {
+			if(redir->type == R_SOCKS4P && hostname) {
 				int hostnamelen;
 
-				hostnamelen = (int)strlen((char *)param->hostname) + 1;
+				hostnamelen = (int)strlen((char *)hostname) + 1;
 				if(hostnamelen > 255) hostnamelen = 255;
-				memcpy(buf+len, param->hostname, hostnamelen);
+				memcpy(buf+len, hostname, hostnamelen);
 				len += hostnamelen;
 			}
 			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) < len){
@@ -159,12 +159,12 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			buf[0] = 5;
 			buf[1] = 1;
 			buf[2] = 0;
-			if(redir->type == R_SOCKS5P && param->hostname) {
+			if(redir->type == R_SOCKS5P && hostname) {
 				buf[3] = 3;
-				len = (int)strlen((char *)param->hostname);
+				len = (int)strlen((char *)hostname);
 				if(len > 255) len = 255;
 				buf[4] = len;
-				memcpy(buf + 5, param->hostname, len);
+				memcpy(buf + 5, hostname, len);
 				len += 5;
 			}
 			else {
@@ -304,7 +304,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 		}
 		else {
-			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&cur->addr):0;
+			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&cur->addr, cur->exthost):0;
 			if(res) return res;
 		}
 		redir = cur;
@@ -327,7 +327,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	}
 
 	if(!connected || !redir) return 0;
-	return clientnegotiate(redir, param, (struct sockaddr *)&param->req);
+	return clientnegotiate(redir, param, (struct sockaddr *)&param->req, param->hostname);
 }
 
 int IPInentry(struct sockaddr *sa, struct iplist *ipentry){

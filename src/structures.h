@@ -261,6 +261,7 @@ struct chain {
 	struct sockaddr_in addr;
 #endif
 	unsigned short weight;
+	unsigned char * exthost;
 	unsigned char * extuser;
 	unsigned char * extpass;
 };

@@ -1123,6 +1123,7 @@ void freeacl(struct ace *ac){
 		for(ch = ac->chains; ch; ch = (struct chain *) itfree(ch, ch->next)){
 			if(ch->extuser) myfree(ch->extuser);
 			if(ch->extpass) myfree(ch->extpass);
+			if(ch->exthost) myfree(ch->exthost);
 		}
 	}
 }

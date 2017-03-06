@@ -701,21 +701,12 @@ static int h_parent(int argc, unsigned char **argv){
 	}
 	acl->action = 2;
 
-	chains = NULL;
-	if(!acl->chains) {
-		chains = acl->chains = myalloc(sizeof(struct chain));
-	}
-	else {
-		chains = acl->chains;
-		while(chains->next)chains = chains->next;
-		chains->next = myalloc(sizeof(struct chain));
-		chains = chains->next;
-	}
-	memset(chains, 0, sizeof(struct chain));
+	chains = myalloc(sizeof(struct chain));
 	if(!chains){
 		fprintf(stderr, "Chainig error: unable to allocate memory for chain\n");
 		return(2);
 	}
+	memset(chains, 0, sizeof(struct chain));
 	chains->weight = (unsigned)atoi((char *)argv[1]);
 	if(chains->weight == 0 || chains->weight >1000) {
 		fprintf(stderr, "Chaining error: bad chain weight %u line %d\n", chains->weight, linenum);
@@ -742,9 +733,19 @@ static int h_parent(int argc, unsigned char **argv){
 		return(4);
 	}
 	if(!getip46(46, argv[3], (struct sockaddr *)&chains->addr)) return 5;
+	chains->exthost = (unsigned char *)mystrdup((char *)argv[3]);
 	*SAPORT(&chains->addr) = htons((unsigned short)atoi((char *)argv[4]));
 	if(argc > 5) chains->extuser = (unsigned char *)mystrdup((char *)argv[5]);
 	if(argc > 6) chains->extpass = (unsigned char *)mystrdup((char *)argv[6]);
+	if(!acl->chains) {
+		acl->chains = chains;
+	}
+	else {
+		struct chain *tmpchain;
+
+		for(tmpchain = acl->chains; tmpchain->next; tmpchain = tmpchain->next);
+		tmpchain->next = chains;
+	}
 	return 0;
 	
 }
@@ -1126,9 +1127,6 @@ static int h_ace(int argc, unsigned char **argv){
 		if(!getip46(46, argv[1], (struct sockaddr *)&acl->chains->addr)) return 5;
 		*SAPORT(&acl->chains->addr) = htons((unsigned short)atoi((char *)argv[2]));
 		acl->chains->weight = 1000;
-		acl->chains->extuser = NULL;
-		acl->chains->extpass = NULL;
-		acl->chains->next = NULL;
 	case ALLOW:
 	case DENY:
 		if(!conf.acl){
