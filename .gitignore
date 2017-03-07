@@ -5,7 +5,12 @@
 *.pydevproject
 .project
 .metadata
-bin/*
+*.exe
+*.dll
+*.exp
+*.lib
+*.key
+*.pem
 bin64/
 dll/
 tmp/
