@@ -11,7 +11,6 @@
 *.lib
 *.key
 *.pem
-bin/*
 bin64/
 dll/
 tmp/
