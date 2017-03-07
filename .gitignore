@@ -5,7 +5,7 @@
 *.pydevproject
 .project
 .metadata
-bin/
+bin/*
 bin64/
 dll/
 tmp/
