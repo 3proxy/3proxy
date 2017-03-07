@@ -1025,6 +1025,7 @@ struct ace * copyacl (struct ace *ac){
 	for(ch = ac->chains; ch; ch = ch->next = itcopy(ch->next, sizeof(struct chain))){
 		if(ch->extuser)ch->extuser = (unsigned char*)mystrdup((char *)ch->extuser);
 		if(ch->extpass)ch->extpass = (unsigned char*)mystrdup((char *)ch->extpass);
+		if(ch->exthost)ch->exthost = (unsigned char*)mystrdup((char *)ch->exthost);
 	}
  }
  return ret;
