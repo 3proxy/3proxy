@@ -459,7 +459,8 @@ struct clientparam {
 	int	redirected,
 		operation,
 		nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv,
-		unsafefilter;
+		unsafefilter,
+		bandlimver;
 
 	int	res,
 		status;

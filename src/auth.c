@@ -485,8 +485,14 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 	
 	if(!nbytesin && !nbytesout) return 0;
 	pthread_mutex_lock(&bandlim_mutex);
-	if(param->paused != conf.paused){
-		return (1);
+	if(param->paused != conf.paused && param->bandlimver != conf.paused){
+		if(!conf.bandlimfunc){
+			param->bandlimfunc = NULL;
+			pthread_mutex_unlock(&bandlim_mutex);
+			return 0;
+		}
+		initbandlims(param);
+		param->bandlimver = conf.paused;
 	}
 	for(i=0; nbytesin&& i<MAXBANDLIMS && param->bandlims[i]; i++){
 		if( !param->bandlims[i]->basetime || 
