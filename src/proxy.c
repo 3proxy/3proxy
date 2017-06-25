@@ -278,7 +278,7 @@ for(;;){
  buf[i] = 0;
  
  if(req) {
-	if(!param->transparent && !param->srv->transparent && param->redirtype != R_HTTP && (i<=prefix || strncasecmp((char *)buf, (char *)req, prefix))){
+	if(!param->transparent && !param->srv->transparent && (i<=prefix || strncasecmp((char *)buf, (char *)req, prefix))){
 		ckeepalive = 0;
 		if(param->remsock != INVALID_SOCKET){
 			so._shutdown(param->remsock, SHUT_RDWR);
