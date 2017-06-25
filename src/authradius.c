@@ -160,15 +160,11 @@
 
 
 
-#ifdef NOIPV6
-struct  sockaddr_in radiuslist[MAXRADIUS];
-#else
-struct  sockaddr_in6 radiuslist[MAXRADIUS];
-#endif
+struct radserver radiuslist[MAXRADIUS];
 
 static int ntry = 0;
 int nradservers = 0;
-char * radiussecret = NULL;
+char radiussecret[64]="";
 
 pthread_mutex_t rad_mutex;
 
@@ -299,7 +295,7 @@ typedef struct radius_packet_t {
           
 #define RETURN(xxx) { res = xxx; goto CLEANRET; }
 
-int radauth(struct clientparam * param){
+int radsend(struct clientparam * param, int auth){
 
 	int loop;
 	int id;
@@ -483,8 +479,10 @@ int radauth(struct clientparam * param){
 	memcpy(vector, packet.vector, AUTH_VECTOR_LEN);
 	
 	for (loop = 0; loop < nradservers && loop < MAXRADIUS; loop++) {
+		SOCKET remsock;
 
-		saremote = radiuslist[loop];
+
+		saremote = auth?radiuslist[loop].authaddr : radiuslist[loop].logaddr;
 #ifdef NOIPV6
 		if(*SAFAMILY(&saremote)!= AF_INET) {
 			continue;
@@ -494,20 +492,23 @@ int radauth(struct clientparam * param){
 			continue;
 		}
 #endif
-		if(!*SAPORT(&saremote))*SAPORT(&saremote) = htons(1812);
 		packet.id++;
-		if(sockfd >= 0) so._closesocket(sockfd);
-		if ((sockfd = so._socket(SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
-		    return 4;
+		if(auth) {
+			if(sockfd >= 0) so._closesocket(sockfd);
+			if ((sockfd = so._socket(SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
+			    return 4;
+			}
+			remsock = sockfd;
 		}
-		len = so._sendto(sockfd, (char *)&packet, total_length, 0,
+		else remsock = radiuslist[loop].logsock;
+		len = so._sendto(remsock, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
 			continue;
 		}
 
 	        memset(fds, 0, sizeof(fds));
-	        fds[0].fd = sockfd;
+	        fds[0].fd = remsock;
 	        fds[0].events = POLLIN;
 		if(so._poll(fds, 1, conf.timeouts[SINGLEBYTE_L]*1000) <= 0) {
 			continue;
@@ -515,7 +516,7 @@ int radauth(struct clientparam * param){
 
 		salen = sizeof(saremote);
 				
-		data_len = so._recvfrom(sockfd, (char *)&rpacket, sizeof(packet)-16,
+		data_len = so._recvfrom(remsock, (char *)&rpacket, sizeof(packet)-16,
 			0, (struct sockaddr *)&saremote, &salen);
 
 
@@ -607,5 +608,10 @@ CLEANRET:
 	if(sockfd >= 0) so._closesocket(sockfd);
 	return res;
 }
+
+int radauth(struct clientparam * param){
+	return radsend(param, 1);
+}
+
 
 #endif

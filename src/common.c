@@ -15,6 +15,9 @@ char * copyright = COPYRIGHT;
 
 int randomizer = 1;
 
+int havelog = 0;
+
+
 #ifndef _WIN32
  pthread_attr_t pa;
 

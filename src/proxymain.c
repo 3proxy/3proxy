@@ -830,7 +830,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf.version + 1;
  srv->paused = conf.paused;
- srv->logfunc = conf.logfunc;
+ srv->logfunc = havelog?conf.logfunc:lognone;
  srv->noforce = conf.noforce;
  if(srv->logformat)myfree(srv->logformat);
  srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
@@ -839,7 +839,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->maxchild = conf.maxchild;
  srv->stacksize = conf.stacksize;
  srv->time_start = time(NULL);
- if(conf.logtarget){
+ if(havelog && conf.logtarget){
 	 if(srv->logtarget) myfree(srv->logtarget);
 	 srv->logtarget = (unsigned char *)mystrdup((char *)conf.logtarget);
  }

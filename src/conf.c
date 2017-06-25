@@ -292,14 +292,25 @@ static int h_external(int argc, unsigned char ** argv){
 	return 0;
 }
 
+
 static int h_log(int argc, unsigned char ** argv){ 
 	unsigned char tmpbuf[8192];
+
+
+	havelog = 1;
 	conf.logfunc = logstdout;
+	if(argc > 1 && conf.logtarget && *argv[1]!= '&' && *argv[1]!= '@' && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
+		return 0;
+	}
 	if(conf.logtarget){
 		myfree(conf.logtarget);
 		conf.logtarget = NULL;
 	}
 	if(argc > 1) {
+		if(!strcmp((char *) argv[1], "/dev/null")) {
+			conf.logfunc = lognone;
+			return 0;
+		}
 		conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
 		if(*argv[1]=='@'){
 #ifndef _WIN32
@@ -1259,13 +1270,34 @@ static int h_delimchar(int argc, unsigned char **argv){
 	return 0;
 }
 
+
 static int h_radius(int argc, unsigned char **argv){
-	char * rs = radiussecret;
-	radiussecret = mystrdup(argv[1]);
+	int oldrad;
+#ifdef NOIPV6
+	struct  sockaddr_in bindaddr;
+#else
+	struct  sockaddr_in6 bindaddr;
+#endif
+	unsigned short port;
+
+	oldrad = nradservers;
 	nradservers = 0;
+	for(; oldrad; oldrad--){
+		if(radiuslist[oldrad].logsock >= 0)closesocket(radiuslist[oldrad].logsock);
+		radiuslist[oldrad].logsock = -1;
+	}
 	memset(radiuslist, 0, sizeof(radiuslist));
+	if(strlen(argv[1]) > 63) argv[1][63] = 0;
+	strcpy(radiussecret, argv[1]);
 	for( ; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
-		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers])) return 1;
+		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers].authaddr)) return 1;
+		if(!*SAPORT(&radiuslist[nradservers].authaddr))*SAPORT(&radiuslist[nradservers].authaddr) = htons(1812);
+		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
+		radiuslist[nradservers].logaddr = radiuslist[nradservers].authaddr;
+ 	        *SAPORT(&radiuslist[nradservers].logaddr) = htons(port);
+		bindaddr = conf.intsa;
+		if ((radiuslist[nradservers].logsock = so._socket(SASOCK(&radiuslist[nradservers].logaddr), SOCK_DGRAM, 0)) < 0) return 2;
+		if (so._bind(radiuslist[nradservers].logsock, (struct sockaddr *)&bindaddr, SASIZE(&bindaddr))) return 3;
 	}
 	return 0;
 }
@@ -1638,12 +1670,14 @@ void freeconf(struct extparam *confp){
  pthread_mutex_unlock(&pwl_mutex);
 
 
+/*
  logtarget = confp->logtarget;
  confp->logtarget = NULL;
- logformat = confp->logformat;
- confp->logformat = NULL;
  logname = confp->logname;
  confp->logname = NULL;
+*/
+ logformat = confp->logformat;
+ confp->logformat = NULL;
  confp->rotate = 0;
  confp->logtype = NONE;
 
@@ -1693,12 +1727,14 @@ void freeconf(struct extparam *confp){
  for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
 	if(fm->path) myfree(fm->path);
  }
+/*
  if(logtarget) {
 	myfree(logtarget);
  }
  if(logname) {
 	myfree(logname);
  }
+*/
  if(logformat) {
 	myfree(logformat);
  }
@@ -1706,7 +1742,7 @@ void freeconf(struct extparam *confp){
 	for(i = 0; i < archiverc; i++) myfree(archiver[i]);
 	myfree(archiver);
  }
-
+ havelog = 0;
 }
 
 int reload (void){

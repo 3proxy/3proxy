@@ -245,7 +245,7 @@ int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
 int ACLmatches(struct ace* acentry, struct clientparam * param);
 int checkACL(struct clientparam * param);
-
+extern int havelog;
 unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth);
 
 struct ace * copyacl (struct ace *ac);
@@ -332,14 +332,18 @@ extern struct commands commandhandlers[];
 #define mapsocket(a,b) sockmap(a,b)
 #endif
 
-#ifdef NOIPV6
-extern struct  sockaddr_in radiuslist[MAXRADIUS];
-#else
-extern struct  sockaddr_in6 radiuslist[MAXRADIUS];
-#endif
 
+extern struct radserver {
+#ifdef NOIPV6
+	struct  sockaddr_in authaddr, logaddr;
+#else
+	struct  sockaddr_in6 authaddr, logaddr;
+#endif
+	SOCKET logsock;
+} radiuslist[MAXRADIUS];
+
+extern char radiussecret[64];
 extern int nradservers;
-extern char * radiussecret;
 extern struct socketoptions {
 	int opt;
 	char * optname;
