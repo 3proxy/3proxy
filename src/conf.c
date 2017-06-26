@@ -1283,7 +1283,7 @@ static int h_radius(int argc, unsigned char **argv){
 	oldrad = nradservers;
 	nradservers = 0;
 	for(; oldrad; oldrad--){
-		if(radiuslist[oldrad].logsock >= 0)closesocket(radiuslist[oldrad].logsock);
+		if(radiuslist[oldrad].logsock >= 0) so._closesocket(radiuslist[oldrad].logsock);
 		radiuslist[oldrad].logsock = -1;
 	}
 	memset(radiuslist, 0, sizeof(radiuslist));
