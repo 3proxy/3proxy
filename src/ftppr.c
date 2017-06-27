@@ -88,6 +88,7 @@ void * ftpprchild(struct clientparam* param) {
 	}
 	else if (status >= 3 && (
 			(!strncasecmp((char *)buf, "PASV", 4) && (pasv = 1)) ||
+			(!strncasecmp((char *)buf, "EPSV", 4) && (pasv = 2)) ||
 			(!strncasecmp((char *)buf, "PORT ", 5) && !(pasv = 0))
 		)){
 #ifndef WITHMAIN
@@ -125,8 +126,9 @@ void * ftpprchild(struct clientparam* param) {
 			if(so._listen(clidatasock, 1)) {RETURN(823);}
 			sasize = sizeof(param->sincl);
 			if(so._getsockname(clidatasock, (struct sockaddr *)&param->sincl, &sasize)){RETURN(824);}
-			if(*SAFAMILY(&param->sincl) == AF_INET)
-				sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
+			if(pasv == 1){
+				if(*SAFAMILY(&param->sincl) == AF_INET)
+					sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
 					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[0]),
 					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[1]),
 					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[2]),
@@ -134,10 +136,16 @@ void * ftpprchild(struct clientparam* param) {
 					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[0]),
 					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[1])
 					);
-			else sprintf((char *)buf, "227 OK (127,0,0,1,%u,%u)\r\n", 
+				else sprintf((char *)buf, "227 OK (127,0,0,1,%u,%u)\r\n", 
 					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[0]),
 					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[1])
-					);			
+					);
+			}
+			else {
+				sprintf((char *)buf, "227 OK (|||%u|)\r\n", 
+					 (unsigned)ntohs(*SAPORT(&param->sincl))
+					);
+			}
 		}
 		else {
 			unsigned long b1, b2, b3, b4;
