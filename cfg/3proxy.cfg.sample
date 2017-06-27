@@ -37,7 +37,7 @@ users 3APA3A:CL:3apa3a "test:CR:$1$qwer$CHFTUFGqkjue9HyhcMHEe1"
 service
 # service is required under NT if you want 3proxy to start as service
 
-#log /usr/local/etc/3proxy/logs/3proxy.log D
+#log /var/log/3proxy/log D
 log c:\3proxy\logs\3proxy.log D
 # log allows to specify log file location and rotation, D means logfile
 # is created daily
