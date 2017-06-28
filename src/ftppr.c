@@ -142,7 +142,7 @@ void * ftpprchild(struct clientparam* param) {
 					);
 			}
 			else {
-				sprintf((char *)buf, "227 OK (|||%u|)\r\n", 
+				sprintf((char *)buf, "229 OK (|||%u|)\r\n", 
 					 (unsigned)ntohs(*SAPORT(&param->sincl))
 					);
 			}
