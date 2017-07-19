@@ -287,7 +287,6 @@ static int h_external(int argc, unsigned char ** argv){
 	else conf.extsa6 = sa6;
 #else
 	res = getip46(46, argv[1], (struct sockaddr *)&conf.extsa);
-	if(!res) return 1; 
 #endif
 	return 0;
 }
