@@ -152,6 +152,12 @@ listen on given local HOST:port for incoming connections instead of making remot
 .B -rHOST:port
 connect to given remote HOST:port instead of listening local connection on -p or default port. Can be used with another 3proxy service running -R option for connect back functionality. Most commonly used with proxy or socks. HOST can be given as IP or hostname, useful in case of dynamic DNS.
 .br
+.B -ocOPTIONS, -osOPTIONS, -olOPTIONS
+options for client (oc), server (os) or listening (ol) socket. Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
+.br
+.B -DiINTERFACE, -DoINTERFACE
+bind incoming connection / outgoing connection to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system
+.br
  Also, all options mentioned for 
 .BR proxy (8)
 .BR socks (8)
