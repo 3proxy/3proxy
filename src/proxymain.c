@@ -1,6 +1,6 @@
 /*
    3APA3A simpliest proxy server
-   (c) 2002-2016 by Vladimir Dubrovin <3proxy@3proxy.ru>
+   (c) 2002-2017 by Vladimir Dubrovin <3proxy@3proxy.ru>
 
    please read License Agreement
 
@@ -176,6 +176,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -u never ask for username\n"
 	" -u2 always ask for username\n"
 #endif
+#ifdef SO_BINDTODEVICE
+	" -Di(DEVICENAME) bind to incoming device, e.g. eth1\n"
+	" -Do(DEVICENAME) bind to outgoing device, e.g. eth1\n"
+#endif
 #ifdef WITHSLICE
 	" -s Use slice() - faster proxing, but no filtering for data\n"
 #endif
@@ -302,6 +306,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 			if(!conf.demon)daemonize();
 			conf.demon = 1;
 			break;
+#ifdef SO_BINDTODEVICE
+		 case 'D':
+			if(argv[i][2] == 'i') srv.ibindtodevice = mystrdup(argv[i] + 3);
+			else if(argv[i][2] == 'o') srv.obindtodevice = mystrdup(argv[i] + 3);
+			break;
+#endif
 		 case 'l':
 			srv.logfunc = logstdout;
 			if(srv.logtarget) myfree(srv.logtarget);
@@ -565,6 +575,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef SO_REUSEPORT
 		opt = 1;
 		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
+#endif
+#ifdef SO_BINDTODEVICE
+		if(srv.ibindtodevice) so._setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1);
 #endif
 	}
 	size = sizeof(srv.intsa);
@@ -916,6 +929,10 @@ void srvfree(struct srvparam * srv){
  if(srv->logtarget) myfree(srv->logtarget);
  if(srv->logformat) myfree(srv->logformat);
  if(srv->nonprintable) myfree(srv->nonprintable);
+#ifdef SO_BINDTODEVICE
+ if(srv->ibindtodevice) myfree(srv->ibindtodevice);
+ if(srv->obindtodevice) myfree(srv->obindtodevice);
+#endif
 }
 
 

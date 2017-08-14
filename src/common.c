@@ -714,7 +714,9 @@ int doconnect(struct clientparam * param){
 #endif
 	}
 #endif
-
+#ifdef SO_BINDTODEVICE
+	if(param->srv->obindtodevice) so._setsockopt(param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1);
+#endif
 	if(SAISNULL(&param->sinsl)){
 #ifndef NOIPV6
 		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;

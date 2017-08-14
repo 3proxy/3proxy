@@ -417,6 +417,10 @@ struct srvparam {
 	struct pollfd fds;
 	FILE *stdlog;
 	unsigned char * target;
+#ifdef SO_BINDTODEVICE
+	char * ibindtodevice;
+	char * obindtodevice;
+#endif
 	struct auth *authenticate;
 	struct pollfd * srvfds;
 	struct ace *acl;
