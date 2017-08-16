@@ -633,7 +633,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		continue;
 	};
 	*newparam = defparam;
-	if(defparam.hostname)newparam->hostname=(unsigned char *)strdup((char *)defparam.hostname);
+	if(defparam.hostname)newparam->hostname=(unsigned char *)mystrdup((char *)defparam.hostname);
 	clearstat(newparam);
 	if(!isudp) newparam->clisock = new_sock;
 #ifndef STDMAIN
