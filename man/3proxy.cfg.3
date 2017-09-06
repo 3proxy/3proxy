@@ -155,8 +155,8 @@ connect to given remote HOST:port instead of listening local connection on -p or
 .B -ocOPTIONS, -osOPTIONS, -olOPTIONS
 options for client (oc), server (os) or listening (ol) socket. Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
 .br
-.B -DiINTERFACE, -DoINTERFACE
-bind incoming connection / outgoing connection to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system
+.B -DiINTERFACE, -DeINTERFACE
+bind internal interface / external inteface to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system
 .br
  Also, all options mentioned for 
 .BR proxy (8)

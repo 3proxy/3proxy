@@ -177,8 +177,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -u2 always ask for username\n"
 #endif
 #ifdef SO_BINDTODEVICE
-	" -Di(DEVICENAME) bind to incoming device, e.g. eth1\n"
-	" -Do(DEVICENAME) bind to outgoing device, e.g. eth1\n"
+	" -Di(DEVICENAME) bind internal interface to device, e.g. eth1\n"
+	" -De(DEVICENAME) bind external interface to device, e.g. eth1\n"
 #endif
 #ifdef WITHSLICE
 	" -s Use slice() - faster proxing, but no filtering for data\n"
@@ -309,7 +309,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef SO_BINDTODEVICE
 		 case 'D':
 			if(argv[i][2] == 'i') srv.ibindtodevice = mystrdup(argv[i] + 3);
-			else if(argv[i][2] == 'o') srv.obindtodevice = mystrdup(argv[i] + 3);
+			else srv.obindtodevice = mystrdup(argv[i] + 3);
 			break;
 #endif
 		 case 'l':
