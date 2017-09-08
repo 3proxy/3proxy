@@ -788,10 +788,14 @@ int dnsauth(struct clientparam * param){
 			((u&0xFF000000)>>24));
 	
 	}
-	if(!udpresolve(*SAFAMILY(&param->sincr), (unsigned char *)buf, (unsigned char *)addr, NULL, param, 1)) return 6;
-	if(!memcmp(SAADDR(&param->sincr), addr, SAADDRLEN(&param->sincr))) return 6;
+	if(!udpresolve(*SAFAMILY(&param->sincr), (unsigned char *)buf, (unsigned char *)addr, NULL, param, 1)) {
+		return 3;
+	}
+	if(memcmp(SAADDR(&param->sincr), addr, SAADDRLEN(&param->sincr))) {
+		return 3;
+	}
 
-	return param->username? 0:4;
+	return param->username? 0:3;
 }
 
 int strongauth(struct clientparam * param){
