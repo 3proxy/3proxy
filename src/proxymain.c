@@ -830,6 +830,9 @@ int MODULEMAINFUNC (int argc, char** argv){
  pthread_mutex_unlock(&config_mutex);
 #endif
 
+#ifndef _WIN32
+ pthread_attr_destroy(&pa);
+#endif
  if(defparam.hostname)myfree(defparam.hostname);
  if(cbc_string)myfree(cbc_string);
  if(cbl_string)myfree(cbl_string);
