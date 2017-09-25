@@ -774,6 +774,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 #endif
 	newparam->prev = newparam->next = NULL;
+	error = 0;
 	pthread_mutex_lock(&srv.counter_mutex);
 	if(!srv.child){
 		srv.child = newparam;
@@ -796,7 +797,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	else {
 		sprintf((char *)buf, "_beginthreadex(): %s", _strerror(NULL));
 		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
-		freeparam(newparam);
+		error = 1;
 	}
 #else
 
@@ -805,13 +806,14 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(error){
 		sprintf((char *)buf, "pthread_create(): %s", strerror(error));
 		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
-		freeparam(newparam);
 	}
 	else {
 		newparam->threadid = (unsigned)thread;
 	}
 #endif
 	pthread_mutex_unlock(&srv.counter_mutex);
+	if(error) freeparam(newparam);
+
 	memset(&defparam.sincl, 0, sizeof(defparam.sincl));
 	memset(&defparam.sincr, 0, sizeof(defparam.sincr));
 	if(isudp) while(!srv.fds.events)usleep(SLEEPTIME);
