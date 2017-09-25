@@ -842,6 +842,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 
 void srvinit(struct srvparam * srv, struct clientparam *param){
+ pthread_mutexattr_t mutexattr;
 
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf.version + 1;
@@ -870,7 +871,9 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->paused = srv->paused;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
- pthread_mutex_init(&srv->counter_mutex, NULL);
+ pthread_mutexattr_init(&mutexattr);
+ pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+ pthread_mutex_init(&srv->counter_mutex, &mutexattr);
  srv->intsa = conf.intsa;
  srv->extsa = conf.extsa;
 #ifndef NOIPV6
