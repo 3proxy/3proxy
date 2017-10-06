@@ -49,6 +49,13 @@ expecation.
 <h4>Extending system limitation</h4>
 Check manuals / documentation for your system limitations. You may need to change
 sysctls or even rebuild the kernel from source.
+To help with system-dependant settings, 3proxy supports different socket options
+which can be set via -ol option for listening socket, -oc for proxy-to-client
+socket and -os for proxy-to-server socket. Example:
+<pre>
+proxy -olSO_REUSEADDR,SO_REUSEPORT -ocTCP_TIMESTAMPS,TCP_NODELAY -osTCP_NODELAY
+</pre>
+available options are system dependant.
 <h4>Extending ephemeral port range</h4>
 Check ephemeral port range for your system and extend it to reuired number of ports.
 Ephimeral range is always limited to maximum number of ports (64K). To extend
@@ -115,3 +122,25 @@ monitor "/some/path/3proxy/3proxy.ver"
 <li> After config is updated, change version file for 3proxy to reload configuration,
 e.g. with "touch /some/path/3proxy/3proxy.ver".
 </ol>
+<h4>Use TCP_NODELAY to speed-up connections with small amount of data</h4>
+If most requests require exchange with a small amount of data in a both ways
+without the need for bandwidth, e.g. messengers or small web request,
+you can eliminate Nagle's algorithm delay with TCP_NODELAY flag. Usage example:
+<pre>
+proxy -osTCP_NODELAY -ocTCP_NODELAY
+</pre>
+sets TCP_NODELAY for client (oc) and server (os) connections.
+<pre>
+</pre>
+<h4>Use slice to speedup large data amount transfers</h4>
+slice() allows to copy data between connections without copying to process
+addres space. It can speedup proxy on high bandwidth connections, if most
+connections require large data transfers. "-s" allows slice usage. Example:
+<pre>
+proxy -s
+</pre>
+Slice is only available in Linux and is currently beta option available in
+devel version. Do not use it in production without testing. Slice requires
+more system buffers, but reduces process memory usage.
+Do not use slice if there is a lot of short-living connections with no bandwidth
+requirements.
