@@ -49,28 +49,87 @@ expecation.
 <h4>Extending system limitation</h4>
 Check manuals / documentation for your system limitations. You may need to change
 sysctls or even rebuild the kernel from source.
-To help with system-dependant settings, 3proxy supports different socket options
-which can be set via -ol option for listening socket, -oc for proxy-to-client
+To help with system-dependant settings, since 0.9-devel 3proxy supports different
+socket options which can be set via -ol option for listening socket, -oc for proxy-to-client
 socket and -os for proxy-to-server socket. Example:
 <pre>
 proxy -olSO_REUSEADDR,SO_REUSEPORT -ocTCP_TIMESTAMPS,TCP_NODELAY -osTCP_NODELAY
 </pre>
 available options are system dependant.
 <h4>Extending ephemeral port range</h4>
-Check ephemeral port range for your system and extend it to reuired number of ports.
-Ephimeral range is always limited to maximum number of ports (64K). To extend
-outgoing connections above this limis, extending ephemeral port range is not enough,
-you need additional actions:
+Check ephemeral port range for your system and extend it to the number of the
+ports required.
+Ephimeral range is always limited to maximum number of ports (64K). To extend the
+number of outgoing connections above this limit, extending ephemeral port range
+is not enough, you need additional actions:
 <ol>
 <li> Configure multiple outgoing IPs
 <li> Make sure 3proxy is configured to use different outgoing IP by either using
-multiple services with different external interfaces or via "parent extip" rotation.
+multiple services with different external interfaces 
+<pre>
+allow user1,user11,user111
+proxy -p1001 -e1.1.1.1
+flush
+allow user2,user22,user222
+proxy -p1001 -e1.1.1.2
+flush
+allow user3,user33,user333
+proxy -p1001 -e1.1.1.3
+flush
+allow user4,user44,user444
+proxy -p1001 -e1.1.1.4
+flush
+</pre>
+or via "parent extip" rotation,
+e.g.
+<pre>
+allow user1,user11,user111
+parent 1000 extip 1.1.1.1 0
+allow user2,user22,user222
+parent 1000 extip 1.1.1.2 0
+allow user3,user33,user333
+parent 1000 extip 1.1.1.3 0
+allow user4,user44,user444
+parent 1000 extip 1.1.1.4 0
+proxy
+</pre>
+or
+<pre>
+allow *
+parent 250 extip 1.1.1.1 0
+parent 250 extip 1.1.1.2 0
+parent 250 extip 1.1.1.3 0
+parent 250 extip 1.1.1.4 0
+socks
+</pre>
+<pre>
+</pre>
+Under latest Linux version you can also start multiple services with different
+external addresses on the single port with SO_REUSEPORT on listening socket to
+evenly distribute incoming connections between outgoing interfaces:
+<pre>
+socks -olSO_REUSEPORT -p3128 -e 1.1.1.1
+socks -olSO_REUSEPORT -p3128 -e 1.1.1.2
+socks -olSO_REUSEPORT -p3128 -e 1.1.1.3
+socks -olSO_REUSEPORT -p3128 -e 1.1.1.4
+</pre>
+for Web browsing last two examples are not recommended, because same client can get
+different external address for different requests, you should choose external
+interface with user-based rules instead.
 <li> You may need additional system dependant actions to use same port on different IPs,
 usually by adding SO_REUSEADDR socket option to external socket. This option can be
 set (since 0.9 devel) with -osSO_REUSEADDR option:
 <pre>
 proxy -p3128 -e1.2.3.4 -osSO_REUSEADDR
 </pre>
+Behavior for SO_REUSEADDR and SO_REUSEPOR is different between different system,
+even between different kernel versions and can lead to unexpected results.
+Specifics is described <a href="https://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t">here</a>.
+Use this options only if actually required and if you fully understand possible
+consiquences. E.g. SO_REUSEPORT can help to establish more connections than the
+number of the client port available, but it can also lead to situation connections
+are randomely fail due to ip+port pairs collision if remote or local system 
+doesn't support this trick.
 </ol>
 <h4>Setting stacksize</h4>
 'stacksize' is a size added to all stack allocations and can be both positive and
