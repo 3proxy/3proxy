@@ -189,8 +189,8 @@ you can eliminate Nagle's algorithm delay with TCP_NODELAY flag. Usage example:
 proxy -osTCP_NODELAY -ocTCP_NODELAY
 </pre>
 sets TCP_NODELAY for client (oc) and server (os) connections.
-<p>Do not use TCP_NODELAY on slow connections, if connection bandwidth is
-bottleneck, or because it may be more bandwidth-consuming.
+<p>Do not use TCP_NODELAY on slow connections with high delays and then
+connection bandwidth is a bottleneck.
 <h4>Use slice to speedup large data amount transfers</h4>
 slice() allows to copy data between connections without copying to process
 addres space. It can speedup proxy on high bandwidth connections, if most
@@ -203,7 +203,7 @@ devel version. Do not use it in production without testing. Slice requires
 more system buffers, but reduces process memory usage.
 Do not use slice if there is a lot of short-living connections with no bandwidth
 requirements.
-<p>Use slice only on high-speed connections (e.g. 10GBE), where processor or
+<p>Use slice only on high-speed connections (e.g. 10GBE), if processor or
 bus are bottlenecks.
 <p>TCP_NODELAY and slice are not contrary to each over and can be combined on
 high-speed connections.
