@@ -1,0 +1,117 @@
+<h3>Optimizing 3proxy for high load</h3>
+<p>Precaution 1: 3proxy was not initially developed for high load and is positioned as a SOHO product, the main reason is "one connection - one thread" model 3proxy uses. 3proxy is known to work with above 200,000 connections under proper configuration, but use it in production environment under high loads at your own risk and do not expect too much.
+<p>Precaution 2: This documentation is incomplete and is not sufficient. High loads may require very specific system tuning including, but not limited to specific or cusomized kernels, builds, settings, sysctls, options, etc. All this is not covered by this documentation.
+<h4>Configuring 'maxconn'</h4>
+A number of simulatineous connections per service is limited by 'maxconn' option.
+Default maxconn value since 3proxy 0.8 is 500. You may want to set 'maxconn'
+to higher value. Under this configuration:
+<pre>
+maxconn 1000
+proxy -p3129
+proxy -p3128
+socks
+</pre>
+maxconn for every service is 1000, and there are 3 services running
+(2 proxy and 1 socks), so, for all services there can be up to 3000
+simulatineous connections to 3proxy.
+<p>Avoid setting 'maxconn' to arbitrary high value, it should be carefully
+choosen to protect system and proxy from resources exhaution. Setting maxconn
+above resources available can lead to denial of service conditions.
+<h4>Understanding resources requirements</h4>
+Each running service require:
+<ul>
+<li>1*thread (process)
+<li>1*socket (file descriptor)
+<li>1 stack memory segment + some heap memory, ~64K-128K depending on the system
+</ul>
+Each connected client require:
+<ul>
+<li>1*thread (process)
+<li>2*socket (file descriptor). For FTP 4 sockets are required.
+<br>1 additional socket (file descriptor) during name resolution for non-cached names
+<br>1 additional socket during authentication or logging for RADIUS authentication or logging.
+<li>1*ephemeral port (3*ephemeral ports for FTP connection).
+<li>1 stack memory segment of ~32K-128K depending on the system + at least 16K and up to few MB (for 'proxy' and 'ftppr') of heap memory. If you are short of memory, prefer 'socks' to 'proxy' and 'ftppr'.
+</ul>
+Also, additional resources like system buffers are required for network activity.
+<h4>Setting ulimits</h4>
+Hard and soft ulimits must be set above calculated requirements. Validate
+ulimits match your expectation, especially if you run 3proxy under dedicated account
+by adding e.g.
+<pre>
+system "ulimit -Ha >>/tmp/3proxy.ulim.hard"
+system "ulimit -Sa >>/tmp/3proxy.ulim.soft"
+</pre>
+in the beginning (before first service started) and the end of config file.
+Make both hard restart (that is kill and start 3proxy process) and soft restart
+by sending SIGUSR1 to 3proxy process, check ulimits recorded to files match your
+expecation.
+<h4>Extending system limitation</h4>
+Check manuals / documentation for your system limitations. You may need to change
+sysctls or even rebuild the kernel from source.
+<h4>Extending ephemeral port range</h4>
+Check ephemeral port range for your system and extend it to reuired number of ports.
+Ephimeral range is always limited to maximum number of ports (64K). To extend
+outgoing connections above this limis, extending ephemeral port range is not enough,
+you need additional actions:
+<ol>
+<li> Configure multiple outgoing IPs
+<li> Make sure 3proxy is configured to use different outgoing IP by either using
+multiple services with different external interfaces or via "parent extip" rotation.
+<li> You may need additional system dependant actions to use same port on different IPs,
+usually by adding SO_REUSEADDR socket option to external socket. This option can be
+set (since 0.9 devel) with -osSO_REUSEADDR option:
+<pre>
+proxy -p3128 -e1.2.3.4 -osSO_REUSEADDR
+</pre>
+</ol>
+<h4>Setting stacksize</h4>
+'stacksize' is a size added to all stack allocations and can be both positive and
+negative. Stack is required in functions call. 3proxy itself doesn't require large
+stack, but it can be required if some
+purely-written libc, 3rd party libraries or system functions called. There is known\
+dirty code in Unix ODBC
+implementations, build-in DNS resolvers, especially in the case of IPv6 and large
+number of interfaces. Under most 64-bit system extending stacksize will lead
+to additional memory space usage, but do not require actual commited memory,
+so you can inrease stacksize to relatively large value (e.g. 1024000) without
+the need to add additional phisical memory,
+but it's system/libc dependant and requires additional testing under your
+installation. Don't forget about memory related ulimts.
+<p>For 32-bit systems address space can be a bottlneck you should consider. If
+you're short of address space you can try to use negative stack size.
+<h4>Known system issues</h4>
+There are known race condition issues in Linux / glibc resolver. The probability
+of race condition arises under configuration with IPv6, large number of interfaces
+or IP addresses or resolvers configured. In this case, install local recursor and
+use 3proxy built-in resolver (nserver / nscache / nscache6).
+<h4>Avoid large lists</h4>
+Currently, 3proxy is not optimized to use large ACLs, user lists, etc. All lists
+are processed lineary. In devel version you can use RADIUS authentication to avoid
+user lists and ACLs in 3proxy itself. Also, RADIUS allows to easily set outgoing IP
+on per-user basis or more sophisicated logics.
+RADIUS is a new beta feature, test it before using in production.
+<h4>Avoid changing configuration too often</h4>
+Every configuration reload requires additional resources. Do not do frequent
+changes, like users addition/deletaion via connfiguration, use alternative
+authentication methods instead, like RADIUS.
+<h4>Do not monitor configuration files directly</h4>
+Using configuration file directly in 'monitor' can lead to race condition where
+configuration is reloaded while file is being written.
+To avoid race conditions:
+<ol>
+<li> Update config files only if there is no lock file
+<li> Create lock file then 3proxy configuration is updated, e.g. with
+"touch /some/path/3proxy/3proxy.lck"
+<li>add
+<pre>
+system "rm /some/path/3proxy/3proxy.lck"
+</pre>
+at the end of config file to remove it after configuration is successfully loaded
+<li> Use a dedicated version file to monitor, e.g.
+<pre>
+monitor "/some/path/3proxy/3proxy.ver"
+</pre>
+<li> After config is updated, change version file for 3proxy to reload configuration,
+e.g. with "touch /some/path/3proxy/3proxy.ver".
+</ol>
