@@ -117,8 +117,8 @@ for Web browsing last two examples are not recommended, because same client can 
 different external address for different requests, you should choose external
 interface with user-based rules instead.
 <li> You may need additional system dependant actions to use same port on different IPs,
-usually by adding SO_REUSEADDR socket option to external socket. This option can be
-set (since 0.9 devel) with -osSO_REUSEADDR option:
+usually by adding SO_REUSEADDR (SO_PORT_SCALABILITY for Windows) socket option to
+external socket. This option can be set (since 0.9 devel) with -os option:
 <pre>
 proxy -p3128 -e1.2.3.4 -osSO_REUSEADDR
 </pre>
