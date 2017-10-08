@@ -64,8 +64,9 @@ number of outgoing connections above this limit, extending ephemeral port range
 is not enough, you need additional actions:
 <ol>
 <li> Configure multiple outgoing IPs
-<li> Make sure 3proxy is configured to use different outgoing IP by either using
-multiple services with different external interfaces 
+<li> Make sure 3proxy is configured to use different outgoing IP by either setting
+external IP via RADIUS, or by using multiple services with different external
+interfaces, example:
 <pre>
 allow user1,user11,user111
 proxy -p1001 -e1.1.1.1
@@ -151,6 +152,9 @@ There are known race condition issues in Linux / glibc resolver. The probability
 of race condition arises under configuration with IPv6, large number of interfaces
 or IP addresses or resolvers configured. In this case, install local recursor and
 use 3proxy built-in resolver (nserver / nscache / nscache6).
+<h4>Do not use public resolvers</h4>
+Public resolvers like ones from Google have ratelimits. For large number of
+requests install local caching recursor (ISC bind named, PowerDNS recursor, etc).
 <h4>Avoid large lists</h4>
 Currently, 3proxy is not optimized to use large ACLs, user lists, etc. All lists
 are processed lineary. In devel version you can use RADIUS authentication to avoid
