@@ -65,7 +65,13 @@ is not enough, you need additional actions:
 <ol>
 <li> Configure multiple outgoing IPs
 <li> Make sure 3proxy is configured to use different outgoing IP by either setting
-external IP via RADIUS, or by using multiple services with different external
+external IP via RADIUS
+<pre>
+radius secret 1.2.3.4
+auth radius
+proxy
+</pre>
+or by using multiple services with different external
 interfaces, example:
 <pre>
 allow user1,user11,user111
