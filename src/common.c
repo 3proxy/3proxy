@@ -472,7 +472,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 break;
 				case 'n':
 					len = param->hostname? (int)strlen((char *)param->hostname) : 0;
-					if (len > 0 && !strchr((char *)param->hostname, ':')) for(len = 0; param->hostname[len] && i < 4000; len++, i++){
+					if (len > 0 && !strchr((char *)param->hostname, ':')) for(len = 0; param->hostname[len] && i < 256; len++, i++){
 						buf[i] = param->hostname[len];
 					 	if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
 						if(doublec && strchr((char *)doublec, buf[i])) {
@@ -484,7 +484,6 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 						buf[i++] = '[';
 						i += myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + i, 64);
 						buf[i++] = ']';
-						buf[i++] = 0;
 					}
 					break;
 
