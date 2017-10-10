@@ -178,7 +178,9 @@ To avoid race conditions:
 <ol>
 <li> Update config files only if there is no lock file
 <li> Create lock file then 3proxy configuration is updated, e.g. with
-"touch /some/path/3proxy/3proxy.lck"
+"touch /some/path/3proxy/3proxy.lck". If you generate config files
+asynchronously, e.g. by user's request via web, you should consider
+implementing existance checking and file creation as atomic operation.
 <li>add
 <pre>
 system "rm /some/path/3proxy/3proxy.lck"
