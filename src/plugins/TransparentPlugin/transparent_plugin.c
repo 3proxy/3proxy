@@ -6,14 +6,18 @@
 
 */
 
+
+#ifdef WITH_NETFILTER
 #include <sys/utsname.h>
+#endif
 #include "../../structures.h"
 #include "../../proxy.h"
+#ifdef WITH_NETFILTER
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <limits.h>
 #include <linux/netfilter_ipv4.h>
-
+#endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -38,35 +42,37 @@ static void* transparent_filter_open(void * idata, struct srvparam * param){
 
 static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * param, void** fc){
 
-#ifdef SO_ORIGINAL_DST
-	struct sockaddr_in addr;
 	socklen_t len;
-	unsigned u;
-	unsigned short p;
-	char addrbuf[24];
+	char addrbuf[60];
+	int i=0;
 
-		len = sizeof(addr);
-		if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &addr, &len) || !addr.sin_addr.s_addr){
-			return PASS;
-		}
-		u = ntohl(addr.sin_addr.s_addr);
-		p = ntohs(addr.sin_port);
-		sprintf(addrbuf, "%u.%u.%u.%u:%hu", 
-			((u&0xFF000000)>>24), 
-			((u&0x00FF0000)>>16),
-			((u&0x0000FF00)>>8),
-			((u&0x000000FF)),
-			p);
+	len = sizeof(param->req);
 
-        	pl->parsehostname(addrbuf, param, 0);
+#ifdef WITH_NETFILTER
+#ifdef SO_ORIGINAL_DST
+	if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len)){
 		return PASS;
+	}
 #else
 #error No SO_ORIGINAL_DST defined
-        	param->srv->logfunc(param, (unsigned char *)"transparent_plugin: No SO_ORIGINAL_DST defined");
-		return REJECT;
+       	param->srv->logfunc(param, (unsigned char *)"transparent_plugin: No SO_ORIGINAL_DST defined");
+	return REJECT;
 #endif
-
-
+#else
+	if(!memcmp(&param->req, &param->sincl,sizeof(param->req))){
+		param->req = param->sincl;
+		param->sincl = param->srv->intsa;
+	}
+#endif
+	addrbuf[i++] = '[';
+	i += pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)addrbuf + i, sizeof(addrbuf));
+	sprintf((char *)addrbuf+i, "]:%hu", ntohs(*SAPORT(&param->req)));
+#ifdef mystrdup
+#undef mystrdup
+#undef myfree
+#endif
+	if(param->hostname) pl->myfree(param->hostname);
+	param->hostname = pl->mystrdup(addrbuf);
 	return PASS;
 }
 

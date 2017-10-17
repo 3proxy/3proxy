@@ -28,7 +28,7 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.Solaris
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
 
 include Makefile.inc
 
