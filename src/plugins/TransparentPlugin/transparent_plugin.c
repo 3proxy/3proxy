@@ -1,6 +1,6 @@
 /*
    3APA3A simpliest proxy server
-   (c) 2007-2008 by ZARAZA <3APA3A@security.nnov.ru>
+   (c) 2002-2017 by Vladimir Dubrovin <3proxy@3proxy.ru>
 
    please read License Agreement
 
@@ -42,7 +42,7 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 
 #ifdef WITH_NETFILTER
 #ifdef SO_ORIGINAL_DST
-	if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len)){
+	if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len) || SAISNULL(&param->req)){
 		return PASS;
 	}
 #else
