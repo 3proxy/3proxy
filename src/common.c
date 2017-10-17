@@ -675,8 +675,8 @@ int doconnect(struct clientparam * param){
  SASIZETYPE size;
 
 
- if (*SAFAMILY(&param->sincr) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincr), SAADDR(&param->req), SAADDRLEN(&param->req)) &&
-	*SAPORT(&param->sincr) == *SAPORT(&param->req)) return 519;
+ if (*SAFAMILY(&param->sincl) == *SAFAMILY(&param->req) && !memcmp(SAADDR(&param->sincl), SAADDR(&param->req), SAADDRLEN(&param->req)) &&
+	*SAPORT(&param->sincl) == *SAPORT(&param->req)) return 519;
 
  if (param->operation == ADMIN || param->operation == DNSRESOLVE || param->operation == BIND || param->operation == UDPASSOC)
 	return 0;
