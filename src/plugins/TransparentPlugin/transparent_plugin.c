@@ -23,22 +23,14 @@
 extern "C" {
 #endif
 
-#ifndef isnumber
-#define isnumber(i_n_arg) ((i_n_arg>='0')&&(i_n_arg<='9'))
-#endif
 
 static struct pluginlink * pl;
 
-static pthread_mutex_t transparent_mutex;
-
 static int transparent_loaded = 0;
-
 
 static void* transparent_filter_open(void * idata, struct srvparam * param){
 	return idata;
 }
-
-
 
 static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * param, void** fc){
 
@@ -94,6 +86,21 @@ static struct filter transparent_filter = {
 	transparent_filter_close
 };
 
+static int h_transparent(int argc, unsigned char **argv){
+	transparent_filter.filter_open = transparent_filter_open;
+	return 0;
+}
+
+static int h_notransparent(int argc, unsigned char **argv){
+	transparent_filter.filter_open = NULL;
+	return 0;
+}
+
+static struct commands transparent_commandhandlers[] = {
+	{transparent_commandhandlers+1, "transparent", h_transparent, 1, 1},
+	{NULL, "notransparent", h_notransparent, 1, 1}
+};
+
 
 #ifdef WATCOM
 #pragma aux transparent_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
@@ -106,9 +113,10 @@ PLUGINAPI int PLUGINCALL transparent_plugin (struct pluginlink * pluginlink,
 	pl = pluginlink;
 	if(!transparent_loaded){
 		transparent_loaded = 1;
-		pthread_mutex_init(&transparent_mutex, NULL);
 		transparent_filter.next = pl->conf->filters;
 		pl->conf->filters = &transparent_filter;
+		transparent_commandhandlers[1].next = pl->commandhandlers->next;
+		pl->commandhandlers->next = transparent_commandhandlers;
 	}
 	return 0;
 		
