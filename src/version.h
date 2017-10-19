@@ -1,2 +1,2 @@
-#define VERSION "3proxy-0.8.10"
-#define BUILDDATE "170625190910"
+#define VERSION "3proxy-0.8.11"
+#define BUILDDATE "171019180340"
