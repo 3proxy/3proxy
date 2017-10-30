@@ -56,15 +56,8 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 		param->sincl = param->srv->intsa;
 	}
 #endif
-	addrbuf[i++] = '[';
-	i += pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)addrbuf + i, sizeof(addrbuf));
-	sprintf((char *)addrbuf+i, "]:%hu", ntohs(*SAPORT(&param->req)));
-#ifdef mystrdup
-#undef mystrdup
-#undef myfree
-#endif
-	if(param->hostname) pl->myfree(param->hostname);
-	param->hostname = pl->mystrdup(addrbuf);
+	pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)addrbuf, sizeof(addrbuf));
+	pl->parsehostname(addrbuf, param, ntohs(*SAPORT(&param->req)));
 	return PASS;
 }
 
