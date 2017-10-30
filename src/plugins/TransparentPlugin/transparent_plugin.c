@@ -23,7 +23,6 @@
 extern "C" {
 #endif
 
-static char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 static struct pluginlink * pl;
 
@@ -43,7 +42,7 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 
 #ifdef WITH_NETFILTER
 #ifdef SO_ORIGINAL_DST
-	if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len) || SAISNULL(&param->req)){
+	if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len) || (!memcmp(((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? (char *)&((struct sockaddr_in6 *)&param->req)->sin6_addr : (char *)&((struct sockaddr_in *)&param->req)->sin_addr.s_addr, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",  (((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? 16:4)))){
 		return PASS;
 	}
 #else
