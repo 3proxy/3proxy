@@ -10,7 +10,7 @@
 BUILDDIR =
 CC ?= gcc
 
-CFLAGS = -c %%CFLAGS%% -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS = -c -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL %CFLAGS%
 COUT = -o 
 LN ?= ${CC}
 LDFLAGS = -pthread
@@ -30,7 +30,7 @@ COMPFILES = *~
 REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
-MAKEFILE = Makefile.unix
+MAKEFILE = Makefile.FreeBSD
 PLUGINS = StringsPlugin TrafficPlugin PCREPlugin PamAuth TransparentPlugin
 
 include Makefile.inc
