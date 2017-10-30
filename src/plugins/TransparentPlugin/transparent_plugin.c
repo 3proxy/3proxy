@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+static char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 static struct pluginlink * pl;
 
@@ -100,6 +101,7 @@ static struct commands transparent_commandhandlers[] = {
 #undef PLUGINCALL
 #define PLUGINCALL
 #endif
+
 
 PLUGINAPI int PLUGINCALL transparent_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
