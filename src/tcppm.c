@@ -23,7 +23,7 @@ void * tcppmchild(struct clientparam* param) {
  RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
 CLEANRET:
  
- (*param->srv->logfunc)(param, NULL);
+ (*param->srv->logfunc)(param, param->hostname);
  freeparam(param);
  return (NULL);
 }
