@@ -51,7 +51,7 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 	return REJECT;
 #endif
 #else
-	if(!memcmp(&param->req, &param->sincl,sizeof(param->req))){
+	if(memcmp(&param->req, &param->sincl,sizeof(param->req))){
 		param->req = param->sincl;
 		param->sincl = param->srv->intsa;
 	}
