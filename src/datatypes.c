@@ -75,7 +75,7 @@ static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
 	char buf[64];
 	buf[0] = '[';
 	buf[1] = 0;
-	inet_ntop(*SAFAMILY(node->value), node->value, buf+1, sizeof(buf)-10);
+	inet_ntop(*SAFAMILY(node->value), SAADDR(node->value), buf+1, sizeof(buf)-10);
 	sprintf(buf + strlen(buf), "]:%hu", (unsigned short)*SAPORT(node->value));
 	if(node->value)(*cbf)(cb, buf, strlen(buf));
 #endif
@@ -743,21 +743,23 @@ static struct property prop_server[] = {
 	{prop_server + 2, "target", ef_server_target, TYPE_STRING, "portmapper target ip"},
 	{prop_server + 3, "targetport", ef_server_targetport, TYPE_PORT, "portmapper target port"},
 	{prop_server + 4, "starttime", ef_server_starttime, TYPE_DATETIME, "service started seconds"},
-	{prop_server + 5, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
-	{prop_server + 6, "extsa", ef_server_extsa, TYPE_SA, "ip address of external interface"},
-	{prop_server + 7, "auth", ef_server_auth, TYPE_STRING, "service authentication type"},
-	{prop_server + 8, "acl", ef_server_acl, TYPE_ACE, "access control list"},
-	{prop_server + 9, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},
-	{prop_server + 10, "usentlm", ef_server_usentlm, TYPE_INTEGER, "allow NTLM authentication"},
-	{prop_server + 11, "log", ef_server_log, TYPE_STRING, "type of logging"},
-	{prop_server + 12, "logtarget", ef_server_logtarget, TYPE_STRING, "log target options"},
-	{prop_server + 13, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
-	{prop_server + 14, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
-	{prop_server + 15, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
-	{prop_server + 16, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
-	{prop_server + 17, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
+	{prop_server + 5, "auth", ef_server_auth, TYPE_STRING, "service authentication type"},
+	{prop_server + 6, "acl", ef_server_acl, TYPE_ACE, "access control list"},
+	{prop_server + 7, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},
+	{prop_server + 8, "usentlm", ef_server_usentlm, TYPE_INTEGER, "allow NTLM authentication"},
+	{prop_server + 9, "log", ef_server_log, TYPE_STRING, "type of logging"},
+	{prop_server + 10, "logtarget", ef_server_logtarget, TYPE_STRING, "log target options"},
+	{prop_server + 11, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
+	{prop_server + 12, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
+	{prop_server + 13, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
+	{prop_server + 14, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
+	{prop_server + 15, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
+	{prop_server + 16, "extsa", ef_server_extsa, TYPE_SA, "ip address of external interface"},
 #ifndef NOIPV6
-	{prop_server + 18, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
+	{prop_server + 17, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
+	{prop_server + 18, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
+#else
+	{prop_server + 17, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
 #endif
 	{NULL, "next", ef_server_next, TYPE_SERVER, "next"}
 };
@@ -776,8 +778,8 @@ static struct property prop_client[] = {
 	{prop_client + 10, "username", ef_client_username, TYPE_STRING, "client username"},
 	{prop_client + 11, "password", ef_client_password, TYPE_STRING, "client password"},
 	{prop_client + 12, "clisa", ef_client_clisa, TYPE_SA, "client sa"},
-	{prop_client + 13, "srvsa", ef_client_srvsa, TYPE_IP, "target server sa"},
-	{prop_client + 14, "reqsa", ef_client_reqsa, TYPE_IP, "requested server sa"},
+	{prop_client + 13, "srvsa", ef_client_srvsa, TYPE_SA, "target server sa"},
+	{prop_client + 14, "reqsa", ef_client_reqsa, TYPE_SA, "requested server sa"},
 	{prop_client + 15, "bytesin", ef_client_bytesin64, TYPE_UNSIGNED64, "bytes from server to client"},
 	{prop_client + 16, "bytesout", ef_client_bytesout64, TYPE_UNSIGNED64, "bytes from client to server"},
 	{prop_client + 17, "maxtrafin", ef_client_maxtrafin64, TYPE_UNSIGNED64, "maximum traffic allowed for download"},
