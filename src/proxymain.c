@@ -449,7 +449,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		haveerror = 1;
 		conf.threadinit = 0;
 #endif
-		fprintf(stderr, "%s of " VERSION " (" BUILDDATE ")\n"
+		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options\n"
 			"Available options are:\n"
 			"%s"
@@ -459,7 +459,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			"%s"
 			"\tExample: %s -i127.0.0.1\n\n"
 			"%s", 
-			argv[0], argv[0], loghelp, childdef.helpmessage, argv[0],
+			argv[0], 
+			conf.stringtable?conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			argv[0], loghelp, childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
 #else
@@ -480,7 +482,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		haveerror = 1;
 		conf.threadinit = 0;
 #endif
-		fprintf(stderr, "%s of " VERSION " (" BUILDDATE ")\n"
+		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options"
 			" [-e<external_ip>] <port_to_bind>"
 			" <target_hostname> <target_port>\n"
@@ -491,7 +493,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			"%s"
 			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
 			"%s", 
-			argv[0], argv[0], loghelp, childdef.helpmessage, argv[0],
+			argv[0],
+			conf.stringtable?conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			argv[0], loghelp, childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
 #else

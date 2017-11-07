@@ -1,6 +1,3 @@
-#include "src/version.h"
-
-
 1 VERSIONINFO
 FILEVERSION 0,9,0,0
 PRODUCTVERSION 0,9,0,0
@@ -14,12 +11,12 @@ BEGIN
             VALUE "Comments", "3proxy - tiny proxy server, http://3proxy.ru/\0"
             VALUE "CompanyName", "Vladimir Dubrovin\0"
             VALUE "FileDescription", "3proxy - tiny proxy server\0"
-            VALUE "FileVersion", "0.9-devel-" BUILDDATE "\0"
+            VALUE "FileVersion", "0.9-devel\0"
             VALUE "InternalName", "3proxy\0"
-            VALUE "LegalCopyright", "Copyright (C) 2002-2016 Vladimir Dubrovin\0"
+            VALUE "LegalCopyright", "Copyright (C) 2002-2017 Vladimir Dubrovin\0"
             VALUE "OriginalFilename", "3proxy.exe\0"
             VALUE "ProductName", "3proxy\0"
-            VALUE "ProductVersion", "0.9-devel-" BUILDDATE "\0"
+            VALUE "ProductVersion", "0.9-devel\0"
         END
     END
     BLOCK "VarFileInfo"
