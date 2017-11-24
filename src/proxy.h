@@ -21,7 +21,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/timeb.h>
 #include <fcntl.h>
 #include <time.h>
 
@@ -47,6 +46,7 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#include <sys/timeb.h>
 #ifndef _WINCE
 #include <io.h>
 #else
