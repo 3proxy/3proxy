@@ -1109,6 +1109,7 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 		if(action == PASS) continue;
 		if(action > CONTINUE) return action;
 		param->filters[param->nfilters].filter = srv->filter + i;
+		param->filters[param->nfilters].data = srv->filter[i].data;
 		if(srv->filter[i].filter_request)param->reqfilters[param->nreqfilters++] = param->filters + param->nfilters;
 		if(srv->filter[i].filter_header_cli)param->hdrfilterscli[param->nhdrfilterscli++] = param->filters + param->nfilters;
 		if(srv->filter[i].filter_header_srv)param->hdrfilterssrv[param->nhdrfilterssrv++] = param->filters + param->nfilters;
