@@ -742,6 +742,17 @@ nolog
 .br
  Weight may be used for different purposes.
 
+
+.br
+.B force
+.br
+.B noforce
+.br
+ If force is specified for service, configuration reload will require all current
+sessions of this service to be re-authenticated. If ACL is changed or user account
+is removed, old connections which do not match current are closed.
+ noforce allows to keep previously authenticated connections.
+
 .br
 .B bandlimin
 <rate> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
