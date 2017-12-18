@@ -171,6 +171,11 @@ RADIUS is a new beta feature, test it before using in production.
 Every configuration reload requires additional resources. Do not do frequent
 changes, like users addition/deletaion via connfiguration, use alternative
 authentication methods instead, like RADIUS.
+<h4>Consider using 'noforce'</h4>
+'force' behaviour (default) re-authenticates all connections after
+configuration reload, it may be resource consuming on large number of
+connections. Consider adding 'noforce' command before services started
+to prevent connections reauthentication.
 <h4>Do not monitor configuration files directly</h4>
 Using configuration file directly in 'monitor' can lead to race condition where
 configuration is reloaded while file is being written.
