@@ -327,6 +327,9 @@ static int h_log(int argc, unsigned char ** argv){
 			conf.logfunc = logsql;
 		}
 #endif
+		else if(!strcmp(argv[1],"radius")){
+			conf.logfunc = logradius;
+		}
 		else {
 			FILE *fp;
 			if(argc > 2) {
@@ -1272,13 +1275,15 @@ static int h_delimchar(int argc, unsigned char **argv){
 
 
 static int h_radius(int argc, unsigned char **argv){
+	unsigned short port;
+
+/*
 	int oldrad;
 #ifdef NOIPV6
 	struct  sockaddr_in bindaddr;
 #else
 	struct  sockaddr_in6 bindaddr;
 #endif
-	unsigned short port;
 
 	oldrad = nradservers;
 	nradservers = 0;
@@ -1286,6 +1291,7 @@ static int h_radius(int argc, unsigned char **argv){
 		if(radiuslist[oldrad].logsock >= 0) so._closesocket(radiuslist[oldrad].logsock);
 		radiuslist[oldrad].logsock = -1;
 	}
+*/
 	memset(radiuslist, 0, sizeof(radiuslist));
 	if(strlen(argv[1]) > 63) argv[1][63] = 0;
 	strcpy(radiussecret, argv[1]);
@@ -1294,10 +1300,12 @@ static int h_radius(int argc, unsigned char **argv){
 		if(!*SAPORT(&radiuslist[nradservers].authaddr))*SAPORT(&radiuslist[nradservers].authaddr) = htons(1812);
 		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
 		radiuslist[nradservers].logaddr = radiuslist[nradservers].authaddr;
- 	        *SAPORT(&radiuslist[nradservers].logaddr) = htons(port);
+ 	        *SAPORT(&radiuslist[nradservers].logaddr) = htons(port+1);
+/*
 		bindaddr = conf.intsa;
 		if ((radiuslist[nradservers].logsock = so._socket(SASOCK(&radiuslist[nradservers].logaddr), SOCK_DGRAM, 0)) < 0) return 2;
 		if (so._bind(radiuslist[nradservers].logsock, (struct sockaddr *)&bindaddr, SASIZE(&bindaddr))) return 3;
+*/
 	}
 	return 0;
 }

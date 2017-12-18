@@ -177,6 +177,8 @@ extern FILE * stdlog;
 void logstdout(struct clientparam * param, const unsigned char *s);
 void logsyslog(struct clientparam * param, const unsigned char *s);
 void lognone(struct clientparam * param, const unsigned char *s);
+void logradius(struct clientparam * param, const unsigned char *s);
+
 #ifndef NOSQL
 void logsql(struct clientparam * param, const unsigned char *s);
 int init_sql(char * s);
@@ -339,7 +341,9 @@ extern struct radserver {
 #else
 	struct  sockaddr_in6 authaddr, logaddr;
 #endif
+/*
 	SOCKET logsock;
+*/
 } radiuslist[MAXRADIUS];
 
 extern char radiussecret[64];

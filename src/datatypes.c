@@ -520,6 +520,7 @@ static void * ef_server_childcount(struct node * node){
 
 static void * ef_server_log(struct node * node){
 	if(((struct srvparam *)node->value) -> logfunc == lognone)	return "none";
+	else if(((struct srvparam *)node->value) -> logfunc == logradius)	return "radius";
 	else if(((struct srvparam *)node->value) -> logfunc == logstdout)
 		return (((struct srvparam *)node->value) -> logtarget)?"file":"stdout";
 #ifndef _WIN32

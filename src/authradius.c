@@ -198,6 +198,9 @@ void md5_calc(unsigned char *output, unsigned char *input,
 
 static uint8_t random_vector_pool[AUTH_VECTOR_LEN*2];
 
+
+
+
 static int calc_replydigest(char *packet, char *original, const char *secret, int len)
 {
 	int		secretlen;
@@ -295,7 +298,7 @@ typedef struct radius_packet_t {
           
 #define RETURN(xxx) { res = xxx; goto CLEANRET; }
 
-int radsend(struct clientparam * param, int auth){
+int radsend(struct clientparam * param, int auth, int stop){
 
 	int loop;
 	int id;
@@ -320,6 +323,7 @@ int radsend(struct clientparam * param, int auth){
 	uint8_t *attr;
 	long vendor=0;
 	int vendorlen=0;
+	char buf[64];
 
 
 	if(!radiussecret || !nradservers) {
@@ -328,27 +332,33 @@ int radsend(struct clientparam * param, int auth){
 
 	memset(&packet, 0, sizeof(packet));
 
+
 	pthread_mutex_lock(&rad_mutex);
-	random_vector(packet.vector, param);
+	if(auth)random_vector(packet.vector, param);
 
 	id = ((ntry++) & 0xff);
 	pthread_mutex_unlock(&rad_mutex);
 
-	packet.code = PW_AUTHENTICATION_REQUEST;
+	packet.code = auth?PW_AUTHENTICATION_REQUEST:PW_ACCOUNTING_REQUEST;
 	packet.id=id;
 	ptr = packet.data;
 	total_length = 0;
 
-	md5_calc(packet.vector, packet.vector,
-			sizeof(packet.vector));
-
-
 	/* Service Type */
-	*ptr++ =  PW_SERVICE_TYPE;
+	*ptr++ =  auth?PW_SERVICE_TYPE:PW_ACCT_STATUS_TYPE;
 	*ptr++ = 6;
-	(*(uint32_t *)ptr)=htonl(PW_AUTHENTICATE_ONLY);
+	(*(uint32_t *)ptr)=htonl(auth?PW_AUTHENTICATE_ONLY:stop?PW_STATUS_STOP:PW_STATUS_START);
 	ptr+=4;
 	total_length+=6;
+
+	/* Acct-Session-Id */
+	sprintf(buf, "%u.%u.%u", (unsigned)param->time_start, (unsigned)param->msec_start, (unsigned)param->threadid);
+        len = strlen(buf);
+	*ptr++ =  PW_ACCT_SESSION_ID;
+	*ptr++ = 2+len;
+	memcpy(ptr, buf, len);
+	ptr+=len;
+	total_length+=len+2;
 
 	/* NAS-Port-Type */
 	*ptr++ =  PW_NAS_PORT_TYPE;
@@ -459,7 +469,40 @@ int radsend(struct clientparam * param, int auth){
 	    total_length += (len+2);
 	}
 	
-	if(param->password){
+	if(stop){
+		/* Acct-Input-Octets */
+		*ptr++ =  PW_ACCT_INPUT_OCTETS;
+		*ptr++ = 6;
+		(*(uint32_t *)ptr)=htonl((uint32_t)param->statssrv64);
+		ptr+=4;
+		total_length+=6;
+		/* Acct-Output-Octets */
+		*ptr++ =  PW_ACCT_OUTPUT_OCTETS;
+		*ptr++ = 6;
+		(*(uint32_t *)ptr)=htonl((uint32_t)param->statscli64);
+		ptr+=4;
+		total_length+=6;
+		/* Acct-Input-Packets */
+		*ptr++ =  PW_ACCT_INPUT_PACKETS;
+		*ptr++ = 6;
+		(*(uint32_t *)ptr)=htonl((uint32_t)param->nreads);
+		ptr+=4;
+		total_length+=6;
+		/* Acct-Output-Packets */
+		*ptr++ =  PW_ACCT_OUTPUT_PACKETS;
+		*ptr++ = 6;
+		(*(uint32_t *)ptr)=htonl((uint32_t)param->nwrites);
+		ptr+=4;
+		total_length+=6;
+		/* Acct-Session-Time */
+		*ptr++ =  PW_ACCT_SESSION_TIME;
+		*ptr++ = 6;
+		(*(uint32_t *)ptr)=htonl((uint32_t)(time(0) - param->time_start));
+		ptr+=4;
+		total_length+=6;
+	}
+	
+	if(auth && param->password){
     	    len = strlen(param->password);
 	    if(len > 128) len = 128;
 	    *ptr++ = PW_PASSWORD;
@@ -473,9 +516,15 @@ int radsend(struct clientparam * param, int auth){
 	    ptr+=len;
 	    total_length+= (len+2);
 	}
-	
+
 	total_length+=(4+AUTH_VECTOR_LEN);
 	packet.length = htons(total_length);
+	
+	if(!auth){
+		len = strlen(radiussecret);
+		memcpy(ptr,radiussecret,len);
+		md5_calc(packet.vector, (u_char *)&packet, total_length + len);
+	}
 	memcpy(vector, packet.vector, AUTH_VECTOR_LEN);
 	
 	for (loop = 0; loop < nradservers && loop < MAXRADIUS; loop++) {
@@ -492,15 +541,19 @@ int radsend(struct clientparam * param, int auth){
 			continue;
 		}
 #endif
-		packet.id++;
+
+/*
 		if(auth) {
+*/
 			if(sockfd >= 0) so._closesocket(sockfd);
 			if ((sockfd = so._socket(SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
 			    return 4;
 			}
 			remsock = sockfd;
+/*
 		}
 		else remsock = radiuslist[loop].logsock;
+*/
 		len = so._sendto(remsock, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
@@ -524,8 +577,11 @@ int radsend(struct clientparam * param, int auth){
 			continue;
 		}
 
-		if( rpacket.code != PW_AUTHENTICATION_ACK &&
+		if( auth && rpacket.code != PW_AUTHENTICATION_ACK &&
 		    rpacket.code != PW_AUTHENTICATION_REJECT ){
+			continue;
+		}
+		if( !auth && rpacket.code != PW_ACCOUNTING_RESPONSE){
 			continue;
 		}
 
@@ -538,6 +594,8 @@ int radsend(struct clientparam * param, int auth){
 		if (data_len != total_length) {
 			continue;
 		}
+
+		if(!auth) RETURN(0);
 
 		attr = rpacket.data;
 		count = total_length - 20;
@@ -575,18 +633,6 @@ int radsend(struct clientparam * param, int auth){
 				for(len = 2; len < attr[1] && isdigit(attr[len]); len++) res = (res * 10) + (attr[len] - '0');
 			}
 
-
-/*
-			else if (vendor == SANDY && attr[0] == SANDY_MAIL_MAILBOX) {
-				memcpy (p->drop_name, attr + 2, attr[1] - 2);
-			}
-			else if (vendor == SANDY && attr[0] == SANDY_MAIL_MBOXCONTROL) {
-				if (ntohl(*(int *)(attr+2)) & 1) p->dodeletes = 1;
-			}
-			else if (vendor == SANDY && attr[0] == SANDY_MAIL_SERVICE) {
-				mailservice = ntohl(*(int *)(attr+2)) ;
-			}
-*/
 			count -= attr[1];
 			if(vendorlen) {
 				vendorlen -= attr[1];
@@ -610,8 +656,16 @@ CLEANRET:
 }
 
 int radauth(struct clientparam * param){
-	return radsend(param, 1);
+	/*radsend(param, 0, 0);*/
+	return radsend(param, 1, 0);
 }
+
+void logradius(struct clientparam * param, const unsigned char *s) {
+	radsend(param, 0, 1);
+	if(param->trafcountfunc)(*param->trafcountfunc)(param);
+	clearstat(param);
+}
+
 
 
 #endif
