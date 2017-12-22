@@ -327,9 +327,11 @@ static int h_log(int argc, unsigned char ** argv){
 			conf.logfunc = logsql;
 		}
 #endif
+#ifndef NORADIUS
 		else if(!strcmp(argv[1],"radius")){
 			conf.logfunc = logradius;
 		}
+#endif
 		else {
 			FILE *fp;
 			if(argc > 2) {
@@ -1274,6 +1276,7 @@ static int h_delimchar(int argc, unsigned char **argv){
 }
 
 
+#ifndef NORADIUS
 static int h_radius(int argc, unsigned char **argv){
 	unsigned short port;
 
@@ -1309,7 +1312,7 @@ static int h_radius(int argc, unsigned char **argv){
 	}
 	return 0;
 }
-
+#endif
 static int h_authcache(int argc, unsigned char **argv){
 	conf.authcachetype = 0;
 	if(strstr((char *) *(argv + 1), "ip")) conf.authcachetype |= 1;
