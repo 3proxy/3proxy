@@ -216,7 +216,11 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cer
 		ssl_conn_free(conn);
 		return NULL;
 	}
-	if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
+  #ifdef SSL_set_tlsext_host_name
+    if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
+  #else
+    if(hostname && *hostname) X509_VERIFY_PARAM_set1_host(SSL_get0_param(conn->ssl), hostname, 0);
+  #endif
 	err = SSL_connect(conn->ssl);
 	if ( err == -1 ) {
 		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
