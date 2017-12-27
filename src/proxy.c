@@ -131,7 +131,7 @@ char * proxy_stringtable[] = {
 	NULL
 };
 
-#define LINESIZE 4096
+#define LINESIZE 8192
 #define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
 
