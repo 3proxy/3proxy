@@ -216,11 +216,11 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cer
 		ssl_conn_free(conn);
 		return NULL;
 	}
-  #ifdef SSL_set_tlsext_host_name
-    if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
-  #else
-    if(hostname && *hostname) X509_VERIFY_PARAM_set1_host(SSL_get0_param(conn->ssl), hostname, 0);
-  #endif
+#if OPENSSL_VERSION_NUMBER < 0x00908070L
+#error          OpenSSL vv. below 0.9.8f are not supported
+#else
+	if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
+#endif
 	err = SSL_connect(conn->ssl);
 	if ( err == -1 ) {
 		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
