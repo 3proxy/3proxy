@@ -19,6 +19,7 @@
 #endif
 
 pthread_mutex_t bandlim_mutex;
+pthread_mutex_t connlim_mutex;
 pthread_mutex_t tc_mutex;
 pthread_mutex_t pwl_mutex;
 pthread_mutex_t hash_mutex;
@@ -1093,6 +1094,7 @@ static int h_ace(int argc, unsigned char **argv){
   struct ace *acl = NULL;
   struct bandlim * nbl;
   struct trafcount * tl;
+  struct connlim * ncl;
 
 	if(!strcmp((char *)argv[0], "allow")){
 		res = ALLOW;
@@ -1125,6 +1127,13 @@ static int h_ace(int argc, unsigned char **argv){
 	else if(!strcmp((char *)argv[0], "nocountout")){
 		res = NOCOUNTOUT;
 	}
+	else if(!strcmp((char *)argv[0], "connlim")){
+		res = CONNLIM;
+		offset = 2;
+	}
+	else if(!strcmp((char *)argv[0], "noconnlim")){
+		res = NOCONNLIM;
+	}
 	acl = make_ace(argc - (offset+1), argv + (offset + 1));
 	if(!acl) {
 		fprintf(stderr, "Unable to parse ACL entry, line %d\n", linenum);
@@ -1155,6 +1164,32 @@ static int h_ace(int argc, unsigned char **argv){
 			acei->next = acl;
 		}
 		break;
+	case CONNLIM:
+	case NOCONNLIM:
+		ncl = myalloc(sizeof(struct connlim));
+		if(!ncl) {
+			fprintf(stderr, "No memory to create connection limit filter\n");
+			return(3);
+		}
+		memset(ncl, 0, sizeof(struct connlim));
+		ncl->ace = acl;
+		if(acl->action == CONNLIM) {
+			sscanf((char *)argv[1], "%u", &ncl->rate);
+			sscanf((char *)argv[2], "%u", &ncl->period);
+		}
+		pthread_mutex_lock(&connlim_mutex);
+		if(!conf.connlimiter){
+			conf.connlimiter = ncl;
+		}
+		else {
+			struct connlim * cli;
+
+			for(cli = conf.connlimiter; cli->next; cli = cli->next);
+			cli->next = ncl;
+		}
+		pthread_mutex_unlock(&connlim_mutex);			
+		break;
+
 	case BANDLIM:
 	case NOBANDLIM:
 
@@ -1460,22 +1495,24 @@ struct commands commandhandlers[]={
 	{commandhandlers+44, "nocountin", h_ace, 1, 0},
 	{commandhandlers+45, "countout", h_ace, 4, 0},
 	{commandhandlers+46, "nocountout", h_ace, 1, 0},
-	{commandhandlers+47, "plugin", h_plugin, 3, 0},
-	{commandhandlers+48, "logdump", h_logdump, 2, 3},
-	{commandhandlers+49, "filtermaxsize", h_filtermaxsize, 2, 2},
-	{commandhandlers+50, "nolog", h_nolog, 1, 1},
-	{commandhandlers+51, "weight", h_nolog, 2, 2},
-	{commandhandlers+52, "authcache", h_authcache, 2, 3},
-	{commandhandlers+53, "smtpp", h_proxy, 1, 0},
-	{commandhandlers+54, "icqpr", h_proxy, 4, 0},
-	{commandhandlers+55, "msnpr", h_proxy, 4, 0},
-	{commandhandlers+56, "delimchar",h_delimchar, 2, 2},
-	{commandhandlers+57, "authnserver", h_authnserver, 2, 2},
-	{commandhandlers+58, "stacksize", h_stacksize, 2, 2},
-	{commandhandlers+59, "force", h_force, 1, 1},
-	{commandhandlers+60, "noforce", h_noforce, 1, 1},
+	{commandhandlers+47, "connlim", h_ace, 4, 0},
+	{commandhandlers+48, "noconnlim", h_ace, 1, 0},
+	{commandhandlers+49, "plugin", h_plugin, 3, 0},
+	{commandhandlers+50, "logdump", h_logdump, 2, 3},
+	{commandhandlers+51, "filtermaxsize", h_filtermaxsize, 2, 2},
+	{commandhandlers+52, "nolog", h_nolog, 1, 1},
+	{commandhandlers+53, "weight", h_nolog, 2, 2},
+	{commandhandlers+54, "authcache", h_authcache, 2, 3},
+	{commandhandlers+55, "smtpp", h_proxy, 1, 0},
+	{commandhandlers+56, "icqpr", h_proxy, 4, 0},
+	{commandhandlers+57, "msnpr", h_proxy, 4, 0},
+	{commandhandlers+58, "delimchar",h_delimchar, 2, 2},
+	{commandhandlers+59, "authnserver", h_authnserver, 2, 2},
+	{commandhandlers+60, "stacksize", h_stacksize, 2, 2},
+	{commandhandlers+51, "force", h_force, 1, 1},
+	{commandhandlers+62, "noforce", h_noforce, 1, 1},
 #ifndef NORADIUS
-	{commandhandlers+61, "radius", h_radius, 3, 0},
+	{commandhandlers+63, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
@@ -1644,6 +1681,7 @@ void freepwl(struct passwords *pwl){
 void freeconf(struct extparam *confp){
  struct bandlim * bl;
  struct bandlim * blout;
+ struct connlim * cl;
  struct trafcount * tc;
  struct passwords *pw;
  struct ace *acl;
@@ -1674,6 +1712,10 @@ void freeconf(struct extparam *confp){
  confp->bandlimiterout = NULL;
  confp->bandlimfunc = NULL;
  pthread_mutex_unlock(&bandlim_mutex);
+ pthread_mutex_lock(&connlim_mutex);
+ cl = confp->connlimiter;
+ confp->connlimiter = NULL;
+ pthread_mutex_unlock(&connlim_mutex);
 
  pthread_mutex_lock(&pwl_mutex);
  pw = confp->pwl;
@@ -1731,6 +1773,7 @@ void freeconf(struct extparam *confp){
  freepwl(pw);
  for(; bl; bl = (struct bandlim *) itfree(bl, bl->next)) freeacl(bl->ace);
  for(; blout; blout = (struct bandlim *) itfree(blout, blout->next))freeacl(blout->ace);
+ for(; cl; cl = (struct connlim *) itfree(cl, cl->next)) freeacl(cl->ace);
 
  if(counterd != -1) {
 	close(counterd);

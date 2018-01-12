@@ -796,6 +796,31 @@ if you want, for example, to limit all speed ecept access to POP3 you can use
  before the rest of bandlim rules.
 
 .br
+.B connlim
+<rate> <period> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+.br
+.B noconnlim
+<userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+.br
+connlim sets connections rate limit per time period for traffic
+pattern controlled by ACL. Period is in seconds. If period is 0,
+connlim limits a number of parallel connections.
+.br
+ connlim 100 60 * 127.0.0.1
+.br
+allows 100 connections per minute for 127.0.0.1.
+.br
+ connlim 20 0 * 127.0.0.1
+.br
+allows 20 simulationeous connections for 127.0.0.1.
+.br
+Like with bandlimin, if individual limit is required per client, separate
+rule mustbe added for every client. Like with nobanlimin, noconnlim adds an
+exception.
+
+
+
+.br
 .B counter
 <filename> <reporttype> <repotname>
 .br

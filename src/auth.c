@@ -437,6 +437,60 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	return 1;
 }
 
+
+int startconnlims (struct clientparam *param){
+	struct connlim * ce;
+	time_t delta;
+	uint64_t rating;
+	int ret = 0;
+
+	pthread_mutex_lock(&connlim_mutex);
+	for(ce = conf.connlimiter; ce; ce = ce->next) {
+		if(ACLmatches(ce->ace, param)){
+			if(ce->ace->action == NOCONNLIM)break;
+			if(!ce->period){
+				if(ce->rate <= ce->rating) {
+					ret = 1;
+					break;
+				}
+				ce->rating++;
+				continue;
+			}
+			delta = conf.time - ce->basetime;
+			if(ce->period <= delta || ce->basetime > conf.time){
+				ce->basetime = conf.time;
+				ce->rating = 0x100000;
+				continue;
+			}
+			rating = delta? ((ce->rating * (ce->period - delta)) / ce->period) + 0x100000 : ce->rating + 0x100000;
+			if (rating > (ce->rate<<20)) {
+				ret = 2;
+				break;
+			}
+			ce->rating = rating;
+			ce->basetime = conf.time;
+		}
+	}
+	pthread_mutex_unlock(&connlim_mutex);
+	return ret;
+}
+
+void stopconnlims (struct clientparam *param){
+	struct connlim * ce;
+
+	pthread_mutex_lock(&connlim_mutex);
+	for(ce = conf.connlimiter; ce; ce = ce->next) {
+		if(ACLmatches(ce->ace, param)){
+			if(ce->ace->action == NOCONNLIM)break;
+			if(!ce->period && ce->rating){
+				ce->rating--;
+				continue;
+			}
+		}
+	}
+	pthread_mutex_unlock(&connlim_mutex);
+}
+
 static void initbandlims (struct clientparam *param){
 	struct bandlim * be;
 	int i;
@@ -464,7 +518,7 @@ static void initbandlims (struct clientparam *param){
 
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout){
 	unsigned sleeptime = 0, nsleeptime;
-	unsigned long sec;
+	time_t sec;
 	unsigned msec;
 	unsigned now;
 	int i;
@@ -504,7 +558,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 			param->bandlims[i]->nexttime = 0;
 			continue;
 		}
-		now = ((sec - param->bandlims[i]->basetime) * 1000000) + msec;
+		now = (unsigned)((sec - param->bandlims[i]->basetime) * 1000000) + msec;
 		nsleeptime = (param->bandlims[i]->nexttime > now)?
 			param->bandlims[i]->nexttime - now : 0;
 		sleeptime = (nsleeptime > sleeptime)? nsleeptime : sleeptime;
@@ -521,7 +575,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 			param->bandlimsout[i]->nexttime = 0;
 			continue;
 		}
-		now = ((sec - param->bandlimsout[i]->basetime) * 1000000) + msec;
+		now = (unsigned)((sec - param->bandlimsout[i]->basetime) * 1000000) + msec;
 		nsleeptime = (param->bandlimsout[i]->nexttime > now)?
 			param->bandlimsout[i]->nexttime - now : 0;
 		sleeptime = (nsleeptime > sleeptime)? nsleeptime : sleeptime;
@@ -571,6 +625,8 @@ int alwaysauth(struct clientparam * param){
 	struct trafcount * tc;
 	int countout = 0;
 
+
+	if(conf.connlimiter && param->remsock == INVALID_SOCKET && startconnlims(param)) return 95;
 	res = doconnect(param);
 	if(!res){
 		initbandlims(param);
@@ -610,7 +666,7 @@ int checkACL(struct clientparam * param){
 	struct ace* acentry;
 
 	if(!param->srv->acl) {
-		return alwaysauth(param);
+		return 0;
 	}
 	for(acentry = param->srv->acl; acentry; acentry = acentry->next) {
 		if(ACLmatches(acentry, param)) {
@@ -868,11 +924,12 @@ struct auth authfuncs[] = {
 	{authfuncs+5, strongauth, checkACL, "strong"},
 	{authfuncs+6, cacheauth, checkACL, "cache"},
 #ifndef NORADIUS
+#define AUTHOFFSET 1
 	{authfuncs+7, radauth, checkACL, "radius"},
-	{authfuncs+8, NULL, NULL, "none"},
 #else
-	{authfuncs+7, NULL, NULL, "none"},
+#define AUTHOFFSET 0
 #endif
+	{authfuncs+7+AUTHOFFSET, NULL, NULL, "none"},
 	{NULL, NULL, NULL, ""}
 };
 

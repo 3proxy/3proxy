@@ -38,6 +38,8 @@
 #define NOCOUNTIN	6
 #define COUNTOUT	7
 #define NOCOUNTOUT	8
+#define CONNLIM		9
+#define NOCONNLIM	10
 
 #define UDPBUFSIZE 16384
 #define TCPBUFSIZE  8192
@@ -206,6 +208,9 @@ void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);
 
+int startconnlims (struct clientparam *param);
+void stopconnlims (struct clientparam *param);
+
 
 
 extern struct auth authfuncs[];
@@ -319,6 +324,7 @@ struct property;
 extern unsigned char tmpbuf[8192];
 extern pthread_mutex_t config_mutex;
 extern pthread_mutex_t bandlim_mutex;
+extern pthread_mutex_t connlim_mutex;
 extern pthread_mutex_t hash_mutex;
 extern pthread_mutex_t tc_mutex;
 extern pthread_mutex_t pwl_mutex;

@@ -299,10 +299,20 @@ struct ace {
 struct bandlim {
 	struct bandlim *next;
 	struct ace *ace;
-	unsigned basetime;
-	unsigned rate;
+	time_t basetime;
 	unsigned nexttime;
+	unsigned rate;
 };
+
+struct connlim {
+	struct connlim *next;
+	struct ace *ace;
+	time_t basetime;
+	uint64_t rating;
+	unsigned period;
+	unsigned rate;
+};
+
 
 typedef enum {NONE, MINUTELY, HOURLY, DAILY, WEEKLY, MONTHLY, ANNUALLY, NEVER} ROTATION;
 
@@ -528,6 +538,7 @@ struct extparam {
 	struct ace * acl;
 	char * conffile;
 	struct bandlim * bandlimiter,  *bandlimiterout;
+	struct connlim * connlimiter;
 	struct trafcount * trafcounter;
 	struct srvparam *services;
 	int stacksize,
