@@ -1509,7 +1509,7 @@ struct commands commandhandlers[]={
 	{commandhandlers+58, "delimchar",h_delimchar, 2, 2},
 	{commandhandlers+59, "authnserver", h_authnserver, 2, 2},
 	{commandhandlers+60, "stacksize", h_stacksize, 2, 2},
-	{commandhandlers+51, "force", h_force, 1, 1},
+	{commandhandlers+61, "force", h_force, 1, 1},
 	{commandhandlers+62, "noforce", h_noforce, 1, 1},
 #ifndef NORADIUS
 	{commandhandlers+63, "radius", h_radius, 3, 0},
