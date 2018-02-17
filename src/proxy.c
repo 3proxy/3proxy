@@ -13,49 +13,49 @@
 
 char * proxy_stringtable[] = {
 /* 0 */	"HTTP/1.0 400 Bad Request\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>400 Bad Request</title></head>\r\n"
 	"<body><h2>400 Bad Request</h2></body></html>\r\n",
 
 /* 1 */	"HTTP/1.0 502 Bad Gateway\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>502 Bad Gateway</title></head>\r\n"
 	"<body><h2>502 Bad Gateway</h2><h3>Host Not Found or connection failed</h3></body></html>\r\n",
 
 /* 2 */	"HTTP/1.0 503 Service Unavailable\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>503 Service Unavailable</title></head>\r\n"
 	"<body><h2>503 Service Unavailable</h2><h3>You have exceeded your traffic limit</h3></body></html>\r\n",
 
 /* 3 */	"HTTP/1.0 503 Service Unavailable\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>503 Service Unavailable</title></head>\r\n"
 	"<body><h2>503 Service Unavailable</h2><h3>Recursion detected</h3></body></html>\r\n",
 
 /* 4 */	"HTTP/1.0 501 Not Implemented\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>501 Not Implemented</title></head>\r\n"
 	"<body><h2>501 Not Implemented</h2><h3>Required action is not supported by proxy server</h3></body></html>\r\n",
 
 /* 5 */	"HTTP/1.0 502 Bad Gateway\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>502 Bad Gateway</title></head>\r\n"
 	"<body><h2>502 Bad Gateway</h2><h3>Failed to connect parent proxy</h3></body></html>\r\n",
 
 /* 6 */	"HTTP/1.0 500 Internal Error\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>500 Internal Error</title></head>\r\n"
@@ -63,7 +63,7 @@ char * proxy_stringtable[] = {
 
 /* 7 */	"HTTP/1.0 407 Proxy Authentication Required\r\n"
 	"Proxy-Authenticate: Basic realm=\"proxy\"\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>407 Proxy Authentication Required</title></head>\r\n"
@@ -75,14 +75,14 @@ char * proxy_stringtable[] = {
 	"Content-Type: text/html\r\n\r\n",
 
 /* 10*/	"HTTP/1.0 404 Not Found\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>404 Not Found</title></head>\r\n"
 	"<body><h2>404 Not Found</h2><h3>File not found</body></html>\r\n",
 	
 /* 11*/	"HTTP/1.0 403 Forbidden\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>403 Access Denied</title></head>\r\n"
@@ -93,25 +93,25 @@ char * proxy_stringtable[] = {
 	"Proxy-Authenticate: NTLM\r\n"
 #endif
 	"Proxy-Authenticate: basic realm=\"proxy\"\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>407 Proxy Authentication Required</title></head>\r\n"
 	"<body><h2>407 Proxy Authentication Required</h2><h3>Access to requested resource disallowed by administrator or you need valid username/password to use this resource</h3></body></html>\r\n",
 
 /* 13*/	"HTTP/1.0 407 Proxy Authentication Required\r\n"
-	"Proxy-Connection: keep-alive\r\n"
+	"Connection: keep-alive\r\n"
 	"Content-Length: 0\r\n"
 	"Proxy-Authenticate: NTLM ",
 
 /* 14*/	"HTTP/1.0 403 Forbidden\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<pre>",
 
 /* 15*/	"HTTP/1.0 503 Service Unavailable\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>503 Service Unavailable</title></head>\r\n"
@@ -119,7 +119,7 @@ char * proxy_stringtable[] = {
 
 /* 16*/	"HTTP/1.0 401 Authentication Required\r\n"
 	"WWW-Authenticate: basic realm=\"FTP Server\"\r\n"
-	"Proxy-Connection: close\r\n"
+	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>401 FTP Server requires authentication</title></head>\r\n"
@@ -786,7 +786,7 @@ for(;;){
 				sprintf(ftpbuf, 
 					"HTTP/1.0 200 OK\r\n"
 					"Content-Type: text/html\r\n"
-					"Proxy-Connection: keep-alive\r\n"
+					"Connection: keep-alive\r\n"
 					"Content-Length: %d\r\n\r\n",
 					inbuf);
 				socksend(param->clisock, (unsigned char *)ftpbuf, (int)strlen(ftpbuf), conf.timeouts[STRING_S]);
@@ -847,7 +847,9 @@ for(;;){
 		sprintf((char*)buf+strlen((char *)buf), "\r\n");
  }
 #endif
- if(keepalive <= 1) sprintf((char*)buf+strlen((char *)buf), "%s: %s\r\n", (param->redirtype == R_HTTP)?"Proxy-Connection":"Connection", keepalive? "keep-alive":"close");
+ if(keepalive <= 1) {
+	sprintf((char*)buf+strlen((char *)buf), "Connection: %s\r\n", keepalive? "keep-alive":"close");
+ }
  if(param->extusername){
 	sprintf((char*)buf + strlen((char *)buf), "%s: basic ", (redirect)?"Proxy-Authorization":"Authorization");
 	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
@@ -992,9 +994,7 @@ for(;;){
 	 );
 	 if(!param->srv->transparent){
 		if(ckeepalive <= 1) sprintf((char*)buf+strlen((char *)buf), "Connection: %s\r\n", 
-		(hascontent && ckeepalive)?"Keep-Alive":"Close");
-		if(!param->transparent)sprintf((char*)buf+strlen((char *)buf), "Proxy-Connection: %s\r\n", 
-		(hascontent && ckeepalive)?"Keep-Alive":"Close");
+		(hascontent && ckeepalive)?"keep-alive":"close");
 	 }
 	 sprintf((char*)buf + strlen((char *)buf), "\r\n");
 	 if((socksend(param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S])) != (int)strlen((char *)buf)) {
