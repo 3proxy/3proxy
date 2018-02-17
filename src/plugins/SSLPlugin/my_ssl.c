@@ -199,7 +199,11 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cer
 		return NULL;
 	}
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	conn->ctx = SSL_CTX_new(SSLv23_client_method());
+#else
+	conn->ctx = SSL_CTX_new(TLS_client_method());
+#endif
 	if ( conn->ctx == NULL ) {
 		free(conn);
 		return NULL;
@@ -249,7 +253,11 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, char** errSSL)
 	if ( conn == NULL )
 		return NULL;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	conn->ctx = SSL_CTX_new(SSLv23_server_method());
+#else
+	conn->ctx = SSL_CTX_new(TLS_server_method());
+#endif
 	if ( conn->ctx == NULL ) {
 		free(conn);
 		return NULL;
