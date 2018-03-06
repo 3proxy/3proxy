@@ -376,7 +376,7 @@ fflush(stderr);
 									buf[i] = buf[i+1];
 								}
 								buf[i++] = 0;
-								if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->sinsr)) RETURN(100);
+								if(!getip46(param->srv->family, buf+4, (struct sockaddr *) &param->sinsr)) RETURN(100);
 								break;
 							default:
 								RETURN(997);
