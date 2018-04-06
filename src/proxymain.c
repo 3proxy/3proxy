@@ -854,7 +854,6 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->paused = conf.paused;
  srv->logfunc = havelog?conf.logfunc:lognone;
  srv->noforce = conf.noforce;
- if(srv->logformat)myfree(srv->logformat);
  srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
@@ -862,7 +861,6 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->stacksize = conf.stacksize;
  srv->time_start = time(NULL);
  if(havelog && conf.logtarget){
-	 if(srv->logtarget) myfree(srv->logtarget);
 	 srv->logtarget = (unsigned char *)mystrdup((char *)conf.logtarget);
  }
  srv->srvsock = INVALID_SOCKET;
