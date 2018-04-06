@@ -29,18 +29,6 @@
 #define _PASSWORD_LEN 256
 #define MAXNSERVERS 5
 
-#define ALLOW		0
-#define DENY		1
-#define REDIRECT	2
-#define BANDLIM		3
-#define NOBANDLIM	4
-#define COUNTIN		5
-#define NOCOUNTIN	6
-#define COUNTOUT	7
-#define NOCOUNTOUT	8
-#define CONNLIM		9
-#define NOCONNLIM	10
-
 #define UDPBUFSIZE 16384
 #define TCPBUFSIZE  8192
 #define SRVBUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))
