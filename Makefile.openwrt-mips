@@ -1,0 +1,101 @@
+#
+# 3 proxy Makefile for GCC/Linux/Cygwin
+#
+# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
+# libraries
+#
+# remove -DNOODBC from CFLAGS and add -lodbc to LIBS to compile with ODBC
+# library support. Add -DSAFESQL for poorely written ODBC library / drivers.
+
+BUILDDIR =
+CC = mips-openwrt-linux-gcc
+
+CFLAGS = -g -O2 -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
+COUT = -o 
+LN = mips-openwrt-linux-gcc
+DCFLAGS = -fpic
+LDFLAGS = -O2 -pthread
+DLFLAGS = -shared
+DLSUFFICS = .ld.so
+# -lpthreads may be reuqired on some platforms instead of -pthreads
+LIBSPREFIX = -l
+LIBSSUFFIX = 
+LNOUT = -o 
+EXESUFFICS =
+OBJSUFFICS = .o
+DEFINEOPTION = -D
+COMPFILES = *~
+REMOVECOMMAND = rm -f
+TYPECOMMAND = cat
+COMPATLIBS =
+MAKEFILE = Makefile.openwrt-mips
+# PamAuth requires libpam, you may require pam-devel package to be installed
+# SSLPlugin requires  -lcrypto -lssl
+#LIBS = -lcrypto -lssl -ldl 
+LIBS = -ldl 
+#PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin PamAuth
+PLUGINS = StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+
+include Makefile.inc
+
+allplugins:
+	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done
+
+DESTDIR		=
+prefix		= /usr/local
+exec_prefix	= $(prefix)
+man_prefix	= $(prefix)/share
+
+INSTALL		= /usr/bin/install
+INSTALL_BIN	= $(INSTALL) -m 755
+INSTALL_DATA	= $(INSTALL) -m 644
+INSTALL_OBJS	= src/3proxy \
+		  src/ftppr \
+		  src/mycrypt \
+		  src/pop3p \
+		  src/proxy \
+		  src/socks \
+		  src/tcppm \
+		  src/udppm
+		  
+
+INSTALL_CFG_OBJS = scripts/3proxy.cfg \
+		   scripts/add3proxyuser.sh
+INSTALL_CFG_DEST = config
+
+INSTALL_CFG_OBJS2 = passwd counters bandlimiters
+
+MANDIR1		= $(DESTDIR)$(man_prefix)/man/man1
+MANDIR3		= $(DESTDIR)$(man_prefix)/man/man3
+MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
+BINDIR		= $(DESTDIR)$(exec_prefix)/bin
+ETCDIR		= $(DESTDIR)$(prefix)/etc/3proxy
+
+install-bin:
+	$(INSTALL_BIN) -d $(BINDIR)
+	$(INSTALL_BIN) -s $(INSTALL_OBJS) $(BINDIR)
+
+install-etc-dir:
+	$(INSTALL_BIN) -d $(ETCDIR)
+
+install-etc-default-config:
+	if [ -f $(ETCDIR)/$(INSTALL_CFG_DEST) ]; then \
+	   : ; \
+	else \
+	   $(INSTALL_DATA) $(INSTALL_CFG_OBJS) $(ETCDIR)/$(INSTALL_CFG_DEST) \
+	fi
+
+install-etc: install-etc-dir
+	for file in $(INSTALL_CFG_OBJS2); \
+	do \
+	  touch $(ETCDIR)/$$file; chmod 0600 $(ETCDIR)/$$file; \
+	done;
+
+install-man:
+	$(INSTALL_BIN) -d $(MANDIR3)
+	$(INSTALL_BIN) -d $(MANDIR8)
+	$(INSTALL_DATA) man/*.3 $(MANDIR3)
+	$(INSTALL_DATA) man/*.8 $(MANDIR8)
+
+install: install-bin install-etc install-man
+
