@@ -98,6 +98,9 @@ struct socketoptions sockopts[] = {
 #ifdef SO_DONTROUTE
 	{SO_DONTROUTE, "SO_DONTROUTE"},
 #endif
+#ifdef IP_TRANSPARENT
+	{IP_TRANSPARENT, "IP_TRANSPARENT"},
+#endif
 	{0, NULL}
 };
 
@@ -111,7 +114,11 @@ void setopts(SOCKET s, int opts){
 	int i, opt, set;
 	for(i = 0; opts >= (opt = (1<<i)); i++){
 		set = 1;
-		if(opts & opt) setsockopt(s, *sockopts[i].optname == 'T'? IPPROTO_TCP:SOL_SOCKET, sockopts[i].opt, (char *)&set, sizeof(set));
+		if(opts & opt) setsockopt(s, *sockopts[i].optname == 'T'? IPPROTO_TCP:
+#ifdef SOL_IP
+			*sockopts[i].optname == 'I'? SOL_IP: 
+#endif
+			SOL_SOCKET, sockopts[i].opt, (char *)&set, sizeof(set));
 	}
 }
 
@@ -226,6 +233,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 #ifdef SO_DONTROUTE
 	"SO_DONTROUTE "
+#endif
+#ifdef IP_TRANSPARENT
+	"IP_TRANSPARENT"
 #endif
 	"\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
