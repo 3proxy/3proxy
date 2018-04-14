@@ -252,6 +252,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		if(!connected){
 			if(cur->type == R_EXTIP){
 				param->sinsl = cur->addr;
+				if(SAISNULL(&param->sinsl))param->sinsl = param->sincr;
 				if(cur->next)continue;
 				return 0;
 			}
