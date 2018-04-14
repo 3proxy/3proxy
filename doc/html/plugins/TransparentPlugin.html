@@ -1,4 +1,4 @@
-<h3>3proxy TransparentPlugin plugin (Linux only)</h3>
+<h3>3proxy TransparentPlugin plugin (Linux/BSD only)</h3>
 
 Plugin can turn 3proxy into transparent proxy for virtually any TCP-based protocol
 and use all 3proxy features - redirections, parent proxies, ACLs, traffic limitations,
@@ -13,7 +13,10 @@ allow * * * 80
 parent 1000 http 0.0.0.0 0
 allow *
 parent 1000 socks5 SOCKS5_IP SOCKS5_PORT USER PASSWORD
+transparent
 tcppm -iLOCAL_IP 12345 127.0.0.1 11111
+notransparent
+proxy
 </pre>
 Now, any TCP traffic transparently redirected to port 12345 will be routed via
 parent SOCKSv5 proxy and logged, all URLs for web requests are visible in logs.
