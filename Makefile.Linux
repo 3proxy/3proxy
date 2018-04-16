@@ -10,11 +10,11 @@
 BUILDDIR =
 CC = gcc
 
-CFLAGS = -g -O2 -c -pthread -DWITHSPLICE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
+CFLAGS = -g -O2 -fno-strict-aliasing -c -pthread -DWITHSPLICE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
 COUT = -o 
 LN = gcc
 DCFLAGS = -fpic
-LDFLAGS = -O2 -pthread
+LDFLAGS = -O2 -fno-strict-aliasing -pthread
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads

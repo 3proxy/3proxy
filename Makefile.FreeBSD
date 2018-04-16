@@ -10,10 +10,10 @@
 BUILDDIR =
 CC ?= gcc
 
-CFLAGS = -c -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS = -c -O -fno-strict-aliasing -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
 COUT = -o 
 LN ?= ${CC}
-LDFLAGS = -pthread
+LDFLAGS = -pthread -O -fno-strict-aliasing 
 # -lpthreads may be reuqired on some platforms instead of -pthreads
 # -ldl or -lld may be required for some platforms
 DCFLAGS = -fpic

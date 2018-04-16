@@ -10,10 +10,10 @@
 
 BUILDDIR = ../bin/
 CC = clang
-CFLAGS = -O2 -c -pthread -static -DWITH_STD_MALLOC -DNOIPV6
+CFLAGS = -O2 -fno-strict-aliasing -c -pthread -static -DWITH_STD_MALLOC -DNOIPV6
 COUT = -o 
 LN = clang
-LDFLAGS = -O2 -static -s
+LDFLAGS = -O2 -fno-strict-aliasing -static -s
 DLFLAGS = -shared
 DLSUFFICS = .dll
 LIBS = -lws2_32 -lodbc32 -ladvapi32
