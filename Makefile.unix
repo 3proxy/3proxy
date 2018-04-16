@@ -11,10 +11,10 @@ BUILDDIR =
 CC = gcc
 
 # you may need -L/usr/pkg/lib for older NetBSD versions
-CFLAGS = -g -O2 -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS = -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
 COUT = -o 
 LN = gcc
-LDFLAGS = -O2 -pthread
+LDFLAGS = -O2 -fno-strict-aliasing -pthread
 # -lpthreads may be reuqired on some platforms instead of -pthreads
 # -ldl or -lld may be required for some platforms
 DCFLAGS = -fpic
