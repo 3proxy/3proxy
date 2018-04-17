@@ -931,21 +931,21 @@ configuration within one minute. Any number of files may be monitored.
 .B setuid
 <uid>
 .br
- calls setuid(uid), uid must be numeric. Unix only. Warning: under some Linux
-kernels setuid() works onle for current thread. It makes it impossible to suid
+ calls setuid(uid), uid can be numeric or since 0.9 username. Unix only. Warning: under some Linux
+kernels setuid() works for current thread only. It makes it impossible to suid
 for all threads.
 
 .br
 .B setgid
 <gid>
 .br
- calls setgid(gid), gid must be numeric. Unix only.
+ calls setgid(gid), gid can be numeric or since 0.9 groupname. Unix only.
 
 .br
 .B chroot
-<path>
+<path> [<uid>] [<gid>]
 .br
- calls chroot(path). Unix only.
+ calls chroot(path) and sets gid/uid. Unix only. uid/gid supported since 0.9, can be numeric or username/groupname
 
 .br
 .B stacksize

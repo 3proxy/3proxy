@@ -9,6 +9,8 @@
 #include "proxy.h"
 #ifndef _WIN32
 #include <sys/resource.h>
+#include <pwd.h>
+#include <grp.h>
 #ifndef NOPLUGINS
 #include <dlfcn.h>
 #endif
@@ -1398,9 +1400,23 @@ static int h_plugin(int argc, unsigned char **argv){
 }
 
 #ifndef _WIN32
+
+uid_t strtouid(unsigned char *str){
+ uid_t res = 0;
+
+	if(!isnumber(*(char *)str)){
+		struct passwd *pw;
+		pw = getpwnam((char *)str);
+		if(pw) res = pw->pw_uid;
+	}
+	else res = atoi((char *)str);
+	return res;
+}
+
+
 static int h_setuid(int argc, unsigned char **argv){
-  int res;
-	res = atoi((char *)argv[1]);
+  uid_t res = 0;
+	res = strtouid(argv[1]);
 	if(!res || setreuid(res,res)) {
 		fprintf(stderr, "Unable to set uid %d", res);
 		return(1);
@@ -1408,10 +1424,21 @@ static int h_setuid(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_setgid(int argc, unsigned char **argv){
-  int res;
+gid_t strtogid(unsigned char *str){
+  gid_t res;
 
-	res = atoi((char *)argv[1]);
+	if(!isnumber(*(char *)str)){
+		struct group *gr;
+		gr = getgrnam((char *)str);
+		if(gr) res = gr->gr_gid;
+	}
+	else res = atoi((char *)str);
+}
+
+static int h_setgid(int argc, unsigned char **argv){
+  gid_t res = 0;
+
+	res = strtogid(argv[1]);
 	if(!res || setregid(res,res)) {
 		fprintf(stderr, "Unable to set gid %d", res);
 		return(1);
@@ -1421,6 +1448,22 @@ static int h_setgid(int argc, unsigned char **argv){
 
 
 static int h_chroot(int argc, unsigned char **argv){
+	uid_t uid = 0;
+	gid_t gid = 0;
+	if(argc > 2) {
+		uid = strtouid(argv[2]);
+		if(!uid){
+			fprintf(stderr, "Unable to resolve uid %s", argv[2]);
+			return(2);
+		}
+        }
+	if(argc > 3) {
+		gid = strtogid(argv[3]);
+		if(!gid){
+			fprintf(stderr, "Unable to resolve gid %s", argv[3]);
+			return(3);
+		}
+        }
 	if(!chrootp){
 		char *p;
 		if(chroot((char *)argv[1])) {
@@ -1434,6 +1477,15 @@ static int h_chroot(int argc, unsigned char **argv){
 		}
 		chrootp = mystrdup((char *)argv[1]);
 	}
+	if (gid && setregid(gid,gid)) {
+		fprintf(stderr, "Unable to set gid %d", (int)gid);
+		return(4);
+	}
+	if (uid && setreuid(uid,uid)) {
+		fprintf(stderr, "Unable to set uid %d", (int)uid);
+		return(5);
+	}
+
 	return 0;
 }
 #endif
@@ -1443,7 +1495,7 @@ struct commands specificcommands[]={
 #ifndef _WIN32
 	{specificcommands+1, "setuid", h_setuid, 2, 2},
 	{specificcommands+2, "setgid", h_setgid, 2, 2},
-	{specificcommands+3, "chroot", h_chroot, 2, 2},
+	{specificcommands+3, "chroot", h_chroot, 2, 4},
 #endif
 	{NULL, 		"", h_noop, 1, 0}
 };
