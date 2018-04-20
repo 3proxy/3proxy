@@ -161,7 +161,7 @@ int start_proxy_thread(struct child * chp){
 	if(h)CloseHandle(h);
 #else
 	pthread_attr_init(&pa);
-	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (16384+conf.stacksize));
+	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (32768+conf.stacksize));
 	pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 	pthread_create(&thread, &pa, startsrv, (void *)chp);
 	pthread_attr_destroy(&pa);

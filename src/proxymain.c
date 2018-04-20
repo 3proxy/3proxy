@@ -647,7 +647,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  
 #ifndef _WIN32
  pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (16384 + srv.stacksize));
+ pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (32768 + srv.stacksize));
  pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 
