@@ -1,0 +1,51 @@
+#
+# 3 proxy Makefile for Microsoft Visual C compiler (for both make and nmake)
+#
+# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
+# libraries
+#
+# Add /DSAFESQL to CFLAGS if you are using poorely written/tested ODBC driver
+
+BUILDDIR = ../bin64/
+CC = cl
+CFLAGS = /nologo /MT /W3 /Ox /EHs- /GS /GA /GF /D "MSVC" /D "WITH_STD_MALLOC" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c
+COUT = /Fo
+LN = link
+LDFLAGS = /nologo /subsystem:console /incremental:no /machine:arm64
+DLFLAGS = /DLL
+DLSUFFICS = .dll
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib
+LIBSOLD =
+LIBSPREFIX = 
+LIBSSUFFIX = .lib
+LIBEXT = .lib
+LNOUT = /out:
+EXESUFFICS = .exe
+OBJSUFFICS = .obj
+DEFINEOPTION = /D 
+COMPFILES = *.pch *.idb
+REMOVECOMMAND = del 2>NUL >NUL
+TYPECOMMAND = type
+COMPATLIBS =
+MAKEFILE = Makefile.msvcARM64
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin
+VERFILE = $(VERFILE)
+
+#../3proxy.res:
+#	rc /fo../3proxy.res ../3proxy.rc
+
+#3proxyres.obj: ../3proxy.res
+#	cvtres /out:3proxyres.obj /MACHINE:X64 ../3proxy.res
+
+include Makefile.inc
+
+../3proxy.res:
+	rc /fo../3proxy.res ../3proxy.rc
+
+3proxyres.obj: ../3proxy.res
+	cvtres /out:3proxyres.obj /machine:x64 ../3proxy.res
+
+
+allplugins:
+	for /D %%i in ($(PLUGINS)) do (copy Makefile plugins\%%i && copy Makefile.var plugins\%%i && cd plugins\%%i && nmake && del *.obj *.idb &&cd ..\..)
+
