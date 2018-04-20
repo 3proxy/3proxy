@@ -311,7 +311,6 @@ struct datatype;
 struct dictionary;
 struct node;
 struct property;
-extern unsigned char tmpbuf[8192];
 extern pthread_mutex_t config_mutex;
 extern pthread_mutex_t bandlim_mutex;
 extern pthread_mutex_t connlim_mutex;
