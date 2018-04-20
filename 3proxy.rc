@@ -16,6 +16,7 @@ BEGIN
             VALUE "FileDescription", "3proxy - tiny proxy server\0"
             VALUE "FileVersion", "0.9-devel-" BUILDDATE "\0"
             VALUE "InternalName", "3proxy\0"
+            VALUE "LegalCopyright", "Copyright (C) 2002-2018 Vladimir Dubrovin\0"
             VALUE "OriginalFilename", "3proxy.exe\0"
             VALUE "ProductName", "3proxy\0"
             VALUE "ProductVersion", "0.9-devel-" BUILDDATE "\0"
