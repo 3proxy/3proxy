@@ -632,8 +632,8 @@ void logstdout(struct clientparam * param, const unsigned char *s) {
 	FILE *log;
 
 	pthread_mutex_lock(&log_mutex);
-	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
 	dobuf(param, tmpbuf, s, NULL);
+	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
 	if(!param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
 		perror("printf()");
 	};

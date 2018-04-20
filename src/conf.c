@@ -1776,10 +1776,12 @@ void freeconf(struct extparam *confp){
  logname = confp->logname;
  confp->logname = NULL;
 */
+ confp->logfunc = lognone;
  logformat = confp->logformat;
  confp->logformat = NULL;
  confp->rotate = 0;
  confp->logtype = NONE;
+ confp->logtime = confp->time = 0;
 
  archiverc = confp->archiverc;
  confp->archiverc = 0;
@@ -1801,8 +1803,6 @@ void freeconf(struct extparam *confp){
  numservers = 0;
  acl = confp->acl;
  confp->acl = NULL;
- confp->logtime = confp->time = 0;
- confp->logfunc = lognone;
 
  usleep(SLEEPTIME);
 
