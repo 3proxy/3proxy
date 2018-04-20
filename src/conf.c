@@ -301,7 +301,6 @@ static int h_log(int argc, unsigned char ** argv){
 
 
 	havelog = 1;
-	conf.logfunc = logstdout;
 	if(argc > 1 && conf.logtarget && *argv[1]!= '&' && *argv[1]!= '@' && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
 		return 0;
 	}
@@ -336,28 +335,23 @@ static int h_log(int argc, unsigned char ** argv){
 		}
 #endif
 		else {
-			FILE *fp;
 			if(argc > 2) {
 				conf.logtype = getrotate(*argv[2]);
 			}
 			conf.logtime = time(0);
 			if(conf.logname)myfree(conf.logname);
 			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
-			fp = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
-			if(!fp){
+			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a", conf.stdlog);
+			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
+			if(!conf.stdlog){
 				perror((char *)tmpbuf);
 				return 1;
 			}
-			else {
-				if(conf.stdlog)fclose(conf.stdlog);
-				conf.stdlog = fp;
-#ifdef _WINCE
-				freopen(tmpbuf, "w", stdout);
-				freopen(tmpbuf, "w", stderr);
-#endif
-			}
+			conf.logfunc = logstdout;
+
 		}
 	}
+	else conf.logfunc = logstdout;
 	return 0;
 }
 
@@ -464,8 +458,9 @@ static int h_rotate(int argc, unsigned char **argv){
 }
 
 static int h_logformat(int argc, unsigned char **argv){
-	if(conf.logformat) myfree(conf.logformat);
+	unsigned char * old = conf.logformat;
 	conf.logformat = (unsigned char *)mystrdup((char *)argv[1]);
+	if(old) myfree(old);
 	return 0;
 }
 
@@ -1807,6 +1802,7 @@ void freeconf(struct extparam *confp){
  acl = confp->acl;
  confp->acl = NULL;
  confp->logtime = confp->time = 0;
+ confp->logfunc = lognone;
 
  usleep(SLEEPTIME);
 

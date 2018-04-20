@@ -271,16 +271,8 @@ void cyclestep(void){
 	}
 	if(conf.logname) {
 		if(timechanged(conf.logtime, conf.time, conf.logtype)) {
-			FILE *fp;
-			fp = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a");
-			if (fp) {
-				pthread_mutex_lock(&log_mutex);
-				fclose(conf.stdlog);
-				conf.stdlog = fp;
-				pthread_mutex_unlock(&log_mutex);
-			}
-			fseek(stdout, 0L, SEEK_END);
-			usleep(SLEEPTIME);
+			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a", conf.stdlog);
+			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a");
 			conf.logtime = conf.time;
 			if(conf.logtype != NONE && conf.rotate) {
 				int t;

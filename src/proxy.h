@@ -136,6 +136,8 @@ void daemonize(void);
 
 #define MAXRADIUS 5
 
+#define DEFLOGFORMAT "G%y%m%d%H%M%S.%. %p %E %U %C:%c %R:%r %O %I %h %T"
+
 extern RESOLVFUNC resolvfunc;
 
 extern int wday;

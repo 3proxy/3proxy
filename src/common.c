@@ -614,8 +614,7 @@ int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *
 	time(&t);
 	if(!param) return 0;
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
-	format = (char *)param->srv->logformat;
-	if(!format) format = "G%y%m%d%H%M%S.%. %p %E %U %C:%c %R:%r %O %I %h %T";
+	format = param->srv->logformat?(char *)param->srv->logformat : DEFLOGFORMAT;
 	tm = (*format == 'G' || *format == 'g')?
 		gmtime(&t) : localtime(&t);
 	i = dobuf2(param, buf, s, doublec, tm, format + 1);
