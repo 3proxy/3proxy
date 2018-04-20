@@ -622,27 +622,24 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	clearstat(param);
 }
-unsigned char tmpbuf[8192];
 
 void logstdout(struct clientparam * param, const unsigned char *s) {
 	FILE *log;
+	unsigned char tmpbuf[8192];
 
-	pthread_mutex_lock(&log_mutex);
 	dobuf(param, tmpbuf, s, NULL);
 	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
 	if(!param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
 		perror("printf()");
 	};
 	if(log != conf.stdlog)fflush(log);
-	pthread_mutex_unlock(&log_mutex);
 }
 #ifndef _WIN32
 void logsyslog(struct clientparam * param, const unsigned char *s) {
 
-	pthread_mutex_lock(&log_mutex);
+	unsigned char tmpbuf[8192];
 	dobuf(param, tmpbuf, s, NULL);
 	if(!param->nolog)syslog(LOG_INFO, "%s", tmpbuf);
-	pthread_mutex_unlock(&log_mutex);
 }
 #endif
 
