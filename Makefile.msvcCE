@@ -8,7 +8,7 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /DARM /D "NOODBC" /nologo /MT /W3 /Wp64 /Ox /GS /EHs- /GA /GF /D "MSVC" /D "_WINCE" /D "WITH_STD_MALLOC" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /Fp"proxy.pch" /FD /c
+CFLAGS = /DARM /D "NOODBC" /nologo /MT /W3 /Wp64 /Ox /GS /EHs- /GA /GF /D "MSVC" /D "_WINCE" /D "WITH_STD_MALLOC" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c
 COUT = /Fo
 LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no

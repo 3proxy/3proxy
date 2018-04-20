@@ -14,11 +14,9 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifndef NOPSTDINT
-#include "pstdint.h"
-#else
-typedef unsigned long uint64_t
-#define PRINTF_INT64_MODIFIER "l"
+#include <stdint.h>
+#ifndef PRINTF_INT64_MODIFIER
+#define PRINTF_INT64_MODIFIER "ll"
 #endif
 #ifdef  __cplusplus
 extern "C" {
