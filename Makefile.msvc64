@@ -8,7 +8,7 @@
 
 BUILDDIR = ../bin64/
 CC = cl
-CFLAGS = /nologo /MT /W3 /Ox /EHs- /GS /GA /GF /D "MSVC" /D "WITH_STD_MALLOC" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c
+CFLAGS = /nologo /MT /W3 /Ox /EHs- /GS /GA /GF /D "MSVC" /D "WITH_STD_MALLOC" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c $(VERSION) $(BUILDDATE)
 COUT = /Fo
 LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no /machine:x64
@@ -40,7 +40,7 @@ VERFILE = $(VERFILE)
 include Makefile.inc
 
 ../3proxy.res:
-	rc /fo../3proxy.res ../3proxy.rc
+	rc /fo../3proxy.res ../3proxy.rc $(VERSION) $(BUILDDATE)
 
 3proxyres.obj: ../3proxy.res
 	cvtres /out:3proxyres.obj /machine:x64 ../3proxy.res

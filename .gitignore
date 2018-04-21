@@ -23,6 +23,7 @@ tmp/
 *.err
 res
 version.c
+version
 3proxy.res
 
 src/3proxy
