@@ -7,7 +7,7 @@
 # remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
-BUILDDIR =
+BUILDDIR = ../bin/
 CC = gcc
 
 # you may need -L/usr/pkg/lib for older NetBSD versions

@@ -7,7 +7,7 @@
 # remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
-BUILDDIR =
+BUILDDIR = ../bin/
 CC ?= gcc
 
 CFLAGS = -c -O -fno-strict-aliasing -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL

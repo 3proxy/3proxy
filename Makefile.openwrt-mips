@@ -7,7 +7,7 @@
 # remove -DNOODBC from CFLAGS and add -lodbc to LIBS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
-BUILDDIR =
+BUILDDIR = ../bin/
 CC = mips-openwrt-linux-gcc
 
 CFLAGS = -g -O2 -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
