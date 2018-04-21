@@ -500,6 +500,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #else
 	fprintf(stderr,	"\n if conffile is missing, configuration is expected from stdin\n");
 #endif
+	fprintf(stderr, "available socket options:\n\t%s\n", printopts("\n\t"));
 	fprintf(stderr, "\n%s %s\n%s\n", conf.stringtable[2], conf.stringtable[3], copyright);
 
 	return 1;

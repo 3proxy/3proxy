@@ -104,6 +104,15 @@ struct socketoptions sockopts[] = {
 	{0, NULL}
 };
 
+char optsbuf[1024];
+
+char * printopts(char *sep){
+	int i=0, pos=0;
+	for(; sockopts[i].optname; i++)pos += sprintf(optsbuf+pos,"%s%s",i?sep:"",sockopts[i].optname);
+	return optsbuf;
+}
+
+
 int getopts(const char *s){
 	int i=0, ret=0;
 	for(; sockopts[i].optname; i++)if(strstr(s,sockopts[i].optname)) ret |= (1<<i);
@@ -196,47 +205,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -b(BUFSIZE) size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
 	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
-	" -ocOPTIONS, -osOPTIONS, -olOPTIONS - options for client (oc), server (os) or listening (ol) socket,"
-	" where possible options are: "
-#ifdef TCP_NODELAY
-	"TCP_NODELAY "
-#endif
-#ifdef TCP_CORK
-	"TCP_CORK "
-#endif
-#ifdef TCP_DEFER_ACCEPT
-	"TCP_DEFER_ACCEPT "
-#endif
-#ifdef TCP_QUICKACK
-	"TCP_QUICKACK "
-#endif
-#ifdef TCP_TIMESTAMPS
-	"TCP_TIMESTAMPS "
-#endif
-#ifdef USE_TCP_FASTOPEN
-	"USE_TCP_FASTOPEN "
-#endif
-#ifdef SO_REUSEADDR
-	"SO_REUSEADDR "
-#endif
-#ifdef SO_REUSEPORT
-	"SO_REUSEPORT "
-#endif
-#ifdef SO_PORT_SCALABILITY
-	"SO_PORT_SCALABILITY "
-#endif
-#ifdef SO_REUSE_UNICASTPORT
-	"SO_REUSE_UNICASTPORT "
-#endif
-#ifdef SO_KEEPALIVE
-	"SO_KEEPALIVE "
-#endif
-#ifdef SO_DONTROUTE
-	"SO_DONTROUTE "
-#endif
-#ifdef IP_TRANSPARENT
-	"IP_TRANSPARENT"
-#endif
 	"\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
@@ -245,7 +213,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -4 Use IPv4 for outgoing connections\n"
 	" -6 Use IPv6 for outgoing connections\n"
 	" -46 Prefer IPv4 for outgoing connections, use both IPv4 and IPv6\n"
-	" -64 Prefer IPv6 for outgoing connections, use both IPv4 and IPv6\n";
+	" -64 Prefer IPv6 for outgoing connections, use both IPv4 and IPv6\n"
+	" -ocOPTIONS, -osOPTIONS, -olOPTIONS - options for client (oc), server (os) or listening (ol) socket,"
+	" where possible options are: ";
 
 #ifdef _WIN32
  unsigned long ul = 1;
@@ -462,16 +432,15 @@ int MODULEMAINFUNC (int argc, char** argv){
 		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options\n"
 			"Available options are:\n"
-			"%s"
+			"%s\n"
+			"\t%s\n"
 			" -pPORT - service port to accept connections\n"
-			" -RIP:PORT - connect back IP:PORT to listen and accept connections\n"
-			" -rIP:PORT - connect back IP:PORT to establish connect back connection\n"
 			"%s"
 			"\tExample: %s -i127.0.0.1\n\n"
 			"%s", 
 			argv[0], 
 			conf.stringtable?conf.stringtable[3]: VERSION " (" BUILDDATE ")",
-			argv[0], loghelp, childdef.helpmessage, argv[0],
+			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
 #else
@@ -497,15 +466,14 @@ int MODULEMAINFUNC (int argc, char** argv){
 			" [-e<external_ip>] <port_to_bind>"
 			" <target_hostname> <target_port>\n"
 			"Available options are:\n"
-			" -RIP:PORT - connect back IP:PORT to listen and accept connections\n"
-			" -rIP:PORT - connect back IP:PORT to establish connect back connection\n"
-			"%s"
+			"%s\n"
+			"\t%s\n"
 			"%s"
 			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
 			"%s", 
 			argv[0],
 			conf.stringtable?conf.stringtable[3]: VERSION " (" BUILDDATE ")",
-			argv[0], loghelp, childdef.helpmessage, argv[0],
+			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
 #else
