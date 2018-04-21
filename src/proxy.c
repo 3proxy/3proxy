@@ -802,9 +802,13 @@ for(;;){
 
  if(isconnect && param->redirtype != R_HTTP) {
 	socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
-	if(param->redirectfunc) return (*param->redirectfunc)(param);
+	if(param->redirectfunc) {
+		 if(req)myfree(req);
+		 if(buf)myfree(buf);
+
+		return (*param->redirectfunc)(param);
+	}
 	param->res =  mapsocket(param, conf.timeouts[CONNECTION_L]);
-	if(param->redirectfunc) return (*param->redirectfunc)(param);
 	RETURN(param->res);
  }
 
@@ -813,6 +817,10 @@ for(;;){
  }
 
  else {
+#ifdef TCP_CORK
+	int opt = 1;
+	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+#endif
 	 redirect = 1;
 	 res = (int)strlen((char *)req);
 	 if(socksend(param->remsock, req , res, conf.timeouts[STRING_L]) != res) {
@@ -860,6 +868,12 @@ for(;;){
  if ((res = socksend(param->remsock, buf+reqlen, (int)strlen((char *)buf+reqlen), conf.timeouts[STRING_S])) != (int)strlen((char *)buf+reqlen)) {
 	RETURN(518);
  }
+#ifdef TCP_CORK
+ {
+	int opt = 0;
+	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+ }
+#endif
  param->statscli64 += res;
  param->nwrites++;
  if(param->bandlimfunc) {
