@@ -116,12 +116,20 @@ int splicemap(struct clientparam * param, int timeo){
     if(res < 1){
 	RETURN(92);
     }
-    if( (fds[0].revents & (POLLERR|POLLHUP|POLLNVAL)) && !(fds[0].revents & POLLIN)) {
+    if( (fds[0].revents & (POLLERR|POLLNVAL
+#ifndef WITH_WSAPOLL
+		|POLLHUP
+#endif
+			)) && !(fds[0].revents & POLLIN)) {
 	fds[0].revents = 0;
 	stop = 1;
 	param->res = 90;
     }
-    if( (fds[1].revents & (POLLERR|POLLHUP|POLLNVAL)) && !(fds[1].revents & POLLIN)){
+    if( (fds[1].revents & (POLLERR|POLLNVAL
+#ifndef WITH_WSAPOLL
+		|POLLHUP
+#endif
+			)) && !(fds[1].revents & POLLIN)){
 	fds[1].revents = 0;
 	stop = 1;
 	param->res = 90;
@@ -402,12 +410,20 @@ int sockmap(struct clientparam * param, int timeo){
 	if(res < 1){
 		return 92;
 	}
-	if( (fds[0].revents & (POLLERR|POLLHUP|POLLNVAL)) && !(fds[0].revents & POLLIN)) {
+	if( (fds[0].revents & (POLLERR|POLLNVAL
+#ifndef WITH_WSAPOLL
+					|POLLHUP
+#endif
+						)) && !(fds[0].revents & POLLIN)) {
 		fds[0].revents = 0;
 		stop = 1;
 		retcode = 90;
 	}
-	if( (fds[1].revents & (POLLERR|POLLHUP|POLLNVAL)) && !(fds[1].revents & POLLIN)){
+	if( (fds[1].revents & (POLLERR|POLLNVAL
+#ifndef WITH_WSAPOLL
+					|POLLHUP
+#endif
+						)) && !(fds[1].revents & POLLIN)){
 		fds[1].revents = 0;
 		stop = 1;
 		retcode = 90;
@@ -460,7 +476,11 @@ int sockmap(struct clientparam * param, int timeo){
 			return (99);
 		}
 	}
-	if ((fds[0].revents & POLLIN)) {
+	if ((fds[0].revents & POLLIN)
+#ifdef WITH_WSAPOLL
+		||(fds[0].revents & POLLHUP)
+#endif
+					) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "recv from client");
 #endif
@@ -488,7 +508,11 @@ int sockmap(struct clientparam * param, int timeo){
 
 		}
 	}
-	if (!stop && (fds[1].revents & POLLIN)) {
+	if (!stop && ((fds[1].revents & POLLIN)
+#ifdef WITH_WSAPOLL
+		||(fds[1].revents & POLLHUP)
+#endif
+						)) {
 #ifdef NOIPV6
 		struct sockaddr_in sin;
 #else

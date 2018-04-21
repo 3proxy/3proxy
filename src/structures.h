@@ -51,6 +51,11 @@ extern "C" {
 #ifdef WITH_POLL
 #include <poll.h>
 #else
+#ifdef WITH_WSAPOLL
+
+#define poll(A,B,C) WSAPoll(A,B,C)
+
+#else
 struct mypollfd {
  SOCKET    fd;       /* file descriptor */
  short  events;   /* events to look for */
@@ -80,7 +85,7 @@ int
 #ifndef POLLNVAL
 #define POLLNVAL 32
 #endif
-
+#endif
 #endif
 
 

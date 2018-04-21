@@ -122,6 +122,7 @@ int myrand(void * entropy, int len){
 }
 
 #ifndef WITH_POLL
+#ifndef WITH_WSAPOLL
 int  
 #ifdef _WIN32
  WINAPI
@@ -157,6 +158,7 @@ int
 	return num;
 }
 #endif
+#endif
 
 struct sockfuncs so = {
 	socket,
@@ -168,10 +170,14 @@ struct sockfuncs so = {
 	getsockname,
 	getsockopt,
 	setsockopt,
-#ifdef WITH_POLL
-	poll,
-#else
+#ifndef WITH_POLL
+#ifndef WITH_WSAPOLL
 	mypoll,
+#else
+	WSAPoll,
+#endif
+#else
+	poll,
 #endif
 	(void *)send,
 	(void *)sendto,
