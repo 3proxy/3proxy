@@ -302,6 +302,7 @@ static int h_log(int argc, unsigned char ** argv){
 
 	havelog = 1;
 	if(argc > 1 && conf.logtarget && *argv[1]!= '&' && *argv[1]!= '@' && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
+		conf.logfunc = logstdout;
 		return 0;
 	}
 	if(conf.logtarget){
@@ -773,7 +774,7 @@ static int h_nolog(int argc, unsigned char **argv){
 		return(1);
 	}
 	while(acl->next) acl = acl->next;
-	if(!strcmp((char *)argv[0],"nolog")) acl->nolog = 1;
+	if(argc == 1) acl->nolog = 1;
 	else acl->weight = atoi((char*)argv[1]);
 	return 0;
 }
