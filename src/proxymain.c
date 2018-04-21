@@ -802,7 +802,6 @@ int MODULEMAINFUNC (int argc, char** argv){
  }
 
  if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
- if(fp) fclose(fp);
 
  srvfree(&srv);
 
@@ -820,6 +819,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  if(defparam.hostname)myfree(defparam.hostname);
  if(cbc_string)myfree(cbc_string);
  if(cbl_string)myfree(cbl_string);
+ if(fp) fclose(fp);
 
  return 0;
 }
