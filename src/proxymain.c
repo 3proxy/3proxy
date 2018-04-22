@@ -439,7 +439,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			"\tExample: %s -i127.0.0.1\n\n"
 			"%s", 
 			argv[0], 
-			conf.stringtable?conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
 			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
@@ -472,7 +472,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
 			"%s", 
 			argv[0],
-			conf.stringtable?conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
 			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
