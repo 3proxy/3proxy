@@ -225,7 +225,7 @@ BinInstall()
 	local binlist
 	local liblist
 	
-	cd src
+	cd bin
 	
 	binlist=`ls -l --time-style="+%d.%m.%Y %H:%m" | awk '$1 ~ /x$/ && $1 ~ /^[^d]/ && $8 !~ /\.so$/ { print $8 }'`
 	

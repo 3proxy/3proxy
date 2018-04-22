@@ -49,14 +49,14 @@ man_prefix	= $(prefix)/share
 INSTALL		= /usr/bin/install
 INSTALL_BIN	= $(INSTALL) -m 755
 INSTALL_DATA	= $(INSTALL) -m 644
-INSTALL_OBJS	= src/3proxy \
-		  src/ftppr \
-		  src/mycrypt \
-		  src/pop3p \
-		  src/proxy \
-		  src/socks \
-		  src/tcppm \
-		  src/udppm
+INSTALL_OBJS	= bin/3proxy \
+		  bin/ftppr \
+		  bin/mycrypt \
+		  bin/pop3p \
+		  bin/proxy \
+		  bin/socks \
+		  bin/tcppm \
+		  bin/udppm
 		  
 
 INSTALL_CFG_OBJS = scripts/3proxy.cfg \
