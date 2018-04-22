@@ -71,7 +71,7 @@ int splicemap(struct clientparam * param, int timeo){
 		needcontinue = 0;
 		tosend = param->waitclient64;
 	}
-	if(socksend(param->srvsock, param->clibuf + param->clioffset, tosend, conf.timeouts[STRING_S]) != tosend){
+	if(socksend(param->remsock, param->clibuf + param->clioffset, tosend, conf.timeouts[STRING_S]) != tosend){
 		return 97;
 	}
 	if(param->waitclient64) param->waitclient64 -= tosend;
