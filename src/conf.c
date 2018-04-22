@@ -724,7 +724,6 @@ static int h_parent(int argc, unsigned char **argv){
 	else if(!strcmp((char *)argv[2], "pop3"))chains->type = R_POP3;
 	else if(!strcmp((char *)argv[2], "ftp"))chains->type = R_FTP;
 	else if(!strcmp((char *)argv[2], "admin"))chains->type = R_ADMIN;
-	else if(!strcmp((char *)argv[2], "icq"))chains->type = R_ICQ;
 	else if(!strcmp((char *)argv[2], "extip"))chains->type = R_EXTIP;
 	else if(!strcmp((char *)argv[2], "smtp"))chains->type = R_SMTP;
 	else {
@@ -998,9 +997,6 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				else if(!strcmp((char *)arg, "DNSRESOLVE")){
 					acl->operation |= DNSRESOLVE;
-				}
-				else if(!strcmp((char *)arg, "ICQ")){
-					acl->operation |= IM_ICQ;
 				}
 				else {
 					fprintf(stderr, "Unknown operation type: %s line %d\n", arg, linenum);

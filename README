@@ -28,13 +28,12 @@ Please read doc/html/index.html and man pages.
 	+ SOCKSv5 Proxy
 	+ SOCKSv5 UDP and BIND support (fully compatible with
 	  SocksCAP/FreeCAP for UDP)
-	+ Transparent SOCKS redirection for HTTP, POP3, FTP, SMTP, ICQ
+	+ Transparent SOCKS redirection for HTTP, POP3, FTP, SMTP
 	+ POP3 Proxy
 	+ FTP proxy
 	+ TCP port mapper (port forwarding)
 	+ UDP port mapper (port forwarding)
 	+ SMTP proxy
-	+ ICQ/AOL proxy
 	+ Threaded application (no child process).
 	+ Web administration and statistics
 	+ Plugins for functionality extension
@@ -151,9 +150,6 @@ smtpp    	SMTP proxy server, binds to port 25. You must specify
 		Exmple: in Username configuration for you e-mail reader
 		set someuser@mail.somehost.ru, to send mail as someuser
 		via mail.somehost.ru via proxy.
-icqpr    	ICQ/AIM proxy. Maps some TCP port to TCP port of ICQ
-		server and performs packets translation. Example:
-		icqpr 5190 login.icq.com 5190
 tcppm    	TCP port mapping. Maps some TCP port on local machine to
 		TCP port on remote host.
 udppm    	UDP port mapping. Maps some UDP port on local machine to

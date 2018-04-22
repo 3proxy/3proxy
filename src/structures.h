@@ -119,8 +119,6 @@ int
 #define FTP_DATA	0x00080000
 #define FTP		0x000F0000
 #define DNSRESOLVE	0x00100000
-#define IM_ICQ		0x00200000
-#define IM_MSN		0x00400000
 #define ADMIN		0x01000000
 
 
@@ -260,7 +258,6 @@ typedef enum {
 	R_SOCKS4B,
 	R_SOCKS5B,
 	R_ADMIN,
-	R_ICQ,
 	R_EXTIP
 } REDIRTYPE;
 
