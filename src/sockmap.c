@@ -56,12 +56,12 @@ int splicemap(struct clientparam * param, int timeo){
 	if(socksend(param->clisock, param->srvbuf + param->srvoffset, tosend, conf.timeouts[STRING_S]) != tosend){
 		return 96;
 	}
-	if(param->waitserver64) param->waitserver64 -= tosend;
 	if(!needcontinue){
 		param->srvoffset += tosend;
-		param->srvinbuf -= tosend;
-		return 0;
+		if(param->srvoffset == param->srvinbuf) param->srvoffset = param->srvinbuf = 0;
+		return 98;
 	}
+	received += tosend;
 	param->srvoffset = param->srvinbuf = 0;
  }
  tosend = param->cliinbuf - param->clioffset;
@@ -74,20 +74,23 @@ int splicemap(struct clientparam * param, int timeo){
 	if(socksend(param->remsock, param->clibuf + param->clioffset, tosend, conf.timeouts[STRING_S]) != tosend){
 		return 97;
 	}
-	if(param->waitclient64) param->waitclient64 -= tosend;
 	if(!needcontinue){
 		param->clioffset += tosend;
-		param->cliinbuf -= tosend;
-		return 0;
+		if(param->clioffset == param->cliinbuf) param->clioffset = param->cliinbuf = 0;
+		return 99;
 	}
-	param->srvoffset = param->srvinbuf = 0;
+	sent += tosend;
+	param->clioffset = param->cliinbuf = 0;
  }
 
  if(!param->waitserver64 && !param->waitclient64){
 	myfree(param->srvbuf);
 	param->srvbuf = NULL;
-	myfree(param->srvbuf);
-	param->srvbuf = NULL;
+	param->srvbufsize = 0;
+	myfree(param->clibuf);
+	param->clibuf = NULL;
+	param->clibufsize = 0;
+	param->srvinbuf = param->srvoffset = param->cliinbuf = param->clioffset = 0;
  }
 
  param->res = 0;
