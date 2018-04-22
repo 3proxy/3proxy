@@ -324,7 +324,7 @@ extern struct datatype datatypes[64];
 extern struct commands commandhandlers[];
 
 #ifdef WITHSPLICE
-#define mapsocket(a,b) (a->srv->usesplice?splicemap(a,b):sockmap(a,b))
+#define mapsocket(a,b) (a->srv->usesplice && !a->ndatfilterssrv && !a->ndatfilterscli && !a->npredatfilters?splicemap(a,b):sockmap(a,b))
 #else
 #define mapsocket(a,b) sockmap(a,b)
 #endif

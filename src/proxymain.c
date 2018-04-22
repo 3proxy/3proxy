@@ -395,7 +395,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 				srv.singlepacket = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
 			else
-				srv.usesplice = 1 + atoi(argv[i]+2);
+				if(*(argv[i]+2)) srv.usesplice = atoi(argv[i]+2);
 #endif
 			break;
 		 case 'o':
@@ -850,6 +850,9 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->srv = srv;
  param->version = srv->version;
  param->paused = srv->paused;
+#ifdef WITHSPLICE
+ param->usesplice = 1;
+#endif
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
