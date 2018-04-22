@@ -846,13 +846,13 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->logdumpcli = conf.logdumpcli;
  srv->cbsock = INVALID_SOCKET; 
  srv->needuser = 1;
+#ifdef WITHSPLICE
+ srv->usesplice = 1;
+#endif
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->version = srv->version;
  param->paused = srv->paused;
-#ifdef WITHSPLICE
- param->usesplice = 1;
-#endif
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
