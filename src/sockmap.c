@@ -44,7 +44,7 @@ int splicemap(struct clientparam * param, int timeo){
 
 
 
- if(param->srv->usesplice > 1 && !param->waitserver64 && !param->waitclient64){
+ if(!param->waitserver64 && !param->waitclient64){
 	if(param->clioffset == param->cliinbuf){
 	    param->clioffset = param->cliinbuf = 0;
 	    if(param->clibuf){
