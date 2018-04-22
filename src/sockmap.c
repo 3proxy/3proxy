@@ -30,6 +30,7 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 
 #define MAXSPLICE 65536
 
+
 int splicemap(struct clientparam * param, int timeo){
  struct pollfd fds[2];
  int pipesrv[2] = {-1,-1};
@@ -41,25 +42,54 @@ int splicemap(struct clientparam * param, int timeo){
  int insrvpipe = 0, inclipipe = 0;
  int rfromserver = 0, rfromclient = 0;
  int sleeptime = 0;
+ int needcontinue;
+ int tosend;
 
 
+ tosend = param->srvinbuf - param->srvoffset;
+ if(!param->waitclient64 && tosend){
+	needcontinue = 1;
+	if(param->waitserver64 && param->waitserver64 <= tosend){
+		needcontinue = 0;
+		tosend = param->waitserver64;
+	}
+	if(socksend(param->clisock, param->srvbuf + param->srvoffset, tosend, conf.timeouts[STRING_S]) != tosend){
+		return 96;
+	}
+	if(param->waitserver64) param->waitserver64 -= tosend;
+	if(!needcontinue){
+		param->srvoffset += tosend;
+		param->srvinbuf -= tosend;
+		return 0;
+	}
+	param->srvoffset = param->srvinbuf = 0;
+ }
+ tosend = param->cliinbuf - param->clioffset;
+ if(!param->waitserver64 && tosend){
+	needcontinue = 1;
+	if(param->waitclient64 && param->waitclient64 <= tosend){
+		needcontinue = 0;
+		tosend = param->waitclient64;
+	}
+	if(socksend(param->srvsock, param->clibuf + param->clioffset, tosend, conf.timeouts[STRING_S]) != tosend){
+		return 97;
+	}
+	if(param->waitclient64) param->waitclient64 -= tosend;
+	if(!needcontinue){
+		param->clioffset += tosend;
+		param->cliinbuf -= tosend;
+		return 0;
+	}
+	param->srvoffset = param->srvinbuf = 0;
+ }
 
  if(!param->waitserver64 && !param->waitclient64){
-	if(param->clioffset == param->cliinbuf){
-	    param->clioffset = param->cliinbuf = 0;
-	    if(param->clibuf){
-		myfree(param->clibuf);
-		param->clibuf = NULL;
-	    }
-	}
-	if(param->srvoffset == param->srvinbuf){
-	    param->srvoffset = param->srvinbuf = 0;
-	    if(param->srvbuf){
-		myfree(param->srvbuf);
-		param->srvbuf = NULL;
-	    }
-	}
+	myfree(param->srvbuf);
+	param->srvbuf = NULL;
+	myfree(param->srvbuf);
+	param->srvbuf = NULL;
  }
+
  param->res = 0;
  if(pipe(pipecli) < 0) RETURN(21);
  if(pipe(pipesrv) < 0) RETURN(21);
@@ -76,30 +106,28 @@ int splicemap(struct clientparam * param, int timeo){
 #endif
     fds[0].events = fds[1].events = 0;
 
-    if((srvstate || param->srvinbuf > param->srvoffset) && !param->waitclient64){
+    if(srvstate && !param->waitclient64){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will send to client");
 #endif
 	fds[0].events |= POLLOUT;
     }
     rfromserver = MAXSPLICE;
-    if(param->srvinbuf > param->srvoffset) rfromserver = 0;
-    else if(param->waitserver64) rfromserver = MIN(MAXSPLICE, param->waitserver64 - (received + insrvpipe));
+    if(param->waitserver64) rfromserver = MIN(MAXSPLICE, param->waitserver64 - (received + insrvpipe));
     if(srvstate < 2 && rfromserver > 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will recv from server");
 #endif
 	fds[1].events |= POLLIN;
     }
-    if((clistate || param->cliinbuf > param->clioffset)&& !param->waitserver64){
+    if(clistate && !param->waitserver64){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will send to server");
 #endif
 	fds[1].events |= POLLOUT;
     }
     rfromclient = MAXSPLICE;
-    if(param->cliinbuf > param->clioffset) rfromclient = 0;
-    else if(param->waitclient64) rfromclient = MIN(MAXSPLICE, param->waitclient64 - (sent + inclipipe));
+    if(param->waitclient64) rfromclient = MIN(MAXSPLICE, param->waitclient64 - (sent + inclipipe));
     if(clistate < 2 && rfromclient > 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice :will recv from client");
@@ -127,18 +155,10 @@ int splicemap(struct clientparam * param, int timeo){
 	param->res = 90;
     }
     if((fds[0].revents & POLLOUT)){
-	if (param->srvinbuf > param->srvoffset) {
-#if DEBUGLEVEL > 2
-(*param->srv->logfunc)(param, "splice: non-spliced send to client");
-#endif
-	    res = so._sendto(param->clisock, (char *)param->srvbuf + param->srvoffset,(!param->waitserver64 || (param->waitserver64 - received) > (param->srvinbuf - param->srvoffset))? param->srvinbuf - param->srvoffset : (int)(param->waitserver64 - received), 0, (struct sockaddr*)&param->sincr, sasize);
-	}
-	else {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: spliced send to client");
 #endif
-	    res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
-	}
+	res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 	if(res < 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: send to client error");
@@ -148,16 +168,7 @@ int splicemap(struct clientparam * param, int timeo){
 	    continue;
 	}
 	if(res){
-	    if (param->srvinbuf > param->srvoffset){
-		param->srvinbuf = param->srvoffset = 0;
-		if(param->srv->usesplice > 1 && !param->waitclient64 && !param->waitserver64){
-		    if(param->srvbuf){
-			myfree(param->srvbuf);
-			param->srvbuf = NULL;
-		    }
-		}
-	    }
-	    else insrvpipe -= res;
+	    insrvpipe -= res;
 	    received += res;
 
 	    if(param->bandlimfunc) {
@@ -171,18 +182,10 @@ int splicemap(struct clientparam * param, int timeo){
 	}
     }
     if((fds[1].revents & POLLOUT)){
-	if(param->cliinbuf > param->clioffset){
-#if DEBUGLEVEL > 2
-(*param->srv->logfunc)(param, "splice: non-spliced send to server");
-#endif
-	    res = so._sendto(param->remsock, (char *)param->clibuf + param->clioffset, (!param->waitclient64 || (param->waitclient64 - sent) > (param->cliinbuf - param->clioffset))? param->cliinbuf - param->clioffset : (int)(param->waitclient64 - sent), 0, (struct sockaddr*)&param->sinsr, sasize);
-	}
-	else {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: spliced send to server");
 #endif
-	    res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
-	}
+	res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 	if(res < 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: send to server error");
@@ -192,19 +195,7 @@ int splicemap(struct clientparam * param, int timeo){
 	    continue;
 	}
 	if(res){
-	    if(param->cliinbuf > param->clioffset){
-		param->clioffset += res;
-		if(param->clioffset == param->cliinbuf){
-		    param->clioffset = param->cliinbuf = 0;
-		    if(param->srv->usesplice > 1 && !param->waitclient64 && !param->waitserver64){
-			if(param->clibuf){
-			    myfree(param->clibuf);
-			    param->clibuf = NULL;
-			}
-		    }
-		}
-	    }
-	    else inclipipe -= res;
+	    inclipipe -= res;
 	    sent += res;
     	    param->nwrites++;
 	    param->statscli64 += res;
