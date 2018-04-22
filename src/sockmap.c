@@ -110,26 +110,18 @@ int splicemap(struct clientparam * param, int timeo){
     res = so._poll(fds, 2, timeo*1000);
     if(res < 0){
 	if(errno != EAGAIN && errno != EINTR) RETURN(91);
-	if(errno == EINTR) usleep(SLEEPTIME);
+	if(errno == EINTR) so._poll(NULL, 0, 1);
         continue;
     }
     if(res < 1){
 	RETURN(92);
     }
-    if( (fds[0].revents & (POLLERR|POLLNVAL
-#ifndef WITH_WSAPOLL
-		|POLLHUP
-#endif
-			)) && !(fds[0].revents & POLLIN)) {
+    if( (fds[0].revents & (POLLERR|POLLNVAL|POLLHUP)) && !(fds[0].revents & POLLIN)) {
 	fds[0].revents = 0;
 	stop = 1;
 	param->res = 90;
     }
-    if( (fds[1].revents & (POLLERR|POLLNVAL
-#ifndef WITH_WSAPOLL
-		|POLLHUP
-#endif
-			)) && !(fds[1].revents & POLLIN)){
+    if( (fds[1].revents & (POLLERR|POLLNVAL|POLLHUP)) && !(fds[1].revents & POLLIN)){
 	fds[1].revents = 0;
 	stop = 1;
 	param->res = 90;
@@ -145,14 +137,14 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: spliced send to client");
 #endif
-	    res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	    res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 	}
 	if(res < 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: send to client error");
 #endif
 	    if(errno != EAGAIN && errno != EINTR) RETURN(96);
-	    if(errno == EINTR) usleep(SLEEPTIME);
+	    if(errno == EINTR) so._poll(NULL, 0, 1);
 	    continue;
 	}
 	if(res){
@@ -189,14 +181,14 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: spliced send to server");
 #endif
-	    res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	    res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 	}
 	if(res < 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: send to server error");
 #endif
 	    if(errno != EAGAIN && errno != EINTR) RETURN(97);
-	    if(errno == EINTR) usleep(SLEEPTIME);
+	    if(errno == EINTR) so._poll(NULL, 0, 1);
 	    continue;
 	}
 	if(res){
@@ -232,10 +224,10 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: recv from client");
 #endif
-	res = splice(param->clisock, NULL, pipecli[1], NULL, rfromclient, SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	res = splice(param->clisock, NULL, pipecli[1], NULL, rfromclient, SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 	if (res < 0){
 	    if(errno != EAGAIN && errno != EINTR) RETURN(94);
-	    if(errno == EINTR) usleep(SLEEPTIME);
+	    if(errno == EINTR) so._poll(NULL, 0, 1);
 	    continue;
 	}
 	if (res==0) {
@@ -254,10 +246,10 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: recv from server");
 #endif
-	res = splice(param->remsock, NULL, pipesrv[1], NULL, rfromserver, SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_MOVE);
+	res = splice(param->remsock, NULL, pipesrv[1], NULL, rfromserver, SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 	if (res < 0){
 	    if(errno != EAGAIN && errno != EINTR) RETURN(93);
-	    if(errno == EINTR) usleep(SLEEPTIME);
+	    if(errno == EINTR) so._poll(NULL, 0, 1);
 	    continue;
 	}
 	if (res==0) {
@@ -276,7 +268,7 @@ int splicemap(struct clientparam * param, int timeo){
     }
     if(sleeptime > 0) {
 	if(sleeptime > (timeo * 1000)){RETURN (95);}
-	usleep(sleeptime * SLEEPTIME);
+	so._poll(NULL, 0, sleeptime);
 	sleeptime = 0;
     }
  }
