@@ -163,12 +163,8 @@ typedef enum {
 	S_DNSPR,
 	S_FTPPR,
 	S_SMTPP,
-	S_ICQPR,
 	S_REVLI,
 	S_REVCO,
-/*
-	S_MSNPR,
-*/
 	S_ZOMBIE
 }PROXYSERVICE;
 

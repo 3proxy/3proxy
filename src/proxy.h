@@ -300,8 +300,6 @@ void * smtppchild(struct clientparam * param);
 void * proxychild(struct clientparam * param);
 void * sockschild(struct clientparam * param);
 void * tcppmchild(struct clientparam * param);
-void * icqprchild(struct clientparam * param);
-void * msnprchild(struct clientparam * param);
 void * udppmchild(struct clientparam * param);
 void * adminchild(struct clientparam * param);
 void * ftpprchild(struct clientparam * param);

@@ -278,9 +278,6 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					case R_ADMIN:
 						param->redirectfunc = adminchild;
 						break;
-					case R_ICQ:
-						param->redirectfunc = icqprchild;
-						break;
 					case R_SMTP:
 						param->redirectfunc = smtppchild;
 						break;

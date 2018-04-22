@@ -231,22 +231,6 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_TCPPM;
 		childdef.helpmessage = "";
 	}
-	else if(!strcmp((char *)argv[0], "icqpr")) {
-		childdef.pf = icqprchild;
-		childdef.port = 0;
-		childdef.isudp = 0;
-		childdef.service = S_ICQPR;
-		childdef.helpmessage = "";
-	}
-/*
-	else if(!strcmp((char *)argv[0], "msnpr")) {
-		childdef.pf = msnprchild;
-		childdef.port = 0;
-		childdef.isudp = 0;
-		childdef.service = S_MSNPR;
-		childdef.helpmessage = "";
-	}
-*/
 	else if(!strcmp((char *)argv[0], "udppm")) {
 		childdef.pf = udppmchild;
 		childdef.port = 0;
@@ -1552,15 +1536,13 @@ struct commands commandhandlers[]={
 	{commandhandlers+53, "weight", h_nolog, 2, 2},
 	{commandhandlers+54, "authcache", h_authcache, 2, 3},
 	{commandhandlers+55, "smtpp", h_proxy, 1, 0},
-	{commandhandlers+56, "icqpr", h_proxy, 4, 0},
-	{commandhandlers+57, "msnpr", h_proxy, 4, 0},
-	{commandhandlers+58, "delimchar",h_delimchar, 2, 2},
-	{commandhandlers+59, "authnserver", h_authnserver, 2, 2},
-	{commandhandlers+60, "stacksize", h_stacksize, 2, 2},
-	{commandhandlers+61, "force", h_force, 1, 1},
-	{commandhandlers+62, "noforce", h_noforce, 1, 1},
+	{commandhandlers+56, "delimchar",h_delimchar, 2, 2},
+	{commandhandlers+57, "authnserver", h_authnserver, 2, 2},
+	{commandhandlers+58, "stacksize", h_stacksize, 2, 2},
+	{commandhandlers+59, "force", h_force, 1, 1},
+	{commandhandlers+60, "noforce", h_noforce, 1, 1},
 #ifndef NORADIUS
-	{commandhandlers+63, "radius", h_radius, 3, 0},
+	{commandhandlers+61, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };

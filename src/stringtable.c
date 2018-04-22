@@ -28,9 +28,8 @@ unsigned char * strings[] = {
 /* 15 */	(unsigned char *)"DNSPR",
 /* 16 */	(unsigned char *)"FTPPR",
 /* 17 */	(unsigned char *)"SMTPP",
-/* 18 */	(unsigned char *)"ICQPR",
-/* 19 	(unsigned char *)"MSNPR", */
-/* 19 */	(unsigned char *)"ZOMBIE",
+/* 18 */	(unsigned char *)"ZOMBIE",
+/* 19 */	NULL,
 /* 20 */	NULL,
 /* 21 */	NULL,
 /* 22 */	NULL,
