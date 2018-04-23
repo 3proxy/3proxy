@@ -391,7 +391,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			srv.anonymous = 1 + atoi(argv[i]+2);
 			break;
 		case 's':
+#ifdef WITHSPLICE
 			if(isudp)
+#endif
 				srv.singlepacket = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
 			else

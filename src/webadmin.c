@@ -343,7 +343,14 @@ void * adminchild(struct clientparam* param) {
  struct printparam pp;
  int contentlen = 0;
  int isform = 0;
+ int limited = 0;
 
+
+#ifdef WITHSPLICE
+ limited =param->srv->usesplice;
+#else
+ limited =param->srv->singlepacket;
+#endif
  pp.inbuf = 0;
  pp.cp = param;
 
@@ -408,7 +415,7 @@ void * adminchild(struct clientparam* param) {
 	printstr(&pp, authreq);
 	RETURN(res);
  }
- if(param->srv->singlepacket || param->redirected){
+ if(limited || param->redirected){
 	if(*req == 'C') req[1] = 0;
 	else *req = 0;
  }
@@ -423,7 +430,7 @@ void * adminchild(struct clientparam* param) {
 			for(cp = conf.trafcounter; cp; cp = cp->next, num++){
 			 int inbuf = 0;
 
-			 if(cp->ace && (param->srv->singlepacket || param->redirected)){
+			 if(cp->ace && (limited || param->redirected)){
 				if(!ACLmatches(cp->ace, param))continue;
 			 }
 			 if(req[1] == 'S' && atoi(req+2) == num) cp->disabled=0;
