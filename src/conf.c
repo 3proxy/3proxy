@@ -1405,7 +1405,7 @@ static int h_setuid(int argc, unsigned char **argv){
 }
 
 gid_t strtogid(unsigned char *str){
-  gid_t res;
+  gid_t res = 0;
 
 	if(!isnumber(*(char *)str)){
 		struct group *gr;
@@ -1413,6 +1413,7 @@ gid_t strtogid(unsigned char *str){
 		if(gr) res = gr->gr_gid;
 	}
 	else res = atoi((char *)str);
+	return res;
 }
 
 static int h_setgid(int argc, unsigned char **argv){
