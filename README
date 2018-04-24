@@ -126,13 +126,25 @@ Please read doc/html/index.html and man pages.
 		executable or service (supports installation and removal).
 		It uses config file to read it's configuration (see
 		3proxy.cfg.sample for details).
+		3proxy.exe is all-in-one, it doesn't require all others .exe
+		to work.
+		See 3proxy.cfg.sample for examples, see man 3proxy.cfg
+
 		--install installs and starts proxy as Windows service
 		(config file should be located in the same directory)
 		--remove removes the service (should be stopped before via
 		'net stop 3proxy').
-		3proxy.exe is all-in-one, it doesn't require all others .exe
-		to work.
-		See 3proxy.cfg.sample for examples, see man 3proxy.cfg
+
+		To build in Linux install git and build-essential packages, use
+
+		git clone https://github.com/z3apa3a/3proxy
+		cd 3proxy
+		ln -s Makefile.Linux Makefile
+		make
+		make install
+
+		use /etc/3proxy/add3proxyuser.sh script to add users.
+
 proxy    	HTTP proxy server, binds to port 3128
 ftppr    	FTP proxy server, binds to port 21
 socks    	SOCKS 4/5 proxy server, binds to port 1080
