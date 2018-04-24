@@ -8,22 +8,23 @@ Download:
 Archive of old versions: https://github.com/z3APA3A/3proxy-archive
 
 
-		3proxy --install 
+3proxy --install 
 	
 	installs and starts proxy as Windows service
 	(config file should be located in the same directory)
 
-		3proxy --remove 
+3proxy --remove 
+
 	removes the service (should be stopped before via
 	'net stop 3proxy').
 
 	To build in Linux install git and build-essential packages, use
 
-		git clone https://github.com/z3apa3a/3proxy
-		cd 3proxy
-		ln -s Makefile.Linux Makefile
-		make
-		make install
+git clone https://github.com/z3apa3a/3proxy
+cd 3proxy
+ln -s Makefile.Linux Makefile
+make
+make install
 
 	use /etc/3proxy/add3proxyuser.sh script to add users.
 
