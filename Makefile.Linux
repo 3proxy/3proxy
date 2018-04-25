@@ -59,14 +59,15 @@ INSTALL_OBJS	= bin/3proxy \
 		  bin/udppm
 		  
 
+INSTALL_CFG	 = scripts/3proxy.cfg.chroot
 INSTALL_CFG_OBJS = scripts/3proxy.cfg \
 		   scripts/add3proxyuser.sh
-INSTALL_CFG_DEST = 
 
 INSTALL_CFG_OBJS2 = counters bandlimiters
 
 INSTALL_INITD_SCRIPT = scripts/init.d/3proxy.sh
 
+CHROOTDIR	= $(DESTDIR)/usr/local/3proxy
 MANDIR1		= $(DESTDIR)$(man_prefix)/man/man1
 MANDIR3		= $(DESTDIR)$(man_prefix)/man/man3
 MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
@@ -75,7 +76,7 @@ ETCDIR		= $(DESTDIR)$(prefix)/etc/3proxy
 INITDDIR	= $(DESTDIR)$(prefix)/etc/init.d
 RUNDIR	= $(DESTDIR)$(prefix)/var/run/3proxy
 LOGDIR	= $(DESTDIR)$(prefix)/var/log/3proxy
-INSTALL_CFG_DEST = $(ETCDIR)
+INSTALL_CFG_DEST = $(ETCDIR)/conf
 
 install-bin:
 	$(INSTALL_BIN) -d $(BINDIR)
@@ -84,15 +85,24 @@ install-bin:
 install-etc-dir:
 	$(INSTALL_BIN) -d $(ETCDIR)
 
+install-chroot-dir:
+	$(INSTALL_BIN) -d $(CHROOTDIR)
+	$(INSTALL_BIN) -d $(CHROOTDIR)/conf
+	$(INSTALL_BIN) -d $(CHROOTDIR)/logs
+	$(INSTALL_BIN) -d $(CHROOTDIR)/count
+	chmod -R o-rwx $(CHROOTDIR)
+
 install-etc-default-config:
-	if [ ! -f $(ETCDIR)/$(INSTALL_CFG_DEST) ]; then \
+	if [ ! -d $(INSTALL_CFG_DEST) ]; then \
+	   ln -s $(CHROOTDIR)/conf $(INSTALL_CFG_DEST); \
+	   $(INSTALL_BIN) $(INSTALL_CFG) $(ETCDIR)/3proxy.cfg; \
 	   $(INSTALL_BIN) $(INSTALL_CFG_OBJS) $(INSTALL_CFG_DEST); \
 	fi
 
 install-etc: install-etc-dir install-etc-default-config
 	for file in $(INSTALL_CFG_OBJS2); \
 	do \
-	  touch $(ETCDIR)/$$file; chmod 0600 $(ETCDIR)/$$file; \
+	  touch $(INSTALL_CFG_DEST)/$$file; chmod 0600 $(INSTALL_CFG_DEST)/$$file; \
 	done;
 
 install-man:
@@ -114,21 +124,31 @@ install-run:
 	$(INSTALL_BIN) -d $(RUNDIR)
 
 install-log:
-	$(INSTALL_BIN) -d $(LOGDIR)
+	@if [ ! -d $(LOGDIR) ]; then \
+	 ln -s $(CHROOTDIR)/logs $(LOGDIR);\
+	fi
 
-install: install-bin install-etc install-man install-log install-run install-init
+install: install-bin install-chroot-dir install-etc install-log install-man install-run install-init
+	@getent group proxy || addgroup proxy
+	@getent passwd proxy || adduser --disabled-password --disabled-login --no-create-home --shell /bin/false --gecos 3proxy --ingroup proxy proxy
 	@if [ ! -f $(INSTALL_CFG_DEST)/passwd ]; then \
-	touch $(ETCDIR)/passwd; chmod 0600 $(ETCDIR)/passwd; \
+	touch $(INSTALL_CFG_DEST)/passwd;\
 	stty -echo ;\
 	echo "" ;\
 	read -p "Proxy admin password: " password && $(INSTALL_CFG_DEST)/add3proxyuser.sh admin $password ;\
 	stty echo ;\
 	fi
+	@chown -R proxy:proxy $(CHROOTDIR)
+	@chmod 660  $(CHROOTDIR)/conf/*
 	@echo ""
 	@echo 3proxy installed.
 	@echo use
 	@echo "  "$(INSTALL_CFG_DEST)/add3proxyuser.sh
 	@echo to add users
+	@echo ""
+	@echo Default config uses Google DNS.
+	@echo It's recommended to ues provider's DNS or install local recursor, e.g. pdns-recursor.
+	@echo Configure preferred DNS in $(INSTALL_CFG_DEST)/3proxy.cfg.
 	@if [ -f /usr/sbin/service ]; then \
 	 /usr/sbin/service 3proxy stop ;\
 	 /usr/sbin/service 3proxy start ;\

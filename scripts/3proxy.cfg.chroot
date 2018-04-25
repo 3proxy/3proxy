@@ -1,0 +1,5 @@
+#!/bin/3proxy
+daemon
+pidfile /var/run/3proxy/3proxy.pid
+chroot /usr/local/3proxy proxy proxy
+include /conf/3proxy.cfg
