@@ -129,8 +129,7 @@ install-log:
 	fi
 
 install: install-bin install-chroot-dir install-etc install-log install-man install-run install-init
-	@getent group proxy || addgroup proxy
-	@getent passwd proxy || adduser --disabled-password --disabled-login --no-create-home --shell /bin/false --gecos 3proxy --ingroup proxy proxy
+	@getent passwd proxy || useradd -UMr -s /bin/false -c 3proxy proxy
 	@if [ ! -f $(INSTALL_CFG_DEST)/passwd ]; then \
 	touch $(INSTALL_CFG_DEST)/passwd;\
 	stty -echo ;\
