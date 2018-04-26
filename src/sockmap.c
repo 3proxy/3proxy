@@ -74,6 +74,9 @@ int splicemap(struct clientparam * param, int timeo){
 	if(socksend(param->remsock, param->clibuf + param->clioffset, tosend, conf.timeouts[STRING_S]) != tosend){
 		return 97;
 	}
+    	param->nwrites++;
+	param->statscli64 += tosend;
+
 	if(!needcontinue){
 		param->clioffset += tosend;
 		if(param->clioffset == param->cliinbuf) param->clioffset = param->cliinbuf = 0;
