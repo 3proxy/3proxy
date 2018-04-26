@@ -14,6 +14,9 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#ifdef WIN32
+#include <openssl/applink.c>
+#endif
 
 #include "../../proxy.h"
 #include "my_ssl.h"

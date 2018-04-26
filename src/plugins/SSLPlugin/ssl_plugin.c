@@ -12,9 +12,6 @@
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
-#ifdef WIN32
-#include <openssl/applink.c>
-#endif
 #include "../../proxy.h"
 #include "my_ssl.h"
 
