@@ -27,11 +27,15 @@ Each running service require:
 Each connected client require:
 <ul>
 <li>1*thread (process)
-<li>2*socket (file descriptor). For FTP 4 sockets are required.
+<li>2*socket (file descriptor). For FTP 4 sockets are required. 
+<br>Under linux since 0.9 splice() is used. It much more effective, but requires
+<br>2*socket (file descriptor) + 2*pipe (file descriptors) = 4 file descriptors.
+<br>For FTP 4 sockets and 2 pipes are required with splice().
 <br>1 additional socket (file descriptor) during name resolution for non-cached names
 <br>1 additional socket during authentication or logging for RADIUS authentication or logging.
 <li>1*ephemeral port (3*ephemeral ports for FTP connection).
 <li>1 stack memory segment of ~32K-128K depending on the system + at least 16K and up to few MB (for 'proxy' and 'ftppr') of heap memory. If you are short of memory, prefer 'socks' to 'proxy' and 'ftppr'.
+<li>a lot of system buffers, specially in the case of slow network connections.
 </ul>
 Also, additional resources like system buffers are required for network activity.
 <h4>Setting ulimits</h4>
