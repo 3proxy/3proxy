@@ -81,6 +81,8 @@ INSTALL_CFG_DEST = $(ETCDIR)/conf
 install-bin:
 	$(INSTALL_BIN) -d $(BINDIR)
 	$(INSTALL_BIN) -s $(INSTALL_OBJS) $(BINDIR)
+	$(INSTALL_BIN) -s bin/*.ld.so $(CHROOTDIR)/libexec
+	chmod -R a-w $(CHROOTDIR)/libexec
 
 install-etc-dir:
 	$(INSTALL_BIN) -d $(ETCDIR)
@@ -90,6 +92,7 @@ install-chroot-dir:
 	$(INSTALL_BIN) -d $(CHROOTDIR)/conf
 	$(INSTALL_BIN) -d $(CHROOTDIR)/logs
 	$(INSTALL_BIN) -d $(CHROOTDIR)/count
+	$(INSTALL_BIN) -d $(CHROOTDIR)/libexec
 	chmod -R o-rwx $(CHROOTDIR)
 
 install-etc-default-config:
@@ -128,7 +131,7 @@ install-log:
 	 ln -s $(CHROOTDIR)/logs $(LOGDIR);\
 	fi
 
-install: install-bin install-chroot-dir install-etc install-log install-man install-run install-init
+install: install-chroot-dir install-bin install-etc install-log install-man install-run install-init
 	@getent passwd proxy || useradd -UMr -s /bin/false -c 3proxy proxy
 	@if [ ! -f $(INSTALL_CFG_DEST)/passwd ]; then \
 	touch $(INSTALL_CFG_DEST)/passwd;\
@@ -149,8 +152,8 @@ install: install-bin install-chroot-dir install-etc install-log install-man inst
 	@echo "  "$(INSTALL_CFG_DEST)/add3proxyuser.sh
 	@echo to add users
 	@echo ""
-	@echo Default config uses Google DNS.
-	@echo It's recommended to ues provider's DNS or install local recursor, e.g. pdns-recursor.
+	@echo Default config uses Google\'s DNS.
+	@echo It\'s recommended to uss provider supplied DNS or install local recursor, e.g. pdns-recursor.
 	@echo Configure preferred DNS in $(INSTALL_CFG_DEST)/3proxy.cfg.
 	@if [ -f /usr/sbin/service ]; then \
 	 /usr/sbin/service 3proxy stop ;\
