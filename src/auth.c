@@ -53,7 +53,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = ']';
 			}
 			len += sprintf((char *)buf + len,
-				":%hu HTTP/1.0\r\nProxy-Connection: keep-alive\r\n", ntohs(*SAPORT(addr)));
+				":%hu HTTP/1.0\r\nConnection: keep-alive\r\n", ntohs(*SAPORT(addr)));
 			if(user){
 				len += sprintf((char *)buf + len, "Proxy-authorization: basic ");
 				sprintf((char *)username, "%.128s:%.128s", user, pass?pass:(unsigned char *)"");
