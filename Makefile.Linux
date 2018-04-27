@@ -142,6 +142,10 @@ install: install-bin install-chroot-dir install-etc install-log install-man inst
 	@echo ""
 	@echo 3proxy installed.
 	@echo use
+	@echo "  "service 3proxy start
+	@echo to start proxy
+	@echo "  "service 3proxy stop
+	@echo to stop proxy
 	@echo "  "$(INSTALL_CFG_DEST)/add3proxyuser.sh
 	@echo to add users
 	@echo ""
