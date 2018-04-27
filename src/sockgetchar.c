@@ -156,15 +156,11 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec){
 int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to){
  int c;
  int i=0;
- if(bufsize < 1) return 0;
- c = (which)?sockgetcharsrv(param, to, 0):sockgetcharcli(param, to, 0);
- if (c == EOF) {
-	return 0;
- }
- do {
+
+ while(i < bufsize && (c = (which)?sockgetcharsrv(param, to, 0):sockgetcharcli(param, to, 0)) != EOF){
 	buf[i++] = c;
 	if(delim != EOF && c == delim) break;
- }while(i < bufsize && (c = (which)?sockgetcharsrv(param, to, 0):sockgetcharcli(param, to, 0)) != EOF);
+ }
  return i;
 }
 
