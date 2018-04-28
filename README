@@ -24,7 +24,7 @@ git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
 ln -s Makefile.Linux Makefile
 make
-make install
+sudo make install
 
 	use /etc/3proxy/add3proxyuser.sh script to add users.
 
