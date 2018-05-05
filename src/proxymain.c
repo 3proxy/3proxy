@@ -19,9 +19,19 @@ void * threadfunc (void *p) {
  int i = -1;
  if(param->srv->cbsock != INVALID_SOCKET){
 	SASIZETYPE size = sizeof(param->sinsr);
+	struct pollfd fds;
+	fds.fd = param->srv->cbsock;
+	fds.events = POLLIN;
+	fds.revents = 0;
 	for(i=5+(param->srv->maxchild>>10); i; i--){
+		if(poll(&fds, 1, 1000*CONNBACK_TO)!=1){
+			param->srv->logfunc(param, (unsigned char *)"Connect back not received, check connback client");
+			i = 0;
+			break;
+		}
 		param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
+			param->srv->logfunc(param, (unsigned char *)"Connect back accept() failed");
 			continue;
 		}
 #ifndef WITHMAIN
@@ -34,7 +44,7 @@ void * threadfunc (void *p) {
 			continue;
 		}
 #endif
-		if(so._sendto(param->remsock, "C", 1, 0, (struct sockaddr*)&param->sinsr, size) != 1){
+		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, "C", 1, CONNBACK_TO) != 1){
 			param->srv->logfunc(param, (unsigned char *)"Connect back sending command failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
@@ -46,7 +56,6 @@ void * threadfunc (void *p) {
  }
  if(!i){
 	param->res = 13;
-	param->srv->logfunc(param, (unsigned char *)"Connect back accept() repeatedly failed");
 	freeparam(param);
  }
  else {
@@ -676,7 +685,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 					usleep(SLEEPTIME);
 					continue;
 				}
-				if(so._recvfrom(new_sock,(char *)buf,1,0,(struct sockaddr*)&defparam.sincr, &size) != 1) {
+				if(sockrecvfrom(new_sock,(struct sockaddr*)&defparam.sincr,(char *)buf,1,60) != 1 || *buf!='C') {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);
