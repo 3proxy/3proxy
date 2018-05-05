@@ -152,8 +152,9 @@ listen on given local HOST:port for incoming connections instead of making remot
 .B -rHOST:port
 connect to given remote HOST:port instead of listening local connection on -p or default port. Can be used with another 3proxy service running -R option for connect back functionality. Most commonly used with proxy or socks. HOST can be given as IP or hostname, useful in case of dynamic DNS.
 .br
-.B -ocOPTIONS, -osOPTIONS, -olOPTIONS
-options for client (oc), server (os) or listening (ol) socket. Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
+.B -ocOPTIONS, -osOPTIONS, -olOPTIONS, -orOPTIONS, -oROPTIONS
+options for proxy-to-client (oc), proxy-to-server (os), proxy listening (ol), connect back client (or), connect back listening (oR) sockets.
+Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
 .br
 .B -DiINTERFACE, -DeINTERFACE
 bind internal interface / external inteface to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system
@@ -350,9 +351,9 @@ can use %A as produced archive name and %F as filename.
 
 .br
 .B timeouts
-<BYTE_SHORT> <BYTE_LONG> <STRING_SHORT> <STRING_LONG> <CONNECTION_SHORT> <CONNECTION_LONG> <DNS> <CHAIN>
+<BYTE_SHORT> <BYTE_LONG> <STRING_SHORT> <STRING_LONG> <CONNECTION_SHORT> <CONNECTION_LONG> <DNS> <CHAIN> <CONNECT> <CONNECTBACK>
 .br
- Sets timeout values
+ Sets timeout values, defaults 1, 5, 30, 60, 180, 1800, 15, 60, 15, 5.
 .br
   BYTE_SHORT - short timeout for single byte, is usually used for receiving single byte from stream.
 .br

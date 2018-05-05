@@ -418,7 +418,7 @@ struct srvparam {
 	int stacksize;
 	int noforce;
 	int anonymous;
-	int clisockopts, srvsockopts, lissockopts;
+	int clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;
 #ifdef WITHSPLICE
 	int usesplice;
 #endif
@@ -543,7 +543,7 @@ struct filemon {
 
 
 struct extparam {
-	int timeouts[10];
+	int timeouts[12];
 	struct ace * acl;
 	char * conffile;
 	struct bandlim * bandlimiter,  *bandlimiterout;
@@ -774,7 +774,9 @@ typedef enum {
 	CONNECTION_S,
 	CONNECTION_L,
 	DNS_TO,
-	CHAIN_TO
+	CHAIN_TO,
+	CONNECT_TO,
+	CONNBACK_TO
 }TIMEOUT;
 
 typedef enum {

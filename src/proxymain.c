@@ -16,14 +16,12 @@ DWORD WINAPI threadfunc(LPVOID p) {
 #else
 void * threadfunc (void *p) {
 #endif
- int i = 0;
+ int i = -1;
  if(param->srv->cbsock != INVALID_SOCKET){
 	SASIZETYPE size = sizeof(param->sinsr);
-	for(i=0; i<3; i++){
+	for(i=5+(param->srv->maxchild>>10); i; i--){
 		param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
-			param->res = 13;
-			param->srv->logfunc(param, (unsigned char *)"Connect back accept() failed");
 			continue;
 		}
 #ifndef WITHMAIN
@@ -46,7 +44,9 @@ void * threadfunc (void *p) {
 		break;
 	}
  }
- if(i == 3){
+ if(!i){
+	param->res = 13;
+	param->srv->logfunc(param, (unsigned char *)"Connect back accept() repeatedly failed");
 	freeparam(param);
  }
  else {
@@ -214,7 +214,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -6 Use IPv6 for outgoing connections\n"
 	" -46 Prefer IPv4 for outgoing connections, use both IPv4 and IPv6\n"
 	" -64 Prefer IPv6 for outgoing connections, use both IPv4 and IPv6\n"
-	" -ocOPTIONS, -osOPTIONS, -olOPTIONS - options for client (oc), server (os) or listening (ol) socket,"
+	" -ocOPTIONS, -osOPTIONS, -olOPTIONS, -orOPTIONS -oROPTIONS - options for\n"
+	" to-client (oc), to-server (os), listening (ol) socket, connect back client\n"
+	" (or) socket, connect back server (oR) listening socket\n"
 	" where possible options are: ";
 
 #ifdef _WIN32
@@ -401,18 +403,25 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 			break;
 		 case 'o':
-			 if(argv[i][2] == 's'){
+			switch(argv[i][2]){
+			 case 's':
 				srv.srvsockopts = getopts(argv[i]+3);
 				break;
-			 }
-			 else if(argv[i][2] == 'c'){
+			 case 'c':
 				srv.clisockopts = getopts(argv[i]+3);
 				break;
-			 }
-			 else if(argv[i][2] == 'l'){
+			 case 'l':
 				srv.lissockopts = getopts(argv[i]+3);
 				break;
-			 }
+			 case 'r':
+				srv.cbcsockopts = getopts(argv[i]+3);
+				break;
+			 case 'R':
+				srv.cbcsockopts = getopts(argv[i]+3);
+				break;
+			 default:
+				error = 1;
+			}
 		 default:
 			error = 1;
 			break;
@@ -602,6 +611,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	so._setsockopt(srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 
+	setopts(srv.cbsock, srv.cbssockopts);
+
 	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 		(*srv.logfunc)(&defparam, (unsigned char *)"Failed to bind connect back socket");
 		return -7;
@@ -656,8 +667,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(iscbc){
 			new_sock=so._socket(SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
 			if(new_sock != INVALID_SOCKET){
+				setopts(new_sock, srv.cbcsockopts);
+
 				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
-				if(connectwithpoll(new_sock,(struct sockaddr *)&defparam.sincr,SASIZE(&defparam.sincr))) {
+				if(connectwithpoll(new_sock,(struct sockaddr *)&defparam.sincr,SASIZE(&defparam.sincr),CONNBACK_TO)) {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);

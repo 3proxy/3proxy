@@ -65,7 +65,7 @@ char *rotations[] = {
 
 
 struct extparam conf = {
-	{1, 5, 30, 60, 180, 1800, 15, 60, 0, 0},
+	{1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 0, 0},
 	NULL,
 	NULL,
 	NULL, NULL,
@@ -649,7 +649,7 @@ void logsyslog(struct clientparam * param, const unsigned char *s) {
 }
 #endif
 
-int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size){
+int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 		struct pollfd fds[1];
 #ifdef _WIN32
 		unsigned long ul = 1;
@@ -663,7 +663,7 @@ int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size){
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sock;
 	        fds[0].events = POLLOUT;
-		if(so._poll(fds, 1, conf.timeouts[STRING_S]*1000) <= 0) {
+		if(so._poll(fds, 1, to*1000) <= 0) {
 			return (13);
 		}
 		return 0;
@@ -728,7 +728,7 @@ int doconnect(struct clientparam * param){
 	}
 	
 	if(param->operation >= 256 || (param->operation & CONNECT)){
-		if(connectwithpoll(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr))) {
+		if(connectwithpoll(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) {
 			return 13;
 		}
 	}
