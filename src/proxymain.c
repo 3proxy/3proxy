@@ -24,7 +24,7 @@ void * threadfunc (void *p) {
 	fds.events = POLLIN;
 	fds.revents = 0;
 	for(i=5+(param->srv->maxchild>>10); i; i--){
-		if(poll(&fds, 1, 1000*CONNBACK_TO)!=1){
+		if(so._poll(&fds, 1, 1000*CONNBACK_TO)!=1){
 			param->srv->logfunc(param, (unsigned char *)"Connect back not received, check connback client");
 			i = 0;
 			break;
