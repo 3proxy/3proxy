@@ -1315,7 +1315,7 @@ static int h_radius(int argc, unsigned char **argv){
 	memset(radiuslist, 0, sizeof(radiuslist));
 	if(strlen(argv[1]) > 63) argv[1][63] = 0;
 	strcpy(radiussecret, argv[1]);
-	for( ; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
+	for( nradservers=0; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
 		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers].authaddr)) return 1;
 		if(!*SAPORT(&radiuslist[nradservers].authaddr))*SAPORT(&radiuslist[nradservers].authaddr) = htons(1812);
 		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
