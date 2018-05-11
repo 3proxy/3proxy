@@ -103,7 +103,7 @@ int splicemap(struct clientparam * param, int timeo){
  fds[0].fd = param->clisock;
  fds[1].fd = param->remsock;
 
- while(!stop && !conf.timetoexit){
+ while((!stop || (inclipipe && param->remsock != INVALID_SOCKET) || (insrvpipe && param->clisock != INVALID_SOCKET)) && !conf.timetoexit){
 
 #ifdef NOIPV6
     sasize = sizeof(struct sockaddr_in);
@@ -112,7 +112,7 @@ int splicemap(struct clientparam * param, int timeo){
 #endif
     fds[0].events = fds[1].events = 0;
 
-    if(srvstate && !param->waitclient64){
+    if(srvstate && !param->waitclient64 && param->clisock != INVALID_SOCKET){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will send to client");
 #endif
@@ -120,13 +120,13 @@ int splicemap(struct clientparam * param, int timeo){
     }
     rfromserver = MAXSPLICE;
     if(param->waitserver64) rfromserver = MIN(MAXSPLICE, param->waitserver64 - (received + insrvpipe));
-    if(srvstate < 2 && rfromserver > 0) {
+    if(srvstate < 2 && rfromserver > 0 && param->remsock != INVALID_SOCKET) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will recv from server");
 #endif
 	fds[1].events |= POLLIN;
     }
-    if(clistate && !param->waitserver64){
+    if(clistate && !param->waitserver64 && param->remsock != INVALID_SOCKET){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will send to server");
 #endif
@@ -134,7 +134,7 @@ int splicemap(struct clientparam * param, int timeo){
     }
     rfromclient = MAXSPLICE;
     if(param->waitclient64) rfromclient = MIN(MAXSPLICE, param->waitclient64 - (sent + inclipipe));
-    if(clistate < 2 && rfromclient > 0) {
+    if(clistate < 2 && rfromclient > 0 && param->clisock != INVALID_SOCKET) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice :will recv from client");
 #endif
