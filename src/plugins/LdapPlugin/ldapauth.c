@@ -1,25 +1,15 @@
+
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 #include <time.h>
-#include <ldap.h>
-
 #ifndef _WIN32
-
 #include <ctype.h>
 #endif
 
-#include "../../proxy.h"
 #include "../../structures.h"
-
-struct counter_record 
-{
-	unsigned long traf;
-	unsigned long trafgb;
-	time_t cleared;
-	time_t updated;
-};
-
+#define LDAP_DEPRECATED 1
+#include <ldap.h>
 
 int         already_loaded = 0;
 
@@ -62,7 +52,7 @@ void lower (char *string)
 #endif
 
 /* -------------------------------------------------------------------------- */
-int savecouters(void)
+int savecounters(void)
 {
  struct trafcount *tc=mypluginlink->conf->trafcounter;
  struct trafcount *tcd;
@@ -82,8 +72,8 @@ int savecouters(void)
       sprintf(tmpbuf,pat_file,ldap_dircount,tcd->ace->users->user);
       f=fopen(tmpbuf,"w+b");
       fseek(f,0,SEEK_SET);
-      fprintf(f,"%10lu %10lu %lu %lu\n",tcd->trafgb,tcd->traf,
-					tcd->cleared,tcd->updated);
+      fprintf(f,"%"PRINTF_INT64_MODIFIER"u %lu %lu\n",tcd->traf64,
+					(unsigned long)tcd->cleared,(unsigned long)tcd->updated);
 
       fclose(f);
       mypluginlink->myfree(tmpbuf);
@@ -385,8 +375,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
              memset(newtrafcount, 0, sizeof(struct trafcount));
              newtrafcount->ace = newace;
              newtrafcount->type=rtype;
-             newtrafcount->traflimgb =(traflimit/(1024*4));
-             newtrafcount->traflim  = ((traflimit - (newtrafcount->traflimgb*(1024*4)))*(1024*1024));
+             newtrafcount->traflim64  = traflimit;
              newtrafcount->comment=(*mypluginlink->mystrdup)("ldapcounters");
              newtrafcount->number=0;
              tmpbuf=(*mypluginlink->myalloc)(strlen(pat_file)+strlen(ldap_dircount)+strlen(vals[0]));
@@ -398,12 +387,11 @@ int h_trafgroup(int argc, unsigned char ** argv)
 		
                fseek(f,0,SEEK_SET);
                fgets(buf, 256, f); 
-  	       sscanf(buf,"%10lu %10lu %lu %lu\n",&rcounter.trafgb, &rcounter.traf,
+  	       sscanf(buf,"%"PRINTF_INT64_MODIFIER"u %lu %lu\n",&rcounter.traf64, 
 				&rcounter.cleared, &rcounter.updated);
 
 
-               newtrafcount->trafgb=rcounter.trafgb;
-               newtrafcount->traf=rcounter.traf;
+               newtrafcount->traf64=rcounter.traf64;
                newtrafcount->cleared=rcounter.cleared;
                newtrafcount->updated=rcounter.updated;
                fclose(f);
@@ -565,7 +553,7 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink,
     /*create job shedule for processing reload, save counters to file */
     memset(&myschedule,0,sizeof(struct schedule)); 
     myschedule.type=MINUTELY;
-    myschedule.function=savecouters;
+    myschedule.function=savecounters;
     myschedule.next = *pluginlink->schedule;
     *pluginlink->schedule=&myschedule;
     

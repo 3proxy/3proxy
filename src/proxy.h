@@ -21,7 +21,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/timeb.h>
 #include <fcntl.h>
 #include <time.h>
 
@@ -30,16 +29,6 @@
 #define _PASSWORD_LEN 256
 #define MAXNSERVERS 5
 
-#define ALLOW		0
-#define DENY		1
-#define REDIRECT	2
-#define BANDLIM		3
-#define NOBANDLIM	4
-#define COUNTIN		5
-#define NOCOUNTIN	6
-#define COUNTOUT	7
-#define NOCOUNTOUT	8
-
 #define UDPBUFSIZE 16384
 #define TCPBUFSIZE  8192
 #define SRVBUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))
@@ -47,6 +36,7 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#include <sys/timeb.h>
 #ifndef _WINCE
 #include <io.h>
 #else
