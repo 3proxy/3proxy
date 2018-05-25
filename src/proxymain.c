@@ -431,6 +431,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			 default:
 				error = 1;
 			}
+			if(!error) break;
 		 default:
 			error = 1;
 			break;
