@@ -66,6 +66,10 @@ Check SQL request is valid.
 The best way to check is to make file or stdout logging, get SQL request from log file or console and execute this request manually.
 Under Unix, you may also want to adjust 'stacksize' parameter.
 
+<p><i>Q: Why doesn't IPv6 work?</i></p>
+A: Proxy can not access destination directly over IPv6 if client requests IPv4 address.
+To access IPv6 destination, either IPv6 address or hostname  must be used in request.
+Best solution is to enable option to resolve hostnames via proxy on client side.
 <p><i>Q: Why proxy crash on request processing?</a></i></p>
 <i>A:</i> default stacksize may be insufficient, if some non-default plugins
   are used (e.g. PAM and ODBC on Linux) or if compiled on some platforms with
