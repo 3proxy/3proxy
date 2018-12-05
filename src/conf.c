@@ -1425,7 +1425,6 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 	unsigned char * incbegin = 0;
 	int fd;
 	int res, len;
-	int i = 1;
 	unsigned char *str1;
 
 	for(;;str++){
@@ -1444,7 +1443,14 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 			argm[argc] = 0;
 			return argc;
 		case '$':
-			if(!comment && !included){
+			if(comment){
+				if(space){
+					argm[argc++] = str;
+					if(argc >= nitems) return argc;
+					space = 0;
+				}
+			}
+			else if(!included){
 				incbegin = str;
 				*str = 0;
 			}
@@ -1456,7 +1462,6 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 			if(!comment){
 				*str = 0;
 				space = 1;
-				i = 0;
 				if(incbegin){
 					argc--;
 					if((fd = open((char *)incbegin+1, O_RDONLY)) <= 0){
@@ -1494,7 +1499,6 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 				break;
 			}
 		default:
-			i++;
 			if(space) {
 				if(comment && *str == '\"' && str[1] != '\"'){
 					str++;
