@@ -33,6 +33,8 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 
 int splicemap(struct clientparam * param, int timeo){
  struct pollfd fds[2];
+ struct pollfd *fdsp = fds;
+ int fdsc = 2;
  int pipesrv[2] = {-1,-1};
  int pipecli[2] = {-1,-1};
  uint64_t sent=0, received=0;
@@ -111,6 +113,7 @@ int splicemap(struct clientparam * param, int timeo){
     sasize = sizeof(struct sockaddr_in6);
 #endif
     fds[0].events = fds[1].events = 0;
+    fds[0].revents = fds[1].revents = 0;
 
     if(srvstate && !param->waitclient64 && param->clisock != INVALID_SOCKET){
 #if DEBUGLEVEL > 2
@@ -136,12 +139,24 @@ int splicemap(struct clientparam * param, int timeo){
     if(param->waitclient64) rfromclient = MIN(MAXSPLICE, param->waitclient64 - (sent + inclipipe));
     if(clistate < 2 && rfromclient > 0 && param->clisock != INVALID_SOCKET) {
 #if DEBUGLEVEL > 2
-(*param->srv->logfunc)(param, "splice :will recv from client");
+(*param->srv->logfunc)(param, "splice: will recv from client");
 #endif
 	fds[0].events |= POLLIN;
     }
     if(!fds[0].events && !fds[1].events) RETURN (666);
-    res = so._poll(fds, 2, timeo*1000);
+    if(!fds[0].events){
+	fdsp = fds +1;
+	fdsc = 1;
+    }
+    else if(!fds[1].events){
+	fdsp = fds;
+	fdsc = 1;
+    }
+    else {
+	fdsp = fds;
+	fdsc = 2;
+    }
+    res = so._poll(fdsp, fdsc, timeo*1000);
     if(res < 0){
 	if(errno == EINTR) so._poll(NULL, 0, 1);
 	else if(errno != EAGAIN) RETURN(91);
@@ -171,7 +186,7 @@ int splicemap(struct clientparam * param, int timeo){
 (*param->srv->logfunc)(param, "splice: spliced send to client");
 #endif
 	res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, insrvpipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
-	if(res < 0) {
+	if(res <= 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: send to client error");
 #endif
@@ -188,7 +203,6 @@ int splicemap(struct clientparam * param, int timeo){
 	    }
 	    srvstate = 0;
 	}
-	else srvstate = 2;
 	if(param->waitserver64 && param->waitserver64 <= received){
 	    RETURN (98);
 	}
@@ -198,7 +212,7 @@ int splicemap(struct clientparam * param, int timeo){
 (*param->srv->logfunc)(param, "splice: spliced send to server");
 #endif
 	res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclipipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
-	if(res < 0) {
+	if(res <= 0) {
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: send to server error");
 #endif
@@ -227,7 +241,7 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: recv from client");
 #endif
-	res = splice(param->clisock, NULL, pipecli[1], NULL, rfromclient, SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
+	res = splice(param->clisock, NULL, pipecli[1], NULL, rfromclient, SPLICE_F_MOVE);
 	if (res < 0){
 	    if(errno == EINTR) so._poll(NULL, 0, 1);
 	    else if(errno != EAGAIN) RETURN(94);
@@ -249,7 +263,7 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: recv from server");
 #endif
-	res = splice(param->remsock, NULL, pipesrv[1], NULL, rfromserver, SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
+	res = splice(param->remsock, NULL, pipesrv[1], NULL, rfromserver, SPLICE_F_MOVE);
 	if (res < 0){
 	    if(errno == EINTR) so._poll(NULL, 0, 1);
 	    else if(errno != EAGAIN) RETURN(93);
