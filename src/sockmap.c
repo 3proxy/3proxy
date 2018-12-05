@@ -144,11 +144,11 @@ int splicemap(struct clientparam * param, int timeo){
 	fds[0].events |= POLLIN;
     }
     if(!fds[0].events && !fds[1].events) RETURN (666);
-    if(!fds[0].events){
+    if(fds[0].fd == INVALID_SOCKET){
 	fdsp = fds +1;
 	fdsc = 1;
     }
-    else if(!fds[1].events){
+    else if(fds[1].fd == INVALID_SOCKET){
 	fdsp = fds;
 	fdsc = 1;
     }
