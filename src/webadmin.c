@@ -347,11 +347,7 @@ void * adminchild(struct clientparam* param) {
  int limited = 0;
 
 
-#ifdef WITHSPLICE
- limited =param->srv->usesplice;
-#else
  limited =param->srv->singlepacket;
-#endif
  pp.inbuf = 0;
  pp.cp = param;
 

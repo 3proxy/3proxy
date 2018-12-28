@@ -403,7 +403,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		case 's':
 #ifdef WITHSPLICE
-			if(isudp)
+			if(isudp || srv.service == S_ADMIN)
 #endif
 				srv.singlepacket = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
