@@ -107,6 +107,7 @@ int splicemap(struct clientparam * param, int timeo){
 
  while((!stop || (inclipipe && param->remsock != INVALID_SOCKET) || (insrvpipe && param->clisock != INVALID_SOCKET)) && !conf.timetoexit){
 
+    param->cycles++;
 #ifdef NOIPV6
     sasize = sizeof(struct sockaddr_in);
 #else
@@ -367,6 +368,7 @@ int sockmap(struct clientparam * param, int timeo){
 
 
  while (!stop&&!conf.timetoexit){
+	param->cycles++;
 #ifdef NOIPV6
 	sasize = sizeof(struct sockaddr_in);
 #else

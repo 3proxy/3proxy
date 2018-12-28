@@ -34,6 +34,35 @@ int havelog = 0;
 
 unsigned char **stringtable = NULL;
 
+#ifdef WITH_LINUX_FUTEX
+int sys_futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)
+{
+	return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3);
+}
+int mutex_lock(int *val)
+{
+	int c;
+	if ((c = __sync_val_compare_and_swap(val, 0, 1)) != 0)
+		do {
+			if(c == 2 || __sync_val_compare_and_swap(val, 1, 2) != 0)
+				sys_futex(val, FUTEX_WAIT_PRIVATE, 2, NULL, NULL, 0);
+		} while ((c = __sync_val_compare_and_swap(val, 0, 2)) != 0);
+	
+	return 0;
+}
+
+int mutex_unlock(int *val)
+{
+	if(__sync_fetch_and_sub (val, 1) != 1){
+		*val = 0;
+		sys_futex(val, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
+	}
+	
+	
+	return 0;
+}
+#endif
+
 int myinet_ntop(int af, void *src, char *dst, socklen_t size){
 #ifndef NOIPV6
  if(af != AF_INET6){
@@ -544,6 +573,10 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 break;
 				case 'q':
 				 sprintf((char *)buf+i, "%hu", ntohs(*SAPORT(&param->req)));
+				 i += (int)strlen((char *)buf+i);
+				 break;
+				case 'L':
+				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->cycles);
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'I':

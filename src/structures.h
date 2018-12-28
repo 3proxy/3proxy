@@ -34,6 +34,21 @@ extern "C" {
 #define SASIZETYPE socklen_t
 #define SOCKET int
 #define INVALID_SOCKET  (-1)
+#ifdef WITH_LINUX_FUTEX
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <linux/kernel.h>
+#include <linux/futex.h>
+#define pthread_mutex_t int
+#define pthread_mutex_init(x, y) (*(x)=0)
+#define pthread_mutex_destroy(x) (*(x)=0)
+#define pthread_mutex_lock(x) mutex_lock(x)
+#define pthread_mutex_unlock(x) mutex_unlock(x)
+int mutex_lock(int *val);
+int mutex_unlock(int *val);
+#else
+#endif
 #else
 #include <winsock2.h>
 #include <Ws2tcpip.h>
@@ -477,7 +492,8 @@ struct clientparam {
 	REDIRTYPE redirtype;
 
 	uint64_t	waitclient64,
-			waitserver64;
+			waitserver64,
+			cycles;
 
 	int	redirected,
 		operation,
