@@ -651,6 +651,14 @@ static void * ef_client_threadid(struct node * node){
 	return &((struct clientparam *)node->value) -> threadid;
 }
 
+static void * ef_client_clisock(struct node * node){
+	return &((struct clientparam *)node->value) -> clisock;
+}
+
+static void * ef_client_remsock(struct node * node){
+	return &((struct clientparam *)node->value) -> remsock;
+}
+
 static void * ef_client_starttime(struct node * node){
 	return &((struct clientparam *)node->value) -> time_start;
 }
@@ -788,6 +796,8 @@ static struct property prop_client[] = {
 	{prop_client + 17, "maxtrafin", ef_client_maxtrafin64, TYPE_UNSIGNED64, "maximum traffic allowed for download"},
 	{prop_client + 18, "maxtrafout", ef_client_maxtrafout64, TYPE_UNSIGNED64, "maximum traffic allowed for upload"},
 	{prop_client + 19, "pwtype", ef_client_pwtype, TYPE_INTEGER, "type of client password"},
+	{prop_client + 20, "clisock", ef_client_clisock, TYPE_INTEGER, "client socket"},
+	{prop_client + 21, "remsock", ef_client_remsock, TYPE_INTEGER, "remote socket"},
 	{NULL, "next", ef_client_next, TYPE_CLIENT, "next"}
 
 	
