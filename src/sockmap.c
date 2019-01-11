@@ -128,7 +128,7 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will recv from server");
 #endif
-	fds[1].events |= POLLIN;
+	fds[1].events |= (POLLIN|POLLRDHUP);
     }
     if(clistate && !param->waitserver64 && param->remsock != INVALID_SOCKET){
 #if DEBUGLEVEL > 2
@@ -142,7 +142,7 @@ int splicemap(struct clientparam * param, int timeo){
 #if DEBUGLEVEL > 2
 (*param->srv->logfunc)(param, "splice: will recv from client");
 #endif
-	fds[0].events |= POLLIN;
+	fds[0].events |= (POLLIN|POLLRDHUP);
     }
     if(!fds[0].events && !fds[1].events) RETURN (666);
     if(fds[0].fd == INVALID_SOCKET){
@@ -166,7 +166,7 @@ int splicemap(struct clientparam * param, int timeo){
     if(res < 1){
 	RETURN(92);
     }
-    if( (fds[0].revents & (POLLERR|POLLNVAL|POLLHUP)) && !(fds[0].revents & POLLIN)) {
+    if( (fds[0].revents & (POLLERR|POLLNVAL|POLLHUP|POLLRDHUP)) && !(fds[0].revents & POLLIN)) {
 	fds[0].revents = 0;
 	stop = 1;
 	param->res = 90;
@@ -174,7 +174,7 @@ int splicemap(struct clientparam * param, int timeo){
 	so._closesocket(param->clisock);
 	fds[0].fd = param->clisock = INVALID_SOCKET;
     }
-    if( (fds[1].revents & (POLLERR|POLLNVAL|POLLHUP)) && !(fds[1].revents & POLLIN)){
+    if( (fds[1].revents & (POLLERR|POLLNVAL|POLLHUP|POLLRDHUP)) && !(fds[1].revents & POLLIN)){
 	fds[1].revents = 0;
 	stop = 1;
 	param->res = 90;
