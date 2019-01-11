@@ -28,9 +28,10 @@ Each connected client require:
 <ul>
 <li>1*thread (process)
 <li>2*socket (file descriptor). For FTP 4 sockets are required. 
-<br>Under linux since 0.9 splice() is used. It much more effective, but requires
+<br>Under linux since 0.9 splice() is used. It's much more effective, but requires
 <br>2*socket (file descriptor) + 2*pipe (file descriptors) = 4 file descriptors.
 <br>For FTP 4 sockets and 2 pipes are required with splice().
+<br>Up to 128K (up to 256K in the case of splice()) of kernel buffers memory. This is theoretical maximum, actual numbers depend on connection quality and traffic amount.
 <br>1 additional socket (file descriptor) during name resolution for non-cached names
 <br>1 additional socket during authentication or logging for RADIUS authentication or logging.
 <li>1*ephemeral port (3*ephemeral ports for FTP connection).
@@ -60,6 +61,16 @@ socket and -os for proxy-to-server socket. Example:
 proxy -olSO_REUSEADDR,SO_REUSEPORT -ocTCP_TIMESTAMPS,TCP_NODELAY -osTCP_NODELAY
 </pre>
 available options are system dependant.
+<h5>Using 3proxy in virtual environment</h5>
+If 3proxy is used in VPS environment, there can be additional limitations. 
+For example, kernel resources / system CPU usage can be limited in a different way, and this can become a bottleneck. 
+Since 0.9 devel, 3proxy uses splice() by default on Linux, splice() prevents network traffic from being copied from
+kernel space to 3proxy process and generally increases throughput, epecially in the case of high volume traffic. But
+since some work is moved to kernel, it requires up to 2 times more system resources in terms of CPU and memory.
+Use -s0 option to disable splice() usage for given service, if system resources are additionally limited, e.g.
+<pre> 
+socks -s0
+</pre>
 <h4>Extending ephemeral port range</h4>
 Check ephemeral port range for your system and extend it to the number of the
 ports required.
