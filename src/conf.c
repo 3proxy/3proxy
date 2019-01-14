@@ -285,6 +285,10 @@ static int h_log(int argc, unsigned char ** argv){
 
 
 	havelog = 1;
+	if(argc > 1 && conf.logtarget && *argv[1]!= '&' && *argv[1]!= '@' && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
+		conf.logfunc = logstdout;
+		return 0;
+	}
 	if(conf.logtarget){
 		myfree(conf.logtarget);
 		conf.logtarget = NULL;
@@ -319,7 +323,6 @@ static int h_log(int argc, unsigned char ** argv){
 			if(argc > 2) {
 				conf.logtype = getrotate(*argv[2]);
 			}
-			if(!strcmp((char *)conf.logtarget, (char *)argv[1])) return 0;
 			conf.logtime = time(0);
 			if(conf.logname)myfree(conf.logname);
 			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
