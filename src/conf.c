@@ -282,14 +282,14 @@ static int h_external(int argc, unsigned char ** argv){
 
 static int h_log(int argc, unsigned char ** argv){ 
 	unsigned char tmpbuf[8192];
+	int notchanged = 0;
 
 
 	havelog = 1;
-	if(argc > 1 && conf.logtarget && *argv[1]!= '&' && *argv[1]!= '@' && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
-		conf.logfunc = logstdout;
-		return 0;
+	if(argc > 1 && conf.logtarget && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
+		notchanged = 1;
 	}
-	if(conf.logtarget){
+	if(!notchanged && conf.logtarget){
 		myfree(conf.logtarget);
 		conf.logtarget = NULL;
 	}
@@ -298,20 +298,22 @@ static int h_log(int argc, unsigned char ** argv){
 			conf.logfunc = lognone;
 			return 0;
 		}
-		conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
+		if(!notchanged) conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
 		if(*argv[1]=='@'){
 #ifndef _WIN32
-			openlog((char *)conf.logtarget+1, LOG_PID, LOG_DAEMON);
 			conf.logfunc = logsyslog;
+			if(notchanged) return 0;
+			openlog((char *)conf.logtarget+1, LOG_PID, LOG_DAEMON);
 #endif
 		}
 #ifndef NOODBC
 		else if(*argv[1]=='&'){
+			if(notchanged) return 0;
+			conf.logfunc = logsql;
 			pthread_mutex_lock(&log_mutex);
 			close_sql();
 			init_sql((char *)argv[1]+1);
 			pthread_mutex_unlock(&log_mutex);
-			conf.logfunc = logsql;
 		}
 #endif
 #ifndef NORADIUS
@@ -323,6 +325,8 @@ static int h_log(int argc, unsigned char ** argv){
 			if(argc > 2) {
 				conf.logtype = getrotate(*argv[2]);
 			}
+			conf.logfunc = logstdout;
+			if(notchanged) return 0;
 			conf.logtime = time(0);
 			if(conf.logname)myfree(conf.logname);
 			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
@@ -332,7 +336,6 @@ static int h_log(int argc, unsigned char ** argv){
 				perror((char *)tmpbuf);
 				return 1;
 			}
-			conf.logfunc = logstdout;
 
 		}
 	}
