@@ -11,7 +11,7 @@ console. Sequence of commands is important. Configuration file as actually a
 script for 3proxy executable.
 Each line of the file is treated as a blank (space or tab) separated
 command line. Additional space characters are ignored. 
-Think about 3proxy as \"application level router\" with console interface.
+Think about 3proxy as "application level router" with console interface.
 
 .br
  Comments:
@@ -22,10 +22,10 @@ ignored. <LF>s are ignored. <CR> is end of command.
 .br
  Quotation:
 .br
- Quotation character is \" (double quote). Quotation must be used to quote
+ Quotation character is " (double quote). Quotation must be used to quote
 spaces or another special characters. To use quotation character inside
 quotation character must be dubbed (BASIC convention). For example to use
-HELLO \"WORLD\" as an argument you should use it as \"HELLO \"\"WORLD\"\"\".
+HELLO "WORLD" as an argument you should use it as "HELLO ""WORLD""".
 Good practice is to quote any argument you use.
 
 .br
@@ -33,7 +33,7 @@ Good practice is to quote any argument you use.
 .br
  You can include file by using $FILENAME macro (replace FILENAME with a path
 to file, for example $/usr/local/etc/3proxy/conf.incl or 
- $\"c:\\\\Program Files\\\\3proxy\\\\include.cfg\" Quotation is
+ $"c:\\\\Program Files\\3proxy\\include.cfg" Quotation is
 required in last example because path contains space character. 
 For included file <CR> (end of line characters) is treated as space character
 (arguments delimiter instead of end of command delimiter). 
@@ -240,8 +240,8 @@ alternate config file. Think twice before using it.
 option in gateway configuration.
 .br
  log command supports same format specifications for filename template
-as \"logformat\" (if filename contains \'%\' sign it\'s believed to be template).
-As with \"logformat\" filename must begin with \'L\' or \'G\' to specify Local or
+as "logformat" (if filename contains \'%\' sign it\'s believed to be template).
+As with "logformat" filename must begin with \'L\' or \'G\' to specify Local or
 Grinwitch time zone for all time-based format specificators.
 
 .br
@@ -257,7 +257,7 @@ Grinwitch time zone for all time-based format specificators.
 or G (absolute Grinwitch time). 
 It can be preceeded with -XXX+Y where XXX is list of characters to be
 filtered in user input (any non-printable characters are filtered too
-in this case) and Y is replacement character. For example, \"-,%+ L\" in
+in this case) and Y is replacement character. For example, "-,%+ L" in
 the beginning of logformat means comma and percent are replaced
 with space and all time based elemnts are in local time zone.
 .br
@@ -330,7 +330,7 @@ with space and all time based elemnts are in local time zone.
 .br
  in the case of ODBC logging logformat specifies SQL statement, for exmample:
 .br
- logformat \"-\'+_Linsert into log (l_date, l_user, l_service, l_in, l_out, l_descr) values (\'%d-%m-%Y %H:%M:%S\', \'%U\', \'%N\', %I, %O, \'%T\')\"
+ logformat "-\'+_Linsert into log (l_date, l_user, l_service, l_in, l_out, l_descr) values (\'%d-%m-%Y %H:%M:%S\', \'%U\', \'%N\', %I, %O, \'%T\')"
 
 .br
 .B logdump
@@ -603,7 +603,7 @@ periods in HH:MM:SS-HH:MM:SS format. For example, 00:00:00-08:00:00,17:00:00-24:
 .B parent
 <weight> <type> <ip> <port> <username> <password>
 .br
- this command must follow \"allow\" rule. It extends last allow rule to
+ this command must follow "allow" rule. It extends last allow rule to
 build proxy chain. Proxies may be grouped. Proxy inside the
 group is selected randomly. If few groups are specified one proxy
 is randomly picked from each group and chain of proxies is created
@@ -671,7 +671,7 @@ unless you know exactly you need it.
 .br
  admin redirect request to local \'admin\' service (with -s parameter).
 .br
- Use \"+\" proxy only with \"fakeresolve\" option
+ Use "+" proxy only with "fakeresolve" option
 .br
 
  IP and port are ip addres and port of parent proxy server.
@@ -882,7 +882,7 @@ username[:pwtype:password] ...
 .br
  example:
 .br
- users test1:CL:password1 \"test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49.\"
+ users test1:CL:password1 "test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49."
 .br
  users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63
 .br
