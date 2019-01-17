@@ -1,8 +1,8 @@
-3proxy 0.7 Public License Agreement
+3proxy 0.9 Public License Agreement
 
-(c) 2000-2014 by 3APA3A (3APA3A@security.nnov.ru)
-(c) 2000-2014 by SecurityVulns.com (http://3proxy.ru/)
-(c) 2000-2014 by Vladimir Dubrovin (vlad@sandy.ru)
+(c) 2000-2019 by 3APA3A (3APA3A@3proxy.ru)
+(c) 2000-2019 by 3proxy.org (http://3proxy.org/)
+(c) 2000-2019 by Vladimir Dubrovin (vlad@3proxy.ru)
 
 This software uses:
   RSA Data Security, Inc. MD4 Message-Digest Algorithm
@@ -39,7 +39,7 @@ are met (BSD style license):
 Instead of this license, you can also use and redistribute this software under
 terms of compatible license, including:
 
-1. Apache License, Version 2.0
+1. Apache License, Version 2.0 or (at your option) any later version
    You may obtain a copy of the License at
 
 	http://www.apache.org/licenses/LICENSE-2.0
