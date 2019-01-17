@@ -1,10 +1,10 @@
 # 3APA3A 3proxy tiny proxy server
-(c) 2002-2018 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
+(c) 2002-2019 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
 
 Download: 
 	https://github.com/z3APA3A/3proxy/releases
 	or
-	http://3proxy.ru/download/
+	http://3proxy.org/download/
 Archive of old versions: https://github.com/z3APA3A/3proxy-archive
 
 
@@ -160,13 +160,13 @@ pop3p    	POP3 proxy server, binds to port 110. You must specify
 		POP3 username as username@target.host.ip[:port]
 		port is 110 by default.
 		Exmple: in Username configuration for you e-mail reader
-		set someuser@pop.somehost.ru, to obtains mail for someuser
+		set someuser@pop.example.org, to obtains mail for someuser
 		from pop.somehost.ru via proxy.
 smtpp    	SMTP proxy server, binds to port 25. You must specify
 		SMTP username as username@target.host.ip[:port]
 		port is 25 by default.
 		Exmple: in Username configuration for you e-mail reader
-		set someuser@mail.somehost.ru, to send mail as someuser
+		set someuser@mail.example.org, to send mail as someuser
 		via mail.somehost.ru via proxy.
 tcppm    	TCP port mapping. Maps some TCP port on local machine to
 		TCP port on remote host.
@@ -188,6 +188,6 @@ dighosts    	Utility for building networks list from web page.
 
 Run utility with --help option for command line reference.
 
-Latest version is available from http://3proxy.ru/
+Latest version is available from http://3proxy.org/
 
-Want to donate the project? http://3proxy.ru/donations/
+Want to donate the project? http://3proxy.org/donations/
