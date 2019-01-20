@@ -25,7 +25,7 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 #define SPLICE_F_GIFT           0x08
 #endif
 
-#define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
+#define RETURN(xxx) { res = xxx; goto CLEANRET; }
 #define MIN(a,b) ((a>b)?b:a)
 
 #define MAXSPLICE 65536
@@ -292,7 +292,7 @@ CLEANRET:
  if(pipesrv[0] >= 0) close(pipesrv[0]);
  if(pipesrv[1] >= 0) close(pipesrv[1]);
 
- return param->res;
+ return res;
 }
 
 #endif
