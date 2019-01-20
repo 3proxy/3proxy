@@ -887,6 +887,7 @@ for(;;){
 	 if(res != 99) {
 		RETURN(res);
 	}
+	res = 0;
  }
  contentlength64 = 0;
  inbuf = 0;
@@ -1051,6 +1052,7 @@ for(;;){
 		 	if((res = mapsocket(param, conf.timeouts[CONNECTION_S])) != 98){
 				RETURN(res);
 			}
+			res = 0;
 	 		param->waitserver64 = 0;
 		}
         } while(param->chunked);
