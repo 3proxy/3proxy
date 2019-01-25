@@ -44,7 +44,7 @@ void * threadfunc (void *p) {
 			continue;
 		}
 #endif
-		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, "C", 1, CONNBACK_TO) != 1){
+		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, (unsigned char *)"C", 1, CONNBACK_TO) != 1){
 			param->srv->logfunc(param, (unsigned char *)"Connect back sending command failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
@@ -686,7 +686,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 					usleep(SLEEPTIME);
 					continue;
 				}
-				if(sockrecvfrom(new_sock,(struct sockaddr*)&defparam.sincr,(char *)buf,1,60) != 1 || *buf!='C') {
+				if(sockrecvfrom(new_sock,(struct sockaddr*)&defparam.sincr,buf,1,60) != 1 || *buf!='C') {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);
