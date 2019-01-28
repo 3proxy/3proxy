@@ -18,7 +18,7 @@ Archive of old versions: https://github.com/z3APA3A/3proxy-archive
 	removes the service (should be stopped before via
 	'net stop 3proxy').
 
-	To build in Linux install git and build-essentials packages, use
+	To build in Linux install git and build-essential packages, use
 
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
