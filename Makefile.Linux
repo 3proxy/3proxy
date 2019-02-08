@@ -141,7 +141,9 @@ install: install-chroot-dir install-bin install-etc install-log install-man inst
 	stty echo ;\
 	fi
 	@chown -R proxy:proxy $(CHROOTDIR)
-	@chmod 660  $(CHROOTDIR)/conf/*
+	@chmod 550  $(CHROOTDIR)/
+	@chmod 550  $(CHROOTDIR)/conf/
+	@chmod 440  $(CHROOTDIR)/conf/*
 	@echo ""
 	@echo 3proxy installed.
 	@echo use
