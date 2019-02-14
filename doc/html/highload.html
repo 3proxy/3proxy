@@ -144,7 +144,7 @@ external socket. This option can be set (since 0.9 devel) with -os option:
 <pre>
 proxy -p3128 -e1.2.3.4 -osSO_REUSEADDR
 </pre>
-Behavior for SO_REUSEADDR and SO_REUSEPOR is different between different system,
+Behavior for SO_REUSEADDR and SO_REUSEPORT is different between different system,
 even between different kernel versions and can lead to unexpected results.
 Specifics is described <a href="https://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t">here</a>.
 Use this options only if actually required and if you fully understand possible
@@ -223,19 +223,19 @@ proxy -osTCP_NODELAY -ocTCP_NODELAY
 sets TCP_NODELAY for client (oc) and server (os) connections.
 <p>Do not use TCP_NODELAY on slow connections with high delays and then
 connection bandwidth is a bottleneck.
-<h4>Use slice to speedup large data amount transfers</h4>
-slice() allows to copy data between connections without copying to process
+<h4>Use splice to speedup large data amount transfers</h4>
+splice() allows to copy data between connections without copying to process
 addres space. It can speedup proxy on high bandwidth connections, if most
-connections require large data transfers. "-s" allows slice usage. Example:
+connections require large data transfers. Splice is enabled by default on Linux
+since 0.9, "-s0" disables splice usage. Example:
 <pre>
-proxy -s
+proxy -s0
 </pre>
-Slice is only available in Linux and is currently beta option available in
-devel version. Do not use it in production without testing. Slice requires
-more system buffers, but reduces process memory usage.
-Do not use slice if there is a lot of short-living connections with no bandwidth
+Splice is only available on Linux. Splice requires more system buffers and file descriptors,
+but reduces process memory and CPU usage.
+Do not use splice if there is a lot of short-living connections with no bandwidth
 requirements.
-<p>Use slice only on high-speed connections (e.g. 10GBE), if processor or
-bus are bottlenecks.
-<p>TCP_NODELAY and slice are not contrary to each over and can be combined on
+<p>Use splice only on high-speed connections (e.g. 10GBE), if processor, memory speed or
+system bus are bottlenecks.
+<p>TCP_NODELAY and splice are not contrary to each over and can be combined on
 high-speed connections.
