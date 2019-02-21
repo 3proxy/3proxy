@@ -74,8 +74,10 @@ MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
 BINDIR		= $(DESTDIR)$(exec_prefix)/bin
 ETCDIR		= $(DESTDIR)$(prefix)/etc/3proxy
 INITDDIR	= $(DESTDIR)$(prefix)/etc/init.d
-RUNDIR	= $(DESTDIR)$(prefix)/var/run/3proxy
-LOGDIR	= $(DESTDIR)$(prefix)/var/log/3proxy
+RUNBASE		= $(DESTDIR)$(prefix)/var/run
+RUNDIR		= $(RUNBASE)/3proxy
+LOGBASE		= $(DESTDIR)$(prefix)/var/log
+LOGDIR		= $(LOGBASE)/3proxy
 INSTALL_CFG_DEST = $(ETCDIR)/conf
 
 install-bin:
@@ -115,7 +117,7 @@ install-man:
 	$(INSTALL_DATA) man/*.8 $(MANDIR8)
 
 install-init:
-	if [ -f $(INITDIR) ]; then \
+	if [ -d $(INITDIR) ]; then \
 	 $(INSTALL_BIN) $(INSTALL_INITD_SCRIPT) $(INITDDIR)/3proxy; \
 	fi
 	if [ -f /usr/sbin/update-rc.d ]; then \
@@ -127,8 +129,10 @@ install-run:
 	$(INSTALL_BIN) -d $(RUNDIR)
 
 install-log:
-	@if [ ! -d $(LOGDIR) ]; then \
-	 ln -s $(CHROOTDIR)/logs $(LOGDIR);\
+	@if [ -d $(LOGBASE) ]; then \
+	 @if [ ! -d $(LOGDIR) ]; then \
+	  ln -s $(CHROOTDIR)/logs $(LOGDIR);\
+	 fi
 	fi
 
 install: install-chroot-dir install-bin install-etc install-log install-man install-run install-init
@@ -155,7 +159,7 @@ install: install-chroot-dir install-bin install-etc install-log install-man inst
 	@echo to add users
 	@echo ""
 	@echo Default config uses Google\'s DNS.
-	@echo It\'s recommended to uss provider supplied DNS or install local recursor, e.g. pdns-recursor.
+	@echo It\'s recommended to use provider supplied DNS or install local recursor, e.g. pdns-recursor.
 	@echo Configure preferred DNS in $(INSTALL_CFG_DEST)/3proxy.cfg.
 	@if [ -f /usr/sbin/service ]; then \
 	 /usr/sbin/service 3proxy stop ;\
