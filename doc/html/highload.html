@@ -40,8 +40,13 @@ Each connected client require:
 </ul>
 Also, additional resources like system buffers are required for network activity.
 <h4>Setting ulimits</h4>
-Hard and soft ulimits must be set above calculated requirements. Validate
-ulimits match your expectation, especially if you run 3proxy under dedicated account
+Hard and soft ulimits must be set above calculated requirements. Under Linux, you can
+check limits of running process with
+<pre>
+cat /proc/PID/limits
+</pre>
+where PID is a pid of the process. 
+Validate ulimits match your expectation, especially if you run 3proxy under dedicated account
 by adding e.g.
 <pre>
 system "ulimit -Ha >>/tmp/3proxy.ulim.hard"
@@ -50,11 +55,24 @@ system "ulimit -Sa >>/tmp/3proxy.ulim.soft"
 in the beginning (before first service started) and the end of config file.
 Make both hard restart (that is kill and start 3proxy process) and soft restart
 by sending SIGUSR1 to 3proxy process, check ulimits recorded to files match your
-expecation.
+expecation. In systemd based distros (e.g. latest Debian / Ubuntu) changing limits.conf
+is not enough, limits must be ajusted in systemd configuration, e.g. by setting
+<pre>
+DefaultLimitDATA=infinity
+DefaultLimitSTACK=infinity
+DefaultLimitCORE=infinity
+DefaultLimitRSS=infinity
+DefaultLimitNOFILE=102400
+DefaultLimitAS=infinity
+DefaultLimitNPROC=10240
+DefaultLimitMEMLOCK=infinity
+<pre>
+in user.conf / system.conf
 <h4>Extending system limitation</h4>
-Check manuals / documentation for your system limitations. You may need to change
-sysctls or even rebuild the kernel from source.
-To help with system-dependant settings, since 0.9-devel 3proxy supports different
+Check manuals / documentation for your system limitations e.g. system-wide limit for number of open files
+(fs.file-max in Linux). You may need to change sysctls or even rebuild the kernel from source.
+<p>
+To help with socket-based system-dependant settings, since 0.9-devel 3proxy supports different
 socket options which can be set via -ol option for listening socket, -oc for proxy-to-client
 socket and -os for proxy-to-server socket. Example:
 <pre>
