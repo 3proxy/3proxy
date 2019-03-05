@@ -129,10 +129,8 @@ install-run:
 	$(INSTALL_BIN) -d $(RUNDIR)
 
 install-log:
-	@if [ -d $(LOGBASE) ]; then \
-	 @if [ ! -d $(LOGDIR) ]; then \
-	  ln -s $(CHROOTDIR)/logs $(LOGDIR);\
-	 fi
+	@if [ -d $(LOGBASE) ] && [ ! -d $(LOGDIR) ]; then \
+	 ln -s $(CHROOTDIR)/logs $(LOGDIR);\
 	fi
 
 install: install-chroot-dir install-bin install-etc install-log install-man install-run install-init
