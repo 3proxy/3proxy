@@ -641,19 +641,18 @@ with probability of 0.7) for outgoing web connections.
 .br
  type is one of:
 .br
- tcp simply redirect connection. TCP is always last in chain.
+ tcp simply redirect connection. TCP is always last in chain. This type of proxy is a simple TCP redirection, it does not support parent authentication.
 .br
- http redirect to HTTP proxy. HTTP is always last chain.
+ http redirect to HTTP proxy. HTTP is always last chain. It should only be used with http (proxy) service,
+if used with different service, it works as tcp redirection.
 .br
- pop3 redirect to POP3 proxy (only local redirection is supported, can not be
-used for chaining)
+ pop3 redirect to POP3 proxy (only local redirection is supported, can only be used as a first hop in chaining)
 .br
- ftp redirect to FTP proxy (only local redirection is supported, can not be
-used for chaining)
+ ftp redirect to FTP proxy (only local redirection is supported, can only be used as a first hop in chaining)
 .br
  connect parent is HTTP CONNECT method proxy
 .br
- connect+ parent is HTTP CONNECT proxy with name resolution
+ connect+ parent is HTTP CONNECT proxy with name resolution (hostname is used instead of IP if available)
 .br
  socks4 parent is SOCKSv4 proxy
 .br
@@ -761,15 +760,19 @@ noforce allows to keep previously authenticated connections.
 .br
 .B bandlimin
 <rate> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 .B nobandlimin
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 .B bandlimout
 <rate> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 .B nobandlimout
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
  bandlim sets bandwith limitation filter to <rate> bps (bits per second)
 If you want to specife bytes per second - multiply your value to 8.
@@ -803,9 +806,11 @@ if you want, for example, to limit all speed ecept access to POP3 you can use
 .br
 .B connlim
 <rate> <period> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 .B noconnlim
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
  connlim sets connections rate limit per time period for traffic
 pattern controlled by ACL. Period is in seconds. If period is 0,
@@ -831,15 +836,19 @@ exception.
 .br
 .B countin
 <number> <type> <limit> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 .B nocountin
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 .B countout
 <number> <type> <limit> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 .B nocountout
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
 .br
 
  counter, countin, nocountin, countout, noucountout  commands are 
