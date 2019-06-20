@@ -9,8 +9,6 @@ A: Most probable reasons: 'auth none' or no auth is used. For any ACL based feat
 <p><i>Q: Why doesn't 3proxy work as service under Windows?</i></p>
 Possible reasons:
 <ul>
-<li>'service' command absents in configuration file. Command is required for
-3proxy.exe to behave as system service in 3proxy 0.5.2 and prior.
 <li>there are relative paths in configuration file for included files,
 log files, etc. Always use absolute paths. For example
 $"c:\3proxy\networks.local" instead of  $networks.local. For debugging remove

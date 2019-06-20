@@ -1,7 +1,9 @@
 <h3>Optimizing 3proxy for high load</h3>
 <p>Precaution 1: 3proxy was not initially developed for high load and is positioned as a SOHO product, the main reason is "one connection - one thread" model 3proxy uses. 3proxy is known to work with above 200,000 connections under proper configuration, but use it in production environment under high loads at your own risk and do not expect too much.
 <p>Precaution 2: This documentation is incomplete and is not sufficient. High loads may require very specific system tuning including, but not limited to specific or cusomized kernels, builds, settings, sysctls, options, etc. All this is not covered by this documentation.
+
 <h4>Configuring 'maxconn'</h4>
+
 A number of simulatineous connections per service is limited by 'maxconn' option.
 Default maxconn value since 3proxy 0.8 is 500. You may want to set 'maxconn'
 to higher value. Under this configuration:
@@ -39,7 +41,9 @@ Each connected client require:
 <li>a lot of system buffers, specially in the case of slow network connections.
 </ul>
 Also, additional resources like system buffers are required for network activity.
+
 <h4>Setting ulimits</h4>
+
 Hard and soft ulimits must be set above calculated requirements. Under Linux, you can
 check limits of running process with
 <pre>
@@ -68,7 +72,9 @@ DefaultLimitNPROC=10240
 DefaultLimitMEMLOCK=infinity
 </pre>
 in user.conf / system.conf
+
 <h4>Extending system limitation</h4>
+
 Check manuals / documentation for your system limitations e.g. system-wide limit for number of open files
 (fs.file-max in Linux). You may need to change sysctls or even rebuild the kernel from source.
 <p>
@@ -79,18 +85,22 @@ socket and -os for proxy-to-server socket. Example:
 proxy -olSO_REUSEADDR,SO_REUSEPORT -ocTCP_TIMESTAMPS,TCP_NODELAY -osTCP_NODELAY
 </pre>
 available options are system dependant.
-<h5>Using 3proxy in virtual environment</h5>
+
+<h4>Using 3proxy in virtual environment</h4>
+
 If 3proxy is used in VPS environment, there can be additional limitations. 
-For example, kernel resources / system CPU usage can be limited in a different way, and this can become a bottleneck. 
+For example, kernel resources / system CPU usage / IOCTLs can be limited in a different way, and this can become a bottleneck. 
 Since 0.9 devel, 3proxy uses splice() by default on Linux, splice() prevents network traffic from being copied from
 kernel space to 3proxy process and generally increases throughput, epecially in the case of high volume traffic. But
-since some work is moved to kernel, it requires up to 2 times more kernel resources in terms of CPU and memory.
+since some work is moved to kernel, it requires up to 2 times more kernel resources in terms of CPU, memory and IOCTLs.
 Use -s0 option to disable splice() usage for given service, if kernel resources are additionally limited and this
 limitation is a bottleneck, e.g.
 <pre> 
 socks -s0
 </pre>
+
 <h4>Extending ephemeral port range</h4>
+
 Check ephemeral port range for your system and extend it to the number of the
 ports required.
 Ephimeral range is always limited to maximum number of ports (64K). To extend the
@@ -172,7 +182,9 @@ number of the client port available, but it can also lead to situation connectio
 are randomely fail due to ip+port pairs collision if remote or local system 
 doesn't support this trick.
 </ol>
+
 <h4>Setting stacksize</h4>
+
 'stacksize' is a size added to all stack allocations and can be both positive and
 negative. Stack is required in functions call. 3proxy itself doesn't require large
 stack, but it can be required if some
@@ -187,7 +199,9 @@ but it's system/libc dependant and requires additional testing under your
 installation. Don't forget about memory related ulimts.
 <p>For 32-bit systems address space can be a bottlneck you should consider. If
 you're short of address space you can try to use negative stack size.
+
 <h4>Known system issues</h4>
+
 There are known race condition issues in Linux / glibc resolver. The probability
 of race condition arises under configuration with IPv6, large number of interfaces
 or IP addresses or resolvers configured. In this case, install local recursor and
@@ -195,22 +209,30 @@ use 3proxy built-in resolver (nserver / nscache / nscache6).
 <h4>Do not use public resolvers</h4>
 Public resolvers like ones from Google have ratelimits. For large number of
 requests install local caching recursor (ISC bind named, PowerDNS recursor, etc).
+
 <h4>Avoid large lists</h4>
+
 Currently, 3proxy is not optimized to use large ACLs, user lists, etc. All lists
 are processed lineary. In devel version you can use RADIUS authentication to avoid
 user lists and ACLs in 3proxy itself. Also, RADIUS allows to easily set outgoing IP
 on per-user basis or more sophisicated logics.
 RADIUS is a new beta feature, test it before using in production.
+
 <h4>Avoid changing configuration too often</h4>
+
 Every configuration reload requires additional resources. Do not do frequent
 changes, like users addition/deletaion via connfiguration, use alternative
 authentication methods instead, like RADIUS.
+
 <h4>Consider using 'noforce'</h4>
+
 'force' behaviour (default) re-authenticates all connections after
 configuration reload, it may be resource consuming on large number of
 connections. Consider adding 'noforce' command before services started
 to prevent connections reauthentication.
+
 <h4>Do not monitor configuration files directly</h4>
+
 Using configuration file directly in 'monitor' can lead to race condition where
 configuration is reloaded while file is being written.
 To avoid race conditions:
@@ -232,7 +254,9 @@ monitor "/some/path/3proxy/3proxy.ver"
 <li> After config is updated, change version file for 3proxy to reload configuration,
 e.g. with "touch /some/path/3proxy/3proxy.ver".
 </ol>
+
 <h4>Use TCP_NODELAY to speed-up connections with small amount of data</h4>
+
 If most requests require exchange with a small amount of data in a both ways
 without the need for bandwidth, e.g. messengers or small web request,
 you can eliminate Nagle's algorithm delay with TCP_NODELAY flag. Usage example:
@@ -242,7 +266,9 @@ proxy -osTCP_NODELAY -ocTCP_NODELAY
 sets TCP_NODELAY for client (oc) and server (os) connections.
 <p>Do not use TCP_NODELAY on slow connections with high delays and then
 connection bandwidth is a bottleneck.
+
 <h4>Use splice to speedup large data amount transfers</h4>
+
 splice() allows to copy data between connections without copying to process
 addres space. It can speedup proxy on high bandwidth connections, if most
 connections require large data transfers. Splice is enabled by default on Linux
@@ -251,10 +277,10 @@ since 0.9, "-s0" disables splice usage. Example:
 proxy -s0
 </pre>
 Splice is only available on Linux. Splice requires more system buffers and file descriptors,
-but reduces process memory and CPU usage.
-Do not use splice if there is a lot of short-living connections with no bandwidth
+and produces more IOCTLs but reduces process memory and overall CPU usage.
+Disable splice if there is a lot of short-living connections with no bandwidth
 requirements.
 <p>Use splice only on high-speed connections (e.g. 10GBE), if processor, memory speed or
 system bus are bottlenecks.
-<p>TCP_NODELAY and splice are not contrary to each over and can be combined on
+<p>TCP_NODELAY and splice are not contrary to each over and should be combined on
 high-speed connections.
