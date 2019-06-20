@@ -29,6 +29,7 @@ static struct filter pcre_first_filter = {
 	NULL, NULL,
 	NULL, NULL,
 	NULL, NULL, NULL,
+	NULL, NULL,
 	NULL, NULL
 };
 

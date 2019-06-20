@@ -34,7 +34,7 @@ struct proxydef childdef = {
 	0,
 	0,
 	S_TCPPM,
-	" -s use splice() (Fast proxying but no filtering)\n"
+	""
 };
 #include "proxymain.c"
 #endif
