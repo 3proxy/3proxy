@@ -91,10 +91,11 @@ available options are system dependant.
 If 3proxy is used in VPS environment, there can be additional limitations. 
 For example, kernel resources / system CPU usage / IOCTLs can be limited in a different way, and this can become a bottleneck. 
 Since 0.9 devel, 3proxy uses splice() by default on Linux, splice() prevents network traffic from being copied from
-kernel space to 3proxy process and generally increases throughput, epecially in the case of high volume traffic. But
-since some work is moved to kernel, it requires up to 2 times more kernel resources in terms of CPU, memory and IOCTLs.
-Use -s0 option to disable splice() usage for given service, if kernel resources are additionally limited and this
-limitation is a bottleneck, e.g.
+kernel space to 3proxy process and generally increases throughput, epecially in the case of high volume traffic. It especially
+true for virtual environment (it can improve thoughput up to 10 times) unless there are additional kernel limitations.
+Since some work is moved to kernel, it requires up to 2 times more kernel resources in terms of CPU, memory and IOCTLs.
+If your hosting additionally limits kernel resources (you can see it as nearly 100% CPU usage without any real CPU activity for
+any application which performs IOCTLS), use -s0 option to disable splice() usage for given service e.g.
 <pre> 
 socks -s0
 </pre>
