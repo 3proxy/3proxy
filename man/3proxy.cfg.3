@@ -156,7 +156,7 @@ options for proxy-to-client (oc), proxy-to-server (os), proxy listening (ol), co
 Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
 .br
 .B -DiINTERFACE, -DeINTERFACE
-bind internal interface / external inteface to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system. You may need to run as root or to have CAP_NET_RAW capability in order to bind to interface, depending on system.
+bind internal interface / external inteface to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system. You may need to run as root or to have CAP_NET_RAW capability in order to bind to interface, depending on system, so this option may require root privileges and can be incompatible with some configuraton commands like chroot and setuid (and daemon if setcap is used).
 .br
  Also, all options mentioned for 
 .BR proxy (8)
@@ -379,10 +379,9 @@ can use %A as produced archive name and %F as filename.
 <ipaddr>[:port][/tcp]
 .br
  Nameserver to use for name resolutions. If none specified 
-or name server fails system routines for name resolution will be
-used. It\'s better to specify nserver because gethostbyname() may
-be thread unsafe. Optional port number may be specified.
-If optional /tcp is added to IP address, name resolution will be
+system routines for name resolution is
+used. Optional port number may be specified.
+If optional /tcp is added to IP address, name resolution is
 performed over TCP.
 
 .br
