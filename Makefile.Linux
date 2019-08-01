@@ -137,10 +137,6 @@ install: install-chroot-dir install-bin install-etc install-log install-man inst
 	@getent passwd proxy || useradd -UMr -s /bin/false -c 3proxy proxy
 	@if [ ! -f $(INSTALL_CFG_DEST)/passwd ]; then \
 	touch $(INSTALL_CFG_DEST)/passwd;\
-	stty -echo ;\
-	echo "" ;\
-	read -p "Proxy admin password: " password && $(INSTALL_CFG_DEST)/add3proxyuser.sh admin $password ;\
-	stty echo ;\
 	fi
 	@chown -R proxy:proxy $(CHROOTDIR)
 	@chmod 550  $(CHROOTDIR)/
@@ -159,6 +155,7 @@ install: install-chroot-dir install-bin install-etc install-log install-man inst
 	@echo Default config uses Google\'s DNS.
 	@echo It\'s recommended to use provider supplied DNS or install local recursor, e.g. pdns-recursor.
 	@echo Configure preferred DNS in $(INSTALL_CFG_DEST)/3proxy.cfg.
+	@echo run \'$(INSTALL_CFG_DEST)/add3proxyuser.sh admin password\' to configure \'admin\' user
 	@if [ -f /usr/sbin/service ]; then \
 	 /usr/sbin/service 3proxy stop ;\
 	 /usr/sbin/service 3proxy start ;\
