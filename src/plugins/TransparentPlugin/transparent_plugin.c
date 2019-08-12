@@ -42,7 +42,12 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 
 #ifdef WITH_NETFILTER
 #ifdef SO_ORIGINAL_DST
-	if(getsockopt(param->clisock, SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len) || (!memcmp(((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? (char *)&((struct sockaddr_in6 *)&param->req)->sin6_addr : (char *)&((struct sockaddr_in *)&param->req)->sin_addr.s_addr, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",  (((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? 16:4)))){
+
+	if(getsockopt(param->clisock, 
+#ifdef SOL_IPV6
+		*SAFAMILY(&param->sincr) == AF_INET6?SOL_IPV6:
+#endif
+			SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len) || (!memcmp(((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? (char *)&((struct sockaddr_in6 *)&param->req)->sin6_addr : (char *)&((struct sockaddr_in *)&param->req)->sin_addr.s_addr, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",  (((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? 16:4)))){
 		return PASS;
 	}
 #else
