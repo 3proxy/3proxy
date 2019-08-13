@@ -35,7 +35,7 @@ static void* transparent_filter_open(void * idata, struct srvparam * param){
 static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * param, void** fc){
 
 	socklen_t len;
-	char addrbuf[60];
+	char addrbuf[64];
 	int i=0;
 
 	len = sizeof(param->req);
@@ -44,10 +44,12 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 #ifdef SO_ORIGINAL_DST
 
 	if(getsockopt(param->clisock, 
+#ifndef NOIPV6
 #ifdef SOL_IPV6
 		*SAFAMILY(&param->sincr) == AF_INET6?SOL_IPV6:
 #endif
-			SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len) || (!memcmp(((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? (char *)&((struct sockaddr_in6 *)&param->req)->sin6_addr : (char *)&((struct sockaddr_in *)&param->req)->sin_addr.s_addr, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",  (((struct sockaddr_in *)&param->req)->sin_family == AF_INET6? 16:4)))){
+#endif
+			SOL_IP, SO_ORIGINAL_DST,(struct sockaddr *) &param->req, &len) || !memcmp((char *)SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",  SAADDRLEN(&param->req))){
 		return PASS;
 	}
 #else
@@ -56,13 +58,13 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 	return REJECT;
 #endif
 #else
-	if(memcmp(&param->req, &param->sincl,sizeof(param->req))){
-		param->req = param->sincl;
-		param->sincl = param->srv->intsa;
-	}
+	param->req = param->sincl;
+	param->sincl = param->srv->intsa;
 #endif
 	pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)addrbuf, sizeof(addrbuf));
-	pl->parsehostname(addrbuf, param, ntohs(*SAPORT(&param->req)));
+	if(param->hostname) pl->myfree(param->hostname);
+	param->hostname = pl->mystrdup(addrbuf);
+	param->sinsr = param->req;
 	return PASS;
 }
 
