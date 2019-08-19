@@ -74,7 +74,7 @@ static void killtrafcorrect() {
 	while (p) {
 		d = p;
 		p = p->next;
-		pl->myfree(d);
+		pl->free(d);
 	}
 }
 
@@ -94,7 +94,7 @@ int h_trafcorrect(int argc, unsigned char ** argv) {
 			}
 			return 1;
 		}
-		newitem = (struct trafcorrect *)pl->myalloc(sizeof(struct trafcorrect));
+		newitem = (struct trafcorrect *)pl->malloc(sizeof(struct trafcorrect));
 		newitem->next = NULL;
 		newitem->type = MULTIPLAY;
 
@@ -112,7 +112,7 @@ int h_trafcorrect(int argc, unsigned char ** argv) {
 		newitem->coeff = atof((char *)argv[4]);
 		/* проверка на корректность ввода */
 		if ((newitem->port>65535) | (newitem->coeff<=0) | (newitem->coeff>100)) {
-			pl->myfree(newitem);
+			pl->free(newitem);
 			if(DBGLEVEL == 1)fprintf(stdout, "Port must be 0<p<65535 and coefficient must be 0<c<100.\n");
 			return 2;
 		}
@@ -130,7 +130,7 @@ int h_trafcorrect(int argc, unsigned char ** argv) {
 			return 1;
 		}
 
-		newitem = (struct trafcorrect *)pl->myalloc(sizeof(struct trafcorrect));	
+		newitem = (struct trafcorrect *)pl->malloc(sizeof(struct trafcorrect));	
 		newitem->next = NULL;
 		newitem->type = IPCORRECT;
 
@@ -158,7 +158,7 @@ int h_trafcorrect(int argc, unsigned char ** argv) {
 		}
 
 		if ((newitem->port>65535) | (newitem->psize<=0)) {
-			pl->myfree(newitem);
+			pl->free(newitem);
 			if(DBGLEVEL == 1)fprintf(stdout, "Port must be 0<p<65535.\n");
 			return 2;
 		}

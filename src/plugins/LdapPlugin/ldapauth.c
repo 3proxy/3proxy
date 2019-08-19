@@ -68,7 +68,7 @@ int savecounters(void)
     tc = tc->next;
     f=NULL;
     if(strcmp(tcd->comment,"ldapcounters")==0) {
-      tmpbuf=mypluginlink->myalloc(strlen(pat_file)+strlen(ldap_dircount)+strlen(tcd->ace->users->user));
+      tmpbuf=mypluginlink->malloc(strlen(pat_file)+strlen(ldap_dircount)+strlen(tcd->ace->users->user));
       sprintf(tmpbuf,pat_file,ldap_dircount,tcd->ace->users->user);
       f=fopen(tmpbuf,"w+b");
       fseek(f,0,SEEK_SET);
@@ -76,7 +76,7 @@ int savecounters(void)
 					(unsigned long)tcd->cleared,(unsigned long)tcd->updated);
 
       fclose(f);
-      mypluginlink->myfree(tmpbuf);
+      mypluginlink->free(tmpbuf);
 
      }
   }
@@ -194,15 +194,15 @@ int h_ldapconnect(int argc, unsigned char ** argv)
    return 1;
   }
 
- ldap_serv=mypluginlink->mystrdup(argv[1]);
- ldap_user=mypluginlink->mystrdup(argv[2]);  
+ ldap_serv=mypluginlink->strdup(argv[1]);
+ ldap_user=mypluginlink->strdup(argv[2]);  
 
  ld = ldap_init( ldap_serv, 389 );
  ldap_unbind_s(ld);
  
  if (argc == 4) 
   {
-   ldap_pass= mypluginlink->mystrdup(argv[3]);   
+   ldap_pass= mypluginlink->strdup(argv[3]);   
    }
  else
   {
@@ -220,7 +220,7 @@ int h_access(int argc, unsigned char ** argv)
    fprintf(stderr, "Error in ldapaccess: See documentation of ldapauth plugin.\n");		
    return 1;
   }
- ldap_access=mypluginlink->mystrdup(argv[1]);
+ ldap_access=mypluginlink->strdup(argv[1]);
  return 0;
 }
 /* --------------------------------------------------------------------------
@@ -233,7 +233,7 @@ int h_sbase(int argc, unsigned char ** argv)
    fprintf(stderr, "Error in ldapsbase: See documentation of ldapauth plugin.\n");		
    return 1;
   }
-  ldap_sbase=mypluginlink->mystrdup(argv[1]);   
+  ldap_sbase=mypluginlink->strdup(argv[1]);   
  return 0;
 }
 /* --------------------------------------------------------------------------	
@@ -245,7 +245,7 @@ int h_userenv(int argc, unsigned char ** argv)
    fprintf(stderr, "Error in ldapsbase: See documentation of ldapauth plugin.\n");		
    return 1;
   }
-  ldap_userenv=mypluginlink->mystrdup(argv[1]);   
+  ldap_userenv=mypluginlink->strdup(argv[1]);   
   return 0;
 }
 /* --------------------------------------------------------------------------
@@ -309,11 +309,11 @@ int h_trafgroup(int argc, unsigned char ** argv)
   bandwidth = atoi((char *)argv[4]);
 
   /* name ldap group */
-  tmpbuf=mypluginlink->myalloc(strlen(pat_group)+strlen(ldap_group_attr)+strlen(argv[1]));
+  tmpbuf=mypluginlink->malloc(strlen(pat_group)+strlen(ldap_group_attr)+strlen(argv[1]));
   sprintf(tmpbuf,pat_group,ldap_group_attr,argv[1]);
   rc = ldap_search_s( ld, ldap_sbase, LDAP_SCOPE_SUBTREE,
                                         			tmpbuf, attrs, 0, &res );
-  mypluginlink->myfree(tmpbuf);
+  mypluginlink->free(tmpbuf);
 
   rc=ldap_count_entries(ld,res);
  
@@ -331,7 +331,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
              
              /* -------------bandlim----------
              create user list 	    */  
-             newuserlist = (*mypluginlink->myalloc)(sizeof (struct userlist));
+             newuserlist = (*mypluginlink->malloc)(sizeof (struct userlist));
              if (usercaselow  > 0)
                 #ifdef _WIN32
                 { CharLower(vals[0]); }
@@ -339,15 +339,15 @@ int h_trafgroup(int argc, unsigned char ** argv)
                 { lower(vals[0]); }
                 #endif
 
-             newuserlist->user = (*mypluginlink->mystrdup)(vals[0]);
+             newuserlist->user = (*mypluginlink->strdup)(vals[0]);
              newuserlist->next = NULL; 
              /*create user rule */
-             newace = (*mypluginlink->myalloc)(sizeof (struct ace));
+             newace = (*mypluginlink->malloc)(sizeof (struct ace));
              memset(newace, 0, sizeof(struct ace));
              newace->users = newuserlist;
              newace->action = BANDLIM;
              /*create user bandlim */
-             newbandlim =(*mypluginlink->myalloc)(sizeof (struct bandlim));
+             newbandlim =(*mypluginlink->malloc)(sizeof (struct bandlim));
              memset(newbandlim, 0, sizeof(struct bandlim));
              newbandlim->rate = bandwidth;
              newbandlim->ace = newace;
@@ -356,29 +356,29 @@ int h_trafgroup(int argc, unsigned char ** argv)
              
              /* -------------counters----------
              create user list */	     
-             newuserlist = (*mypluginlink->myalloc)(sizeof (struct userlist));
+             newuserlist = (*mypluginlink->malloc)(sizeof (struct userlist));
              if (usercaselow  > 0)
                 #ifdef _WIN32
                 { CharLower(vals[0]); }
                 #else
                 { lower(vals[0]);  }
                 #endif
-             newuserlist->user = (*mypluginlink->mystrdup)(vals[0]);
+             newuserlist->user = (*mypluginlink->strdup)(vals[0]);
              newuserlist->next = NULL; 
              /*create user rule */
-             newace = (*mypluginlink->myalloc)(sizeof (struct ace));
+             newace = (*mypluginlink->malloc)(sizeof (struct ace));
              memset(newace, 0, sizeof(struct ace));
              newace->users = newuserlist;
              newace->action = COUNTIN;
              /*create user counter */
-             newtrafcount =(*mypluginlink->myalloc)(sizeof (struct trafcount));
+             newtrafcount =(*mypluginlink->malloc)(sizeof (struct trafcount));
              memset(newtrafcount, 0, sizeof(struct trafcount));
              newtrafcount->ace = newace;
              newtrafcount->type=rtype;
              newtrafcount->traflim64  = traflimit;
-             newtrafcount->comment=(*mypluginlink->mystrdup)("ldapcounters");
+             newtrafcount->comment=(*mypluginlink->strdup)("ldapcounters");
              newtrafcount->number=0;
-             tmpbuf=(*mypluginlink->myalloc)(strlen(pat_file)+strlen(ldap_dircount)+strlen(vals[0]));
+             tmpbuf=(*mypluginlink->malloc)(strlen(pat_file)+strlen(ldap_dircount)+strlen(vals[0]));
              sprintf(tmpbuf,pat_file,ldap_dircount,vals[0]);
              f=NULL;
              f=fopen(tmpbuf,"rb");
@@ -396,7 +396,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
                newtrafcount->updated=rcounter.updated;
                fclose(f);
               }
-             mypluginlink->myfree(tmpbuf);   
+             mypluginlink->free(tmpbuf);   
 
              newtrafcount->next = mypluginlink->conf->trafcounter;
              mypluginlink->conf->trafcounter = newtrafcount;
@@ -422,8 +422,8 @@ int h_attrsgroup(int argc, unsigned char ** argv)
    fprintf(stderr, "Error in ldapattr: See documentation of ldapauth plugin.\n");		
    return 1;
   }
-  attrs[0]=mypluginlink->mystrdup(argv[1]);
-  ldap_group_attr=mypluginlink->mystrdup(argv[2]);   
+  attrs[0]=mypluginlink->strdup(argv[1]);
+  ldap_group_attr=mypluginlink->strdup(argv[2]);   
  
   if(argc == 4)
    { usercaselow=atoi(argv[3]); }
@@ -439,7 +439,7 @@ int h_dircount(int argc, unsigned char ** argv)
    fprintf(stderr, "Error in ldapdircount: See documentation of ldapauth plugin.\n");		
    return 1;
   }
-  ldap_dircount=mypluginlink->mystrdup(argv[1]);
+  ldap_dircount=mypluginlink->strdup(argv[1]);
   return 0;
 }
 
@@ -460,15 +460,15 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink,
 
  if (already_loaded != 0)
    {
-    pluginlink->myfree(ldap_access);
-    pluginlink->myfree(ldap_sbase);
-    pluginlink->myfree(ldap_serv);
-    pluginlink->myfree(ldap_user);
-    pluginlink->myfree(ldap_pass);
-    pluginlink->myfree(ldap_userenv);
-    pluginlink->myfree(ldap_dircount);
-    pluginlink->myfree(ldap_group_attr);
-    pluginlink->myfree(attrs[0]);
+    pluginlink->free(ldap_access);
+    pluginlink->free(ldap_sbase);
+    pluginlink->free(ldap_serv);
+    pluginlink->free(ldap_user);
+    pluginlink->free(ldap_pass);
+    pluginlink->free(ldap_userenv);
+    pluginlink->free(ldap_dircount);
+    pluginlink->free(ldap_group_attr);
+    pluginlink->free(attrs[0]);
     return (0);
    }
 
