@@ -721,15 +721,24 @@ int cacheauth(struct clientparam * param){
 			continue;
 			
 		}
-		if(((!(conf.authcachetype&2)) || (param->username && ac->username && !strcmp(ac->username, (char *)param->username))) &&
-		   ((!(conf.authcachetype&1)) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), SAADDR(&param->sincr), SAADDRLEN(&ac->sa)))) && 
+		if((!(conf.authcachetype&2) || (param->username && ac->username && !strcmp(ac->username, (char *)param->username))) &&
 		   (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, (char *)param->password)))) {
-			if(param->username){
-				myfree(param->username);
+
+			if(!(conf.authcachetype&1)
+				|| ((*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) 
+				   && !memcmp(SAADDR(&ac->sa), SAADDR(&param->sincr), SAADDRLEN(&ac->sa))))){
+
+				if(param->username){
+					myfree(param->username);
+				}
+				param->username = (unsigned char *)mystrdup(ac->username);
+				pthread_mutex_unlock(&hash_mutex);
+				return 0;
 			}
-			param->username = (unsigned char *)mystrdup(ac->username);
-			pthread_mutex_unlock(&hash_mutex);
-			return 0;
+			else if ((conf.authcachetype&1) && (conf.authcachetype&8)) {
+				pthread_mutex_unlock(&hash_mutex);
+				return 10;
+			}
 		}
 		last = ac;
 		ac = ac->next;
@@ -790,6 +799,7 @@ int doauth(struct clientparam * param){
 			break;
 		}
 		if(res > ret) ret = res;
+		if(ret > 9) return ret;
 	}
 	if(!res){
 		return alwaysauth(param);

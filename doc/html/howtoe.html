@@ -461,7 +461,12 @@ proxy -n
 </p>
 Please note, that caching affects security. Never use caching for access to
 critical resources, such as web administration.
-
+  <p>authcache can be used to bind user's sessions to ip with 'limit' option, with
+  <pre>
+  autchcache ip,user,pass,limit 120
+  auth cache strong</pre>
+  user will not be able to use more than a single IP during cache time (120 sec).
+  </p>
 		<li><A NAME="USERS">How to create user list</A>
 <p>
 Userslist is created with 'users' command.
