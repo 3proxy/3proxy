@@ -44,7 +44,7 @@ char **load_string(FILE *f,int max_count_str, int *countloadstr,
 
 
  /*create table for old strings */
- old_table=(char **)mypl->malloc(max_count_str*sizeof(char *));
+ old_table=(char **)malloc(max_count_str*sizeof(char *));
  memset(old_table,0,max_count_str*sizeof(char *)); 
 
  /*load from file new  strings */
@@ -77,13 +77,13 @@ char **load_string(FILE *f,int max_count_str, int *countloadstr,
 
          cstr=cstr+(int)strlen(tmpbuf1)+1;
 
-         p = (char *)mypl->malloc(cstr);
+         p = (char *)malloc(cstr);
    
          if (pt!=NULL)
           { 
             strcpy(p, pt);  
             strcat(p, tmpbuf1);  
-            mypl->free(pt); 
+            free(pt); 
           }
          else   
           {  strcpy(p, tmpbuf1);  }
@@ -104,9 +104,9 @@ char **load_string(FILE *f,int max_count_str, int *countloadstr,
    }
 
 
-  if(pt)mypl->free(pt);
+  if(pt)free(pt);
   *countloadstr=i;
-  if (i==0) { mypl->free(old_table); old_table=NULL; }
+  if (i==0) { free(old_table); old_table=NULL; }
  
  return old_table;
 
@@ -124,9 +124,9 @@ static int restore_old_table(void * v)
     for(i=0; i < count_str_proxy_in_3proxy; i++){
        p=mypl->proxy_table[i];
        mypl->proxy_table[i]=old_proxy_table[i];
-       mypl->free(p);
+       free(p);
       }
-    mypl->free(old_proxy_table);
+    free(old_proxy_table);
     old_proxy_table = NULL;
 
   }
@@ -140,9 +140,9 @@ static int restore_old_table(void * v)
    for(i=0; i < count_str_admin_in_3proxy; i++){
        p=mypl->admin_table[i];
        mypl->admin_table[i]=old_admin_table[i];
-       mypl->free(p);
+       free(p);
       }
-    mypl->free(old_admin_table);
+    free(old_admin_table);
     old_admin_table = NULL;
   }
  /*return 1  delete job, 0 no delete!!! :)*/

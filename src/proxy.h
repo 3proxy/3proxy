@@ -138,6 +138,11 @@ void daemonize(void);
 
 #define DEFLOGFORMAT "G%y%m%d%H%M%S.%. %p %E %U %C:%c %R:%r %O %I %h %T"
 
+#define myalloc malloc
+#define myfree free
+#define myrealloc realloc
+#define mystrdup strdup
+
 extern RESOLVFUNC resolvfunc;
 
 extern int wday;

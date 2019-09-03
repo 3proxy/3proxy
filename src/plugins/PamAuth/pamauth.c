@@ -131,8 +131,8 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, unsigne
   
  if(argc < 2) return 1;
  pl = pluginlink;
- if(service) pl->free(service);
- service=(unsigned char *)pl->strdup((char *)argv[1]); 
+ if(service) free(service);
+ service=strdup((char *)argv[1]); 
 
  if (already_loaded) { return (0); }
 

@@ -84,10 +84,10 @@ static void pcre_data_free(struct pcre_filter_data *pcrefd){
 	pthread_mutex_lock(&pcre_mutex);
 	pcrefd->users--;
 	if(!pcrefd->users){
-		if(pcrefd->re) pl->free(pcrefd->re);
+		if(pcrefd->re) pl->freefunc(pcrefd->re);
 		if(pcrefd->acl) pl->freeacl(pcrefd->acl);
-		if(pcrefd->replace) pl->free(pcrefd->replace);
-		pl->free(pcrefd);
+		if(pcrefd->replace) pl->freefunc(pcrefd->replace);
+		pl->freefunc(pcrefd);
 	}
 	pthread_mutex_unlock(&pcre_mutex);
 }
@@ -167,7 +167,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 			}
 		}
 
-		tmpbuf =  (*pl->malloc)(replen);
+		tmpbuf =  pl->mallocfunc(replen);
 		if(!tmpbuf) return CONTINUE;
 		for(target = tmpbuf, replace = pcrefd->replace; *replace; ){
 			if(*replace == '\\' && *(replace +1)){
@@ -188,18 +188,18 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 		}
 		memcpy(target, *buf_p + ovector[1], *length_p - ovector[1]);
 		if((ovector[0] + replen + 1) > *bufsize_p){
-			newbuf = (*pl->malloc)(ovector[0] + replen + 1);
+			newbuf = pl->mallocfunc(ovector[0] + replen + 1);
 			if(!newbuf){
-				(*pl->free)(tmpbuf);
+				pl->freefunc(tmpbuf);
 				return CONTINUE;
 			}
 			memcpy(newbuf, *buf_p, ovector[0]);
-			(*pl->free)(*buf_p);
+			pl->freefunc(*buf_p);
 			*buf_p = (unsigned char *)newbuf;
 			*bufsize_p = ovector[0] + replen + 1;
 		}
 		memcpy(*buf_p + ovector[0], tmpbuf, replen);
-		(*pl->free)(tmpbuf);
+		pl->freefunc(tmpbuf);
 		(*buf_p)[ovector[0] + replen] = 0;
 		*length_p = ovector[0] + replen;
 		if(ovector[0] + replen <= offset){
@@ -237,7 +237,7 @@ static int h_pcre(int argc, unsigned char **argv){
 	if(!strncmp((char *)argv[0], "pcre_rewrite", 12)) {
 		int i,j;
 		offset = 5;
-		replace = pl->strdup((char *)argv[4]);
+		replace = pl->strdupfunc((char *)argv[4]);
 		if(!replace) return 9;
 		for(i=0, j=0; replace[i]; i++, j++){
 			if(replace[i] == '\\'){
@@ -270,19 +270,19 @@ static int h_pcre(int argc, unsigned char **argv){
 	if(*argv[3] && !(*argv[3] == '*' && !argv[3][1]) ){
 		re = pcre_compile((char *)argv[3], pcre_options, &errptr, &offset, NULL);
 		if(!re) {
-			pl->free(acl);
-			if(replace) pl->free(replace);
+			pl->freefunc(acl);
+			if(replace) pl->freefunc(replace);
 			return 3;
 		}
 	}
-	flt = pl->malloc(sizeof(struct pcre_filter_data));
-	newf = pl->malloc(sizeof(struct filter));
+	flt = pl->mallocfunc(sizeof(struct pcre_filter_data));
+	newf = pl->mallocfunc(sizeof(struct filter));
 	
 	if(!flt || !newf) {
-		pl->free(acl);
-		pl->free(re);
-		if(replace) pl->free(replace);
-		if(flt) pl->free(flt);
+		pl->freefunc(acl);
+		pl->freefunc(re);
+		if(replace) pl->freefunc(replace);
+		if(flt) pl->freefunc(flt);
 		return 4;
 	}
 	memset(flt, 0, sizeof(struct pcre_filter_data));
@@ -367,11 +367,11 @@ PLUGINAPI int PLUGINCALL pcre_plugin (struct pluginlink * pluginlink,
 	pl = pluginlink;
 	pcre_options = 0;
 	if(!pcre_loaded){
-		pcre_malloc = pl->malloc;
-		pcre_free = pl->free;
+		pcre_malloc = pl->mallocfunc;
+		pcre_free = pl->freefunc;
 		pcre_loaded = 1;
 		pthread_mutex_init(&pcre_mutex, NULL);
-		regexp_symbols[6].value = pl->free;
+		regexp_symbols[6].value = pl->freefunc;
 		regexp_symbols[6].next = pl->symbols.next;
 		pl->symbols.next = regexp_symbols;
 		pcre_commandhandlers[3].next = pl->commandhandlers->next;
@@ -386,7 +386,7 @@ PLUGINAPI int PLUGINCALL pcre_plugin (struct pluginlink * pluginlink,
 			tmpflt = flt->next;
 			if(flt->data)
 				pcre_data_free((struct pcre_filter_data *)flt->data);
-			pl->free(flt);
+			pl->freefunc(flt);
 			if(flt == pcre_last_filter) break;
 		}
 	}

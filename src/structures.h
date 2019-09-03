@@ -197,11 +197,6 @@ typedef void * (*EXTENDFUNC) (struct node *node);
 typedef void (*CBFUNC)(void *cb, char * buf, int inbuf);
 typedef void (*PRINTFUNC) (struct node *node, CBFUNC cbf, void*cb);
 
-#define myalloc malloc
-#define myfree free
-#define myrealloc realloc
-#define mystrdup strdup
-
 #ifdef WIN32
 
 #define PLUGINAPI __declspec(dllexport)
@@ -754,10 +749,10 @@ struct pluginlink {
 	void (*decodeurl)(unsigned char *s, int allowcr);
 	int (*parsestr) (unsigned char *str, unsigned char **argm, int nitems, unsigned char ** buff, int *inbuf, int *bufsize);
 	struct ace * (*make_ace) (int argc, unsigned char ** argv);
-	void * (*malloc)(size_t size);
-	void (*free)(void *ptr);
-	void *(*realloc)(void *ptr, size_t size);
-	char * (*strdup)(const char *str);
+	void * (*mallocfunc)(size_t size);
+	void (*freefunc)(void *ptr);
+	void *(*reallocfunc)(void *ptr, size_t size);
+	char * (*strdupfunc)(const char *str);
 	TRAFCOUNTFUNC trafcountfunc;
 	char ** proxy_table;
 	struct schedule ** schedule;

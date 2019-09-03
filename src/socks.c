@@ -237,7 +237,7 @@ CLEANRET:
 	int repcode;
 
 	sasize = sizeof(sin);
-	if(command != 3) so._getsockname(param->remsock, (struct sockaddr *)&sin,  &sasize);
+	if(command != 3 && param->remsock != INVALID_SOCKET) so._getsockname(param->remsock, (struct sockaddr *)&sin,  &sasize);
 	else so._getsockname(param->clisock, (struct sockaddr *)&sin,  &sasize);
 #if SOCKSTRACE > 0
 fprintf(stderr, "Sending confirmation to client with code %d for %s with %s:%hu\n",
