@@ -92,7 +92,7 @@ char * proxy_stringtable[] = {
 #ifndef NOCRYPT
 	"Proxy-Authenticate: NTLM\r\n"
 #endif
-	"Proxy-Authenticate: basic realm=\"proxy\"\r\n"
+	"Proxy-Authenticate: Basic realm=\"proxy\"\r\n"
 	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
@@ -118,7 +118,7 @@ char * proxy_stringtable[] = {
 	"<body><h2>503 Service Unavailable</h2><h3>Your request violates configured policy</h3></body></html>\r\n",
 
 /* 16*/	"HTTP/1.0 401 Authentication Required\r\n"
-	"WWW-Authenticate: basic realm=\"FTP Server\"\r\n"
+	"WWW-Authenticate: Basic realm=\"FTP Server\"\r\n"
 	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
@@ -859,7 +859,7 @@ for(;;){
 	sprintf((char*)buf+strlen((char *)buf), "Connection: %s\r\n", keepalive? "keep-alive":"close");
  }
  if(param->extusername){
-	sprintf((char*)buf + strlen((char *)buf), "%s: basic ", (redirect)?"Proxy-Authorization":"Authorization");
+	sprintf((char*)buf + strlen((char *)buf), "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
 	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
 	en64(username, buf+strlen((char *)buf), (int)strlen((char *)username));
 	sprintf((char*)buf + strlen((char *)buf), "\r\n");
