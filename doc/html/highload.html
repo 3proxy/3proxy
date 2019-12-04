@@ -120,16 +120,16 @@ or by using multiple services with different external
 interfaces, example:
 <pre>
 allow user1,user11,user111
-proxy -p1001 -e1.1.1.1
+proxy -p1111 -e1.1.1.1
 flush
 allow user2,user22,user222
-proxy -p1001 -e1.1.1.2
+proxy -p2222 -e2.2.2.2
 flush
 allow user3,user33,user333
-proxy -p1001 -e1.1.1.3
+proxy -p3333 -e3.3.3.3
 flush
 allow user4,user44,user444
-proxy -p1001 -e1.1.1.4
+proxy -p4444 -e4.4.4.4
 flush
 </pre>
 or via "parent extip" rotation,
@@ -138,20 +138,20 @@ e.g.
 allow user1,user11,user111
 parent 1000 extip 1.1.1.1 0
 allow user2,user22,user222
-parent 1000 extip 1.1.1.2 0
+parent 1000 extip 2.2.2.2 0
 allow user3,user33,user333
-parent 1000 extip 1.1.1.3 0
+parent 1000 extip 3.3.3.3 0
 allow user4,user44,user444
-parent 1000 extip 1.1.1.4 0
+parent 1000 extip 4.4.4.4 0
 proxy
 </pre>
 or
 <pre>
 allow *
 parent 250 extip 1.1.1.1 0
-parent 250 extip 1.1.1.2 0
-parent 250 extip 1.1.1.3 0
-parent 250 extip 1.1.1.4 0
+parent 250 extip 2.2.2.2 0
+parent 250 extip 3.3.3.3 0
+parent 250 extip 4.4.4.4 0
 socks
 </pre>
 <pre>
@@ -161,9 +161,9 @@ external addresses on the single port with SO_REUSEPORT on listening socket to
 evenly distribute incoming connections between outgoing interfaces:
 <pre>
 socks -olSO_REUSEPORT -p3128 -e 1.1.1.1
-socks -olSO_REUSEPORT -p3128 -e 1.1.1.2
-socks -olSO_REUSEPORT -p3128 -e 1.1.1.3
-socks -olSO_REUSEPORT -p3128 -e 1.1.1.4
+socks -olSO_REUSEPORT -p3128 -e 2.2.2.2
+socks -olSO_REUSEPORT -p3128 -e 3.3.3.3
+socks -olSO_REUSEPORT -p3128 -e 4.4.4.4
 </pre>
 for Web browsing last two examples are not recommended, because same client can get
 different external address for different requests, you should choose external
