@@ -57,6 +57,11 @@ pcre_xclass$(OBJSUFFICS): pcre_xclass.c
 pcre_plugin$(OBJSUFFICS): pcre_plugin.c
 	$(CC) $(DCFLAGS) $(CFLAGS) pcre_plugin.c
 
-$(BUILDDIR)PCREPlugin$(DLSUFFICS): pcre_compile$(OBJSUFFICS) pcre_config$(OBJSUFFICS) pcre_dfa_exec$(OBJSUFFICS) pcre_exec$(OBJSUFFICS) pcre_fullinfo$(OBJSUFFICS) pcre_get$(OBJSUFFICS) pcre_globals$(OBJSUFFICS) pcre_newline$(OBJSUFFICS) pcre_ord2utf8$(OBJSUFFICS) pcre_refcount$(OBJSUFFICS) pcre_study$(OBJSUFFICS) pcre_tables$(OBJSUFFICS) pcre_valid_utf8$(OBJSUFFICS) pcre_version$(OBJSUFFICS) pcre_xclass$(OBJSUFFICS) pcre_plugin$(OBJSUFFICS) pcre_maketables$(OBJSUFFICS) pcre_ucd$(OBJSUFFICS) pcre_table$(OBJSUFFICS)
-	$(LN) $(LNOUT)../../$(BUILDDIR)PCREPlugin$(DLSUFFICS) $(LDFLAGS) $(DLFLAGS) pcre_compile$(OBJSUFFICS) pcre_config$(OBJSUFFICS) pcre_dfa_exec$(OBJSUFFICS) pcre_exec$(OBJSUFFICS) pcre_fullinfo$(OBJSUFFICS) pcre_get$(OBJSUFFICS) pcre_globals$(OBJSUFFICS) pcre_newline$(OBJSUFFICS) pcre_ord2utf8$(OBJSUFFICS) pcre_refcount$(OBJSUFFICS) pcre_study$(OBJSUFFICS) pcre_tables$(OBJSUFFICS) pcre_valid_utf8$(OBJSUFFICS) pcre_version$(OBJSUFFICS) pcre_xclass$(OBJSUFFICS) pcre_plugin$(OBJSUFFICS) pcre_maketables$(OBJSUFFICS) pcre_ucd$(OBJSUFFICS) pcre_table$(OBJSUFFICS)
+ifdef SYSTEM_PCRE
+LDFLAGS += -lpcre
+else
+PCRE_OBJS += pcre_compile$(OBJSUFFICS) pcre_config$(OBJSUFFICS) pcre_dfa_exec$(OBJSUFFICS) pcre_exec$(OBJSUFFICS) pcre_fullinfo$(OBJSUFFICS) pcre_get$(OBJSUFFICS) pcre_globals$(OBJSUFFICS) pcre_newline$(OBJSUFFICS) pcre_ord2utf8$(OBJSUFFICS) pcre_refcount$(OBJSUFFICS) pcre_study$(OBJSUFFICS) pcre_tables$(OBJSUFFICS) pcre_valid_utf8$(OBJSUFFICS) pcre_version$(OBJSUFFICS) pcre_xclass$(OBJSUFFICS) pcre_maketables$(OBJSUFFICS) pcre_ucd$(OBJSUFFICS) pcre_table$(OBJSUFFICS)
+endif
 
+$(BUILDDIR)PCREPlugin$(DLSUFFICS): $(PCRE_OBJS) pcre_plugin$(OBJSUFFICS)
+	$(LN) $(LNOUT)../../$(BUILDDIR)PCREPlugin$(DLSUFFICS) $(LDFLAGS) $(DLFLAGS) $^
