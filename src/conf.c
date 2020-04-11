@@ -868,9 +868,11 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 			do {
 			 int arglen;
 			 unsigned char *pattern;
+			 struct iplist tmpip={NULL};
 			 
 			 arglen = (int)strlen((char *)arg);
-			 if(arglen > 0 && (arg[arglen-1] < '0' || arg[arglen-1] > '9')){
+			 if(scanipl(arg, &tmpip)){
+				if(!arglen) continue;
 				if(!acl->dstnames) {
 					acl->dstnames = hostnamel = myalloc(sizeof(struct hostname));
 				}
@@ -914,11 +916,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
 					return(NULL);
 				}
-				memset(ipl, 0, sizeof(struct iplist));
-				if (scanipl(arg, ipl)) {
-						fprintf(stderr, "Invalid IP, IP range or CIDR, line %d\n", linenum);
-						return(NULL);
-				}
+				*ipl = tmpip;
 			 }
 			}while((arg = (unsigned char *)strtok((char *)NULL, ",")));
 		}
