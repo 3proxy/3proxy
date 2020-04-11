@@ -377,21 +377,34 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 			}
 			while(i > 5 && param->hostname[i-1] == '.') param->hostname[i-1] = 0;
 			for(hstentry = acentry->dstnames; hstentry; hstentry = hstentry->next){
+				int lname, lhost;
 				switch(hstentry->matchtype){
 					case 0:
+#ifndef _WIN32
+					if(strcasestr((char *)param->hostname, (char *)hstentry->name)) match = 1;
+#else
 					if(strstr((char *)param->hostname, (char *)hstentry->name)) match = 1;
+#endif
 					break;
 
 					case 1:
-					if(strstr((char *)param->hostname, (char *)hstentry->name) == (char *)param->hostname) match = 1;
+					if(!strncasecmp((char *)param->hostname, (char *)hstentry->name, strlen((char *)hstentry->name)))
+						match = 1;
 					break;
 
 					case 2:
-					if(strstr((char *)param->hostname, (char *)hstentry->name) == (char *)(param->hostname + i - (strlen((char *)hstentry->name)))) match = 1;
+					lname = strlen((char *)hstentry->name);
+					lhost = strlen((char *)param->hostname);
+					if(lhost > lname){
+						if(!strncasecmp((char *)param->hostname + (lhost - lname),
+							(char *)hstentry->name,
+							lname))
+								match = 1;
+					}
 					break;
 
 					default:
-					if(!strcmp((char *)param->hostname, (char *)hstentry->name)) match = 1;
+					if(!strcasecmp((char *)param->hostname, (char *)hstentry->name)) match = 1;
 					break;
         			}
 				if(match) break;
