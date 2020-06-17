@@ -746,7 +746,10 @@ int doconnect(struct clientparam * param){
 	}
 #endif
 #ifdef SO_BINDTODEVICE
-	if(param->srv->obindtodevice) so._setsockopt(param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1);
+	if(param->srv->obindtodevice) {
+		if(so._setsockopt(param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))
+			return 12;
+	}
 #endif
 	if(SAISNULL(&param->sinsl)){
 #ifndef NOIPV6

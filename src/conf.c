@@ -1337,6 +1337,8 @@ static int h_authcache(int argc, unsigned char **argv){
 	if(strstr((char *) *(argv + 1), "user")) conf.authcachetype |= 2;
 	if(strstr((char *) *(argv + 1), "pass")) conf.authcachetype |= 4;
 	if(strstr((char *) *(argv + 1), "limit")) conf.authcachetype |= 8;
+	if(strstr((char *) *(argv + 1), "acl")) conf.authcachetype |= 16;
+	if(strstr((char *) *(argv + 1), "ext")) conf.authcachetype |= 32;
 	if(argc > 2) conf.authcachetime = (unsigned) atoi((char *) *(argv + 2));
 	if(!conf.authcachetype) conf.authcachetype = 6;
 	if(!conf.authcachetime) conf.authcachetime = 600;
@@ -1468,7 +1470,7 @@ static int h_chroot(int argc, unsigned char **argv){
 		fprintf(stderr, "Unable to set uid %d", (int)uid);
 		return(5);
 	}
-
+	chdir("/");
 	return 0;
 }
 #endif
