@@ -745,7 +745,7 @@ int cacheauth(struct clientparam * param){
 				|| ((*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) 
 				   && !memcmp(SAADDR(&ac->sa), SAADDR(&param->sincr), SAADDRLEN(&ac->sa))))){
 
-				if(conf.authcachetype&16) {
+				if(conf.authcachetype&32) {
 					param->sinsl = ac->sinsl;
 				}
 				if(param->username){
@@ -802,7 +802,7 @@ int doauth(struct clientparam * param){
 							myfree(tmp);
 						}
 						ac->sa = param->sincr;
-						if(conf.authcachetype&16) {
+						if(conf.authcachetype&32) {
 							ac->sinsl = param-> sinsl;
 						}
 
@@ -817,7 +817,7 @@ int doauth(struct clientparam * param){
 						ac->sa = param->sincr;
 						ac->password = NULL;
 						if((conf.authcachetype&4) && param->password) ac->password = mystrdup((char *)param->password);
-						if(conf.authcachetype&16) {
+						if(conf.authcachetype&32) {
 							ac->sinsl = param->sinsl;
 						}
 					}
