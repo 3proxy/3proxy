@@ -804,7 +804,7 @@ int doauth(struct clientparam * param){
 						ac->sa = param->sincr;
 						if(conf.authcachetype&32) {
 							ac->sinsl = param-> sinsl;
-							SAPORT(ac->sinsl) = 0;
+							*SAPORT(&ac->sinsl) = 0;
 						}
 
 						break;
@@ -820,7 +820,7 @@ int doauth(struct clientparam * param){
 						if((conf.authcachetype&4) && param->password) ac->password = mystrdup((char *)param->password);
 						if(conf.authcachetype&32) {
 							ac->sinsl = param->sinsl;
-							SAPORT(ac->sinsl) = 0;
+							*SAPORT(&ac->sinsl) = 0;
 						}
 					}
 					ac->next = authc;
