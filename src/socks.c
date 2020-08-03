@@ -348,23 +348,34 @@ fflush(stderr);
 						break;
 					}
 					if (fds[1].revents) {
+						// if we cant relay packet forward (can't resolve address or whatever)
+						// there is no way to report this individual error to the client 
+						// so we silently drop it instead of closing the ASSOCIATION
 						sasize = sizeof(sin);
-						if((len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
+						if((len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) < 0) {
 							param->res = 464;
 							break;
 						}
 						if(SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) || memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin))){
-							param->res = 465;
-							break;
+							// dropping packet recieved from an address that not belong to client
+							continue;
 						}
+						// we remember the client port on each relay
+						// it is not perfect, some packets may come from a previously connected client 
+						// or being a miliciously formed by a hacker
+						// ideally we should build an association table between local and remote addresses
+						// but well...
+						*SAPORT(&param->sincr) = *SAPORT(&sin);
 						if(buf[0] || buf[1] || buf[2]) {
 							param->res = 466;
 							break;
 						}
 						size = 4;
+						if(len <= 10) continue;
 						switch(buf[3]) {
 							case 4:
 								size = 16;
+								if(len <= 10 + 16 - 4) continue;
 							case 1:
 								i = 4+size;
 								memcpy(SAADDR(&param->sinsr), buf+4, size);
@@ -372,11 +383,12 @@ fflush(stderr);
 								break;
 							case 3:
 								size = buf[4];
+								if(len <= 10 + size - 4) continue;
 								for (i=4; size; i++, size--){
 									buf[i] = buf[i+1];
 								}
 								buf[i++] = 0;
-								if(!getip46(param->srv->family, buf+4, (struct sockaddr *) &param->sinsr)) RETURN(100);
+								if(!getip46(param->srv->family, buf+4, (struct sockaddr *) &param->sinsr)) continue;
 								break;
 							default:
 								RETURN(997);
@@ -388,8 +400,7 @@ fflush(stderr);
 						sasize = sizeof(param->sinsr);
 						if(len > (int)i){
 							if(socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000) <= 0){
-								param->res = 467;
-								break;
+								continue;
 							}
 							param->statscli64+=(len - i);
 							param->nwrites++;
@@ -413,7 +424,7 @@ fflush(stderr);
 						sasize = sizeof(param->sinsr);
 						buf[0]=buf[1]=buf[2]=0;
 						buf[3]=(*SAFAMILY(&param->sinsl) == AF_INET)?1:4;
-						if((len = so._recvfrom(param->remsock, (char *)buf+6+SAADDRLEN(&param->sinsl), 65535 - 10, 0, (struct sockaddr *)&param->sinsr, &sasize)) <= 0) {
+						if((len = so._recvfrom(param->remsock, (char *)buf+6+SAADDRLEN(&param->sinsl), 65535 - 10, 0, (struct sockaddr *)&param->sinsr, &sasize)) < 0) {
 							param->res = 468;
 							break;
 						}
@@ -421,10 +432,16 @@ fflush(stderr);
 						param->nreads++;
 						memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
 						memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
-						sasize = sizeof(sin);
-						if(socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 6 + SAADDRLEN(&param->sinsr), conf.timeouts[SINGLEBYTE_L]*1000) <=0){
-							param->res = 469;
-							break;
+						
+						if(*SAPORT(&param->sincr) == 0 || *(uint32_t*)SAADDR(&param->sincr) == 0){
+							// client hasn't connected yet so we don't know his address
+							// dropping incoming packet
+							continue;
+						}
+						
+						sasize = sizeof(param->sincr);
+						if(socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len + 6 + SAADDRLEN(&param->sinsr), conf.timeouts[SINGLEBYTE_L]*1000) <=0){
+							continue;
 						}
 #if SOCKSTRACE > 1
 fprintf(stderr, "UDP packet relayed to client from %hu size %d\n",
