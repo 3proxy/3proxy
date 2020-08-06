@@ -777,13 +777,16 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 #endif
         char * slash, *dash;
 	int masklen, addrlen;
+
 	if((slash = strchr((char *)arg, '/'))) *slash = 0;
 	if((dash = strchr((char *)arg,'-'))) *dash = 0;
 	
+	if(afdetect(arg) == -1) return 1;
 	if(!getip46(46, arg, (struct sockaddr *)&sa)) return 1;
 	memcpy(&dst->ip_from, SAADDR(&sa), SAADDRLEN(&sa));
 	dst->family = *SAFAMILY(&sa);
 	if(dash){
+		if(afdetect(dash+1) == -1) return 1;
 		if(!getip46(46, (unsigned char *)dash+1, (struct sockaddr *)&sa)) return 2;
 		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
 		if(*SAFAMILY(&sa) != dst->family || memcmp(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa)) < 0) return 3;
