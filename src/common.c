@@ -861,11 +861,42 @@ unsigned long getip(unsigned char *name){
 }
 #endif
 
+int afdetect(unsigned char *name){
+	int ndots=0, ncols=0, nhex=0;
+	int i;
+
+	for(i=0; name[i]; i++){
+		if(name[i] == '.'){
+			if(++ndots > 3) {
+				return -1;
+			}
+		}
+		else if(name[i] == ':'){
+			if(++ncols > 7) {
+				return -1;
+			}
+		}
+		else if(name[i] == '%' || (name[i] >= 'a' && name[i] <= 'f') || (name[i] >= 'A' && name[i] <= 'F')){
+			nhex++;
+		}
+		else if(name[i] <'0' || name[i] >'9') {
+				return -1;
+		}
+	}
+	if(ndots == 3 && ncols == 0 && nhex == 0){
+		return AF_INET;
+	}
+	if(ncols >= 2) {
+		return AF_INET6;
+	}
+	return -1;
+
+}
+
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
-	int ndots=0, ncols=0, nhex=0;
+	int detect;
 	struct addrinfo *ai, hint;
-	int i;
         RESOLVFUNC tmpresolv;
 
 	if(!sa) return 0;
@@ -877,34 +908,15 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #endif
 #ifndef NOIPV6
 	}
-	for(i=0; name[i]; i++){
-		if(name[i] == '.'){
-			if(++ndots > 3) {
-				break;
-			}
-		}
-		else if(name[i] == ':'){
-			if(++ncols > 7) {
-				break;
-			}
-		}
-		else if(name[i] == '%' || (name[i] >= 'a' && name[i] <= 'f') || (name[i] >= 'A' && name[i] <= 'F')){
-			nhex++;
-		}
-		else if(name[i] <'0' || name[i] >'9') {
-			break;
-		}
+
+	detect = afdetect(name);
+	if(detect != -1){
+		if(family == 4 && detect != 4) return 0;
+		*SAFAMILY(sa) = (family == 6)? AF_INET6 : detect;
+		return inet_pton(*SAFAMILY(sa), (char *)name, SAADDR(sa))? *SAFAMILY(sa) : 0; 
 	}
-	if(!name[i]){
-		if(ndots == 3 && ncols == 0 && nhex == 0){
-			*SAFAMILY(sa)=(family == 6)?AF_INET6 : AF_INET;
-			return inet_pton(*SAFAMILY(sa), (char *)name, SAADDR(sa))? *SAFAMILY(sa) : 0; 
-		}
-		if(ncols >= 2) {
-			*SAFAMILY(sa)=AF_INET6;
-			return inet_pton(AF_INET6, (char *)name, SAADDR(sa))?(family==4? 0:AF_INET6) : 0;
-		}
-	}
+
+
 	if((tmpresolv = resolvfunc)){
 		int f = (family == 6 || family == 64)?AF_INET6:AF_INET;
 		*SAFAMILY(sa) = f;

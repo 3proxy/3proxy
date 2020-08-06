@@ -196,6 +196,7 @@ extern struct nserver nservers[MAXNSERVERS];
 extern struct nserver authnserver;
 unsigned long getip(unsigned char *name);
 unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
+int afdetect(unsigned char *name);
 unsigned long myresolver(int, unsigned char *, unsigned char *);
 unsigned long fakeresolver (int, unsigned char *, unsigned char*);
 int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
