@@ -16,7 +16,7 @@ LN ?= ${CC}
 LDFLAGS = -pthread -O -fno-strict-aliasing 
 # -lpthreads may be reuqired on some platforms instead of -pthreads
 # -ldl or -lld may be required for some platforms
-DCFLAGS = -fpic
+DCFLAGS = -fPIC
 DLFLAGS = -shared
 DLSUFFICS = .so
 LIBS =
