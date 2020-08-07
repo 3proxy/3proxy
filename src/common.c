@@ -911,7 +911,7 @@ unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
 
 	detect = afdetect(name);
 	if(detect != -1){
-		if(family == 4 && detect != 4) return 0;
+		if(family == 4 && detect != AF_INET) return 0;
 		*SAFAMILY(sa) = (family == 6)? AF_INET6 : detect;
 		return inet_pton(*SAFAMILY(sa), (char *)name, SAADDR(sa))? *SAFAMILY(sa) : 0; 
 	}
