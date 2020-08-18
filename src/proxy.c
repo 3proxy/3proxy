@@ -439,9 +439,11 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		if(!strncasecmp((char *)sb,"keep-alive", 10))keepalive = 1;
-		else keepalive = 0;
-		continue; 
+		if(strncasecmp((char *)sb,"upgrade", 7)){
+			if(!strncasecmp((char *)sb,"keep-alive", 10))keepalive = 1;
+			else keepalive = 0;
+			continue; 
+		}
 	}
 	if( i > 11 && !strncasecmp((char *)(buf+inbuf),  "Expect: 100", 11)){
 		keepalive = 1;
@@ -907,7 +909,7 @@ for(;;){
 		++sb;
 		while(isspace(*sb))sb++;
 		if(strncasecmp((char *)sb,"keep-alive", 10))ckeepalive = 0;
-		if(!param->srv->transparent)continue; 
+		if(!param->srv->transparent && res >= 200)continue; 
 	}
 	else if(i> 6 && !param->srv->transparent && (!strncasecmp((char *)(buf+inbuf), "proxy-", 6))){
 		continue; 
@@ -1006,7 +1008,7 @@ for(;;){
 		"Proxy-support: Session-Based-Authentication\r\n"
 		"Connection: Proxy-support\r\n"
 	 );
-	 if(!param->srv->transparent){
+	 if(!param->srv->transparent && res>=200){
 		if(ckeepalive <= 1) sprintf((char*)buf+strlen((char *)buf), "Connection: %s\r\n", 
 		(hascontent && ckeepalive)?"keep-alive":"close");
 	 }
