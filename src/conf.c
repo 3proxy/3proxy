@@ -1113,6 +1113,13 @@ static int h_ace(int argc, unsigned char **argv){
 	else if(!strcmp((char *)argv[0], "nocountout")){
 		res = NOCOUNTOUT;
 	}
+	else if(!strcmp((char *)argv[0], "countall")){
+		res = COUNTALL;
+		offset = 3;
+	}
+	else if(!strcmp((char *)argv[0], "nocountall")){
+		res = NOCOUNTALL;
+	}
 	else if(!strcmp((char *)argv[0], "connlim")){
 		res = CONNLIM;
 		offset = 2;
@@ -1224,6 +1231,8 @@ static int h_ace(int argc, unsigned char **argv){
 	case NOCOUNTIN:
 	case COUNTOUT:
 	case NOCOUNTOUT:
+	case COUNTALL:
+	case NOCOUNTALL:
 		tl = myalloc(sizeof(struct trafcount));
 		if(!tl) {
 			fprintf(stderr, "No memory to create traffic limit filter\n");
@@ -1232,7 +1241,7 @@ static int h_ace(int argc, unsigned char **argv){
 		memset(tl, 0, sizeof(struct trafcount));
 		tl->ace = acl;
 	
-		if((acl->action == COUNTIN)||(acl->action == COUNTOUT)) {
+		if((acl->action == COUNTIN)||(acl->action == COUNTOUT)||(acl->action == COUNTALL)) {
 			unsigned long lim;
 
 			tl->comment = ( char *)argv[1];

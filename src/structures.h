@@ -115,6 +115,8 @@ int
 #define NOCOUNTOUT	8
 #define CONNLIM		9
 #define NOCONNLIM	10
+#define COUNTALL	11
+#define NOCOUNTALL	12
 
 #define CONNECT 	0x00000001
 #define BIND		0x00000002

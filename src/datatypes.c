@@ -384,6 +384,10 @@ static void * ef_ace_type(struct node * node){
 			return "countout";
 		case NOCOUNTOUT:
 			return "nocountout";
+		case COUNTALL:
+			return "countall";
+		case NOCOUNTALL:
+			return "nocountall";
 		default:
 			return "unknown";
 	}

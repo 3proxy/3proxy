@@ -605,10 +605,13 @@ void trafcountfunc(struct clientparam *param){
 	for(tc = conf.trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
 			time_t t;
-			if(tc->ace->action == NOCOUNTIN) break;
+			if(tc->ace->action == NOCOUNTIN || tc->ace->action == NOCOUNTALL) {
+				countout = 1;
+				break;
+			}
 			if(tc->ace->action != COUNTIN) {
 				countout = 1;
-				continue;
+				if(tc->ace->action != COUNTALL)continue;
 			}
 			tc->traf64 += param->statssrv64;
 			time(&t);
@@ -618,8 +621,8 @@ void trafcountfunc(struct clientparam *param){
 	if(countout) for(tc = conf.trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
 			time_t t;
-			if(tc->ace->action == NOCOUNTOUT) break;
-			if(tc->ace->action != COUNTOUT) {
+			if(tc->ace->action == NOCOUNTOUT || tc->ace->action == NOCOUNTALL) break;
+			if(tc->ace->action != COUNTOUT && tc->ace->action != COUNTALL ) {
 				continue;
 			}
 			tc->traf64 += param->statscli64;
