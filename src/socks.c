@@ -173,9 +173,9 @@ void * sockschild(struct clientparam* param) {
 	case 3:
 
 #ifndef NOIPV6	 
-	 param->sinsl = *SAFAMILY(&param->req)==AF_INET6? param->srv->extsa6 : param->srv->extsa;
+	 param->sinsl = *SAFAMILY(&param->req)==AF_INET6? param->srv->extsa6 : (SAISNULL(&param->srv->extNat)?param->srv->extsa:param->srv->extNat);
 #else
-	 param->sinsl = param->srv->extsa;
+	 param->sinsl = SAISNULL(&param->srv->extNat)?param->srv->extsa:param->srv->extNat;
 #endif
 	 if ((param->remsock=so._socket(SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;
@@ -461,7 +461,7 @@ struct proxydef childdef = {
 	1080,
 	0,
 	S_SOCKS,
-	""
+	"-N(EXTERNAL_IP) External NAT address to report to client for BIND\n"
 };
 #include "proxymain.c"
 #endif

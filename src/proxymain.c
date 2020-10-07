@@ -346,6 +346,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 			}
 			break;
+		 case 'N':
+			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extNat);
+			break;
 		 case 'p':
 			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
 			break;
