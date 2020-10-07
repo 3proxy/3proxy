@@ -33,6 +33,11 @@ from. External IP must be specified if you need incoming connections.
 By default system will deside which address to use in accordance
 with routing table.
 .TP
+.B -N
+External NAT address 3proxy reports to client for BIND and UDPASSOC
+By default external address is reported. It's only useful in the case
+of IP-IP NAT (will not work for PAT)
+.TP
 .B -i
 Internal address. IP address proxy accepts connections to.
 By default connection to any interface is accepted. It\'s usually unsafe.
