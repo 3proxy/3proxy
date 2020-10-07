@@ -158,6 +158,21 @@ Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAM
 .B -DiINTERFACE, -DeINTERFACE
 bind internal interface / external inteface to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system. You may need to run as root or to have CAP_NET_RAW capability in order to bind to interface, depending on system, so this option may require root privileges and can be incompatible with some configuraton commands like chroot and setuid (and daemon if setcap is used).
 .br
+.B -e
+External address. IP address of interface proxy should initiate connections
+from. External IP must be specified if you need incoming connections.
+By default system will deside which address to use in accordance
+with routing table.
+.br
+.B -i
+Internal address. IP address proxy accepts connections to.
+By default connection to any interface is accepted. 
+.br
+.B -N
+(for socks) External NAT address 3proxy reports to client for BIND and UDPASSOC
+By default external address is reported. It's only useful in the case
+of IP-IP NAT (will not work for PAT)
+.br
  Also, all options mentioned for 
 .BR proxy (8)
 .BR socks (8)
@@ -855,15 +870,24 @@ exception.
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
 <weekdayslist> <timeperiodslist>
 .br
+.B countall
+<number> <type> <limit> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
+.br
+.B nocountall
+<userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
+.br
 
- counter, countin, nocountin, countout, noucountout  commands are 
-used to set traffic limit
+ counter, countin, nocountin, countout, noucountout, countall,
+nocountall commands are used to set traffic limit
 in MB for period of time (day, week or month). Filename is a path
 to a special file where traffic information is permanently stored.
 number is sequential number of record in this file. If number is 0
-no traffic information  on this counter is saved in file (that is
-if proxy restarted all information is loosed) overwise it should be
-unique sequential number.
+this counter is not preserved in counter file (that is
+if proxy restarted all counters with 0 are flushed) overwise it
+should be unique sequential number which points to position of
+the couter within the file.
 Type specifies a type of counter. Type is one of:
 .br
  H - counter is resetted hourly
