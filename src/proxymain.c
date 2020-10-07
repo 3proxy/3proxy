@@ -8,8 +8,6 @@
 
 #include "proxy.h"
 
-pthread_mutex_t log_mutex;
-
 #define param ((struct clientparam *) p)
 #ifdef _WIN32
 DWORD WINAPI threadfunc(LPVOID p) {
