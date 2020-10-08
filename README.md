@@ -1,24 +1,27 @@
 # 3APA3A 3proxy tiny proxy server
 (c) 2002-2019 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
 
-Download: 
+
+## Download: 
 	https://github.com/z3APA3A/3proxy/releases
 	or
 	https://3proxy.org/download/
 Archive of old versions: https://github.com/z3APA3A/3proxy-archive
 
+## Setup
 
-3proxy --install 
+`3proxy --install`
 	
-	installs and starts proxy as Windows service
-	(config file should be located in the same directory)
+installs and starts proxy as Windows service
+(config file should be located in the same directory)
 
-3proxy --remove 
 
-	removes the service (should be stopped before via
-	'net stop 3proxy').
+`3proxy --remove`
 
-	To build in Linux install git and build-essential packages, use
+removes the service (should be stopped before via
+'net stop 3proxy').
+
+To build in Linux install git and build-essential packages, use
 
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
@@ -26,12 +29,14 @@ ln -s Makefile.Linux Makefile
 make
 sudo make install
 
-	use /etc/3proxy/add3proxyuser.sh script to add users.
+use /etc/3proxy/add3proxyuser.sh script to add users.
+
 
 
 Please read doc/html/index.html and man pages.
 
- Features:
+
+## Features:
   1. General
 	+ IPv6 support for incoming and outgoing connection,
 	  can be used as a proxy between IPv4 and IPv6 networks
@@ -188,6 +193,10 @@ dighosts    	Utility for building networks list from web page.
 
 Run utility with --help option for command line reference.
 
-Latest version is available from https://3proxy.org/
 
-Want to donate the project? https://3proxy.org/donations/
+## Latest version is available from :
+https://3proxy.org/
+
+
+## Want to donate the project? 
+https://3proxy.org/donations/
