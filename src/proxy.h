@@ -151,8 +151,7 @@ extern int timetoexit;
 
 extern struct extparam conf;
 
-int sockmap(struct clientparam * param, int timeo);
-int splicemap(struct clientparam * param, int timeo);
+int sockmap(struct clientparam * param, int timeo, int usesplice);
 int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to);
 int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
@@ -168,6 +167,7 @@ int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * 
 
 
 
+void dolog(struct clientparam * param, const unsigned char *s);
 int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 extern FILE * stdlog;
@@ -312,9 +312,9 @@ extern struct datatype datatypes[64];
 extern struct commands commandhandlers[];
 
 #ifdef WITHSPLICE
-#define mapsocket(a,b) (a->srv->usesplice && !a->ndatfilterssrv && !a->ndatfilterscli && !a->npredatfilters?splicemap(a,b):sockmap(a,b))
+#define mapsocket(a,b) ((a->srv->usesplice && !a->ndatfilterssrv && !a->ndatfilterscli)?sockmap(a,b,1):sockmap(a,b,0))
 #else
-#define mapsocket(a,b) sockmap(a,b)
+#define mapsocket(a,b) sockmap(a,b, 0)
 #endif
 
 

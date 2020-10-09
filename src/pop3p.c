@@ -49,9 +49,9 @@ CLEANRET:
 
  if(param->hostname&&param->extusername) {
 	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, (*SAPORT(&param->sinsr)==110)?0:':', ntohs(*SAPORT(&param->sinsr)));
-	 (*param->srv->logfunc)(param, buf);
+	dolog(param, buf);
  }
- else (*param->srv->logfunc)(param, NULL);
+ else dolog(param, NULL);
  if(param->clisock != INVALID_SOCKET) {
 	if ((param->res > 0 && param->res < 100) || (param->res > 611 && param->res <700)) socksend(param->clisock, (unsigned char *)"-ERR\r\n", 6,conf.timeouts[STRING_S]);
  }

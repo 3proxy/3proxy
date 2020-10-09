@@ -870,6 +870,16 @@ You can control 3proxy service via "Services" administration ot via "net" comman
 		<li>50-69 - SOCKS5 PROXY REDIRECTION ERRORS
 		<li>70-79 PARENT PROXY CONNECTION ERRORS (identical to 1x)
 		<li>90-99 - established connection errors
+<li>since 0.9
+    <li>90 - unexpected system error (should not happen)
+    <li>91 - unexpected poll error (should not happen)
+    <li>92 - connection terminated by timeout
+    <li>93 - dirty connection termination by server or client (or network issue) with unsent data
+    <li>94 - clear connection termination by server or client with unsent data
+    <li>95 - dirty connection termination by client (or network issue)
+    <li>96 - dirty connection termination by server (or network issue)
+    <li>97 - dirty connection termination by both client and server (probably network issue)
+<li>prior to 0.9:
 		<li>90 - socket error or connection broken
 		<li>91 - TCP/IP common failure
 		<li>92 - connection timed out

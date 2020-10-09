@@ -23,27 +23,27 @@ void * threadfunc (void *p) {
 	fds.revents = 0;
 	for(i=5+(param->srv->maxchild>>10); i; i--){
 		if(so._poll(&fds, 1, 1000*CONNBACK_TO)!=1){
-			param->srv->logfunc(param, (unsigned char *)"Connect back not received, check connback client");
+			dolog(param, (unsigned char *)"Connect back not received, check connback client");
 			i = 0;
 			break;
 		}
 		param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
-			param->srv->logfunc(param, (unsigned char *)"Connect back accept() failed");
+			dolog(param, (unsigned char *)"Connect back accept() failed");
 			continue;
 		}
 #ifndef WITHMAIN
 		param->req = param->sinsr;
 		if(param->srv->acl) param->res = checkACL(param);
 		if(param->res){
-			param->srv->logfunc(param, (unsigned char *)"Connect back ACL failed");
+			dolog(param, (unsigned char *)"Connect back ACL failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
 		}
 #endif
 		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, (unsigned char *)"C", 1, CONNBACK_TO) != 1){
-			param->srv->logfunc(param, (unsigned char *)"Connect back sending command failed");
+			dolog(param, (unsigned char *)"Connect back sending command failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
@@ -57,6 +57,13 @@ void * threadfunc (void *p) {
 	freeparam(param);
  }
  else {
+
+#ifndef _WIN32
+	sigset_t mask;
+	sigfillset(&mask);
+	pthread_sigmask(SIG_SETMASK, &mask, NULL);
+#endif
+
 	((struct clientparam *) p)->srv->pf((struct clientparam *)p);
  }
 #ifdef _WIN32
@@ -260,12 +267,8 @@ int MODULEMAINFUNC (int argc, char** argv){
  WSADATA wd;
  WSAStartup(MAKEWORD( 1, 1 ), &wd);
 
-
-
-#else
- signal(SIGPIPE, SIG_IGN);
-
 #endif
+
 #endif
 
  srvinit(&srv, &defparam);
@@ -286,6 +289,14 @@ int MODULEMAINFUNC (int argc, char** argv){
 #else
  srv.needuser = 0;
  pthread_mutex_init(&log_mutex, NULL);
+#endif
+
+#ifndef _WIN32
+ {
+	sigset_t mask;
+	sigfillset(&mask);
+	pthread_sigmask(SIG_SETMASK, &mask, NULL);
+ }
 #endif
 
  for (i=1; i<argc; i++) {
@@ -513,7 +524,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 #ifndef _WIN32
  if(inetd) {
-	fcntl(0,F_SETFL,O_NONBLOCK);
+	fcntl(0,F_SETFL,O_NONBLOCK | fcntl(0,F_GETFL));
 	if(!isudp){
 		so._setsockopt(0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
 		so._setsockopt(0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
@@ -571,7 +582,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef _WIN32
 		ioctlsocket(sock, FIONBIO, &ul);
 #else
-		fcntl(sock,F_SETFL,O_NONBLOCK);
+		fcntl(sock,F_SETFL,O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
 		srv.srvsock = sock;
 		opt = 1;
@@ -587,7 +598,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	size = sizeof(srv.intsa);
 	for(sleeptime = SLEEPTIME * 100; so._bind(sock, (struct sockaddr*)&srv.intsa, SASIZE(&srv.intsa))==-1; usleep(sleeptime)) {
 		sprintf((char *)buf, "bind(): %s", strerror(errno));
-		if(!srv.silent)(*srv.logfunc)(&defparam, buf);	
+		if(!srv.silent)dolog(&defparam, buf);	
 		sleeptime = (sleeptime<<1);	
 		if(!sleeptime) {
 			so._closesocket(sock);
@@ -597,7 +608,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  	if(!isudp){
  		if(so._listen (sock, 1 + (srv.maxchild>>4))==-1) {
 			sprintf((char *)buf, "listen(): %s", strerror(errno));
-			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+			if(!srv.silent)dolog(&defparam, buf);
 			return -4;
 		}
 	}
@@ -606,13 +617,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 	if(!srv.silent && !iscbc){
 		sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
-		(*srv.logfunc)(&defparam, buf);
+		dolog(&defparam, buf);
 	}
  }
  if(iscbl){
 	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
 	if((srv.cbsock=so._socket(SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
-		(*srv.logfunc)(&defparam, (unsigned char *)"Failed to allocate connect back socket");
+		dolog(&defparam, (unsigned char *)"Failed to allocate connect back socket");
 		return -6;
 	}
 	opt = 1;
@@ -625,11 +636,11 @@ int MODULEMAINFUNC (int argc, char** argv){
 	setopts(srv.cbsock, srv.cbssockopts);
 
 	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
-		(*srv.logfunc)(&defparam, (unsigned char *)"Failed to bind connect back socket");
+		dolog(&defparam, (unsigned char *)"Failed to bind connect back socket");
 		return -7;
 	}
 	if(so._listen(srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
-		(*srv.logfunc)(&defparam, (unsigned char *)"Failed to listen connect back socket");
+		dolog(&defparam, (unsigned char *)"Failed to listen connect back socket");
 		return -8;
 	}
  }
@@ -649,7 +660,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			nlog++;			
 			if(!srv.silent && nlog > 5000) {
 				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv.childcount, srv.maxchild);
-				(*srv.logfunc)(&defparam, buf);
+				dolog(&defparam, buf);
 				nlog = 0;
 			}
 			usleep(SLEEPTIME);
@@ -667,7 +678,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if (error == 0) continue;
 		if (errno != EAGAIN &&	errno != EINTR) {
 			sprintf((char *)buf, "poll(): %s/%d", strerror(errno), errno);
-			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+			if(!srv.silent)dolog(&defparam, buf);
 			break;
 		}
 	}
@@ -740,7 +751,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 				nlog++;			
 				if(!srv.silent && (error || nlog > 5000)) {
 					sprintf((char *)buf, "accept(): %s", strerror(errno));
-					(*srv.logfunc)(&defparam, buf);
+					dolog(&defparam, buf);
 					nlog = 0;
 				}
 				continue;
@@ -750,13 +761,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 		size = sizeof(defparam.sincl);
 		if(so._getsockname(new_sock, (struct sockaddr *)&defparam.sincl, &size)){
 			sprintf((char *)buf, "getsockname(): %s", strerror(errno));
-			if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+			if(!srv.silent)dolog(&defparam, buf);
 			continue;
 		}
 #ifdef _WIN32
 		ioctlsocket(new_sock, FIONBIO, &ul);
 #else
-		fcntl(new_sock,F_SETFL,O_NONBLOCK);
+		fcntl(new_sock,F_SETFL,O_NONBLOCK | fcntl(new_sock,F_GETFL));
 #endif
 		so._setsockopt(new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 		so._setsockopt(new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
@@ -767,7 +778,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(! (newparam = myalloc (sizeof(defparam)))){
 		if(!isudp) so._closesocket(new_sock);
 		defparam.res = 21;
-		if(!srv.silent)(*srv.logfunc)(&defparam, (unsigned char *)"Memory Allocation Failed");
+		if(!srv.silent)dolog(&defparam, (unsigned char *)"Memory Allocation Failed");
 		usleep(SLEEPTIME);
 		continue;
 	};
@@ -804,7 +815,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 	else {
 		sprintf((char *)buf, "_beginthreadex(): %s", _strerror(NULL));
-		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+		if(!srv.silent)dolog(&defparam, buf);
 		error = 1;
 	}
 #else
@@ -813,7 +824,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	srv.childcount++;
 	if(error){
 		sprintf((char *)buf, "pthread_create(): %s", strerror(error));
-		if(!srv.silent)(*srv.logfunc)(&defparam, buf);
+		if(!srv.silent)dolog(&defparam, buf);
 	}
 	else {
 		newparam->threadid = (unsigned)thread;

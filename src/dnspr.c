@@ -198,7 +198,7 @@ CLEANRET:
 	if((ip && type == 0x01) || type == 0x1c){
 		myinet_ntop(type == 0x01? AF_INET:AF_INET6, addr, (char *)buf+strlen((char *)buf), 64);
 	}
-	(*param->srv->logfunc)(param, buf);
+	dolog(param, buf);
  }
  if(bbuf)myfree(bbuf);
  if(host)myfree(host);

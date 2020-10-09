@@ -448,7 +448,7 @@ fflush(stderr);
 	 else 
 		myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + strlen((char *)buf), 64);
          sprintf((char *)buf+strlen((char *)buf), ":%hu", ntohs(*SAPORT(&param->req)));
-	 (*param->srv->logfunc)(param, buf);
+	 dolog(param, buf);
 	 myfree(buf);
  }
  freeparam(param);

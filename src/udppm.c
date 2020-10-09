@@ -81,7 +81,7 @@ void * udppmchild(struct clientparam* param) {
 #ifdef _WIN32
 	ioctlsocket(param->remsock, FIONBIO, &ul);
 #else
-	fcntl(param->remsock,F_SETFL,O_NONBLOCK);
+	fcntl(param->remsock,F_SETFL,O_NONBLOCK | fcntl(param->remsock,F_GETFL));
 #endif
  memcpy(&param->sinsr, &param->req, sizeof(param->req));
 
@@ -91,7 +91,7 @@ void * udppmchild(struct clientparam* param) {
 	param->srv->fds.events = POLLIN;
  }
 
- param->res = sockmap(param, conf.timeouts[(param->srv->singlepacket)?SINGLEBYTE_L:STRING_L]);
+ param->res = mapsocket(param, conf.timeouts[(param->srv->singlepacket)?SINGLEBYTE_L:STRING_L]);
  if(!param->srv->singlepacket) {
 	param->srv->fds.events = POLLIN;
  }
@@ -99,7 +99,7 @@ void * udppmchild(struct clientparam* param) {
 CLEANRET:
 
  if(buf)myfree(buf);
- (*param->srv->logfunc)(param, NULL);
+ dolog(param, NULL);
 #ifndef _WIN32
  param->clisock = INVALID_SOCKET;
 #endif

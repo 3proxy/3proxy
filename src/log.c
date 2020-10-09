@@ -1,17 +1,37 @@
 /*
    3APA3A simpliest proxy server
-   (c) 2002-2016 by Vladimir Dubrovin <3proxy@3proxy.ru>
+   (c) 2002-2020 by Vladimir Dubrovin <3proxy@3proxy.ru>
 
    please read License Agreement
 
 */
 
 
-pthread_mutex_t log_mutex;
 
 
 #include "proxy.h"
+pthread_mutex_t log_mutex;
 int havelog = 0;
+
+
+struct clientparam logparam;
+struct srvparam logsrv;
+
+
+
+void dolog(struct clientparam * param, const unsigned char *s){
+	static int init = 0;
+
+	if(param)param->srv->logfunc(param, s);
+	else {
+		if(!init){
+			srvinit(&logsrv, &logparam);
+			init = 1;
+		}
+		logstdout(&logparam, s);
+	}
+}
+
 
 void clearstat(struct clientparam * param) {
 

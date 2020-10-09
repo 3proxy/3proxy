@@ -740,7 +740,7 @@ struct pluginlink {
 	int (*dobuf2)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 	int (*scanaddr)(const unsigned char *s, unsigned long * ip, unsigned long * mask);
 	unsigned long (*getip46)(int family, unsigned char *name,  struct sockaddr *sa);
-	int (*sockmap)(struct clientparam * param, int timeo);
+	int (*sockmap)(struct clientparam * param, int timeo, int usesplice);
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);
 	int (*alwaysauth)(struct clientparam * param);
 	int (*checkACL)(struct clientparam * param);

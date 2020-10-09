@@ -369,7 +369,7 @@ int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 		unsigned long ul = 1;
 		ioctlsocket(sock, FIONBIO, &ul);
 #else
-		fcntl(sock,F_SETFL,O_NONBLOCK);
+		fcntl(sock,F_SETFL, O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
 		if(so._connect(sock,sa,size)) {
 			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
