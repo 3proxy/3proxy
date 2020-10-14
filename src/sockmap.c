@@ -157,6 +157,7 @@ log(logbuf);
 #endif
 
 	if(needaction > 2 && !sleeptime){
+		if(needaction > 13){RETURN (93);}
 		sleeptime = (1<<(needaction-2));
 	}
 	if(sleeptime > 0) {
