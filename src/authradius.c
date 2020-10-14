@@ -293,13 +293,14 @@ typedef struct radius_packet_t {
   uint8_t       id;
   uint16_t      length;
   uint8_t       vector[AUTH_VECTOR_LEN];
-  uint8_t       data[4096];
+  uint8_t       data[2048];
 } radius_packet_t;
           
 #define RETURN(xxx) { res = xxx; goto CLEANRET; }
 
-int radsend(struct clientparam * param, int auth, int stop){
+#define packet (*(radius_packet_t *buf))
 
+int radbuf(struct clientparam * param, unsigned char * buf, int auth, int stop){
 	int loop;
 	int id;
 	int res = 4;
@@ -308,15 +309,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	int total_length;
 	int len;
 	int op;
-#ifdef NOIPV6
-	struct  sockaddr_in     saremote;
-#else
-	struct  sockaddr_in6     saremote;
-#endif
-	struct pollfd fds[1];
 	char vector[AUTH_VECTOR_LEN];
-	radius_packet_t packet, rpacket;
-	SASIZETYPE salen;
 	int data_len;
 	uint8_t	*vendor_len;
 	int count=0;
@@ -325,9 +318,8 @@ int radsend(struct clientparam * param, int auth, int stop){
 	int vendorlen=0;
 	char buf[64];
 
-
 	if(!radiussecret || !nradservers) {
-		return 4;
+		return 0;
 	}
 
 	memset(&packet, 0, sizeof(packet));
@@ -526,6 +518,38 @@ int radsend(struct clientparam * param, int auth, int stop){
 		md5_calc(packet.vector, (u_char *)&packet, total_length + len);
 	}
 	memcpy(vector, packet.vector, AUTH_VECTOR_LEN);
+	return total_length;
+
+}
+
+
+int radsend(const char *buf, int total_length, int auth){
+
+	int loop;
+	int id;
+	int res = 4;
+	SOCKET sockfd = -1;
+	unsigned char *ptr;
+	int len;
+	int op;
+#ifdef NOIPV6
+	struct  sockaddr_in     saremote;
+#else
+	struct  sockaddr_in6     saremote;
+#endif
+	struct pollfd fds[1];
+	char vector[AUTH_VECTOR_LEN];
+	radius_packet_t packet, rpacket;
+	SASIZETYPE salen;
+	int data_len;
+	uint8_t	*vendor_len;
+	int count=0;
+	uint8_t *attr;
+	long vendor=0;
+	int vendorlen=0;
+	char buf[64];
+
+
 	
 	for (loop = 0; loop < nradservers && loop < MAXRADIUS; loop++) {
 		SOCKET remsock;
@@ -656,14 +680,20 @@ CLEANRET:
 }
 
 int radauth(struct clientparam * param){
+	radius_packet_t packet;
+	int len;
 	/*radsend(param, 0, 0);*/
-	return radsend(param, 1, 0);
+	len = radbuf(param, buf, 1, 0);
+	return len?radsend(buf, len, 1):4;
 }
 
-void logradius(struct clientparam * param, const unsigned char *s) {
-	radsend(param, 0, 1);
-	if(param->trafcountfunc)(*param->trafcountfunc)(param);
-	clearstat(param);
+
+int raddobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s){
+	return radbuf(param, buf, 0, 1);
+}
+
+void logradius(const unsigned char *buf, int len, LOGGER *logger){
+	if(len)radsend(buf, len, 0);
 }
 
 

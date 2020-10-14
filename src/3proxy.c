@@ -271,51 +271,6 @@ void cyclestep(void){
 	}
 	if(conf.logname) {
 		if(timechanged(conf.logtime, conf.time, conf.logtype)) {
-			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a", conf.stdlog);
-			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a");
-			conf.logtime = conf.time;
-			if(conf.logtype != NONE && conf.rotate) {
-				int t;
-				t = 1;
-				switch(conf.logtype){
-					case ANNUALLY:
-						t = t * 12;
-					case MONTHLY:
-						t = t * 4;
-					case WEEKLY:
-						t = t * 7;
-					case DAILY:
-						t = t * 24;
-					case HOURLY:
-						t = t * 60;
-					case MINUTELY:
-						t = t * 60;
-					default:
-						break;
-				}
-				dologname (tmpbuf, conf.logname, (conf.archiver)?conf.archiver[1]:NULL, conf.logtype, (conf.logtime - t * conf.rotate));
-				remove ((char *) tmpbuf);
-				if(conf.archiver) {
-					int i;
-					*tmpbuf = 0;
-					for(i = 2; i < conf.archiverc && strlen((char *)tmpbuf) < 512; i++){
-						strcat((char *)tmpbuf, " ");
-						if(!strcmp((char *)conf.archiver[i], "%A")){
-							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf + strlen((char *)tmpbuf), conf.logname, conf.archiver[1], conf.logtype, (conf.logtime - t));
-							strcat((char *)tmpbuf, "\"");
-						}
-						else if(!strcmp((char *)conf.archiver[i], "%F")){
-							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf+strlen((char *)tmpbuf), conf.logname, NULL, conf.logtype, (conf.logtime-t));
-							strcat((char *)tmpbuf, "\"");
-						}
-						else
-							strcat((char *)tmpbuf, (char *)conf.archiver[i]);
-					}
-					system((char *)tmpbuf+1);
-				}
-			}
 		}
 	}
 	if(conf.counterd >= 0 && conf.trafcounter) {
@@ -512,11 +467,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   pthread_mutex_init(&hash_mutex, NULL);
   pthread_mutex_init(&tc_mutex, NULL);
   pthread_mutex_init(&pwl_mutex, NULL);
-  pthread_mutex_init(&log_mutex, NULL);
 #ifndef NORADIUS
   pthread_mutex_init(&rad_mutex, NULL);
 #endif
-
+  initlog();
   freeconf(&conf);
   res = readconfig(fp);
   conf.version++;

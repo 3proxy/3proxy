@@ -116,4 +116,5 @@ struct proxydef childdef = {
 	" -s single packet UDP service for request/reply (DNS-like) services\n"
 };
 #include "proxymain.c"
+#include "log.c"
 #endif

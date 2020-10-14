@@ -166,21 +166,10 @@ int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * 
 
 
 
-
+void initlog(void);
 void dolog(struct clientparam * param, const unsigned char *s);
 int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
-extern FILE * stdlog;
-void logstdout(struct clientparam * param, const unsigned char *s);
-void logsyslog(struct clientparam * param, const unsigned char *s);
-void lognone(struct clientparam * param, const unsigned char *s);
-void logradius(struct clientparam * param, const unsigned char *s);
-
-#ifndef NOSQL
-void logsql(struct clientparam * param, const unsigned char *s);
-int init_sql(char * s);
-void close_sql();
-#endif
 int doconnect(struct clientparam * param);
 int alwaysauth(struct clientparam * param);
 int ipauth(struct clientparam * param);
@@ -203,7 +192,6 @@ int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);
-
 int startconnlims (struct clientparam *param);
 void stopconnlims (struct clientparam *param);
 

@@ -295,7 +295,7 @@ static int h_log(int argc, unsigned char ** argv){
 	}
 	if(argc > 1) {
 		if(!strcmp((char *) argv[1], "/dev/null")) {
-			conf.logfunc = lognone;
+			conf.logfunc = NULL;
 			return 0;
 		}
 		if(!notchanged) conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
@@ -1780,7 +1780,7 @@ void freeconf(struct extparam *confp){
  logname = confp->logname;
  confp->logname = NULL;
 */
- confp->logfunc = lognone;
+ confp->logfunc = NULL;
  logformat = confp->logformat;
  confp->logformat = NULL;
  confp->rotate = 0;

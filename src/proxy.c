@@ -1141,4 +1141,5 @@ struct proxydef childdef = {
 	"-a1 - anonymous proxy with random client IP spoofing\r\n"
 };
 #include "proxymain.c"
+#include "log.c"
 #endif

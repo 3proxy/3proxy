@@ -523,7 +523,7 @@ static void * ef_server_childcount(struct node * node){
 }
 
 static void * ef_server_log(struct node * node){
-	if(((struct srvparam *)node->value) -> logfunc == lognone)	return "none";
+	if(((struct srvparam *)node->value) -> logfunc == NULL)	return "none";
 #ifndef NORADIUS
 	else if(((struct srvparam *)node->value) -> logfunc == logradius)	return "radius";
 #endif

@@ -288,7 +288,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  }
 #else
  srv.needuser = 0;
- pthread_mutex_init(&log_mutex, NULL);
+ initlog();
 #endif
 
 #ifndef _WIN32
@@ -313,7 +313,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 #endif
 		 case 'l':
-			srv.logfunc = logstdout;
 			if(srv.logtarget) myfree(srv.logtarget);
 			srv.logtarget = (unsigned char *)mystrdup(argv[i] + 2);
 			if(argv[i][2]) {
@@ -867,7 +866,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf.version + 1;
  srv->paused = conf.paused;
- srv->logfunc = havelog?conf.logfunc:lognone;
+ srv->logfunc = havelog?conf.logfunc:NULL;
  srv->noforce = conf.noforce;
  srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
  srv->authfunc = conf.authfunc;
@@ -963,6 +962,24 @@ void srvfree(struct srvparam * srv){
 
 void freeparam(struct clientparam * param) {
 	if(param->res == 2) return;
+	if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
+		so._shutdown(param->ctrlsocksrv, SHUT_RDWR);
+		so._closesocket(param->ctrlsocksrv);
+	}
+	if(param->ctrlsock != INVALID_SOCKET && param->ctrlsock != param->clisock) {
+		so._shutdown(param->ctrlsock, SHUT_RDWR);
+		so._closesocket(param->ctrlsock);
+	}
+	if(param->remsock != INVALID_SOCKET) {
+		so._shutdown(param->remsock, SHUT_RDWR);
+		so._closesocket(param->remsock);
+	}
+	if(param->clisock != INVALID_SOCKET) {
+		so._shutdown(param->clisock, SHUT_RDWR);
+		so._closesocket(param->clisock);
+	}
+	myfree(param->clibuf);
+	myfree(param->srvbuf);
 	if(param->datfilterssrv) myfree(param->datfilterssrv);
 #ifndef STDMAIN
 	if(param->reqfilters) myfree(param->reqfilters);
@@ -979,8 +996,6 @@ void freeparam(struct clientparam * param) {
 	}
 	if(conf.connlimiter && (param->res != 95 || param->remsock != INVALID_SOCKET)) stopconnlims(param);
 #endif
-	if(param->clibuf) myfree(param->clibuf);
-	if(param->srvbuf) myfree(param->srvbuf);
 	if(param->srv){
 		pthread_mutex_lock(&param->srv->counter_mutex);
 		if(param->prev){
@@ -999,22 +1014,6 @@ void freeparam(struct clientparam * param) {
 	if(param->password) myfree(param->password);
 	if(param->extusername) myfree(param->extusername);
 	if(param->extpassword) myfree(param->extpassword);
-	if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
-		so._shutdown(param->ctrlsocksrv, SHUT_RDWR);
-		so._closesocket(param->ctrlsocksrv);
-	}
-	if(param->ctrlsock != INVALID_SOCKET && param->ctrlsock != param->clisock) {
-		so._shutdown(param->ctrlsock, SHUT_RDWR);
-		so._closesocket(param->ctrlsock);
-	}
-	if(param->remsock != INVALID_SOCKET) {
-		so._shutdown(param->remsock, SHUT_RDWR);
-		so._closesocket(param->remsock);
-	}
-	if(param->clisock != INVALID_SOCKET) {
-		so._shutdown(param->clisock, SHUT_RDWR);
-		so._closesocket(param->clisock);
-	}
 	myfree(param);
 }
 

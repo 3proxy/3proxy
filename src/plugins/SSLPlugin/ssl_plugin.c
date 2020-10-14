@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 PROXYFUNC tcppmfunc, proxyfunc, smtppfunc, ftpprfunc;
+static void (*dolog)(struct clientparam * param, const unsigned char *s);
 
 static struct pluginlink * pl;
 
@@ -238,25 +239,25 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
  ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, &ServerCert, &errSSL);
  if ( ServerConn == NULL || ServerCert == NULL ) {
 	param->res = 8011;
-	param->srv->logfunc(param, (unsigned char *)"SSL handshake to server failed");
-	if(ServerConn == NULL) 	param->srv->logfunc(param, (unsigned char *)"ServerConn is NULL");
-	if(ServerCert == NULL) 	param->srv->logfunc(param, (unsigned char *)"ServerCert is NULL");
-	if(errSSL)param->srv->logfunc(param, (unsigned char *)errSSL);
+	dolog(param, (unsigned char *)"SSL handshake to server failed");
+	if(ServerConn == NULL) 	dolog(param, (unsigned char *)"ServerConn is NULL");
+	if(ServerCert == NULL) 	dolog(param, (unsigned char *)"ServerCert is NULL");
+	if(errSSL)dolog(param, (unsigned char *)errSSL);
 	return 1;
  }
  FakeCert = ssl_copy_cert(ServerCert);
  if ( FakeCert == NULL ) {
 	param->res = 8012;
 	_ssl_cert_free(ServerCert);
-	param->srv->logfunc(param, (unsigned char *)"Failed to create certificate copy");
+	dolog(param, (unsigned char *)"Failed to create certificate copy");
 	ssl_conn_free(ServerConn);
 	return 2;
  }
  ClientConn = ssl_handshake_to_client(param->clisock, FakeCert, &errSSL);
  if ( ClientConn == NULL ) {
 	param->res = 8012;
-	param->srv->logfunc(param, (unsigned char *)"Handshake to client failed");
-	if(errSSL)param->srv->logfunc(param, (unsigned char *)errSSL);
+	dolog(param, (unsigned char *)"Handshake to client failed");
+	if(errSSL)dolog(param, (unsigned char *)errSSL);
 	_ssl_cert_free(ServerCert);
 	_ssl_cert_free(FakeCert);
 	ssl_conn_free(ServerConn);
@@ -382,6 +383,8 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 					 int argc, char** argv){
 
 	pl = pluginlink;
+        dolog=pluginlink->findbyname("dolog");
+
 	if(!ssl_loaded){
 		ssl_loaded = 1;
 		pthread_mutex_init(&ssl_mutex, NULL);

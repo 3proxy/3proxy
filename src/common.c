@@ -116,7 +116,6 @@ struct extparam conf = {
 	NULL,
 	NULL,
 	doconnect,
-	lognone,
 	NULL,
 	NULL,
 	NULL, NULL,

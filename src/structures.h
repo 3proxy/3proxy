@@ -188,8 +188,7 @@ struct node;
 struct symbol;
 struct pluginlink;
 struct srvparam;
-
-typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char *);
+struct LOGFUNC;
 typedef int (*AUTHFUNC)(struct clientparam * param);
 typedef void * (*REDIRECTFUNC)(struct clientparam * param);
 typedef unsigned long (*RESOLVFUNC)(int af, unsigned char *name, unsigned char *value);
@@ -364,6 +363,24 @@ struct trafcount {
 	time_t updated;
 };
 
+struct LOGFUNC {
+	struct LOGFUNC* next;	
+	int (*init)(const char * selector, int logtype, struct LOGGER *logger);
+	int (*dobuf)(struct clientparam * param, unsigned char * buf, const unsigned char *s);
+	int (*log)(const char * buf, int len, struct LOGGER *logger);
+	int (*rotate)(struct LOGGER *logger);
+	int (*close)(struct LOGGER *logger);
+	char* prefix;
+};
+struct LOGGER {
+	char * selector;
+	void * data;
+	struct LOGFUNC *logfunc;
+	int rotate;
+	time_t rotated;
+};
+extern struct LOGFUNC logfuncs;
+extern void(*prelog)(struct clientparam * param);
 struct nserver {
 #ifndef NOIPV6
 	struct sockaddr_in6 addr;
@@ -418,7 +435,6 @@ struct srvparam {
 	struct srvparam *prev;
 	struct clientparam *child;
 	PROXYSERVICE service;
-	LOGFUNC logfunc;
 	AUTHFUNC authfunc;
 	PROXYFUNC pf;
 	SOCKET srvsock, cbsock;
@@ -589,7 +605,6 @@ struct extparam {
 	struct passwords *pwl;
 	struct auth * authenticate;
 	AUTHFUNC authfunc;
-	LOGFUNC logfunc;
 	BANDLIMFUNC bandlimfunc;
 	TRAFCOUNTFUNC trafcountfunc;
 	unsigned char *logtarget, *logformat;

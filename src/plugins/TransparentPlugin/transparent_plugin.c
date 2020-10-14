@@ -54,7 +54,6 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 	}
 #else
 #error No SO_ORIGINAL_DST defined
-       	param->srv->logfunc(param, (unsigned char *)"transparent_plugin: No SO_ORIGINAL_DST defined");
 	return REJECT;
 #endif
 #else

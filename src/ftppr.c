@@ -333,4 +333,5 @@ struct proxydef childdef = {
 	" -hdefault_host[:port] - use this host and port as default if no host specified\n"
 };
 #include "proxymain.c"
+#include "log.c"
 #endif

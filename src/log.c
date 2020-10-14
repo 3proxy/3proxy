@@ -6,9 +6,6 @@
 
 */
 
-
-
-
 #include "proxy.h"
 pthread_mutex_t log_mutex;
 int havelog = 0;
@@ -17,19 +14,95 @@ int havelog = 0;
 struct clientparam logparam;
 struct srvparam logsrv;
 
+struct LOGGER;
 
+void(*prelog)(struct clientparam * param) = NULL;
+
+#ifdef WITHMAIN
+#define HAVERADIUS 0
+#define HAVESQL 0
+#else
+int raddobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s);
+void logradius(const char * buf, int len, struct LOGGER *logger);
+#define HAVERADIUS 1
+
+#ifndef NOODBC
+#undef HAVESQL
+#define HAVESQL 1
+static int sqlinit(const char * selector, int logtype, struct LOGGER *logger);
+static void sqllog(const char * buf, int len, struct LOGGER *logger);
+static void sqlrotate(struct LOGGER *logger);
+static void sqlclose(struct LOGGER *logger);
+#endif
+#endif
+
+#ifdef _WIN32
+#define HAVESYSLOG 0
+#else
+#define HAVESYSLOG 1
+static int sysloginit(const char * selector, int logtype, struct LOGGER *logger);
+static void logsyslog(const char * buf, int len, struct LOGGER *logger);
+static void syslogrotate(struct LOGGER *logger);
+static void syslogclose(struct LOGGER *logger);
+#endif
+
+static int stdloginit(const char * selector, int logtype, struct LOGGER *logger);
+static void stdlog(const char * buf, int len, struct LOGGER *logger);
+static void stdlogrotate(struct LOGGER *logger);
+static void stdlogclose(struct LOGGER *logger);
+
+
+
+struct LOGFUNC logfuncs = {
+#if HAVESYSLOG > 0
+		{logfuncs+1+HAVESYSLOG, sysloginit, stddobuf, logsyslog, syslogrotate, syslogclose, "@"},
+#endif
+#if HAVERADIUS > 0
+		{logfuncs+1+HAVESYSLOG+HAVERADIUS, NULL, raddobuf, logradius, NULL, NULL, "radius"},
+#endif
+#if HAVESQL > 0
+		{logfuncs+1+HAVESYSLOG+HAVERADIUS+HAVESQL, sqlinit, sqldobuf, sqllog, sqlrotate, sqlclose, "&"},
+#endif
+		{NULL, stdloginit, stddobuf, stdlog, stdlogrotate, stdlogclose, ""}
+	     };
+
+
+
+struct LOGGER *loggers = NULL;
+
+struct stdlogdata{
+	FILE *fp;
+} errld= {stderr};
+
+struct LOGGER {
+	char * selector;
+	void * data;
+	struct LOGFUNC *logfunc;
+	int rotate;
+	time_t rotated;
+	int registered;
+} errlogger = {"errlogger", &errld, logfuncs+1+HAVESYSLOG+HAVERADIUS+HAVESQL, 0, 0, 1};
+
+
+void initlog(void){
+	srvinit(&logsrv, &logparam);
+	pthread_mutex_init(&log_mutex, NULL);
+}
 
 void dolog(struct clientparam * param, const unsigned char *s){
 	static int init = 0;
 
-	if(param)param->srv->logfunc(param, s);
-	else {
-		if(!init){
-			srvinit(&logsrv, &logparam);
-			init = 1;
-		}
-		logstdout(&logparam, s);
+/* TODO: dobuf */
+/* TODO: spooling */
+	if(!param){
+		stdlog(s, strlen(s), &stdlogger);
 	}
+	else if(!param->nolog && param->srv->logtarget){
+		if(prelog)prelog(param);
+		param->srv->logfunc(param, s);
+	}
+	if(param->trafcountfunc)(*param->trafcountfunc)(param);
+	clearstat(param);
 }
 
 
@@ -318,37 +391,285 @@ int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *
 
 	time(&t);
 	if(!param) return 0;
-	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	format = param->srv->logformat?(char *)param->srv->logformat : DEFLOGFORMAT;
 	tm = (*format == 'G' || *format == 'g')?
 		gmtime(&t) : localtime(&t);
 	i = dobuf2(param, buf, s, doublec, tm, format + 1);
-	clearstat(param);
 	return i;
 }
 
-void lognone(struct clientparam * param, const unsigned char *s) {
-	if(param->trafcountfunc)(*param->trafcountfunc)(param);
-	clearstat(param);
+
+static int stdloginit(const char * selector, int logtype, struct LOGGER *logger){
+	char tmpuf[1024];
+	struct stdlogdata *lp;
+	lp = myalloc(sizeof(struct stdlogdata));
+	if(!lp) return 1;
+	logger->data = lp;
+	if(!selector || !*selector){
+		logger-rotate = NONE;
+		lp->fp = stdout;
+	}
+	else {
+		logger->rotate = logtype;
+		lp->fp = fopen((char *)dologname (tmpbuf, conf.logname, NULL, logtype, time(NULL)), "a");
+		if(!lp->fp){
+			myfree(lp);
+			return(2);
+		}
+	}
+	return 0;
 }
 
-void logstdout(struct clientparam * param, const unsigned char *s) {
-	FILE *log;
-	unsigned char tmpbuf[8192];
-
-	dobuf(param, tmpbuf, s, NULL);
-	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
-	if(!param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
-		perror("printf()");
-	};
-	if(log != conf.stdlog)fflush(log);
+int stddobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s){
+	return dobuf(param, buf, s, NULL);
 }
-#ifndef _WIN32
-void logsyslog(struct clientparam * param, const unsigned char *s) {
 
-	unsigned char tmpbuf[8192];
-	dobuf(param, tmpbuf, s, NULL);
-	if(!param->nolog)syslog(LOG_INFO, "%s", tmpbuf);
+void stdlog(struct clientparam * param, const unsigned char *s, struct LOGGER *logger) {
+	FILE *log = (struct stdlogdata *)logger->data;
+
+	fprintf(log, "%s\n", buf);
+	if(log == stdout || log == stderr)fflush(log);
 }
+
+static void stdlogrotate(struct LOGGER *logger){
+ char tmpuf[1024];
+ struct stdlogdata *lp = (struct stdlogdata)logger->data;
+ if(lp->fp) lp->fp = freopen((char *)dologname (tmpbuf, logger->selector, NULL, logger->rotate, conf.time), "a", lp->fp);
+ else lp->fp = fopen((char *)dologname (tmpbuf, logger->selector, NULL, logger->rotate, conf.time), "a");
+ conf.logtime = conf.time;
+ if(logger->rotate) {
+	int t;
+	t = 1;
+	switch(logger->rotate){
+		case ANNUALLY:
+			t = t * 12;
+		case MONTHLY:
+			t = t * 4;
+		case WEEKLY:
+			t = t * 7;
+		case DAILY:
+			t = t * 24;
+		case HOURLY:
+			t = t * 60;
+		case MINUTELY:
+			t = t * 60;
+		default:
+			break;
+	}
+	dologname (tmpbuf, logger->selector, (conf.archiver)?conf.archiver[1]:NULL, logger->rotate, (conf.logtime - t * conf.rotate));
+	remove ((char *) tmpbuf);
+	if(conf.archiver) {
+		int i;
+		*tmpbuf = 0;
+		for(i = 2; i < conf.archiverc && strlen((char *)tmpbuf) < 512; i++){
+			strcat((char *)tmpbuf, " ");
+			if(!strcmp((char *)conf.archiver[i], "%A")){
+				strcat((char *)tmpbuf, "\"");
+				dologname (tmpbuf + strlen((char *)tmpbuf), logger->selector, conf.archiver[1], logger->rotate, (conf.logtime - t));
+				strcat((char *)tmpbuf, "\"");
+			}
+			else if(!strcmp((char *)conf.archiver[i], "%F")){
+				strcat((char *)tmpbuf, "\"");
+				dologname (tmpbuf+strlen((char *)tmpbuf), logger->selector, NULL, logger->rotate, (conf.logtime-t));
+				strcat((char *)tmpbuf, "\"");
+			}
+			else
+				strcat((char *)tmpbuf, (char *)conf.archiver[i]);
+		}
+		system((char *)tmpbuf+1);
+	}
+ }
+}
+
+static void stdlogclose(struct LOGGER *logger){
+	fclose(((struct stdlogdata *)logger->data)->fp);
+	myfree(((struct stdlogdata *)logger->data)->fp);
+}
+
+#if HAVESYSLOG > 0
+
+static int sysloginit(const char * selector, int logtype, struct LOGGER *logger){
+	openlog(selector+1, LOG_PID, LOG_DAEMON);
+	logger->rotate = logtype;
+	logger->data = NULL;
+}
+
+static void logsyslog(const char * buf, int len, struct LOGGER *logger) {
+
+	syslog((param->res >= 90 && param->res<=99)?LOG_NOTICE:(param->res?LOG_WARNING:LOG_INFO), "%s", buf);
+}
+
+static void syslogrotate(struct LOGGER *logger){
+	closelog();
+	openlog(logger->selector+1, LOG_PID, LOG_DAEMON);
+}
+
+static void syslogclose(struct LOGGER *logger){
+	closelog();
+}
+
+
 #endif
 
+#if HAVESQL > 0
+
+struct sqldata {
+	SQLHENV  henv;
+	SQLHSTMT hstmt;
+	SQLHDBC hdbc;
+	int attempt;
+	time_t attempt_time;
+};
+
+
+
+static int sqlinit(const char * selector, int logtype, struct LOGGER *logger);
+static void sqllog(struct clientparam * param, const unsigned char *s, LOGGER *logger);
+static void sqlrotate(struct LOGGER *logger);
+
+
+int sqlinit2(struct sqldata * sd, char * source){
+	SQLRETURN  retcode;
+	char * datasource;
+	char * username;
+	char * password;
+	char * string;
+	int ret = 0;
+
+	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &sd->henv);
+	if (!henv || (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)){
+		return 1;
+	}
+	retcode = SQLSetEnvAttr(sd->henv, SQL_ATTR_ODBC_VERSION, (void*)SQL_OV_ODBC3, 0); 
+	if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
+		ret = 2;
+		goto CLOSEENV:
+	}
+	retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &sd->hdbc); 
+	if (!sd->hdbc || (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)) {
+		ret = 3;
+		goto CLOSEENV:	
+	}
+       	SQLSetConnectAttr(sd->hdbc, SQL_LOGIN_TIMEOUT, (void*)15, 0);
+
+	string = mystrdup(source);
+	if(!string) goto CLOSEHDBC;
+	datasource = strtok(string, ",");
+	username = strtok(NULL, ",");
+	password = strtok(NULL, ",");
+	
+
+         /* Connect to data source */
+        retcode = SQLConnect(sd->hdbc, (SQLCHAR*) datasource, (SQLSMALLINT)strlen(datasource),
+                (SQLCHAR*) username, (SQLSMALLINT)((username)?strlen(username):0),
+                (SQLCHAR*) password, (SQLSMALLINT)((password)?strlen(password):0));
+
+	myfree(string);
+
+
+
+	if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO){
+		ret = 4;
+		goto CLOSEHDBC;
+	}
+
+        retcode = SQLAllocHandle(SQL_HANDLE_STMT, sd->hdbc, &sd->hstmt); 
+        if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO){
+		sd->hstmt = 0;
+		ret = 5;
+		goto CLOSEHDBC;
+	}
+
+	return 0;
+
+CLOSEHDBC:
+	SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
+	sd->hdbc = 0;
+CLOSEENV:
+	SQLFreeHandle(SQL_HANDLE_ENV, henv);
+	sd->henv = 0;
+	return ret;
+}
+
+static int sqlinit(const char * selector, int logtype, struct LOGGER *logger){
+	struct sqldata *sd;
+	int res
+	
+	logger->rotate = logtype;
+	sd = (struct sqldata *)myalloc(sizeof(struct sqldata));
+	memset(sd, 0, sizeof(struct sqldata));
+	loger->data = sd;
+	if(!(res = sqlinit2(sd, selector+1))) {
+		myfree(sd);
+		return res;
+	}
+}
+
+int sqldobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s){
+	return dobuf(param, buf, s, (unsigned char *)"\'");
+}
+
+
+static void sqllog(const char * buf, int len, struct LOGGER *logger){
+	SQLRETURN ret;
+	struct sqldata *sd = (struct sqldata *)logger->data;
+
+
+	if(sd->attempt > 5){
+		if (conf.time - sd->attempt_time < 180){
+			return;
+		}
+	}
+	if(sd->attempt){
+		sd->attempt++;
+		sqlrotate(logger);
+
+		if(!sd->hstmt){
+			sd->attempt_time=conf.time;
+			return;
+		}
+	}
+	ret = SQLExecDirect(sd->hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+	if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
+		sqlrotate(logger);
+		if(sd->hstmt) {
+			ret = SQLExecDirect(hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+			if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
+				sd->attempt++;
+				sd->attempt_time=conf.time;
+				return;
+			}
+		}
+	}
+	sd->attempt=0;
+}
+
+static void sqlrotate(struct LOGGER *logger){
+	struct sqldata * sd;
+	sqlclose(logger);
+	sd = (struct sqldata *)myalloc(sizeof(struct sqldata));
+	memset(sd, 0, sizeof(struct sqldata));
+	loger->data = sd;
+	sqlinit2(sd, logger->selector+1)
+}
+
+static void sqlclose(struct LOGGER *logger){
+	struct sqldata *sd = (struct sqldata *)loger->data;
+	if(sd->hstmt) {
+		SQLFreeHandle(SQL_HANDLE_STMT, sd->hstmt);
+		sd->hstmt = NULL;
+	}
+	if(sd->hdbc){
+		SQLDisconnect(sd->hdbc);
+		SQLFreeHandle(SQL_HANDLE_DBC, sd->hdbc);
+		sd->hdbc = NULL;
+	}
+	if(sd->henv) {
+		SQLFreeHandle(SQL_HANDLE_ENV, sd->henv);
+		sd->henv = NULL;
+	}
+	myfree(sd);
+}
+
+
+#endif

@@ -73,7 +73,10 @@ struct symbol symbols[] = {
 	{symbols+46, "decodeurl", (void *) decodeurl},
 	{symbols+47, "parsestr", (void *) parsestr},
 	{symbols+48, "make_ace", (void *) make_ace},
-	{symbols+49, "freeacl", (void *) freeacl},
+	{symbols+49, "freeacl", (void *) freeacl}
+	{symbols+50, "dolog", (void *) dolog},
+	{symbols+50, "logfuncs", (void *) logfuncs},
+	{symbols+50, "prelog", (void *) prelog},
 	{NULL, "", NULL}
 };
 
