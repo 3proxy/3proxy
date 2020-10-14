@@ -653,8 +653,8 @@ log("timeout");
 
  }
  res = 0;
- if(!fromserver) res = 98;
- else if(!fromclient) res = 99;
+ if(!fromserver && param->waitserver64) res = 98;
+ else if(!fromclient && param->waitclient64) res = 99;
  else if((inclientbuf || inserverbuf)) res = HASERROR?93:94;
 #ifdef WITHSPLICE
  else if(inclientpipe || inserverpipe) res = HASERROR?93:94;
