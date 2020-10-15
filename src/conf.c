@@ -481,6 +481,7 @@ static int h_auth(int argc, unsigned char **argv){
 			newau->next = conf.authfuncs;
 			conf.authfuncs = newau;
 			conf.authfuncs->desc = au->desc;
+			conf.authfuncs->preauthorize = au->preauthorize;
 			conf.authfuncs->authenticate = au->authenticate;
 			conf.authfuncs->authorize = au->authorize;
 			break;

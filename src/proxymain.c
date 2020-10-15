@@ -1,4 +1,4 @@
-/*
+/*                                                                      
    3APA3A simpliest proxy server
    (c) 2002-2017 by Vladimir Dubrovin <3proxy@3proxy.ru>
 
@@ -34,7 +34,7 @@ void * threadfunc (void *p) {
 		}
 #ifndef WITHMAIN
 		param->req = param->sinsr;
-		if(param->srv->acl) param->res = checkACL(param);
+		if(param->srv->preacl) param->res = checkpreACL(param);
 		if(param->res){
 			dolog(param, (unsigned char *)"Connect back ACL failed");
 			so._closesocket(param->remsock);
@@ -277,7 +277,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  srv.service = defparam.service = childdef.service;
  
 #ifndef STDMAIN
- srv.acl = copyacl(conf.acl);
+ copyacl(conf.acl, &srv);
  srv.authfuncs = copyauth(conf.authfuncs);
  if(!conf.services){
 	conf.services = &srv;
@@ -774,6 +774,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 	else {
 		srv.fds.events = 0;
 	}
+	
+#ifndef STDMAIN
+	if((dopreauth(&defparam)) != 0){
+		if(!isudp) so._closesocket(new_sock);
+		continue;
+	}
+#endif
 	if(! (newparam = myalloc (sizeof(defparam)))){
 		if(!isudp) so._closesocket(new_sock);
 		defparam.res = 21;
@@ -784,6 +791,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	*newparam = defparam;
 	if(defparam.hostname)newparam->hostname=(unsigned char *)mystrdup((char *)defparam.hostname);
 	clearstat(newparam);
+
 	if(!isudp) newparam->clisock = new_sock;
 #ifndef STDMAIN
 	if(makefilters(&srv, newparam) > CONTINUE){
@@ -946,6 +954,7 @@ void srvfree(struct srvparam * srv){
  }
 
  if(srv->acl)freeacl(srv->acl);
+ if(srv->preacl)freeacl(srv->preacl);
  if(srv->authfuncs)freeauth(srv->authfuncs);
 #endif
  pthread_mutex_destroy(&srv->counter_mutex);
@@ -1036,16 +1045,17 @@ struct auth * copyauth (struct auth * authfuncs){
 	return newauth;
 }
 
-struct ace * copyacl (struct ace *ac){
- struct ace * ret = NULL;
+void copyacl (struct ace *ac, struct srvparam *srv){
  struct iplist *ipl;
  struct portlist *pl;
  struct userlist *ul;
  struct chain *ch;
  struct period *pel;
  struct hostname *hst;
+ int preacl = 1;
+ struct ace *acc;
 
- ret = ac = itcopy(ac, sizeof(struct ace));
+ ac = itcopy(ac, sizeof(struct ace));
  for( ; ac; ac = ac->next = itcopy(ac->next, sizeof(struct ace))){
 	ac->src = itcopy(ac->src, sizeof(struct iplist));
 	for(ipl = ac->src; ipl; ipl = ipl->next = itcopy(ipl->next, sizeof(struct iplist)));
@@ -1069,8 +1079,21 @@ struct ace * copyacl (struct ace *ac){
 		if(ch->extpass)ch->extpass = (unsigned char*)mystrdup((char *)ch->extpass);
 		if(ch->exthost)ch->exthost = (unsigned char*)mystrdup((char *)ch->exthost);
 	}
+	if(preacl){
+		if(ac->dst || ac->ports || ac->users || ac->dstnames || ac->chains|| ac->action>1){
+			preacl = 0;
+			for(acc = srv->preacl; acc; acc=acc->next)if(acc->next == ac) {
+				acc->next = NULL;
+				break;
+			}
+			srv->acl = ac;
+		}
+		else {
+			if(!srv->preacl) srv->preacl = ac;
+		}
+	}
+	
  }
- return ret;
 }
 
 

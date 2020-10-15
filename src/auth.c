@@ -676,33 +676,49 @@ int alwaysauth(struct clientparam * param){
 	return res;
 }
 
-int checkACL(struct clientparam * param){
+int checkACL2(struct clientparam * param, int pre){
 	struct ace* acentry;
 
-	if(!param->srv->acl) {
+	acentry = pre?param->srv->preacl:param->srv->acl;
+	if(!acentry) {
 		return 0;
 	}
-	for(acentry = param->srv->acl; acentry; acentry = acentry->next) {
+	for(; acentry; acentry = acentry->next) {
 		if(ACLmatches(acentry, param)) {
-			param->nolog = acentry->nolog;
-			param->weight = acentry->weight;
-			if(acentry->action == 2) {
-				struct ace dup;
+			if(!pre){
+				param->nolog = acentry->nolog;
+				param->weight = acentry->weight;
+				if(acentry->action == 2) {
+					struct ace dup;
 
-				if(param->operation < 256 && !(param->operation & CONNECT)){
-					continue;
+					if(param->operation < 256 && !(param->operation & CONNECT)){
+						continue;
+					}
+					if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
+						continue;
+					}
+					dup = *acentry;
+					return handleredirect(param, &dup);
 				}
-				if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
-					continue;
-				}
-				dup = *acentry;
-				return handleredirect(param, &dup);
 			}
 			return acentry->action;
 		}
 	}
 	return 3;
 }
+
+int checkACL(struct clientparam * param){
+	int res;
+	res = checkACL2(param, 1);
+	if(res < 2) return res;
+	return checkACL2(param, 0);
+}
+
+
+int checkpreACL(struct clientparam * param){
+	return checkACL2(param, 1);
+}
+
 
 struct authcache {
 	char * username;
@@ -771,6 +787,16 @@ int cacheauth(struct clientparam * param){
 	return 4;
 }
 
+int dopreauth(struct clientparam * param){
+	int res = 0;
+
+	if(param->srv && param->srv->authfuncs && param->srv->authfuncs->preauthorize){
+		res = param->srv->authfuncs->preauthorize(param);
+		param->preauthorized = !res;
+		if(res != 1) res = 0;
+	}
+	return res;
+}
 int doauth(struct clientparam * param){
 	int res = 0;
 	struct auth *authfuncs;
@@ -781,7 +807,8 @@ int doauth(struct clientparam * param){
 	for(authfuncs=param->srv->authfuncs; authfuncs; authfuncs=authfuncs->next){
 		res = authfuncs->authenticate?(*authfuncs->authenticate)(param):0;
 		if(!res) {
-			if(authfuncs->authorize &&
+
+			if(!param->preauthorized && authfuncs->authorize &&
 				(res = (*authfuncs->authorize)(param)))
 					return res;
 			if(conf.authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && param->username && (!(conf.authcachetype&4) || (!param->pwtype && param->password))){
@@ -847,9 +874,11 @@ int doauth(struct clientparam * param){
 int ipauth(struct clientparam * param){
 	int res;
 	unsigned char *username;
+
+	if(param->preauthorized) return (0);
 	username = param->username;
 	param->username = NULL;
-	res = checkACL(param);
+	res = checkACL2(param,0);
 	param->username = username;
 	return res;
 }
@@ -960,20 +989,20 @@ int strongauth(struct clientparam * param){
 int radauth(struct clientparam * param);
 
 struct auth authfuncs[] = {
-	{authfuncs+1, NULL, NULL, ""},
-	{authfuncs+2, ipauth, NULL, "iponly"},
-	{authfuncs+3, userauth, checkACL, "useronly"},
-	{authfuncs+4, dnsauth, checkACL, "dnsname"},
-	{authfuncs+5, strongauth, checkACL, "strong"},
-	{authfuncs+6, cacheauth, checkACL, "cache"},
+	{authfuncs+1, NULL,NULL, NULL, ""},
+	{authfuncs+2, checkpreACL, ipauth, NULL, "iponly"},
+	{authfuncs+3, checkpreACL, userauth, checkACL, "useronly"},
+	{authfuncs+4, checkpreACL, dnsauth, checkACL, "dnsname"},
+	{authfuncs+5, checkpreACL, strongauth, checkACL, "strong"},
+	{authfuncs+6, checkpreACL, cacheauth, checkACL, "cache"},
 #ifndef NORADIUS
 #define AUTHOFFSET 1
-	{authfuncs+7, radauth, checkACL, "radius"},
+	{authfuncs+7, checkpreACL, radauth, checkACL, "radius"},
 #else
 #define AUTHOFFSET 0
 #endif
-	{authfuncs+7+AUTHOFFSET, NULL, NULL, "none"},
-	{NULL, NULL, NULL, ""}
+	{authfuncs+7+AUTHOFFSET, NULL, NULL, NULL, "none"},
+	{NULL, NULL, NULL, NULL, ""}
 };
 
 
