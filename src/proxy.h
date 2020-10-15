@@ -320,9 +320,9 @@ extern struct commands commandhandlers[];
 
 extern struct radserver {
 #ifdef NOIPV6
-	struct  sockaddr_in authaddr, logaddr;
+	struct  sockaddr_in authaddr, logaddr, localaddr;
 #else
-	struct  sockaddr_in6 authaddr, logaddr;
+	struct  sockaddr_in6 authaddr, logaddr, localaddr;
 #endif
 /*
 	SOCKET logsock;
