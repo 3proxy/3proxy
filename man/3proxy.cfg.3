@@ -241,6 +241,8 @@ alternate config file. Think twice before using it.
 .br
  & use ODBC, filename consists of comma-delimited datasource,username,password (username and password are optional)
 .br
+ radius - use RADIUS for logging
+.br
  LOGTYPE is one of:
 .br
   M Monthly
@@ -388,6 +390,28 @@ can use %A as produced archive name and %F as filename.
 .br
  default timeouts 1 5 30 60 180 1800 15 60 15 5
 
+.br
+.B radius 
+<NAS_SECRET> <radius_server_1[:port][/local_address_1]> <radius_server_2[:port][/local_address_2]>
+.br
+ Configures RADIUS servers to be used for logging and authentication (log and auth types
+must be set to radius). port and local address to use with given server may be specified.
+.br
+ Attributes within request: User-Name, Password: (username and password if presented by client),
+Service Type: Authenticate-Only,
+NAS-Port-Type: NAS-Port-Virtual,
+NAS-Port-ID: (proxy service port, e.g. 1080),
+NAS-IPv6-Address / NAS-IP-Address: (proxy interface accessed by client),
+NAS-Identifier: (text identifing proxy, e.g. PROXY or SOCKSv5),
+Framed-IPv6-Address / Framed-IP-Address: (IP address of the client),
+Called-Station-ID: (requested Hostname, if presents),
+Login-Service: (type of request, e.g. 1001 - SOCKS CONNECT, 1010 - HTTP GET, 1013 - HTTP CONNECT),
+Login-TCP-Port: (requested port),
+Login-IPv6-Host / Login-IP-Host: (requested IP). 
+.br
+ Supported reply attributes for authentication:
+Framed-IP-Address / Framed-IPv6-Address (IP to assign to user), Reply-Message.
+Use authcache to speedup authentication. RADIUS feature is currently experimental.
 
 .br
 .B nserver
@@ -503,6 +527,8 @@ NB: there is no any password check, name may be spoofed.
 SOCKSv5, FTP, POP3 and HTTP proxy. 
 .br
  cache - cached authentication, may be used with \'authcache\'.
+.br
+ radius - authentication with RADIUS.
 .br
  Plugins may add additional authentication types.
 
