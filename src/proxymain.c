@@ -61,7 +61,7 @@ void * threadfunc (void *p) {
 #ifndef _WIN32
 	sigset_t mask;
 	sigfillset(&mask);
-	pthread_sigmask(SIG_SETMASK, &mask, NULL);
+	if(param->srv->service != S_UDPPM)pthread_sigmask(SIG_SETMASK, &mask, NULL);
 #endif
 
 	((struct clientparam *) p)->srv->pf((struct clientparam *)p);
