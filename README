@@ -1,5 +1,5 @@
 # 3APA3A 3proxy tiny proxy server
-(c) 2002-2019 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
+(c) 2002-2020 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.ru>
 
 Download: 
 	https://github.com/z3APA3A/3proxy/releases
@@ -58,7 +58,7 @@ Please read doc/html/index.html and man pages.
 	+ Threaded application (no child process).
 	+ Web administration and statistics
 	+ Plugins for functionality extension
-	+ Native 64 bit application
+	+ Native 32/64 bit application
   2. Proxy chaining and network connections
 	+ Can be used as a bridge between client and different proxy type
 	  (e.g. convert incoming HTTP proxy request from client to SOCKSv5
@@ -78,9 +78,8 @@ Please read doc/html/index.html and man pages.
 	+ syslog logging (Unix)
 	+ ODBC logging
 	+ RADIUS accounting
-	+ log file rotation (hourly, daily, weekly, monthly)
-	+ automatic log file comperssion with external archiver (for files)
-	+ automatic removal of older log files
+	+ log file rotation
+	+ automatic log file processing with external archiver (for files)
 	+ Character filtering for log files
 	+ different log files for different servces are supported
   4. Access control
@@ -89,12 +88,13 @@ Please read doc/html/index.html and man pages.
 	(POST, PUT, GET, etc), weekday and daytime.
 	+ ACL-driven (user/source/destination/protocol/weekday/daytime or
 	combined) bandwith limitation for incoming and (!)outgoing trafic.
-	+ ACL-driven (user/source/destination/protocol/weekday/daytime or
-	combined) traffic limitation per day, week or month for incoming and
+	+ ACL-driven traffic limitation per day, week or month for incoming and
 	outgoing traffic
+	+ Connection limitation and ratelimting
 	+ User authentication by username / password
 	+ RADIUS Authentication and Authorization
 	+ User authentication by DNS hostname
+	+ Authentication cache with possibility to limit user to single IP address
 	+ Access control by username/password for SOCKSv5 and HTTP/HTTPS/FTP
 	+ Cleartext or encrypted (crypt/MD5 or NT) passwords.
 	+ Connection redirection
