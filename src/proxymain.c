@@ -286,17 +286,16 @@ int MODULEMAINFUNC (int argc, char** argv){
 	srv.next = conf.services;
 	conf.services = conf.services->prev = &srv;
  }
-#else
- srv.needuser = 0;
- pthread_mutex_init(&log_mutex, NULL);
-#endif
-
 #ifndef _WIN32
  {
 	sigset_t mask;
 	sigfillset(&mask);
 	pthread_sigmask(SIG_SETMASK, &mask, NULL);
  }
+#endif
+#else
+ srv.needuser = 0;
+ pthread_mutex_init(&log_mutex, NULL);
 #endif
 
  for (i=1; i<argc; i++) {
