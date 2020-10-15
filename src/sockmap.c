@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+#define MAXFAILATTEMPT 10
+
 #ifdef WITHLOG
 #if WITHLOG > 1
 char logbuf[1024];
@@ -157,7 +159,7 @@ log(logbuf);
 #endif
 
 	if(needaction > 2 && !sleeptime){
-		if(needaction > 13){RETURN (93);}
+		if(needaction > (MAXFAILATTEMPT+1)){RETURN (93);}
 		sleeptime = (1<<(needaction-2));
 	}
 	if(sleeptime > 0) {
