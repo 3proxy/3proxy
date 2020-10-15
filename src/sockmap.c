@@ -314,6 +314,7 @@ log("read from client to pipe");
 #ifdef WITHLOG
 log("read failed");
 #endif
+				if(res == 0 || !errno) CLIENTTERM = 1;
 				FROMCLIENT = TOCLIENTPIPE = 0;
 			}
 			else {
@@ -337,6 +338,7 @@ log("read from server to pipe\n");
 log("splice finished\n");
 #endif
 			if(res <= 0) {
+				if(res == 0 || !errno) SERVERTERM = 1;
 				FROMSERVER = TOSERVERPIPE = 0;
 			}
 			else {
@@ -371,7 +373,7 @@ log("read from client to buf");
 			sasize = sizeof(param->sincr);
 			res = so._recvfrom(param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)param->clibufsize - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
 			if(res <= 0) {
-				if(!errno)CLIENTTERM = 1;
+				if(res == 0 || !errno)CLIENTTERM = 1;
 				FROMCLIENT = 0;
 			}
 			else {
@@ -393,7 +395,7 @@ log("read from server to buf");
 			sasize = sizeof(param->sinsr);
 			res = so._recvfrom(param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)param->srvbufsize - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
 			if(res <= 0) {
-				if(!errno) SERVERTERM = 1;
+				if(res == 0 || !errno) SERVERTERM = 1;
 				FROMSERVER = 0;
 			}
 			else {
