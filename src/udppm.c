@@ -38,7 +38,7 @@ void * udppmchild(struct clientparam* param) {
  struct pollfd fds[256];
 
 
- if(!param->hostname)parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport));
+ if(!param->hostname && parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) RETURN(100);
  if (SAISNULL(&param->req)) {
 	param->srv->fds.events = POLLIN;
 	RETURN (100);
