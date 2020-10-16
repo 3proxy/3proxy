@@ -293,7 +293,10 @@ int parsehostname(char *hostname, struct clientparam *param, unsigned short port
 
 	if(!hostname || !*hostname)return 2;
 	if(*hostname == '[') se=strchr(hostname, ']');
-	if ( (sp = strchr(se?se:hostname, ':'))  && !strchr(sp+1, ':')) *sp = 0;
+	if (sp = strchr(se?se:hostname, ':')) {
+		if(strchr(sp+1, ':'))sp = NULL;
+		else *sp = 0;
+	}
 	if(se){
 		*se = 0;
 	}
