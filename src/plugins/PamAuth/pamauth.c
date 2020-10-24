@@ -139,6 +139,7 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, unsigne
  already_loaded = 1;
     
  pthread_mutex_init(&pam_mutex, NULL);
+ pamauth.preauthorize = pluginlink->checkpreACL;
  pamauth.authenticate = pamfunc;
  pamauth.authorize = pluginlink->checkACL;
  pamauth.desc = "pam";

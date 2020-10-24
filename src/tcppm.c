@@ -16,7 +16,7 @@
 void * tcppmchild(struct clientparam* param) {
  int res;
 
- if(!param->hostname)parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport));
+ if(!param->hostname && parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) RETURN(100);
  param->operation = CONNECT;
  res = (*param->srv->authfunc)(param);
  if(res) {RETURN(res);}

@@ -173,6 +173,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 int doconnect(struct clientparam * param);
 int alwaysauth(struct clientparam * param);
 int ipauth(struct clientparam * param);
+int dopreauth(struct clientparam * param);
 int doauth(struct clientparam * param);
 int strongauth(struct clientparam * param);
 void trafcountfunc(struct clientparam *param);
@@ -236,10 +237,11 @@ int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
 int ACLmatches(struct ace* acentry, struct clientparam * param);
 int checkACL(struct clientparam * param);
+int checkpreACL(struct clientparam * param);
 extern int havelog;
 unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth);
 
-struct ace * copyacl (struct ace *ac);
+void copyacl (struct ace *ac, struct srvparam *srv);
 struct auth * copyauth (struct auth *);
 void * itfree(void *data, void * retval);
 void freeacl(struct ace *ac);
@@ -308,9 +310,9 @@ extern struct commands commandhandlers[];
 
 extern struct radserver {
 #ifdef NOIPV6
-	struct  sockaddr_in authaddr, logaddr;
+	struct  sockaddr_in authaddr, logaddr, localaddr;
 #else
-	struct  sockaddr_in6 authaddr, logaddr;
+	struct  sockaddr_in6 authaddr, logaddr, localaddr;
 #endif
 /*
 	SOCKET logsock;

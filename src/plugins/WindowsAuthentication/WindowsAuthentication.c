@@ -78,6 +78,7 @@ PLUGINAPI int PLUGINCALL WindowsAuthentication(struct pluginlink * pluginlink, i
 		(LPTSTR) tmpbuf, &dlen, &snu)) return 100000 + (int)GetLastError();
 	if(snu != SidTypeGroup && snu != SidTypeAlias && snu != SidTypeWellKnownGroup) return 12;
 	if(!loaded){
+		alwaysauth.preauthorize = pluginlink->checkpreACL;
 		alwaysauth.authenticate = windowsfunc;
 		alwaysauth.authorize = pluginlink->checkACL;
 		alwaysauth.desc = "windows";

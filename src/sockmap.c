@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+#define MAXFAILATTEMPT 10
+
 #ifdef WITHLOG
 #if WITHLOG > 1
 char logbuf[1024];
@@ -57,6 +59,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  FILTER_ACTION action;
  int res;
  SASIZETYPE sasize;
+ int needaction = 0;
 
 #ifdef WITHSPLICE
  uint64_t inclientpipe = 0, inserverpipe = 0;
@@ -120,17 +123,17 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  if(action != PASS) RETURN(19);
 
  while(
-	((!CLIENTTERM) && (inserverbuf 
+	((!CLIENTTERM) && fromserver && (inserverbuf 
 #ifdef WITHSPLICE
 		|| inserverpipe 
 #endif
-		|| (!SERVERTERM && fromserver)))
+		|| (!SERVERTERM )))
 	||
-	((!SERVERTERM) && (inclientbuf 
+	((!SERVERTERM) && fromclient && (inclientbuf 
 #ifdef WITHSPLICE
 		|| inclientpipe 
 #endif
-		|| (!CLIENTTERM && fromclient)))
+		|| (!CLIENTTERM )))
  ){
 
 
@@ -155,8 +158,12 @@ sprintf(logbuf, "int FROMCLIENT = %d, TOCLIENTBUF = %d, FROMCLIENTBUF = %d, TOSE
 log(logbuf);
 #endif
 
+	if(needaction > 2 && !sleeptime){
+		if(needaction > (MAXFAILATTEMPT+1)){RETURN (93);}
+		sleeptime = (1<<(needaction-2));
+	}
 	if(sleeptime > 0) {
-		if(sleeptime > (timeo * 1000)){RETURN (92);}
+		if(sleeptime > (timeo * 1000)){RETURN (93);}
 		memset(fds, 0, sizeof(fds));
 		fds[0].fd = param->clisock;
 		fds[1].fd = param->remsock;
@@ -216,6 +223,7 @@ log("done send to server from buf");
 				sl1 = (*param->bandlimfunc)(param, 0, res);
 				if(sl1 > sleeptime) sleeptime = sl1;
 		    	}
+			needaction = 0;
 			continue;
 		}
 	}
@@ -247,6 +255,7 @@ log("done send to client from buf");
 			param->srvoffset += res;
 			if(param->srvoffset == param->srvinbuf)param->srvoffset = param->srvinbuf =0;
 			if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
+			needaction = 0;
 			continue;
 		}
 	}
@@ -270,6 +279,7 @@ log("done send to server from pipe");
 					sl1 = (*param->bandlimfunc)(param, 0, res);
 					if(sl1 > sleeptime) sleeptime = sl1;
 		    		}
+				needaction = 0;
 				continue;
 			}
 			else {
@@ -288,6 +298,7 @@ log("done send to client from pipe");
 				inserverpipe -= res;
 				fromserver -= res;
 				if(fromserver)TOSERVERPIPE = 1;
+				needaction = 0;
 				continue;
 			}
 			else {
@@ -306,6 +317,10 @@ log("read from client to pipe");
 log("read failed");
 #endif
 				FROMCLIENT = TOCLIENTPIPE = 0;
+				if(res == 0) {
+					CLIENTTERM = 1;
+					continue;
+				}
 			}
 			else {
 #ifdef WITHLOG
@@ -313,6 +328,7 @@ log("done read from client to pipe");
 #endif
 				inclientpipe += res;
 				if(inclientpipe >= MAXSPLICE) TOCLIENTPIPE = 0;
+				needaction = 0;
 				continue;
 			}
 		}
@@ -328,6 +344,10 @@ log("splice finished\n");
 #endif
 			if(res <= 0) {
 				FROMSERVER = TOSERVERPIPE = 0;
+				if(res == 0 || !errno) {
+					SERVERTERM = 1;
+					continue;
+				}
 			}
 			else {
 #ifdef WITHLOG
@@ -346,8 +366,9 @@ log("done read from server to pipe\n");
 					fromserver = inserverpipe;
 					FROMSERVER = 0;
 				}
+				needaction = 0;
+				continue;
 			}
-			continue;
 		}
 	}
 	else
@@ -360,8 +381,11 @@ log("read from client to buf");
 			sasize = sizeof(param->sincr);
 			res = so._recvfrom(param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)param->clibufsize - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
 			if(res <= 0) {
-				if(!errno)CLIENTTERM = 1;
 				FROMCLIENT = 0;
+				if(res == 0){
+					CLIENTTERM = 1;
+					continue;
+				}
 			}
 			else {
 #ifdef WITHLOG
@@ -370,6 +394,7 @@ log("done read from client to buf");
 				inclientbuf += res;
 				param->cliinbuf += res;
 				if(param->clibufsize == param->cliinbuf) TOCLIENTBUF = 0;
+				needaction = 0;
 				continue;
 			}
 		}
@@ -381,8 +406,11 @@ log("read from server to buf");
 			sasize = sizeof(param->sinsr);
 			res = so._recvfrom(param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)param->srvbufsize - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
 			if(res <= 0) {
-				if(!errno) SERVERTERM = 1;
 				FROMSERVER = 0;
+				if(res == 0) {
+					SERVERTERM = 1;
+					continue;
+				}
 			}
 			else {
 #ifdef WITHLOG
@@ -402,6 +430,7 @@ log("done read from server to buf");
 					fromserver = inserverbuf;
 					FROMSERVER = 0;
 				}
+				needaction = 0;
 				continue;
 			}
 		}
@@ -639,7 +668,7 @@ log("leaving poll");
 #ifdef WITHLOG
 log("poll error");
 #endif
-				if(errno != EAGAIN && errno != EINTR) RETURN(91);
+				if(errno != EINTR) RETURN(91);
 				break;
 			}
 			if(res < 1){
@@ -650,14 +679,15 @@ log("timeout");
 			}
 		}
 	}
+	needaction++;
 
  }
  res = 0;
  if(!fromserver && param->waitserver64) res = 98;
  else if(!fromclient && param->waitclient64) res = 99;
- else if((inclientbuf || inserverbuf)) res = HASERROR?93:94;
+ else if((inclientbuf || inserverbuf)) res = 94;
 #ifdef WITHSPLICE
- else if(inclientpipe || inserverpipe) res = HASERROR?93:94;
+ else if(inclientpipe || inserverpipe) res = 94;
 #endif
  else if(HASERROR) res = 94+HASERROR;
 

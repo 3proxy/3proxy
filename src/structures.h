@@ -215,6 +215,7 @@ typedef int (*PLUGINFUNC)(struct pluginlink *pluginlink, int argc, char** argv);
 
 struct auth {
 	struct auth *next;
+	AUTHFUNC preauthorize;
 	AUTHFUNC authenticate;
 	AUTHFUNC authorize;
 	char * desc;
@@ -477,7 +478,7 @@ struct srvparam {
 #endif
 	struct auth *authenticate;
 	struct pollfd * srvfds;
-	struct ace *acl;
+	struct ace *preacl, *acl;
 	struct auth *authfuncs;
 	struct filter *filter;
 	unsigned char * logformat;
@@ -519,6 +520,7 @@ struct clientparam {
 		operation,
 		nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv,
 		unsafefilter,
+		preauthorized,
 		bandlimver;
 
 	int	res,
@@ -759,6 +761,7 @@ struct pluginlink {
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);
 	int (*alwaysauth)(struct clientparam * param);
 	int (*checkACL)(struct clientparam * param);
+	int (*checkpreACL)(struct clientparam * param);
 	void (*nametohash)(const unsigned char * name, unsigned char *hash);
 	unsigned (*hashindex)(const unsigned char* hash);
 	unsigned char* (*en64)(const unsigned char *in, unsigned char *out, int inlen);

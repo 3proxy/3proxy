@@ -578,6 +578,7 @@ int radsend(const char *buf, int total_length, int auth){
 		}
 		else remsock = radiuslist[loop].logsock;
 */
+		so._bind(param->remsock,(struct sockaddr *)&radiuslist[loop].localaddr,SASIZE(&radiuslist[loop].localaddr));
 		len = so._sendto(remsock, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
