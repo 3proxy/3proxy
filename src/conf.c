@@ -101,49 +101,6 @@ int getrotate(char c){
 }
 
 
-unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
-	struct tm *ts;
-
-	ts = localtime(&t);
-	if(strchr((char *)name, '%')){
-		struct clientparam fakecli;
-
-		memset(&fakecli, 0, sizeof(fakecli));
-		dobuf2(&fakecli, buf, NULL, NULL, ts, (char *)name);
-	}
-	else switch(lt){
-		case NONE:
-			sprintf((char *)buf, "%s", name);
-			break;
-		case ANNUALLY:
-			sprintf((char *)buf, "%s.%04d", name, ts->tm_year+1900);
-			break;
-		case MONTHLY:
-			sprintf((char *)buf, "%s.%04d.%02d", name, ts->tm_year+1900, ts->tm_mon+1);
-			break;
-		case WEEKLY:
-			t = t - (ts->tm_wday * (60*60*24));
-			ts = localtime(&t);
-			sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
-			break;
-		case DAILY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
-			break;
-		case HOURLY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d-%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour);
-			break;
-		case MINUTELY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d-%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour, ts->tm_min);
-			break;
-		default:
-			break;
-	}
-	if(ext){
-		strcat((char *)buf, ".");
-		strcat((char *)buf, (char *)ext);
-	}
-	return buf;
-}
 
 int start_proxy_thread(struct child * chp){
   pthread_t thread;
@@ -281,65 +238,12 @@ static int h_external(int argc, unsigned char ** argv){
 
 
 static int h_log(int argc, unsigned char ** argv){ 
-	unsigned char tmpbuf[8192];
-	int notchanged = 0;
-
-
-	havelog = 1;
-	if(argc > 1 && conf.logtarget && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
-		notchanged = 1;
+	myfree(conf.logtarget);
+	if(argc < 2) conf.logtarget = (unsigned char *)mystrdup("");
+	else conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
+	if(argc > 2) {
+		conf.logtype = getrotate(*argv[2]);
 	}
-	if(!notchanged && conf.logtarget){
-		myfree(conf.logtarget);
-		conf.logtarget = NULL;
-	}
-	if(argc > 1) {
-		if(!strcmp((char *) argv[1], "/dev/null")) {
-			conf.logfunc = NULL;
-			return 0;
-		}
-		if(!notchanged) conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
-		if(*argv[1]=='@'){
-#ifndef _WIN32
-			conf.logfunc = logsyslog;
-			if(notchanged) return 0;
-			openlog((char *)conf.logtarget+1, LOG_PID, LOG_DAEMON);
-#endif
-		}
-#ifndef NOODBC
-		else if(*argv[1]=='&'){
-			if(notchanged) return 0;
-			conf.logfunc = logsql;
-			pthread_mutex_lock(&log_mutex);
-			close_sql();
-			init_sql((char *)argv[1]+1);
-			pthread_mutex_unlock(&log_mutex);
-		}
-#endif
-#ifndef NORADIUS
-		else if(!strcmp(argv[1],"radius")){
-			conf.logfunc = logradius;
-		}
-#endif
-		else {
-			if(argc > 2) {
-				conf.logtype = getrotate(*argv[2]);
-			}
-			conf.logfunc = logstdout;
-			if(notchanged) return 0;
-			conf.logtime = time(0);
-			if(conf.logname)myfree(conf.logname);
-			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
-			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a", conf.stdlog);
-			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
-			if(!conf.stdlog){
-				perror((char *)tmpbuf);
-				return 1;
-			}
-
-		}
-	}
-	else conf.logfunc = logstdout;
 	return 0;
 }
 
@@ -1745,7 +1649,7 @@ void freeconf(struct extparam *confp){
  struct ace *acl;
  struct filemon *fm;
  int counterd, archiverc;
- unsigned char *logname, *logtarget;
+ unsigned char *logtarget;
  unsigned char **archiver;
  unsigned char * logformat;
 
@@ -1781,18 +1685,13 @@ void freeconf(struct extparam *confp){
  pthread_mutex_unlock(&pwl_mutex);
 
 
-/*
  logtarget = confp->logtarget;
  confp->logtarget = NULL;
- logname = confp->logname;
- confp->logname = NULL;
-*/
- confp->logfunc = NULL;
  logformat = confp->logformat;
  confp->logformat = NULL;
  confp->rotate = 0;
  confp->logtype = NONE;
- confp->logtime = confp->time = 0;
+ confp->time = 0;
 
  archiverc = confp->archiverc;
  confp->archiverc = 0;
@@ -1840,22 +1739,12 @@ void freeconf(struct extparam *confp){
  for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
 	if(fm->path) myfree(fm->path);
  }
-/*
- if(logtarget) {
-	myfree(logtarget);
- }
- if(logname) {
-	myfree(logname);
- }
-*/
- if(logformat) {
-	myfree(logformat);
- }
+ myfree(logtarget);
+ myfree(logformat);
  if(archiver) {
 	for(i = 0; i < archiverc; i++) myfree(archiver[i]);
 	myfree(archiver);
  }
- havelog = 0;
 }
 
 int reload (void){

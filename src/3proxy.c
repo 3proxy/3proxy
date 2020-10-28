@@ -63,11 +63,6 @@ void __stdcall CommandHandler( DWORD dwCommand )
 	conf.paused++;
 	Sleep(2000);
         SetStatus( SERVICE_STOPPED, 0, 0 );
-#ifndef NOODBC
-	pthread_mutex_lock(&log_mutex);
-	close_sql();
-	pthread_mutex_unlock(&log_mutex);
-#endif
         break;
     case SERVICE_CONTROL_PAUSE:
         SetStatus( SERVICE_PAUSE_PENDING, 0, 1 );
@@ -116,13 +111,7 @@ void mysigpause (int sig){
 
 void mysigterm (int sig){
 	conf.paused++;
-	usleep(999*SLEEPTIME);
-	usleep(999*SLEEPTIME);
-#ifndef NOODBC
-	pthread_mutex_lock(&log_mutex);
-	close_sql();
-	pthread_mutex_unlock(&log_mutex);
-#endif
+	usleep(2000*SLEEPTIME);
 	conf.timetoexit = 1;
 }
 
@@ -204,7 +193,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
 				if(tl->type >= conf.countertype)
-					fprintf(cfp, "%05d %020"PRINTF_INT64_MODIFIER"u%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
+					fprintf(cfp, "%05d %020" PRIu64 "%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
 			}
 			fclose(cfp);
 		}
@@ -235,7 +224,6 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 void cyclestep(void){
  struct tm *tm;
  time_t minutecounter;
- unsigned char tmpbuf[8192];
 
  minutecounter = time(0);
  for(;;){
@@ -248,7 +236,6 @@ void cyclestep(void){
 		conf.needreload = 0;
 	}
 	doschedule();
-	if(conf.stdlog)fflush(conf.stdlog);
 	if(timechanged(minutecounter, conf.time, MINUTELY)) {
 		struct filemon *fm;
 		struct stat sb;
@@ -268,10 +255,6 @@ void cyclestep(void){
 		wday = (1 << tm->tm_wday);
 		tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
 		basetime = mktime(tm);
-	}
-	if(conf.logname) {
-		if(timechanged(conf.logtime, conf.time, conf.logtype)) {
-		}
 	}
 	if(conf.counterd >= 0 && conf.trafcounter) {
 		if(timechanged(cheader.updated, conf.time, MINUTELY)){

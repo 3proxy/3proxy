@@ -312,28 +312,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 #endif
 		 case 'l':
-			if(srv.logtarget) myfree(srv.logtarget);
+			myfree(srv.logtarget);
 			srv.logtarget = (unsigned char *)mystrdup(argv[i] + 2);
-			if(argv[i][2]) {
-				if(argv[i][2]=='@'){
-
-#ifdef STDMAIN
-#ifndef _WIN32
-					openlog(argv[i]+3, LOG_PID, LOG_DAEMON);
-					srv.logfunc = logsyslog;
-#endif
-#endif
-
-				}
-				else {
-					fp = fopen(argv[i] + 2, "a");
-					if (fp) {
-						srv.stdlog = fp;
-						fseek(fp, 0L, SEEK_END);
-					}
-				}
-
-			}
 			break;
 		 case 'i':
 			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.intsa);
@@ -844,7 +824,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(isudp) while(!srv.fds.events)usleep(SLEEPTIME);
  }
 
- if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
+ if(!srv.silent) dolog(&defparam, (unsigned char *)"Exiting thread");
 
  srvfree(&srv);
 
@@ -873,18 +853,16 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf.version + 1;
  srv->paused = conf.paused;
- srv->logfunc = havelog?conf.logfunc:NULL;
  srv->noforce = conf.noforce;
  srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
+ srv->logtarget = conf.logtarget? (unsigned char *)mystrdup((char *)conf.logtarget) : NULL;
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
  srv->stacksize = conf.stacksize;
  srv->time_start = time(NULL);
- if(havelog && conf.logtarget){
-	 srv->logtarget = (unsigned char *)mystrdup((char *)conf.logtarget);
- }
  srv->srvsock = INVALID_SOCKET;
+ srv->logtype = conf.logtype;
  srv->logdumpsrv = conf.logdumpsrv;
  srv->logdumpcli = conf.logdumpcli;
  srv->cbsock = INVALID_SOCKET; 
@@ -920,6 +898,10 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 		myfree(logformat);
 	}
  }
+ if(srv->logtarget){
+	srv->log = registerlog(srv->logtarget, srv->logtype);
+ }
+
  memset(&param->sinsl, 0, sizeof(param->sinsl));
  memset(&param->sinsr, 0, sizeof(param->sinsr));
  memset(&param->req, 0, sizeof(param->req));
@@ -941,6 +923,7 @@ void srvfree(struct srvparam * srv){
  srv->cbsock = INVALID_SOCKET;
  srv->service = S_ZOMBIE;
  while(srv->child) usleep(SLEEPTIME * 100);
+ unregisterlog(srv->log);
 #ifndef STDMAIN
  if(srv->filter){
 	while(srv->nfilters){

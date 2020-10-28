@@ -54,6 +54,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <syslog.h>
 #include <errno.h>
 #endif

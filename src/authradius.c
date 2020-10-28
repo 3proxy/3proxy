@@ -298,10 +298,9 @@ typedef struct radius_packet_t {
           
 #define RETURN(xxx) { res = xxx; goto CLEANRET; }
 
-#define packet (*(radius_packet_t *buf))
+#define packet (*((radius_packet_t *)inbuf))
 
-int radbuf(struct clientparam * param, unsigned char * buf, int auth, int stop){
-	int loop;
+int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, int stop){
 	int id;
 	int res = 4;
 	SOCKET sockfd = -1;
@@ -310,19 +309,15 @@ int radbuf(struct clientparam * param, unsigned char * buf, int auth, int stop){
 	int len;
 	int op;
 	char vector[AUTH_VECTOR_LEN];
-	int data_len;
-	uint8_t	*vendor_len;
 	int count=0;
-	uint8_t *attr;
 	long vendor=0;
-	int vendorlen=0;
 	char buf[64];
 
 	if(!radiussecret || !nradservers) {
 		return 0;
 	}
 
-	memset(&packet, 0, sizeof(packet));
+	memset(&packet, 0, sizeof(radius_packet_t));
 
 
 	pthread_mutex_lock(&rad_mutex);
@@ -523,23 +518,25 @@ int radbuf(struct clientparam * param, unsigned char * buf, int auth, int stop){
 }
 
 
-int radsend(const char *buf, int total_length, int auth){
+int radsend(const unsigned char *inbuf, int total_length, int auth, 
+#ifdef NOIPV6
+	struct  sockaddr_in*     sinsl
+#else
+	struct  sockaddr_in6*     sinsl
+#endif
+){
 
 	int loop;
-	int id;
 	int res = 4;
 	SOCKET sockfd = -1;
-	unsigned char *ptr;
 	int len;
-	int op;
 #ifdef NOIPV6
 	struct  sockaddr_in     saremote;
 #else
 	struct  sockaddr_in6     saremote;
 #endif
 	struct pollfd fds[1];
-	char vector[AUTH_VECTOR_LEN];
-	radius_packet_t packet, rpacket;
+	radius_packet_t rpacket;
 	SASIZETYPE salen;
 	int data_len;
 	uint8_t	*vendor_len;
@@ -547,7 +544,6 @@ int radsend(const char *buf, int total_length, int auth){
 	uint8_t *attr;
 	long vendor=0;
 	int vendorlen=0;
-	char buf[64];
 
 
 	
@@ -578,7 +574,7 @@ int radsend(const char *buf, int total_length, int auth){
 		}
 		else remsock = radiuslist[loop].logsock;
 */
-		so._bind(param->remsock,(struct sockaddr *)&radiuslist[loop].localaddr,SASIZE(&radiuslist[loop].localaddr));
+		so._bind(remsock,(struct sockaddr *)&radiuslist[loop].localaddr,SASIZE(&radiuslist[loop].localaddr));
 		len = so._sendto(remsock, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
@@ -645,13 +641,13 @@ int radsend(const char *buf, int total_length, int auth){
 			}
 	
 			if (!vendor && attr[0] == PW_FRAMED_IP_ADDRESS && attr[1] == 6) {
-				*SAFAMILY(&param->sinsl) = AF_INET;
-				memcpy(SAADDR(&param->sinsl), attr+2, 4);
+				*SAFAMILY(sinsl) = AF_INET;
+				memcpy(SAADDR(sinsl), attr+2, 4);
 			}
 
 			else if (!vendor && attr[0] == PW_FRAMED_IPV6_ADDRESS && attr[1] == 18) {
-				*SAFAMILY(&param->sinsl) = AF_INET6;
-				memcpy(SAADDR(&param->sinsl), attr+2, 16);
+				*SAFAMILY(sinsl) = AF_INET6;
+				memcpy(SAADDR(sinsl), attr+2, 16);
 			}
 			else if (!vendor && attr[0] == PW_REPLY_MESSAGE && attr[1] >= 3 && isdigit(attr[2])) {
 				res = 0;
@@ -681,11 +677,11 @@ CLEANRET:
 }
 
 int radauth(struct clientparam * param){
-	radius_packet_t packet;
+	radius_packet_t ppacket;
 	int len;
 	/*radsend(param, 0, 0);*/
-	len = radbuf(param, buf, 1, 0);
-	return len?radsend(buf, len, 1):4;
+	len = radbuf(param, (unsigned char *)&ppacket, 1, 0);
+	return len?radsend((unsigned char *)&ppacket, len, 1, &param->sinsl):4;
 }
 
 
@@ -693,8 +689,8 @@ int raddobuf(struct clientparam * param, unsigned char * buf, const unsigned cha
 	return radbuf(param, buf, 0, 1);
 }
 
-void logradius(const unsigned char *buf, int len, LOGGER *logger){
-	if(len)radsend(buf, len, 0);
+void logradius(const unsigned char *buf, int len, struct LOGGER *logger){
+	if(len)radsend(buf, len, 0, NULL);
 }
 
 

@@ -9,7 +9,7 @@
 
 static void pr_unsigned64(struct node *node, CBFUNC cbf, void*cb){
 	char buf[32];
-	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%"PRINTF_INT64_MODIFIER"u", *(uint64_t *)node->value));
+	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%"PRIu64, *(uint64_t *)node->value));
 }
 
 static void pr_integer(struct node *node, CBFUNC cbf, void*cb){
@@ -523,19 +523,8 @@ static void * ef_server_childcount(struct node * node){
 }
 
 static void * ef_server_log(struct node * node){
-	if(((struct srvparam *)node->value) -> logfunc == NULL)	return "none";
-#ifndef NORADIUS
-	else if(((struct srvparam *)node->value) -> logfunc == logradius)	return "radius";
-#endif
-	else if(((struct srvparam *)node->value) -> logfunc == logstdout)
-		return (((struct srvparam *)node->value) -> logtarget)?"file":"stdout";
-#ifndef _WIN32
-	else if(((struct srvparam *)node->value) -> logfunc == logsyslog)	return "syslog";
-#endif
-#ifndef NOODBC
-	else if(((struct srvparam *)node->value) -> logfunc == logsql)	return "odbc";
-#endif
-	return NULL;
+	if(((struct srvparam *)node->value) -> log == NULL)	return "none";
+	return ((struct srvparam *)node->value) -> log -> selector;
 }
 
 static void * ef_server_logformat(struct node * node){
@@ -550,11 +539,6 @@ static void * ef_server_replacement(struct node * node){
 	if(((struct srvparam *)node->value) -> nonprintable)return &((struct srvparam *)node->value) -> replace;
 	return NULL;
 }
-
-static void * ef_server_logtarget(struct node * node){
-	return ((struct srvparam *)node->value) -> logtarget;
-}
-
 
 static void * ef_server_target(struct node * node){
 	return ((struct srvparam *)node->value) -> target;
@@ -763,18 +747,17 @@ static struct property prop_server[] = {
 	{prop_server + 7, "singlepacket", ef_server_singlepacket, TYPE_INTEGER, "is single packet redirection"},
 	{prop_server + 8, "usentlm", ef_server_usentlm, TYPE_INTEGER, "allow NTLM authentication"},
 	{prop_server + 9, "log", ef_server_log, TYPE_STRING, "type of logging"},
-	{prop_server + 10, "logtarget", ef_server_logtarget, TYPE_STRING, "log target options"},
-	{prop_server + 11, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
-	{prop_server + 12, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
-	{prop_server + 13, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
-	{prop_server + 14, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
-	{prop_server + 15, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
-	{prop_server + 16, "extsa", ef_server_extsa, TYPE_SA, "ip address of external interface"},
+	{prop_server + 10, "logformat", ef_server_logformat, TYPE_STRING, "logging format string"},
+	{prop_server + 11, "nonprintable", ef_server_nonprintable, TYPE_STRING, "non printable characters"},
+	{prop_server + 12, "replacement", ef_server_replacement, TYPE_CHAR, "replacement character"},
+	{prop_server + 13, "childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
+	{prop_server + 14, "intsa", ef_server_intsa, TYPE_SA, "ip address of internal interface"},
+	{prop_server + 15, "extsa", ef_server_extsa, TYPE_SA, "ip address of external interface"},
 #ifndef NOIPV6
-	{prop_server + 17, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
-	{prop_server + 18, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
-#else
+	{prop_server + 16, "extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
 	{prop_server + 17, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
+#else
+	{prop_server + 16, "child", ef_server_child, TYPE_CLIENT, "connected clients"},
 #endif
 	{NULL, "next", ef_server_next, TYPE_SERVER, "next"}
 };
