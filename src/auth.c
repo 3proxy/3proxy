@@ -680,7 +680,7 @@ int checkACL2(struct clientparam * param, int pre){
 	struct ace* acentry;
 
 	acentry = pre?param->srv->preacl:param->srv->acl;
-	if(!acentry) {
+	if(!acentry && !pre) {
 		return 0;
 	}
 	for(; acentry; acentry = acentry->next) {
