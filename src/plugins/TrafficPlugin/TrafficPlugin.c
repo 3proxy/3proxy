@@ -28,8 +28,8 @@ int DBGLEVEL = 0;
 int already_loaded = 0;
 typedef int (* handler)(int argc, unsigned char ** argv);
 
-struct extparam * conf;
-struct commands * commandhandlers;
+struct extparam * sconfp;
+struct commands * scommandhandlers;
 struct pluginlink * pl;
 
 typedef enum {
@@ -169,12 +169,9 @@ int h_trafcorrect(int argc, unsigned char ** argv) {
 	return 1;
 }
 
-static unsigned short myhtons(unsigned short port) {
-  return (port << 8) | (port >> 8);
-}
+void(*origprelog)(struct clientparam * param) = NULL;
 
-LOGFUNC origlogfunc;
-void mylogfunc(struct clientparam * param, const unsigned char * pz) {
+void mylogfunc(struct clientparam * param) {
 	PROXYSERVICE g_s = S_NOSERVICE;
 	int port;
 	int rule = 0;
@@ -189,7 +186,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 		port = starttrafcorrect->port;
 		g_s = starttrafcorrect->p_service;
 		if (starttrafcorrect->p_service == S_NOSERVICE) g_s = param->service;
-		if (starttrafcorrect->port <= 0)  port = myhtons(*SAPORT(&param->sinsr));
+		if (starttrafcorrect->port <= 0)  port = htons(*SAPORT(&param->sinsr));
 		
 #ifndef NOPSTDINT
 		statssrv_before = param->statssrv64;
@@ -199,7 +196,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 		statscli_before = param->statscli;
 #endif
 		rule++;
-		if (((g_s == param->service) && (port == myhtons(*SAPORT(&param->sinsr)))) || 
+		if (((g_s == param->service) && (port == htons(*SAPORT(&param->sinsr)))) || 
 			( ((starttrafcorrect->type == UDP) && 
 				((param->operation == UDPASSOC)||
 				 (param->operation == DNSRESOLVE)||
@@ -240,9 +237,9 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 				}
 				if (DBGLEVEL == 1) {
 #ifndef NOPSTDINT
-					fprintf(stdout, "Port=%hd; Before: srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; After:  srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(*SAPORT(&param->sinsr)), statssrv_before, statscli_before, param->statssrv64, param->statscli64,param->nreads,param->nwrites,rule);
+					fprintf(stdout, "Port=%hd; Before: srv=%"PRIu64", cli=%"PRIu64"; After:  srv=%"PRIu64", cli=%"PRIu64"; nreads=%ld; nwrites=%ld; Rule=%d\n",htons(*SAPORT(&param->sinsr)), statssrv_before, statscli_before, param->statssrv64, param->statscli64,param->nreads,param->nwrites,rule);
 #else
-					fprintf(stdout, "Port=%hd; Before: srv=%lu, cli=%lu; After:  srv=%lu, cli=%lu; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(param->sins.sin_port), statssrv_before, statscli_before, param->statssrv, param->statscli,param->nreads,param->nwrites,rule);
+					fprintf(stdout, "Port=%hd; Before: srv=%lu, cli=%lu; After:  srv=%lu, cli=%lu; nreads=%ld; nwrites=%ld; Rule=%d\n",htons(*SAPORT(&param->sins)), statssrv_before, statscli_before, param->statssrv, param->statscli,param->nreads,param->nwrites,rule);
 #endif
 				}
 				ok = 1;
@@ -252,7 +249,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 	if ((!ok) && (DBGLEVEL == 1)) {
 		fprintf(stdout, "No rules specifed: service=%d, port=%d, operation=%d", param->service, *SAPORT(&param->sinsr),param->operation);
 	}
-	origlogfunc(param, pz);
+	if(origprelog)origprelog(param);
 }
 
 #ifdef _WIN32
@@ -277,8 +274,8 @@ BOOL WINAPI DllMain( HINSTANCE hModule,
 PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, char** argv) {
 
 	struct commands * starthandler;
-	conf = pluginlink->conf;
-	commandhandlers = pluginlink->commandhandlers;
+	sconfp = pluginlink->conf;
+	scommandhandlers = pluginlink->commandhandlers;
 	pl = pluginlink;
 
 	if (argc>1) {
@@ -295,7 +292,7 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, char** 
 	}
 	already_loaded = 1;
 	/* добавляем команду "trafcorrect" */
-	starthandler = commandhandlers;
+	starthandler = scommandhandlers;
 	for ( ; starthandler->next; starthandler = starthandler->next);
 	trafcorrect_handler.next = NULL;
 	trafcorrect_handler.minargs = 1;
@@ -305,8 +302,8 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, char** 
 	starthandler->next = &trafcorrect_handler;
 	
 	/* подменяем conf->logfunc, с целью контролировать траффик */
-	origlogfunc = conf->logfunc;
-	conf->logfunc = mylogfunc;
+	origprelog = sconfp->prelog;
+	sconfp->prelog = mylogfunc;
 	return 0;
 }
 

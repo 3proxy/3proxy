@@ -101,49 +101,6 @@ int getrotate(char c){
 }
 
 
-unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
-	struct tm *ts;
-
-	ts = localtime(&t);
-	if(strchr((char *)name, '%')){
-		struct clientparam fakecli;
-
-		memset(&fakecli, 0, sizeof(fakecli));
-		dobuf2(&fakecli, buf, NULL, NULL, ts, (char *)name);
-	}
-	else switch(lt){
-		case NONE:
-			sprintf((char *)buf, "%s", name);
-			break;
-		case ANNUALLY:
-			sprintf((char *)buf, "%s.%04d", name, ts->tm_year+1900);
-			break;
-		case MONTHLY:
-			sprintf((char *)buf, "%s.%04d.%02d", name, ts->tm_year+1900, ts->tm_mon+1);
-			break;
-		case WEEKLY:
-			t = t - (ts->tm_wday * (60*60*24));
-			ts = localtime(&t);
-			sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
-			break;
-		case DAILY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
-			break;
-		case HOURLY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d-%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour);
-			break;
-		case MINUTELY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d-%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour, ts->tm_min);
-			break;
-		default:
-			break;
-	}
-	if(ext){
-		strcat((char *)buf, ".");
-		strcat((char *)buf, (char *)ext);
-	}
-	return buf;
-}
 
 int start_proxy_thread(struct child * chp){
   pthread_t thread;
@@ -281,65 +238,12 @@ static int h_external(int argc, unsigned char ** argv){
 
 
 static int h_log(int argc, unsigned char ** argv){ 
-	unsigned char tmpbuf[8192];
-	int notchanged = 0;
-
-
-	havelog = 1;
-	if(argc > 1 && conf.logtarget && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
-		notchanged = 1;
+	myfree(conf.logtarget);
+	if(argc < 2) conf.logtarget = (unsigned char *)mystrdup("");
+	else conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
+	if(argc > 2) {
+		conf.logtype = getrotate(*argv[2]);
 	}
-	if(!notchanged && conf.logtarget){
-		myfree(conf.logtarget);
-		conf.logtarget = NULL;
-	}
-	if(argc > 1) {
-		if(!strcmp((char *) argv[1], "/dev/null")) {
-			conf.logfunc = lognone;
-			return 0;
-		}
-		if(!notchanged) conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
-		if(*argv[1]=='@'){
-#ifndef _WIN32
-			conf.logfunc = logsyslog;
-			if(notchanged) return 0;
-			openlog((char *)conf.logtarget+1, LOG_PID, LOG_DAEMON);
-#endif
-		}
-#ifndef NOODBC
-		else if(*argv[1]=='&'){
-			if(notchanged) return 0;
-			conf.logfunc = logsql;
-			pthread_mutex_lock(&log_mutex);
-			close_sql();
-			init_sql((char *)argv[1]+1);
-			pthread_mutex_unlock(&log_mutex);
-		}
-#endif
-#ifndef NORADIUS
-		else if(!strcmp(argv[1],"radius")){
-			conf.logfunc = logradius;
-		}
-#endif
-		else {
-			if(argc > 2) {
-				conf.logtype = getrotate(*argv[2]);
-			}
-			conf.logfunc = logstdout;
-			if(notchanged) return 0;
-			conf.logtime = time(0);
-			if(conf.logname)myfree(conf.logname);
-			conf.logname = (unsigned char *)mystrdup((char *)argv[1]);
-			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a", conf.stdlog);
-			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
-			if(!conf.stdlog){
-				perror((char *)tmpbuf);
-				return 1;
-			}
-
-		}
-	}
-	else conf.logfunc = logstdout;
 	return 0;
 }
 
@@ -645,12 +549,6 @@ static int h_nsrecord(int argc, unsigned char **argv){
 	if(!getip46(46, argv[2], (struct sockaddr *)&sa)) return 1;
 
 	hashadd(*SAFAMILY(&sa)==AF_INET6?&dns6_table:&dns_table, argv[1], SAADDR(&sa), (time_t)0xffffffff);
-	return 0;
-}
-
-static int h_dialer(int argc, unsigned char **argv){
-	if(conf.demanddialprog) myfree(conf.demanddialprog);
-	conf.demanddialprog = mystrdup((char *)argv[1]);
 	return 0;
 }
 
@@ -1535,36 +1433,35 @@ struct commands commandhandlers[]={
 	{commandhandlers+28, "nscache", h_nscache, 2, 2},
 	{commandhandlers+29, "nscache6", h_nscache6, 2, 2},
 	{commandhandlers+30, "nsrecord", h_nsrecord, 3, 3},
-	{commandhandlers+31, "dialer", h_dialer, 2, 2},
-	{commandhandlers+32, "system", h_system, 2, 2},
-	{commandhandlers+33, "pidfile", h_pidfile, 2, 2},
-	{commandhandlers+34, "monitor", h_monitor, 2, 2},
-	{commandhandlers+35, "parent", h_parent, 5, 0},
-	{commandhandlers+36, "allow", h_ace, 1, 0},
-	{commandhandlers+37, "deny", h_ace, 1, 0},
-	{commandhandlers+38, "redirect", h_ace, 3, 0},
-	{commandhandlers+39, "bandlimin", h_ace, 2, 0},
-	{commandhandlers+40, "bandlimout", h_ace, 2, 0},
-	{commandhandlers+41, "nobandlimin", h_ace, 1, 0},
-	{commandhandlers+42, "nobandlimout", h_ace, 1, 0},
-	{commandhandlers+43, "countin", h_ace, 4, 0},
-	{commandhandlers+44, "nocountin", h_ace, 1, 0},
-	{commandhandlers+45, "countout", h_ace, 4, 0},
-	{commandhandlers+46, "nocountout", h_ace, 1, 0},
-	{commandhandlers+47, "connlim", h_ace, 4, 0},
-	{commandhandlers+48, "noconnlim", h_ace, 1, 0},
-	{commandhandlers+49, "plugin", h_plugin, 3, 0},
-	{commandhandlers+50, "logdump", h_logdump, 2, 3},
-	{commandhandlers+51, "filtermaxsize", h_filtermaxsize, 2, 2},
-	{commandhandlers+52, "nolog", h_nolog, 1, 1},
-	{commandhandlers+53, "weight", h_nolog, 2, 2},
-	{commandhandlers+54, "authcache", h_authcache, 2, 3},
-	{commandhandlers+55, "smtpp", h_proxy, 1, 0},
-	{commandhandlers+56, "delimchar",h_delimchar, 2, 2},
-	{commandhandlers+57, "authnserver", h_authnserver, 2, 2},
-	{commandhandlers+58, "stacksize", h_stacksize, 2, 2},
-	{commandhandlers+59, "force", h_force, 1, 1},
-	{commandhandlers+60, "noforce", h_noforce, 1, 1},
+	{commandhandlers+31, "system", h_system, 2, 2},
+	{commandhandlers+32, "pidfile", h_pidfile, 2, 2},
+	{commandhandlers+33, "monitor", h_monitor, 2, 2},
+	{commandhandlers+34, "parent", h_parent, 5, 0},
+	{commandhandlers+35, "allow", h_ace, 1, 0},
+	{commandhandlers+36, "deny", h_ace, 1, 0},
+	{commandhandlers+37, "redirect", h_ace, 3, 0},
+	{commandhandlers+38, "bandlimin", h_ace, 2, 0},
+	{commandhandlers+39, "bandlimout", h_ace, 2, 0},
+	{commandhandlers+40, "nobandlimin", h_ace, 1, 0},
+	{commandhandlers+41, "nobandlimout", h_ace, 1, 0},
+	{commandhandlers+42, "countin", h_ace, 4, 0},
+	{commandhandlers+43, "nocountin", h_ace, 1, 0},
+	{commandhandlers+44, "countout", h_ace, 4, 0},
+	{commandhandlers+45, "nocountout", h_ace, 1, 0},
+	{commandhandlers+46, "connlim", h_ace, 4, 0},
+	{commandhandlers+47, "noconnlim", h_ace, 1, 0},
+	{commandhandlers+48, "plugin", h_plugin, 3, 0},
+	{commandhandlers+49, "logdump", h_logdump, 2, 3},
+	{commandhandlers+50, "filtermaxsize", h_filtermaxsize, 2, 2},
+	{commandhandlers+51, "nolog", h_nolog, 1, 1},
+	{commandhandlers+52, "weight", h_nolog, 2, 2},
+	{commandhandlers+53, "authcache", h_authcache, 2, 3},
+	{commandhandlers+54, "smtpp", h_proxy, 1, 0},
+	{commandhandlers+55, "delimchar",h_delimchar, 2, 2},
+	{commandhandlers+56, "authnserver", h_authnserver, 2, 2},
+	{commandhandlers+57, "stacksize", h_stacksize, 2, 2},
+	{commandhandlers+58, "force", h_force, 1, 1},
+	{commandhandlers+59, "noforce", h_noforce, 1, 1},
 #ifndef NORADIUS
 	{commandhandlers+61, "radius", h_radius, 3, 0},
 #endif
@@ -1745,7 +1642,7 @@ void freeconf(struct extparam *confp){
  struct ace *acl;
  struct filemon *fm;
  int counterd, archiverc;
- unsigned char *logname, *logtarget;
+ unsigned char *logtarget;
  unsigned char **archiver;
  unsigned char * logformat;
 
@@ -1781,18 +1678,13 @@ void freeconf(struct extparam *confp){
  pthread_mutex_unlock(&pwl_mutex);
 
 
-/*
  logtarget = confp->logtarget;
  confp->logtarget = NULL;
- logname = confp->logname;
- confp->logname = NULL;
-*/
- confp->logfunc = lognone;
  logformat = confp->logformat;
  confp->logformat = NULL;
  confp->rotate = 0;
  confp->logtype = NONE;
- confp->logtime = confp->time = 0;
+ confp->time = 0;
 
  archiverc = confp->archiverc;
  confp->archiverc = 0;
@@ -1840,22 +1732,12 @@ void freeconf(struct extparam *confp){
  for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
 	if(fm->path) myfree(fm->path);
  }
-/*
- if(logtarget) {
-	myfree(logtarget);
- }
- if(logname) {
-	myfree(logname);
- }
-*/
- if(logformat) {
-	myfree(logformat);
- }
+ myfree(logtarget);
+ myfree(logformat);
  if(archiver) {
 	for(i = 0; i < archiverc; i++) myfree(archiver[i]);
 	myfree(archiver);
  }
- havelog = 0;
 }
 
 int reload (void){

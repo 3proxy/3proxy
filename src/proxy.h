@@ -54,6 +54,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <syslog.h>
 #include <errno.h>
 #endif
@@ -166,21 +167,10 @@ int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * 
 
 
 
-
+void initlog(void);
 void dolog(struct clientparam * param, const unsigned char *s);
-int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
-int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
-extern FILE * stdlog;
-void logstdout(struct clientparam * param, const unsigned char *s);
-void logsyslog(struct clientparam * param, const unsigned char *s);
-void lognone(struct clientparam * param, const unsigned char *s);
-void logradius(struct clientparam * param, const unsigned char *s);
-
-#ifndef NOSQL
-void logsql(struct clientparam * param, const unsigned char *s);
-int init_sql(char * s);
-void close_sql();
-#endif
+int dobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec);
+int dobuf2(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 int doconnect(struct clientparam * param);
 int alwaysauth(struct clientparam * param);
 int ipauth(struct clientparam * param);
@@ -202,11 +192,12 @@ unsigned long myresolver(int, unsigned char *, unsigned char *);
 unsigned long fakeresolver (int, unsigned char *, unsigned char*);
 int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
+void srvpostfree(struct srvparam * srv);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);
-
 int startconnlims (struct clientparam *param);
 void stopconnlims (struct clientparam *param);
+int timechanged (time_t oldtime, time_t newtime, ROTATION lt);
 
 
 
@@ -274,7 +265,7 @@ FILTER_ACTION handledatfltsrv(struct clientparam *param, unsigned char ** buf_p,
 void srvinit(struct srvparam * srv, struct clientparam *param);
 void srvinit2(struct srvparam * srv, struct clientparam *param);
 void srvfree(struct srvparam * srv);
-unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
+unsigned char * dologname (unsigned char *buf, int bufsize, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 int readconfig(FILE * fp);
 int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
 

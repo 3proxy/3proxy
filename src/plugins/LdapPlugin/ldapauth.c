@@ -22,6 +22,9 @@ static struct commands ldap_trafgroup_handler;
 static struct commands ldap_attrsgroup_handler;
 static struct commands ldap_dircount_handler;
 
+static void (*dolog)(struct clientparam * param, const unsigned char *s);
+
+
 static char   *attrs[] = { NULL, NULL};
 static char   *ldap_group_attr;
 static char   *ldap_access;
@@ -109,7 +112,7 @@ static int ldapfunc(struct clientparam *param)
   ld = ldap_init( ldap_serv, 389 );
   if ( ld == NULL ) 
    {
-    param->srv->logfunc(param,"Error ldap_init: No init lib ldap");
+    dolog(param,"Error ldap_init: No init lib ldap");
     /*ldap_perror( ld, "Error ldap_init" ); */
     return 7; 
    }
@@ -133,7 +136,7 @@ static int ldapfunc(struct clientparam *param)
   
   if ( rc != LDAP_SUCCESS ) 
     {
-     param->srv->logfunc(param,"Error ldap_bind: No connect ldap catalog");
+     dolog(param,"Error ldap_bind: No connect ldap catalog");
      ldap_unbind_s(ld);	
      return 7;
     }
@@ -144,7 +147,7 @@ static int ldapfunc(struct clientparam *param)
 
   if ( ld == NULL ) 
    {
-    param->srv->logfunc(param,"Error ldap_init: No init lib ldap");
+    dolog(param,"Error ldap_init: No init lib ldap");
     /*ldap_perror( ld, "Error ldap_init" ); */
     return 7; 
    }
@@ -153,7 +156,7 @@ static int ldapfunc(struct clientparam *param)
  
    if ( rc != LDAP_SUCCESS ) 
     {
-     param->srv->logfunc(param, "Error ldap_bind: Not authorize in ldap\
+     dolog(param, "Error ldap_bind: Not authorize in ldap\
      catalog,  checked option \'ldapconnect\' ");
      ldap_unbind_s(ld);
      return 7;
@@ -471,6 +474,9 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink,
     free(attrs[0]);
     return (0);
    }
+
+
+   dolog=pluginlink->findbyname("dolog");
 
    already_loaded = 1;
     

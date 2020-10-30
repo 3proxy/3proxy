@@ -69,4 +69,5 @@ struct proxydef childdef = {
 
 };
 #include "proxymain.c"
+#include "log.c"
 #endif

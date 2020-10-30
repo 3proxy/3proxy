@@ -15,9 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
-#ifndef PRINTF_INT64_MODIFIER
-#define PRINTF_INT64_MODIFIER "ll"
-#endif
+#include <inttypes.h>
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -59,6 +57,15 @@ int mutex_unlock(int *val);
 #define pthread_mutex_destroy(x) DeleteCriticalSection(x)
 #ifdef MSVC
 #pragma warning (disable : 4996)
+#endif
+#ifndef PRIu64
+#define PRIu64 "I64u"
+#endif
+#ifndef PRIi64
+#define PRIi64 "I64i"
+#endif
+#ifndef SCNx64
+#define SCNx64 "I64x"
 #endif
 #endif
 #define MAXBANDLIMS 10
@@ -188,8 +195,8 @@ struct node;
 struct symbol;
 struct pluginlink;
 struct srvparam;
-
-typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char *);
+struct LOGFUNC;
+struct LOGGER;
 typedef int (*AUTHFUNC)(struct clientparam * param);
 typedef void * (*REDIRECTFUNC)(struct clientparam * param);
 typedef unsigned long (*RESOLVFUNC)(int af, unsigned char *name, unsigned char *value);
@@ -365,6 +372,31 @@ struct trafcount {
 	time_t updated;
 };
 
+struct LOGFUNC {
+	struct LOGFUNC* next;	
+	int (*init)(struct LOGGER *logger);
+	int (*dobuf)(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
+	void (*log)(const char * buf, int len, struct LOGGER *logger);
+	void (*rotate)(struct LOGGER *logger);
+	void (*flush)(struct LOGGER *logger);
+	void (*close)(struct LOGGER *logger);
+	char* prefix;
+};
+extern struct LOGFUNC *logfuncs;
+extern void(*prelog)(struct clientparam * param);
+struct LOGGER {
+	struct LOGGER *next;
+	struct LOGGER *prev;
+	char * selector;
+	void * data;
+	struct LOGFUNC *logfunc;
+	int rotate;
+	time_t rotated;
+	int registered;
+};
+struct LOGGER * registerlog(const char * logstring, int logtype);
+void unregisterlog (struct LOGGER * log);
+void flushlogs(void);
 struct nserver {
 #ifndef NOIPV6
 	struct sockaddr_in6 addr;
@@ -419,7 +451,6 @@ struct srvparam {
 	struct srvparam *prev;
 	struct clientparam *child;
 	PROXYSERVICE service;
-	LOGFUNC logfunc;
 	AUTHFUNC authfunc;
 	PROXYFUNC pf;
 	SOCKET srvsock, cbsock;
@@ -436,6 +467,7 @@ struct srvparam {
 	int stacksize;
 	int noforce;
 	int anonymous;
+	int logtype;
 	int clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;
 #ifdef WITHSPLICE
 	int usesplice;
@@ -465,9 +497,10 @@ struct srvparam {
 	struct ace *preacl, *acl;
 	struct auth *authfuncs;
 	struct filter *filter;
-	unsigned char * logformat;
 	unsigned char * logtarget;
+	unsigned char * logformat;
 	unsigned char * nonprintable;
+	struct LOGGER *log;
 	unsigned short targetport;
 	unsigned char replace;
 	time_t time_start;
@@ -577,7 +610,7 @@ struct extparam {
 		demon, maxchild, needreload, timetoexit, version, noforce;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
-	unsigned char *logname, **archiver;
+	unsigned char **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;
 #ifndef NOIPV6
@@ -591,17 +624,16 @@ struct extparam {
 	struct passwords *pwl;
 	struct auth * authenticate;
 	AUTHFUNC authfunc;
-	LOGFUNC logfunc;
 	BANDLIMFUNC bandlimfunc;
 	TRAFCOUNTFUNC trafcountfunc;
+	void (*prelog)(struct clientparam * param);
 	unsigned char *logtarget, *logformat;
 	struct filemon * fmon;
 	struct filter * filters;
 	struct auth *authfuncs;
-	FILE *stdlog;
 	char* demanddialprog;
 	unsigned char **stringtable;
-	time_t logtime, time;
+	time_t time;
 	unsigned logdumpsrv, logdumpcli;
 	char delimchar;
 };
@@ -738,8 +770,8 @@ struct pluginlink {
 	int (*sockgetcharsrv)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetlinebuf)(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
 	int (*myinet_ntop)(int af, void *src, char *dst, socklen_t size);
-	int (*dobuf)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
-	int (*dobuf2)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
+	int (*dobuf)(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec);
+	int (*dobuf2)(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 	int (*scanaddr)(const unsigned char *s, unsigned long * ip, unsigned long * mask);
 	unsigned long (*getip46)(int family, unsigned char *name,  struct sockaddr *sa);
 	int (*sockmap)(struct clientparam * param, int timeo, int usesplice);
@@ -772,7 +804,7 @@ struct pluginlink {
 	int (*parseusername)(char *username, struct clientparam *param, int extpasswd);
 	int (*parseconnusername)(char *username, struct clientparam *param, int extpasswd, unsigned short port);
 	struct sockfuncs *so;
-	unsigned char * (*dologname) (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
+	unsigned char * (*dologname) (unsigned char *buf, int bufsize, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 };
 
 struct counter_header {

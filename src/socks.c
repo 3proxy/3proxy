@@ -464,4 +464,5 @@ struct proxydef childdef = {
 	"-N(EXTERNAL_IP) External NAT address to report to client for BIND\n"
 };
 #include "proxymain.c"
+#include "log.c"
 #endif

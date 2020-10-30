@@ -63,11 +63,6 @@ void __stdcall CommandHandler( DWORD dwCommand )
 	conf.paused++;
 	Sleep(2000);
         SetStatus( SERVICE_STOPPED, 0, 0 );
-#ifndef NOODBC
-	pthread_mutex_lock(&log_mutex);
-	close_sql();
-	pthread_mutex_unlock(&log_mutex);
-#endif
         break;
     case SERVICE_CONTROL_PAUSE:
         SetStatus( SERVICE_PAUSE_PENDING, 0, 1 );
@@ -116,13 +111,7 @@ void mysigpause (int sig){
 
 void mysigterm (int sig){
 	conf.paused++;
-	usleep(999*SLEEPTIME);
-	usleep(999*SLEEPTIME);
-#ifndef NOODBC
-	pthread_mutex_lock(&log_mutex);
-	close_sql();
-	pthread_mutex_unlock(&log_mutex);
-#endif
+	usleep(2000*SLEEPTIME);
 	conf.timetoexit = 1;
 }
 
@@ -200,11 +189,11 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 	if(cheader.updated && conf.countertype && timechanged(cheader.updated, conf.time, conf.countertype)){
 		FILE * cfp;
 				
-		cfp = fopen((char *)dologname(tmpbuf, (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
+		cfp = fopen((char *)dologname(tmpbuf, sizeof(tmpbuf), (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
 				if(tl->type >= conf.countertype)
-					fprintf(cfp, "%05d %020"PRINTF_INT64_MODIFIER"u%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
+					fprintf(cfp, "%05d %020" PRIu64 "%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
 			}
 			fclose(cfp);
 		}
@@ -235,12 +224,12 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 void cyclestep(void){
  struct tm *tm;
  time_t minutecounter;
- unsigned char tmpbuf[8192];
 
  minutecounter = time(0);
  for(;;){
 	usleep(SLEEPTIME*999);
 	
+	flushlogs();
 	conf.time = time(0);
 	if(conf.needreload) {
 		doschedule();
@@ -248,7 +237,6 @@ void cyclestep(void){
 		conf.needreload = 0;
 	}
 	doschedule();
-	if(conf.stdlog)fflush(conf.stdlog);
 	if(timechanged(minutecounter, conf.time, MINUTELY)) {
 		struct filemon *fm;
 		struct stat sb;
@@ -268,55 +256,6 @@ void cyclestep(void){
 		wday = (1 << tm->tm_wday);
 		tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
 		basetime = mktime(tm);
-	}
-	if(conf.logname) {
-		if(timechanged(conf.logtime, conf.time, conf.logtype)) {
-			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a", conf.stdlog);
-			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a");
-			conf.logtime = conf.time;
-			if(conf.logtype != NONE && conf.rotate) {
-				int t;
-				t = 1;
-				switch(conf.logtype){
-					case ANNUALLY:
-						t = t * 12;
-					case MONTHLY:
-						t = t * 4;
-					case WEEKLY:
-						t = t * 7;
-					case DAILY:
-						t = t * 24;
-					case HOURLY:
-						t = t * 60;
-					case MINUTELY:
-						t = t * 60;
-					default:
-						break;
-				}
-				dologname (tmpbuf, conf.logname, (conf.archiver)?conf.archiver[1]:NULL, conf.logtype, (conf.logtime - t * conf.rotate));
-				remove ((char *) tmpbuf);
-				if(conf.archiver) {
-					int i;
-					*tmpbuf = 0;
-					for(i = 2; i < conf.archiverc && strlen((char *)tmpbuf) < 512; i++){
-						strcat((char *)tmpbuf, " ");
-						if(!strcmp((char *)conf.archiver[i], "%A")){
-							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf + strlen((char *)tmpbuf), conf.logname, conf.archiver[1], conf.logtype, (conf.logtime - t));
-							strcat((char *)tmpbuf, "\"");
-						}
-						else if(!strcmp((char *)conf.archiver[i], "%F")){
-							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf+strlen((char *)tmpbuf), conf.logname, NULL, conf.logtype, (conf.logtime-t));
-							strcat((char *)tmpbuf, "\"");
-						}
-						else
-							strcat((char *)tmpbuf, (char *)conf.archiver[i]);
-					}
-					system((char *)tmpbuf+1);
-				}
-			}
-		}
 	}
 	if(conf.counterd >= 0 && conf.trafcounter) {
 		if(timechanged(cheader.updated, conf.time, MINUTELY)){
@@ -512,11 +451,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   pthread_mutex_init(&hash_mutex, NULL);
   pthread_mutex_init(&tc_mutex, NULL);
   pthread_mutex_init(&pwl_mutex, NULL);
-  pthread_mutex_init(&log_mutex, NULL);
 #ifndef NORADIUS
   pthread_mutex_init(&rad_mutex, NULL);
 #endif
-
+  initlog();
   freeconf(&conf);
   res = readconfig(fp);
   conf.version++;

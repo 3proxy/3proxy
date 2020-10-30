@@ -93,42 +93,46 @@ char *rotations[] = {
 
 
 struct extparam conf = {
-	{1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 0, 0},
-	NULL,
-	NULL,
-	NULL, NULL,
-	NULL,
-	NULL,
-	NULL,
-	0,
-	0, -1, 0, 0, 0, 0, 
-	0, 500, 0, 0, 0, 0,
-	6, 600,
-	1048576,
-	NULL, NULL,
-	NONE, NONE,
-	NULL,
+	{1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 0, 0}, /* int timeouts[12]; */
+	NULL, /*struct ace * acl; */
+	NULL, /* char * conffile; */
+	NULL, NULL, /* struct bandlim * bandlimiter,  *bandlimiterout; */
+	NULL, /* struct connlim * connlimiter; */
+	NULL, /* struct trafcount * trafcounter; */
+	NULL, /* struct srvparam *services; */
+	0, /* int stacksize, */ 
+	0, -1, 0, 0, 0, 0, /* threadinit, counterd, haveerror, rotate, paused, archiverc, */
+	0, 500, 0, 0, 0, 0, /* demon, maxchild, needreload, timetoexit, version, noforce; */
+	6, 600, /* int authcachetype, authcachetime; */
+	1048576, /* int filtermaxsize; */
+	NULL, /* **archiver; */
+	NONE, NONE, /* 	ROTATION logtype, countertype; */
+	NULL, /* 	char * counterfile; */
 #ifndef NOIPV6
-	{AF_INET},{AF_INET6},{AF_INET}, 
+	{AF_INET},{AF_INET6},{AF_INET}, /*	struct sockaddr_in6 intsa;
+						struct sockaddr_in6 extsa6;
+						struct sockaddr_in6 extsa; */
+
 #else
-	{AF_INET},{AF_INET}, 
+	{AF_INET},{AF_INET}, /*	struct sockaddr_in intsa;
+				struct sockaddr_in extsa; */
+
 #endif
-	NULL,
-	NULL,
-	doconnect,
-	lognone,
-	NULL,
-	NULL,
-	NULL, NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	(time_t)0, (time_t)0,
-	0,0,
-	'@',
+	NULL, /* struct passwords *pwl; */
+	NULL, /* struct auth * authenticate; */
+	doconnect, /* AUTHFUNC authfunc; */
+	NULL, /* BANDLIMFUNC bandlimfunc; */
+	NULL, /* TRAFCOUNTFUNC trafcountfunc; */
+	NULL, /* void (*prelog)(struct clientparam * param); */
+	NULL, NULL, /* unsigned char *logtarget, *logformat; */
+	NULL, /* struct filemon * fmon; */
+	NULL, /* struct filter * filters; */
+	NULL, /* struct auth *authfuncs; */
+	NULL, /* char* demanddialprog; */
+	NULL, /* unsigned char **stringtable; */
+	(time_t)0, /* time_t time; */
+	0,0, /* 	unsigned logdumpsrv, logdumpcli; */
+	'@', /* 	char delimchar; */
 };
 
 int numservers=0;
@@ -519,7 +523,6 @@ unsigned long getip(unsigned char *name){
 	}
 	if((tmpresolv=resolvfunc)){
 		if((*tmpresolv)(AF_INET, name, (unsigned char *)&retval)) return retval;
-		if(conf.demanddialprog) system(conf.demanddialprog);
 		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
 	}
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)

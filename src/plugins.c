@@ -75,6 +75,8 @@ struct symbol symbols[] = {
 	{symbols+48, "make_ace", (void *) make_ace},
 	{symbols+49, "freeacl", (void *) freeacl},
 	{symbols+50, "checkpreACL", (void *) checkpreACL},
+	{symbols+51, "dolog", (void *) dolog},
+	{symbols+52, "logfuncs", (void *) &logfuncs},
 	{NULL, "", NULL}
 };
 
