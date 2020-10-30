@@ -1169,8 +1169,8 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 	n = (makeauth && !SAISNULL(&authnserver.addr))? 1 : numservers;
 	for(i=0; i<n; i++){
 		unsigned short nq, na;
-		char b[4098], *s1, *s2;
-		char *buf;
+		unsigned char b[4098], *s1, *s2;
+		unsigned char *buf;
 		int j, k, len, flen;
 		SOCKET sock;
 		unsigned ttl;
@@ -1239,10 +1239,10 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 		if(len > 255) {
 			len = 255;
 		}
-		memcpy(buf + 13, name, len);
+		memcpy((char *)buf + 13, name, len);
 		len += 13;
 		buf[len] = 0;
-		for(s2 = buf + 12; (s1 = strchr(s2 + 1, '.')); s2 = s1)*s2 = (char)(unsigned char)((s1 - s2) - 1);
+		for(s2 = buf + 12; (s1 = (unsigned char *)strchr((char *)s2 + 1, '.')); s2 = s1)*s2 = ((s1 - s2) - 1);
 		*s2 = (len - (int)(s2 - buf)) - 1;
 		len++;
 		buf[len++] = 0;
@@ -1255,13 +1255,13 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 			len+=2;
 		}
 
-		if(socksendto(sock, (struct sockaddr *)sinsr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(sock, (struct sockaddr *)sinsr, (char *)buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			continue;
 		}
 		if(param) param->statscli64 += len;
-		len = sockrecvfrom(sock, (struct sockaddr *)sinsr, buf, 4096, conf.timeouts[DNS_TO]*1000);
+		len = sockrecvfrom(sock, (struct sockaddr *)sinsr, (char *)buf, 4096, conf.timeouts[DNS_TO]*1000);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
 		if(len <= 13) {
@@ -1273,7 +1273,7 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 			us = ntohs(*(unsigned short*)buf);
 			len-=2;
 			buf+=2;
-			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, (struct sockaddr *)sinsr, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
+			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, (struct sockaddr *)sinsr, (char *)buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
 				continue;
 			}
 		}
