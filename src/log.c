@@ -140,15 +140,11 @@ void delayregisterlog(struct LOGGER *log){
 	struct LOGFUNC *funcs;
 
 
-printf("delayregisterlog %s\n", log->selector);
-fflush(stdout);
 	if(log->logfunc) return;
 	for(funcs = logfuncs; funcs; funcs=funcs->next){
 		if(!strncmp(log->selector, funcs->prefix, strlen(funcs->prefix))){
 			if(funcs->init && funcs->init(log)) break;
 			log->logfunc = funcs;
-printf("new log initialised\n");
-fflush(stdout);
 			return;
 		}
 	}
@@ -158,16 +154,12 @@ fflush(stdout);
 struct LOGGER * registerlog(const char * logstring, int logtype){
 	struct LOGGER *log;
 
-printf("registerlog %s\n", logstring);
-fflush(stdout);
 	if(!logstring || !strcmp(logstring, "NUL") || !strcmp(logstring, "/dev/null")) return NULL;
 	pthread_mutex_lock(&log_mutex);
 	for(log = loggers; log; log=log->next){
 		if(!strcmp(logstring, log->selector)){
 			if(logtype >= 0) log->rotate = logtype;
 			log->registered++;
-printf("log registered\n");
-fflush(stdout);
 			pthread_mutex_unlock(&log_mutex);
 			return log;
 		}
@@ -192,8 +184,6 @@ fflush(stdout);
 		evt->event = REGISTER;
 		evt->log = log;
 		logpush(evt);
-printf("new log registered\n");
-fflush(stdout);
 		return log;
 	}
 	pthread_mutex_unlock(&log_mutex);
@@ -217,13 +207,9 @@ static void delayunregisterlog (struct LOGGER * log){
 			}
 			myfree(log->selector);
 			myfree(log);
-printf("log closed\n");
-fflush(stdout);
 		}
 		else pthread_mutex_unlock(&log_mutex);
 
-printf("log unregistered\n");
-fflush(stdout);
 	}
 }
 
@@ -243,11 +229,6 @@ DWORD WINAPI logthreadfunc(LPVOID p) {
 void * logthreadfunc (void *p) {
 #endif
 
-printf("enter logthreadfunc\n");
-fflush(stdout);
-
-
-
 	for(;;){
 		struct logevent *evt;
 #ifdef _WIN32
@@ -255,8 +236,6 @@ fflush(stdout);
 #else
 		sem_wait(&log_sem);
 #endif
-printf("got semaphore\n");
-fflush(stdout);
 
 		while(loghead){
 			pthread_mutex_lock(&log_mutex);
@@ -266,28 +245,18 @@ fflush(stdout);
 			pthread_mutex_unlock(&log_mutex);
 			switch(evt->event){
 				case REGISTER:
-printf("got register\n");
-fflush(stdout);
 					delayregisterlog(evt->log);
 					break;
 				case UNREGISTER:
-printf("got unregister\n");
-fflush(stdout);
 					delayunregisterlog(evt->log);
 					break;
 				case FLUSH:
-printf("got flush\n");
-fflush(stdout);
-//					delayflushlogs();
+					delayflushlogs();
 					break;
 				case LOG:
-printf("got log\n");
-fflush(stdout);
 					delaydolog(evt);
 					break;
 				case FREEPARAM:
-printf("got freeparam\n");
-fflush(stdout);
 					delayfreeparam(evt->param);
 					break;
 
@@ -301,16 +270,12 @@ fflush(stdout);
 
 	}
 
-printf("finish logthreadfunc\n");
-fflush(stdout);
 	return 0;
 }
 
 
 
 void logpush(struct logevent *evt){
-printf("logpush\n");
-fflush(stdout);
 	pthread_mutex_lock(&log_mutex);
 	if(logtail) logtail->next = evt;
 	logtail = evt;
@@ -318,8 +283,6 @@ fflush(stdout);
 	if(!loghead)loghead = evt;
 	
 	pthread_mutex_unlock(&log_mutex);
-printf("sending post\n");
-fflush(stdout);
 #ifdef _WIN32
 	ReleaseSemaphore(log_sem, 1, NULL);
 #else
@@ -330,8 +293,6 @@ fflush(stdout);
 void initlog(void){
 	pthread_t thread;
 
-printf("initlog\n");
-fflush(stdout);
 	srvinit(&logsrv, &logparam);
 	pthread_mutex_init(&log_mutex, NULL);
 	errld.fp = stdout;
@@ -367,19 +328,13 @@ fflush(stdout);
 
 static void delaydolog(struct logevent *evt){
 
-printf("delaylog\n");
-fflush(stdout);
 	if(!evt->log->logfunc || !evt->log->logfunc->log) return;
 	if(evt->inbuf){
-printf("havebuffer\n");
-fflush(stdout);
 		evt->log->logfunc->log(evt->buf, evt->inbuf, evt->log);
 	}
 	else if(evt->param && evt->log->logfunc->dobuf){
 		char buf[LOGBUFSIZE];
 
-printf("haveparam\n");
-fflush(stdout);
 		evt->log->logfunc->log(buf, evt->log->logfunc->dobuf(evt->param, buf, LOGBUFSIZE, evt->logstring), evt->log);
 	}
 }
@@ -387,8 +342,6 @@ fflush(stdout);
 void dolog(struct clientparam * param, const unsigned char *s){
 	static int init = 0;
 
-printf("dolog\n");
-fflush(stdout);
 	if(!param || !param->srv){
 		stdlog(s, strlen(s), &errlogger);
 		return;
@@ -400,8 +353,6 @@ fflush(stdout);
 		if(!param->srv->log->logfunc) {
 			int slen =0, hlen=0, ulen=0;
 			
-printf("no log functions, sending param\n");
-fflush(stdout);
 			slen = s?strlen(s)+1 : 0;
 			hlen = param->hostname? strlen(param->hostname)+1 : 0;
 			ulen = param->username? strlen(param->username)+1 : 0;
@@ -423,14 +374,10 @@ fflush(stdout);
 			}
 			evt->event = LOG;
 			evt->log = param->srv->log;
-printf("pushing event\n");
-fflush(stdout);
 			logpush(evt);
 		}
 		else if (param->srv->log->logfunc->log){
 
-printf("have log functions\n");
-fflush(stdout);
 			if(!(evt = malloc(param->srv->log->logfunc->dobuf?EVENTSIZE:sizeof(struct logevent)))) return;
 			evt->inbuf = 0;
 			evt->param = NULL;
@@ -441,14 +388,8 @@ fflush(stdout);
 			}
 			evt->event = LOG;
 			evt->log = param->srv->log;
-printf("pushing event\n");
-fflush(stdout);
 			logpush(evt);
 		}
-	}
-	else {
-printf("nolog\n");
-fflush(stdout);
 	}
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	clearstat(param);
@@ -862,8 +803,6 @@ static int stdloginit(struct LOGGER *logger){
 	char tmpbuf[1024];
 	struct stdlogdata *lp;
 
-printf("stdloginit %s\n", logger->selector);
-fflush(stdout);
 	lp = myalloc(sizeof(struct stdlogdata));
 	if(!lp) return 1;
 	logger->data = lp;
@@ -878,29 +817,21 @@ fflush(stdout);
 	else {
 		lp->fp = fopen((char *)dologname (tmpbuf, sizeof(tmpbuf) - 1, logger->selector, NULL, logger->rotate, time(NULL)), "a");
 		if(!lp->fp){
-printf("file not created: %s\n", tmpbuf);
 			myfree(lp);
 			return(2);
 		}
-printf("file created: %s\n", tmpbuf);
-fflush(stdout);
 	}
 	return 0;
 }
 
 static int stddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s){
-printf("stddobuf\n");
-fflush(stdout);
 	return dobuf(param, buf, bufsize, s, NULL);
 }
 
 static void stdlog(const char * buf, int len, struct LOGGER *logger) {
 	FILE *log = ((struct stdlogdata *)logger->data)->fp;
 
-printf("stdlog\n");
-fflush(stdout);
 	fprintf(log, "%s\n", buf);
-fflush(log);
 }
 
 static void stdlogrotate(struct LOGGER *logger){

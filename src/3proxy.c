@@ -229,7 +229,7 @@ void cyclestep(void){
  for(;;){
 	usleep(SLEEPTIME*999);
 	
-//	flushlogs();
+	flushlogs();
 	conf.time = time(0);
 	if(conf.needreload) {
 		doschedule();
