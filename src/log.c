@@ -137,10 +137,12 @@ static void delayflushlogs(void){
 
 
 void flushlogs(void){
-	struct logevent * evt;
-	evt = malloc(sizeof(struct logevent));
-	evt->event = FLUSH;
-	logpush(evt);
+	if(loginit){
+		struct logevent * evt;
+		evt = malloc(sizeof(struct logevent));
+		evt->event = FLUSH;
+		logpush(evt);
+	}
 }
 
 
@@ -290,6 +292,14 @@ void * logthreadfunc (void *p) {
 
 void logpush(struct logevent *evt){
 	pthread_mutex_lock(&log_mutex);
+	if(!loginit){
+		if(evt->event == FREEPARAM){
+			delayfreeparam(evt->param);
+		}
+		myfree(evt);
+		pthread_mutex_unlock(&log_mutex);
+		return;
+	}
 	if(logtail) logtail->next = evt;
 	logtail = evt;
 	evt->next = NULL;
