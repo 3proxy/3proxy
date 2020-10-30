@@ -87,7 +87,7 @@ static void syslogclose(struct LOGGER *logger);
 #endif
 
 static int stdloginit(struct LOGGER *logger);
-int stddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
+static int stddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
 static void stdlog(const char * buf, int len, struct LOGGER *logger);
 static void stdlogrotate(struct LOGGER *logger);
 static void stdlogclose(struct LOGGER *logger);
@@ -360,7 +360,7 @@ fflush(stdout);
 		pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 
 		if(sem_init(&log_sem, 0, 0)) exit(11);
-		if(pthread_create(&thread, &pa, logthreadfunc, (void *)newparam)) exit(10);
+		if(pthread_create(&thread, &pa, logthreadfunc, NULL)) exit(10);
 	}
 #endif
 }
@@ -398,37 +398,38 @@ fflush(stdout);
 		struct logevent *evt;
 
 		if(!param->srv->log->logfunc) {
-			int inbuf=0, len =0;
+			int slen =0, hlen=0, ulen=0;
 			
-			if(!(evt = malloc(sizeof(struct logevent) + param->hostname?strlen(param->hostname)+1:0 + s? strlen(s)+1:0 + param->username?strlen(param->username):0))) return;
+printf("no log functions, sending param\n");
+fflush(stdout);
+			slen = s?strlen(s)+1 : 0;
+			hlen = param->hostname? strlen(param->hostname)+1 : 0;
+			ulen = param->username? strlen(param->username)+1 : 0;
+			if(!(evt = malloc(sizeof(struct logevent) + slen + ulen + hlen))) return;
 			evt->inbuf = 0;
 			evt->param=param;
 			evt->logstring = NULL;
-			if(s){
-				len = strlen(s);
-				memcpy(evt->buf,s, len);
-				inbuf+=len;
+			if(slen){
+				memcpy(evt->buf,s, slen);
 				evt->logstring = evt->buf;
 			}
-			if(param->hostname){
-				len = strlen(param->hostname);
-				memcpy(evt->buf+inbuf,param->hostname, len);
-				param->hostname = evt->buf + inbuf;
-				inbuf+=len;
+			if(hlen){
+				memcpy(evt->buf+slen,param->hostname, hlen);
+				param->hostname = evt->buf + slen;
 			}
-			if(param->username){
-				len = strlen(param->username);
-				memcpy(evt->buf+inbuf,param->username, len);
-				param->username = evt->buf + inbuf;
-				inbuf+=len;
+			if(ulen){
+				memcpy(evt->buf+slen+hlen,param->username, ulen);
+				param->username = evt->buf + slen + hlen;
 			}
 			evt->event = LOG;
 			evt->log = param->srv->log;
+printf("pushing event\n");
+fflush(stdout);
 			logpush(evt);
 		}
 		else if (param->srv->log->logfunc->log){
 
-printf("havelog\n");
+printf("have log functions\n");
 fflush(stdout);
 			if(!(evt = malloc(param->srv->log->logfunc->dobuf?EVENTSIZE:sizeof(struct logevent)))) return;
 			evt->inbuf = 0;
@@ -444,6 +445,10 @@ printf("pushing event\n");
 fflush(stdout);
 			logpush(evt);
 		}
+	}
+	else {
+printf("nolog\n");
+fflush(stdout);
 	}
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	clearstat(param);
@@ -969,8 +974,7 @@ static int sysloginit(struct LOGGER *logger){
 }
 
 static void logsyslog(const char * buf, int len, struct LOGGER *logger) {
-
-	syslog((param->res >= 90 && param->res<=99)?LOG_NOTICE:(param->res?LOG_WARNING:LOG_INFO), "%s", buf);
+	syslog(LOG_INFO, "%s", buf);
 }
 
 static void syslogrotate(struct LOGGER *logger){
