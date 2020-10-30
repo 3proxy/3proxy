@@ -7,7 +7,7 @@
 
 #include "proxy.h"
 
-int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to){
+int socksend(SOCKET sock, char * buf, int bufsize, int to){
  int sent = 0;
  int res;
  struct pollfd fds;
@@ -30,7 +30,7 @@ int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to){
 }
 
 
-int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to){
+int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to){
  int sent = 0;
  int res;
  struct pollfd fds;
@@ -52,7 +52,7 @@ int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufs
  return sent;
 }
 
-int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to){
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to){
 	struct pollfd fds;
 	SASIZETYPE sasize;
 	int res;
@@ -153,7 +153,7 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec){
 	return (int)*param->srvbuf;
 }
 
-int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to){
+int sockgetlinebuf(struct clientparam * param, DIRECTION which, char * buf, int bufsize, int delim, int to){
  int c;
  int i=0;
 

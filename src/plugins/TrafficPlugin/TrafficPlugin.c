@@ -26,7 +26,7 @@ extern "C" {
 int DBGLEVEL = 0;
 
 int already_loaded = 0;
-typedef int (* handler)(int argc, unsigned char ** argv);
+typedef int (* handler)(int argc, char ** argv);
 
 struct extparam * sconfp;
 struct commands * scommandhandlers;
@@ -79,7 +79,7 @@ static void killtrafcorrect() {
 }
 
 struct commands trafcorrect_handler;
-int h_trafcorrect(int argc, unsigned char ** argv) {
+int h_trafcorrect(int argc, char ** argv) {
 	if (argc < 2) {
 	 	if(DBGLEVEL == 1)fprintf(stdout, "See documentation of traffic correct plugin.\n");
 		return 1;

@@ -25,27 +25,27 @@ void * threadfunc (void *p) {
 	fds.revents = 0;
 	for(i=5+(param->srv->maxchild>>10); i; i--){
 		if(so._poll(&fds, 1, 1000*CONNBACK_TO)!=1){
-			dolog(param, (unsigned char *)"Connect back not received, check connback client");
+			dolog(param, (char *)"Connect back not received, check connback client");
 			i = 0;
 			break;
 		}
 		param->remsock = so._accept(param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
-			dolog(param, (unsigned char *)"Connect back accept() failed");
+			dolog(param, (char *)"Connect back accept() failed");
 			continue;
 		}
 #ifndef WITHMAIN
 		param->req = param->sinsr;
 		if(param->srv->preacl) param->res = checkpreACL(param);
 		if(param->res){
-			dolog(param, (unsigned char *)"Connect back ACL failed");
+			dolog(param, (char *)"Connect back ACL failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
 		}
 #endif
-		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, (unsigned char *)"C", 1, CONNBACK_TO) != 1){
-			dolog(param, (unsigned char *)"Connect back sending command failed");
+		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, (char *)"C", 1, CONNBACK_TO) != 1){
+			dolog(param, (char *)"Connect back sending command failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
@@ -185,10 +185,10 @@ int MODULEMAINFUNC (int argc, char** argv){
  struct clientparam * newparam;
  int error = 0;
  unsigned sleeptime;
- unsigned char buf[256];
+ char buf[256];
  char *hostname=NULL;
  int opt = 1, isudp = 0, iscbl = 0, iscbc = 0;
- unsigned char *cbc_string = NULL, *cbl_string = NULL;
+ char *cbc_string = NULL, *cbl_string = NULL;
 #ifndef NOIPV6
  struct sockaddr_in6 cbsa;
 #else
@@ -316,28 +316,28 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 		 case 'l':
 			myfree(srv->logtarget);
-			srv->logtarget = (unsigned char *)mystrdup(argv[i] + 2);
+			srv->logtarget = (char *)mystrdup(argv[i] + 2);
 			break;
 		 case 'i':
-			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv->intsa);
+			getip46(46, (char *)argv[i]+2, (struct sockaddr *)&srv->intsa);
 			break;
 		 case 'e':
 			{
 #ifndef NOIPV6
 				struct sockaddr_in6 sa6;
 				memset(&sa6, 0, sizeof(sa6));
-				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&sa6);
+				error = !getip46(46, (char *)argv[i]+2, (struct sockaddr *)&sa6);
 				if(!error) {
 					if (*SAFAMILY(&sa6)==AF_INET) srv->extsa = sa6;
 					else srv->extsa6 = sa6;
 				} 
 #else
-				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv->extsa);
+				error = !getip46(46, (char *)argv[i]+2, (struct sockaddr *)&srv->extsa);
 #endif
 			}
 			break;
 		 case 'N':
-			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv->extNat);
+			getip46(46, (char *)argv[i]+2, (struct sockaddr *)&srv->extNat);
 			break;
 		 case 'p':
 			*SAPORT(&srv->intsa) = htons(atoi(argv[i]+2));
@@ -365,7 +365,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 		 case 'f':
 			if(srv->logformat)myfree(srv->logformat);
-			srv->logformat = (unsigned char *)mystrdup(argv[i] + 2);
+			srv->logformat = (char *)mystrdup(argv[i] + 2);
 			break;
 		 case 't':
 			srv->silent = 1;
@@ -374,11 +374,11 @@ int MODULEMAINFUNC (int argc, char** argv){
 			hostname = argv[i] + 2;
 			break;
 		 case 'r':
-			cbc_string = (unsigned char *)mystrdup(argv[i] + 2);
+			cbc_string = (char *)mystrdup(argv[i] + 2);
 			iscbc = 1;
 			break;
 		 case 'R':
-			cbl_string = (unsigned char *)mystrdup(argv[i] + 2);
+			cbl_string = (char *)mystrdup(argv[i] + 2);
 			iscbl = 1;
 			break;
 		 case 'u':
@@ -496,7 +496,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		);
 		return (1);
 	}
-	srv->target = (unsigned char *)mystrdup(argv[i+1]);
+	srv->target = (char *)mystrdup(argv[i+1]);
 #endif
 #ifndef STDMAIN
  }
@@ -507,8 +507,8 @@ int MODULEMAINFUNC (int argc, char** argv){
  if(inetd) {
 	fcntl(0,F_SETFL,O_NONBLOCK | fcntl(0,F_GETFL));
 	if(!isudp){
-		so._setsockopt(0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
-		so._setsockopt(0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(0, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+		so._setsockopt(0, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
 	}
 	defparam.clisock = 0;
 	if(! (newparam = myalloc (sizeof(defparam)))){
@@ -604,7 +604,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  if(iscbl){
 	parsehost(srv->family, cbl_string, (struct sockaddr *)&cbsa);
 	if((srv->cbsock=so._socket(SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
-		dolog(&defparam, (unsigned char *)"Failed to allocate connect back socket");
+		dolog(&defparam, (char *)"Failed to allocate connect back socket");
 		return -6;
 	}
 	opt = 1;
@@ -617,11 +617,11 @@ int MODULEMAINFUNC (int argc, char** argv){
 	setopts(srv->cbsock, srv->cbssockopts);
 
 	if(so._bind(srv->cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
-		dolog(&defparam, (unsigned char *)"Failed to bind connect back socket");
+		dolog(&defparam, (char *)"Failed to bind connect back socket");
 		return -7;
 	}
 	if(so._listen(srv->cbsock, 1 + (srv->maxchild>>4))==-1) {
-		dolog(&defparam, (unsigned char *)"Failed to listen connect back socket");
+		dolog(&defparam, (char *)"Failed to listen connect back socket");
 		return -8;
 	}
  }
@@ -766,12 +766,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(! (newparam = myalloc (sizeof(defparam)))){
 		if(!isudp) so._closesocket(new_sock);
 		defparam.res = 21;
-		if(!srv->silent)dolog(&defparam, (unsigned char *)"Memory Allocation Failed");
+		if(!srv->silent)dolog(&defparam, (char *)"Memory Allocation Failed");
 		usleep(SLEEPTIME);
 		continue;
 	};
 	*newparam = defparam;
-	if(defparam.hostname)newparam->hostname=(unsigned char *)mystrdup((char *)defparam.hostname);
+	if(defparam.hostname)newparam->hostname=(char *)mystrdup((char *)defparam.hostname);
 	clearstat(newparam);
 
 	if(!isudp) newparam->clisock = new_sock;
@@ -827,7 +827,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(isudp) while(!srv->fds.events)usleep(SLEEPTIME);
  }
 
- if(!srv->silent) dolog(&defparam, (unsigned char *)"Exiting thread");
+ if(!srv->silent) dolog(&defparam, (char *)"Exiting thread");
 
  srvfree(srv);
  pthread_mutex_lock(&srv->counter_mutex);
@@ -853,8 +853,8 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->version = conf.version + 1;
  srv->paused = conf.paused;
  srv->noforce = conf.noforce;
- srv->logformat = conf.logformat? (unsigned char *)mystrdup((char *)conf.logformat) : NULL;
- srv->logtarget = conf.logtarget? (unsigned char *)mystrdup((char *)conf.logtarget) : NULL;
+ srv->logformat = conf.logformat? (char *)mystrdup((char *)conf.logformat) : NULL;
+ srv->logtarget = conf.logtarget? (char *)mystrdup((char *)conf.logtarget) : NULL;
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
@@ -887,12 +887,12 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  if(srv->logformat){
 	char *s;
 	if(*srv->logformat == '-' && (s = strchr((char *)srv->logformat + 1, '+')) && s[1]){
-		unsigned char* logformat = srv->logformat;
+		char* logformat = srv->logformat;
 
 		*s = 0;
-		srv->nonprintable = (unsigned char *)mystrdup((char *)srv->logformat + 1);
+		srv->nonprintable = (char *)mystrdup((char *)srv->logformat + 1);
 		srv->replace = s[1];
-		srv->logformat = (unsigned char *)mystrdup(s + 2);
+		srv->logformat = (char *)mystrdup(s + 2);
 		*s = '+';
 		myfree(logformat);
 	}
@@ -999,17 +999,17 @@ void copyacl (struct ace *ac, struct srvparam *srv){
 	for(pel = ac->periods; pel; pel = pel->next = itcopy(pel->next, sizeof(struct period)));
 	ac->users = itcopy(ac->users, sizeof(struct userlist));
 	for(ul = ac->users; ul; ul = ul->next = itcopy(ul->next, sizeof(struct userlist))){
-		if(ul->user) ul->user = (unsigned char*)mystrdup((char *)ul->user);
+		if(ul->user) ul->user = (char*)mystrdup((char *)ul->user);
 	}
 	ac->dstnames = itcopy(ac->dstnames, sizeof(struct hostname));
 	for(hst = ac->dstnames; hst; hst = hst->next = itcopy(hst->next, sizeof(struct hostname))){
-		if(hst->name) hst->name = (unsigned char*)mystrdup((char *)hst->name);
+		if(hst->name) hst->name = (char*)mystrdup((char *)hst->name);
 	}
 	ac->chains = itcopy(ac->chains, sizeof(struct chain));
 	for(ch = ac->chains; ch; ch = ch->next = itcopy(ch->next, sizeof(struct chain))){
-		if(ch->extuser)ch->extuser = (unsigned char*)mystrdup((char *)ch->extuser);
-		if(ch->extpass)ch->extpass = (unsigned char*)mystrdup((char *)ch->extpass);
-		if(ch->exthost)ch->exthost = (unsigned char*)mystrdup((char *)ch->exthost);
+		if(ch->extuser)ch->extuser = (char*)mystrdup((char *)ch->extuser);
+		if(ch->extpass)ch->extpass = (char*)mystrdup((char *)ch->extpass);
+		if(ch->exthost)ch->exthost = (char*)mystrdup((char *)ch->exthost);
 	}
 	if(preacl){
 		if(ac->dst || ac->ports || ac->users || ac->dstnames || ac->chains|| ac->action>1){
@@ -1126,7 +1126,7 @@ void freeacl(struct ace *ac){
 	}
 }
 
-FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+FILTER_ACTION handlereqfilters(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
 
@@ -1137,7 +1137,7 @@ FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p
 	return PASS;
 }
 
-FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
 
@@ -1148,7 +1148,7 @@ FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, unsigned char ** bu
 	return PASS;
 }
 
-FILTER_ACTION handlehdrfilterscli(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+FILTER_ACTION handlehdrfilterscli(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
 
@@ -1174,7 +1174,7 @@ FILTER_ACTION handlepredatflt(struct clientparam *cparam){
 	return PASS;
 }
 
-FILTER_ACTION handledatfltcli(struct clientparam *cparam, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+FILTER_ACTION handledatfltcli(struct clientparam *cparam, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 #ifndef STDMAIN
 	FILTER_ACTION action;
 	int i;
@@ -1187,7 +1187,7 @@ FILTER_ACTION handledatfltcli(struct clientparam *cparam, unsigned char ** buf_p
 	return PASS;
 }
 
-FILTER_ACTION handledatfltsrv(struct clientparam *cparam, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+FILTER_ACTION handledatfltsrv(struct clientparam *cparam, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
 

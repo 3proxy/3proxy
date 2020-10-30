@@ -20,7 +20,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 
 	if(innbuf)*innbuf = 0;
 	if(len < 140) return 707;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
+	while((i = sockgetlinebuf(param, SERVER, (char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 3) return 706;
 	buf[i] = 0;
@@ -28,13 +28,13 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 		*innbuf = i;
 		return 702;
 	}
-	sprintf(buf, "USER %.128s\r\n", param->extusername?param->extusername:(unsigned char *)"anonymous");
-	if((int)socksend(param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+	sprintf(buf, "USER %.128s\r\n", param->extusername?param->extusername:(char *)"anonymous");
+	if((int)socksend(param->remsock, (char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
 		return 703;
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
+	while((i = sockgetlinebuf(param, SERVER, (char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 3) return 704;
 	buf[i] = 0;
@@ -43,15 +43,15 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 		sprintf(buf, "PASS %.128s\r\n", 
 			param->extusername?
 				(param->extpassword?
-					param->extpassword:(unsigned char *)"")
-				:(unsigned char *)"3proxy@");
+					param->extpassword:(char *)"")
+				:(char *)"3proxy@");
 		res = (int)strlen(buf);
-		if((int)socksend(param->remsock, (unsigned char *)buf, res, conf.timeouts[STRING_S]) != (int)strlen(buf)){
+		if((int)socksend(param->remsock, (char *)buf, res, conf.timeouts[STRING_S]) != (int)strlen(buf)){
 			return 705;
 		}
 	param->statscli64 += res;
 		param->nwrites++;
-		while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0){
+		while((i = sockgetlinebuf(param, SERVER, (char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0){
 			buf[i] = 0;
 			res = (i>3 && buf[3] != '-')? atoi(buf)/100 : 0;
 			if(res || (nbuf && (len-i) > 256 && i > 3)) {
@@ -71,18 +71,18 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 	return 0;
 }
 
-int ftpcd(struct clientparam *param, unsigned char* path, char *nbuf, int *innbuf){
+int ftpcd(struct clientparam *param, char* path, char *nbuf, int *innbuf){
 	char buf[1024];
 	int i;
 	int inbuf = 0;
 
 	sprintf(buf, "CWD %.512s\r\n", path);
-	if((int)socksend(param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+	if((int)socksend(param->remsock, (char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
 		return 711;
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
+	while((i = sockgetlinebuf(param, SERVER, (char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 		if(nbuf && innbuf && inbuf + i < *innbuf && i > 6) {
 			memcpy(nbuf + inbuf, buf, i);
 			inbuf += i;
@@ -95,7 +95,7 @@ int ftpcd(struct clientparam *param, unsigned char* path, char *nbuf, int *innbu
 	return 0;
 }
 
-int ftpres(struct clientparam *param, unsigned char * buf, int l){
+int ftpres(struct clientparam *param, char * buf, int l){
 	int i;
 
 	if (l < 16) return 755;
@@ -107,10 +107,10 @@ int ftpres(struct clientparam *param, unsigned char * buf, int l){
 	return 0;
 }
 
-int ftpsyst(struct clientparam *param, unsigned char *buf, unsigned len){
+int ftpsyst(struct clientparam *param, char *buf, unsigned len){
 	int i;
 
-	if(socksend(param->remsock, (unsigned char *)"SYST\r\n", 6, conf.timeouts[STRING_S]) != 6){
+	if(socksend(param->remsock, (char *)"SYST\r\n", 6, conf.timeouts[STRING_S]) != 6){
 		return 721;
 	}
 	param->statscli64 += 6;
@@ -125,11 +125,11 @@ int ftpsyst(struct clientparam *param, unsigned char *buf, unsigned len){
 	return 0;
 }
 
-int ftppwd(struct clientparam *param, unsigned char *buf, unsigned len){
+int ftppwd(struct clientparam *param, char *buf, unsigned len){
 	int i;
 	char *b, *e;
 
-	if(socksend(param->remsock, (unsigned char *)"PWD\r\n", 5, conf.timeouts[STRING_S]) != 5){
+	if(socksend(param->remsock, (char *)"PWD\r\n", 5, conf.timeouts[STRING_S]) != 5){
 		return 731;
 	}
 	param->statscli64 += 5;
@@ -149,17 +149,17 @@ int ftppwd(struct clientparam *param, unsigned char *buf, unsigned len){
 	return 0;
 }
 
-int ftptype(struct clientparam *param, unsigned char* f_type){
+int ftptype(struct clientparam *param, char* f_type){
 	char buf[1024];
 	int i;
 
 	sprintf(buf, "TYPE %.512s\r\n", f_type);
-	if((int)socksend(param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+	if((int)socksend(param->remsock, (char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
 		return 741;
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
+	while((i = sockgetlinebuf(param, SERVER, (char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 3) return 742;
 	if(buf[0] != '2') return 740;
@@ -176,12 +176,12 @@ SOCKET ftpdata(struct clientparam *param){
 	unsigned short b5, b6;
 	SASIZETYPE sasize;
 
-	if(socksend(param->remsock, (unsigned char *)"PASV\r\n", 6, conf.timeouts[STRING_S]) != 6){
+	if(socksend(param->remsock, (char *)"PASV\r\n", 6, conf.timeouts[STRING_S]) != 6){
 		return INVALID_SOCKET;
 	}
 	param->statscli64 += 6;
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
+	while((i = sockgetlinebuf(param, SERVER, (char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 7) return INVALID_SOCKET;
 	if(buf[0] != '2') return INVALID_SOCKET;
@@ -216,7 +216,7 @@ SOCKET ftpdata(struct clientparam *param){
 	return s;
 }
 
-SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned char  *arg) {
+SOCKET ftpcommand(struct clientparam *param, char * command, char  *arg) {
 	char buf[1024];
 	int i;
 	SOCKET s;
@@ -225,15 +225,15 @@ SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned c
 	s = ftpdata(param);
 	if(s==INVALID_SOCKET) return INVALID_SOCKET;
 	sprintf(buf, "%.15s%s%.512s\r\n", command, arg?
-		(unsigned char *)" ":(unsigned char *)"", 
-		arg?arg:(unsigned char *)"");
-	if((int)socksend(param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+		" ":"", 
+		arg?arg:"");
+	if((int)socksend(param->remsock, buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
 		so._closesocket(s);
 		return INVALID_SOCKET;
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
+	while((i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 3) {
 		so._closesocket(s);

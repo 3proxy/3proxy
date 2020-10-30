@@ -20,7 +20,7 @@ static struct auth pamauth;
 #ifdef USERCASE
 static int     usercaselow = 0;
 #endif
-static unsigned char *service=NULL;
+static char *service=NULL;
 static struct pluginlink * pl;
 
 
@@ -125,7 +125,7 @@ static int pamfunc(struct clientparam *param)
 
 /*------------------------------- MAIN --------------------------------------
  start plugin init  */
-PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, unsigned char** argv)
+PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, char** argv)
 {
   
   

@@ -7,11 +7,11 @@
 
 #include <string.h>
 
-static const unsigned char base64digits[] =
+static const char base64digits[] =
    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 #define BAD 255
-static const unsigned char base64val[] = {
+static const char base64val[] = {
     BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD,
     BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD,
     BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD, 62, BAD,BAD,BAD, 63,
@@ -23,7 +23,7 @@ static const unsigned char base64val[] = {
 };
 #define DECODE64(c)  ((c > 32 && c<127)? base64val[(int)c] : BAD)
 
-unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen)
+unsigned char* en64 (const char *in, char *out, int inlen)
 {
     for (; inlen > 0; inlen -= 3, in+=3)
     {
@@ -79,9 +79,9 @@ int de64 (const char *in, char *out, int maxlen)
     return (len);
 }
 
-unsigned char hex[] = "0123456789ABCDEF";
+char hex[] = "0123456789ABCDEF";
 
-void tohex(unsigned char *in, unsigned char *out, int len){
+void tohex(char *in, char *out, int len){
 	int i;
 
 	for (i=0; i<len; i++) {
@@ -91,13 +91,13 @@ void tohex(unsigned char *in, unsigned char *out, int len){
 	out[(i<<1)] = 0;
 }
 
-void fromhex(unsigned char *in, unsigned char *out, int len){
+void fromhex(char *in, char *out, int len){
 	char *c1, *c2;
 	for (; len > 0; len--) {
 		c1 = strchr((char *)hex, *in++);
 		c2 = strchr((char *)hex, *in++);
 		if(c1 && c2){
-			*out++ = ((unsigned char)((unsigned char *)c1 - hex) << 4) + (unsigned char)((unsigned char *)c2 - hex);
+			*out++ = (char)(unsigned char)(((c1 - hex) << 4) + (c2 - hex));
 		}
 	}
 }

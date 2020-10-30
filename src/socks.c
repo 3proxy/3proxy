@@ -22,9 +22,9 @@ void * sockschild(struct clientparam* param) {
  unsigned size;
  SASIZETYPE sasize;
  unsigned short port = 0;
- unsigned char * buf=NULL;
- unsigned char c;
- unsigned char command=0;
+ char * buf=NULL;
+ char c;
+ char command=0;
  struct pollfd fds[3];
  int ver=0;
  int havepass = 0;

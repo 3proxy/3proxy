@@ -153,9 +153,9 @@ extern int timetoexit;
 extern struct extparam conf;
 
 int sockmap(struct clientparam * param, int timeo, int usesplice);
-int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to);
-int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
-int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
+int socksend(SOCKET sock, char * buf, int bufsize, int to);
+int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);
@@ -163,14 +163,14 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec);
 int sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec);
 int sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec);
 
-int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
+int sockgetlinebuf(struct clientparam * param, DIRECTION which, char * buf, int bufsize, int delim, int to);
 
 
 
 void initlog(void);
-void dolog(struct clientparam * param, const unsigned char *s);
-int dobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec);
-int dobuf2(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
+void dolog(struct clientparam * param, const char *s);
+int dobuf(struct clientparam * param, char * buf, int bufsize, const char *s, const char * doublec);
+int dobuf2(struct clientparam * param, char * buf, int bufsize, const char *s, const char * doublec, struct tm* tm, char * format);
 int doconnect(struct clientparam * param);
 int alwaysauth(struct clientparam * param);
 int ipauth(struct clientparam * param);
@@ -181,15 +181,15 @@ void trafcountfunc(struct clientparam *param);
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout);
 
 
-int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask);
+int scanaddr(const char *s, unsigned long * ip, unsigned long * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
 extern struct nserver nservers[MAXNSERVERS];
 extern struct nserver authnserver;
-unsigned long getip(unsigned char *name);
-unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
-int afdetect(unsigned char *name);
-unsigned long myresolver(int, unsigned char *, unsigned char *);
-unsigned long fakeresolver (int, unsigned char *, unsigned char*);
+unsigned long getip(char *name);
+unsigned long getip46(int family, char *name,  struct sockaddr *sa);
+int afdetect(char *name);
+unsigned long myresolver(int, char *, char *);
+unsigned long fakeresolver (int, char *, char*);
 int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
 void srvpostfree(struct srvparam * srv);
@@ -207,34 +207,34 @@ int reload (void);
 extern int paused;
 extern int demon;
 
-unsigned char * mycrypt(const unsigned char *key, const unsigned char *salt, unsigned char *buf);
-unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPassword, int tohex);
-int de64 (const unsigned char *in, unsigned char *out, int maxlen);
-unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen);
-void tohex(unsigned char *in, unsigned char *out, int len);
-void fromhex(unsigned char *in, unsigned char *out, int len);
+char * mycrypt(const char *key, const char *salt, char *buf);
+char * ntpwdhash (char *szHash, const char *szPassword, int tohex);
+int de64 (const char *in, char *out, int maxlen);
+char* en64 (const char *in, char *out, int inlen);
+void tohex(char *in, char *out, int len);
+void fromhex(char *in, char *out, int len);
 
 
 
 int ftplogin(struct clientparam *param, char *buf, int *inbuf);
-int ftpcd(struct clientparam *param, unsigned char* path, char *buf, int *inbuf);
-int ftpsyst(struct clientparam *param, unsigned char *buf, unsigned len);
-int ftppwd(struct clientparam *param, unsigned char *buf, unsigned len);
-int ftptype(struct clientparam *param, unsigned char* f_type);
-int ftpres(struct clientparam *param, unsigned char * buf, int len);
-SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned char  *arg);
+int ftpcd(struct clientparam *param, char* path, char *buf, int *inbuf);
+int ftpsyst(struct clientparam *param, char *buf, unsigned len);
+int ftppwd(struct clientparam *param, char *buf, unsigned len);
+int ftptype(struct clientparam *param, char* f_type);
+int ftpres(struct clientparam *param, char * buf, int len);
+SOCKET ftpcommand(struct clientparam *param, char * command, char  *arg);
 
 
 int text2unicode(const char * text, char * buf, int buflen);
 void unicode2text(const char *unicode, char * buf, int len);
 void genchallenge(struct clientparam *param, char * challenge, char *buf);
-void mschap(const unsigned char *win_password,
-		 const unsigned char *challenge, unsigned char *response);
+void mschap(const char *win_password,
+		 const char *challenge, char *response);
 
 struct hashtable;
-void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires);
+void hashadd(struct hashtable *ht, const char* name, char* value, time_t expires);
 
-int parsehost(int family, unsigned char *host, struct sockaddr *sa);
+int parsehost(int family, char *host, struct sockaddr *sa);
 int parsehostname(char *hostname, struct clientparam *param, unsigned short port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
@@ -242,7 +242,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param);
 int checkACL(struct clientparam * param);
 int checkpreACL(struct clientparam * param);
 extern int havelog;
-unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth);
+unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, struct clientparam* param, int makeauth);
 
 void copyacl (struct ace *ac, struct srvparam *srv);
 struct auth * copyauth (struct auth *);
@@ -255,17 +255,17 @@ struct passwords * copypwl (struct passwords *pwl);
 void freepwl(struct passwords *pw);
 void copyfilter(struct filter *, struct srvparam *srv);
 FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param);
-FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
-FILTER_ACTION handlehdrfilterscli(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
-FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
+FILTER_ACTION handlereqfilters(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p);
+FILTER_ACTION handlehdrfilterscli(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p);
+FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p);
 FILTER_ACTION handlepredatflt(struct clientparam *param);
-FILTER_ACTION handledatfltcli(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
-FILTER_ACTION handledatfltsrv(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
+FILTER_ACTION handledatfltcli(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p);
+FILTER_ACTION handledatfltsrv(struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p);
 
 void srvinit(struct srvparam * srv, struct clientparam *param);
 void srvinit2(struct srvparam * srv, struct clientparam *param);
 void srvfree(struct srvparam * srv);
-unsigned char * dologname (unsigned char *buf, int bufsize, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
+char * dologname (char *buf, int bufsize, char *name, const char *ext, ROTATION lt, time_t t);
 int readconfig(FILE * fp);
 int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
 

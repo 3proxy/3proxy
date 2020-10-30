@@ -19,7 +19,7 @@
 #endif
 
 FILE * confopen();
-extern unsigned char *strings[];
+extern char *strings[];
 extern FILE *writable;
 extern struct counter_header cheader;
 extern struct counter_record crecord;
@@ -79,7 +79,7 @@ void __stdcall CommandHandler( DWORD dwCommand )
 }
 
 
-void __stdcall ServiceMain(int argc, unsigned char* argv[] )
+void __stdcall ServiceMain(int argc, char* argv[] )
 {
 
     hSrv = RegisterServiceCtrlHandler((LPCSTR)conf.stringtable[1], (LPHANDLER_FUNCTION)CommandHandler);
@@ -181,7 +181,7 @@ void doschedule(void){
 
 void dumpcounters(struct trafcount *tlin, int counterd){
 
- unsigned char tmpbuf[8192];
+ char tmpbuf[8192];
  struct trafcount *tl;
  if(counterd >= 0 && tlin) {
 
@@ -189,7 +189,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 	if(cheader.updated && conf.countertype && timechanged(cheader.updated, conf.time, conf.countertype)){
 		FILE * cfp;
 				
-		cfp = fopen((char *)dologname(tmpbuf, sizeof(tmpbuf), (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
+		cfp = fopen((char *)dologname(tmpbuf, sizeof(tmpbuf), (char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
 				if(tl->type >= conf.countertype)
@@ -293,9 +293,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   FILE * fp = NULL;
 
 #ifdef _WIN32
-  unsigned char * arg;
+  char * arg;
   WSADATA wd;
-  unsigned char tmpbuf[8192];
+  char tmpbuf[8192];
 
   WSAStartup(MAKEWORD( 1, 1 ), &wd);
   osv.dwOSVersionInfoSize = sizeof(osv);

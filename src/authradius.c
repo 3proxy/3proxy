@@ -168,22 +168,7 @@ char radiussecret[64]="";
 
 pthread_mutex_t rad_mutex;
 
-void md5_calc(unsigned char *output, unsigned char *input,
-		     unsigned int inputlen);
-
-
-char *strNcpy(char *dest, const char *src, int n)
-{
-	if (n > 0)
-		strncpy(dest, src, n);
-	else
-		n = 1;
-	dest[n - 1] = 0;
-
-	return dest;
-}
-
-void md5_calc(unsigned char *output, unsigned char *input,
+static void md5_calc(unsigned char *output, unsigned char *input,
 		     unsigned int inlen)
 {
 	MD5_CTX	context;
@@ -220,7 +205,7 @@ static int calc_replydigest(char *packet, char *original, const char *secret, in
 }
 
 #define AUTH_PASS_LEN (16)
-int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vector)
+static int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vector)
 {
 	uint8_t	buffer[AUTH_VECTOR_LEN + MAX_STRING_LEN + 1];
 	char	digest[AUTH_VECTOR_LEN];
@@ -258,7 +243,7 @@ int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char *vecto
 }
 
 
-void random_vector(uint8_t *vector, struct clientparam *param)
+static void random_vector(uint8_t *vector, struct clientparam *param)
 {
 	int		i;
 	static int	did_random = 0;
@@ -300,7 +285,7 @@ typedef struct radius_packet_t {
 
 #define packet (*((radius_packet_t *)inbuf))
 
-int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, int stop){
+static int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, int stop){
 	int id;
 	int res = 4;
 	SOCKET sockfd = -1;
@@ -518,7 +503,7 @@ int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, int stop
 }
 
 
-int radsend(const unsigned char *inbuf, int total_length, int auth, 
+static int radsend(const unsigned char *inbuf, int total_length, int auth, 
 #ifdef NOIPV6
 	struct  sockaddr_in*     sinsl
 #else
@@ -685,12 +670,12 @@ int radauth(struct clientparam * param){
 }
 
 
-int raddobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s){
-	return radbuf(param, buf, 0, 1);
+int raddobuf(struct clientparam * param, char * buf, const unsigned char *s){
+	return radbuf(param, (unsigned char *)buf, 0, 1);
 }
 
-void logradius(const unsigned char *buf, int len, struct LOGGER *logger){
-	if(len)radsend(buf, len, 0, NULL);
+void logradius(const char *buf, int len, struct LOGGER *logger){
+	if(len)radsend((unsigned char *)buf, len, 0, NULL);
 }
 
 

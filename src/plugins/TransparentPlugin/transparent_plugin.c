@@ -85,12 +85,12 @@ static struct filter transparent_filter = {
 	transparent_filter_close
 };
 
-static int h_transparent(int argc, unsigned char **argv){
+static int h_transparent(int argc, char **argv){
 	transparent_filter.filter_open = transparent_filter_open;
 	return 0;
 }
 
-static int h_notransparent(int argc, unsigned char **argv){
+static int h_notransparent(int argc, char **argv){
 	transparent_filter.filter_open = NULL;
 	return 0;
 }

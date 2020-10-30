@@ -31,7 +31,7 @@ int randomizer = 1;
 
 #endif
 
-unsigned char **stringtable = NULL;
+char **stringtable = NULL;
 
 #ifdef WITH_LINUX_FUTEX
 int sys_futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)
@@ -124,12 +124,12 @@ struct extparam conf = {
 	NULL, /* BANDLIMFUNC bandlimfunc; */
 	NULL, /* TRAFCOUNTFUNC trafcountfunc; */
 	NULL, /* void (*prelog)(struct clientparam * param); */
-	NULL, NULL, /* unsigned char *logtarget, *logformat; */
+	NULL, NULL, /* char *logtarget, *logformat; */
 	NULL, /* struct filemon * fmon; */
 	NULL, /* struct filter * filters; */
 	NULL, /* struct auth *authfuncs; */
 	NULL, /* char* demanddialprog; */
-	NULL, /* unsigned char **stringtable; */
+	NULL, /* char **stringtable; */
 	(time_t)0, /* time_t time; */
 	0,0, /* 	unsigned logdumpsrv, logdumpcli; */
 	'@', /* 	char delimchar; */
@@ -270,7 +270,7 @@ int ceparseargs(const char *str){
 
 #endif
 
-int parsehost(int family, unsigned char *host, struct sockaddr *sa){
+int parsehost(int family, char *host, struct sockaddr *sa){
 	char *sp=NULL,*se=NULL;
 	unsigned short port=0;
 	int ret = 0;
@@ -306,7 +306,7 @@ int parsehostname(char *hostname, struct clientparam *param, unsigned short port
 	}
 	if(hostname != (char *)param->hostname){
 		if(param->hostname) myfree(param->hostname);
-		param->hostname = (unsigned char *)mystrdup(hostname + (se!=0));
+		param->hostname = (char *)mystrdup(hostname + (se!=0));
 	}
 	if(sp){
 		port = atoi(sp+1);
@@ -329,11 +329,11 @@ int parseusername(char *username, struct clientparam *param, int extpasswd){
 		if(sp) *sp = 0;
 		if(*(sb+1)) {
 			if(param->password) myfree(param->password);
-			param->password = (unsigned char *)mystrdup(sb+1);
+			param->password = (char *)mystrdup(sb+1);
 		}
 		if(*username) {
 			if(param->username) myfree(param->username);
-			param->username = (unsigned char *)mystrdup(username);
+			param->username = (char *)mystrdup(username);
 		}
 		username = se+1;
 	 }
@@ -342,11 +342,11 @@ int parseusername(char *username, struct clientparam *param, int extpasswd){
 		if(sp){
 			*sp = 0;
 			if(param->extpassword) myfree(param->extpassword);
-			param->extpassword = (unsigned char *) mystrdup(sp+1);
+			param->extpassword = (char *) mystrdup(sp+1);
 		}
 	}
 	if(param->extusername) myfree(param->extusername);
-	param->extusername = (unsigned char *)mystrdup(username);
+	param->extusername = (char *)mystrdup(username);
 	if(sb) *sb = ':';
 	if(se) *se = ':';
 	if(sp) *sp = ':';
@@ -429,7 +429,7 @@ int doconnect(struct clientparam * param){
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;
-		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 	}
 #endif
@@ -462,7 +462,7 @@ int doconnect(struct clientparam * param){
  return 0;
 }
 
-int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask) {
+int scanaddr(const char *s, unsigned long * ip, unsigned long * mask) {
 	unsigned d1, d2, d3, d4, m;
 	int res;
 	if ((res = sscanf((char *)s, "%u.%u.%u.%u/%u", &d1, &d2, &d3, &d4, &m)) < 4) return 0;
@@ -495,7 +495,7 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 #endif
 
 #ifdef NOIPV6
-unsigned long getip(unsigned char *name){
+unsigned long getip(char *name){
 	unsigned long retval;
 	int i;
 	int ndots = 0;
@@ -522,8 +522,8 @@ unsigned long getip(unsigned char *name){
 		}
 	}
 	if((tmpresolv=resolvfunc)){
-		if((*tmpresolv)(AF_INET, name, (unsigned char *)&retval)) return retval;
-		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
+		if((*tmpresolv)(AF_INET, name, (char *)&retval)) return retval;
+		return (*tmpresolv)(AF_INET, name, (char *)&retval)?retval:0;
 	}
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
 	if(!ghbn_init){
@@ -548,7 +548,7 @@ unsigned long getip(unsigned char *name){
 }
 #endif
 
-int afdetect(unsigned char *name){
+int afdetect(char *name){
 	int ndots=0, ncols=0, nhex=0;
 	int i;
 
@@ -580,7 +580,7 @@ int afdetect(unsigned char *name){
 
 }
 
-unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
+unsigned long getip46(int family, char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
 	int detect;
 	struct addrinfo *ai, hint;

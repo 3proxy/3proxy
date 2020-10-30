@@ -14,7 +14,7 @@
 
 extern FILE *writable;
 FILE * confopen();
-extern void decodeurl(unsigned char *s, int filter);
+extern void decodeurl(char *s, int filter);
 
 struct printparam {
 	char buf[1024];
@@ -24,12 +24,12 @@ struct printparam {
 
 static void stdpr(struct printparam* pp, char *buf, int inbuf){
 	if((pp->inbuf + inbuf > 1024) || !buf) {
-		socksend(pp->cp->clisock, (unsigned char *)pp->buf, pp->inbuf, conf.timeouts[STRING_S]);
+		socksend(pp->cp->clisock, (char *)pp->buf, pp->inbuf, conf.timeouts[STRING_S]);
 		pp->inbuf = 0;
 		if(!buf) return;
 	}
 	if(inbuf >= 1000){
-		socksend(pp->cp->clisock, (unsigned char *)buf, inbuf, conf.timeouts[STRING_S]);		
+		socksend(pp->cp->clisock, (char *)buf, inbuf, conf.timeouts[STRING_S]);		
 	}
 	else {
 		memcpy(pp->buf + pp->inbuf, buf, inbuf);
@@ -353,7 +353,7 @@ void * adminchild(struct clientparam* param) {
 
  buf = myalloc(LINESIZE);
  if(!buf) {RETURN(555);}
- i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, LINESIZE - 1, '\n', conf.timeouts[STRING_S]);
+ i = sockgetlinebuf(param, CLIENT, (char *)buf, LINESIZE - 1, '\n', conf.timeouts[STRING_S]);
  if(i<5 || ((buf[0]!='G' || buf[1]!='E' || buf[2]!='T' || buf[3]!=' ' || buf[4]!='/') && 
 	   (buf[0]!='P' || buf[1]!='O' || buf[2]!='S' || buf[3]!='T' || buf[4]!=' ' || buf[5]!='/')))
  {
@@ -366,7 +366,7 @@ void * adminchild(struct clientparam* param) {
  }
  *sb = 0;
  req = mystrdup(buf + ((*buf == 'P')? 6 : 5));
- while((i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, LINESIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
+ while((i = sockgetlinebuf(param, CLIENT, (char *)buf, LINESIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
 	buf[i] = 0;
 	if(i > 19 && (!strncasecmp(buf, "authorization", 13))){
 		sb = strchr(buf, ':');
@@ -378,17 +378,17 @@ void * adminchild(struct clientparam* param) {
 		}
 		sb+=5;
 		while(isspace(*sb))sb++;
-		i = de64((unsigned char *)sb, (unsigned char *)username, 255);
+		i = de64((char *)sb, (char *)username, 255);
 		if(i<=0)continue;
 		username[i] = 0;
 		sb = strchr((char *)username, ':');
 		if(sb){
 			*sb = 0;
 			if(param->password)myfree(param->password);
-			param->password = (unsigned char *)mystrdup(sb+1);
+			param->password = (char *)mystrdup(sb+1);
 		}
 		if(param->username) myfree(param->username);
-		param->username = (unsigned char *)mystrdup(username);
+		param->username = (char *)mystrdup(username);
 		continue;
 	}
 	else if(i > 15 && (!strncasecmp(buf, "content-length:", 15))){
@@ -542,14 +542,14 @@ void * adminchild(struct clientparam* param) {
 			if(!writable || !contentlen || fseek(writable, 0, 0)){
 				error = 1;
 			}
-			while(l < contentlen && (i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, (contentlen - l) > LINESIZE - 1?LINESIZE - 1:contentlen - l, '+', conf.timeouts[STRING_S])) > 0){
-				if(i > (contentlen - l)) i = (contentlen - l);
+			while(l < contentlen && (i = sockgetlinebuf(param, CLIENT, (char *)buf, (contentlen - l) > LINESIZE - 1?LINESIZE - 1:contentlen - l, '+', conf.timeouts[STRING_S])) > 0){
+				if(((unsigned)i) > (contentlen - l)) i = (int)(contentlen - l);
 				if(!l){
 					if(i<9 || strncasecmp(buf, "conffile=", 9)) error = 1;
 				}
 				if(!error){
 					buf[i] = 0;
-					decodeurl((unsigned char *)buf, 1);
+					decodeurl((char *)buf, 1);
 					fprintf(writable, "%s", l? buf : buf + 9);
 				}
 				l += i;
@@ -576,7 +576,7 @@ CLEANRET:
 
  printstr(&pp, NULL);
  if(buf) myfree(buf);
- dolog(param, (unsigned char *)req);
+ dolog(param, req);
  if(req)myfree(req);
  freeparam(param);
  return (NULL);

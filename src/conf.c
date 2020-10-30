@@ -131,7 +131,7 @@ int start_proxy_thread(struct child * chp){
 	return 0;
 }
 
-static int h_proxy(int argc, unsigned char ** argv){
+static int h_proxy(int argc, char ** argv){
   struct child ch;
 
 	ch.argc = argc;
@@ -216,12 +216,12 @@ static int h_proxy(int argc, unsigned char ** argv){
 	return start_proxy_thread(&ch);
 }
 
-static int h_internal(int argc, unsigned char ** argv){
+static int h_internal(int argc, char ** argv){
 	getip46(46, argv[1], (struct sockaddr *)&conf.intsa);
 	return 0;
 }
 
-static int h_external(int argc, unsigned char ** argv){
+static int h_external(int argc, char ** argv){
 	int res;
 #ifndef NOIPV6
 	struct sockaddr_in6 sa6;
@@ -237,49 +237,49 @@ static int h_external(int argc, unsigned char ** argv){
 }
 
 
-static int h_log(int argc, unsigned char ** argv){ 
+static int h_log(int argc, char ** argv){ 
 	myfree(conf.logtarget);
-	if(argc < 2) conf.logtarget = (unsigned char *)mystrdup("");
-	else conf.logtarget = (unsigned char *)mystrdup((char *)argv[1]);
+	if(argc < 2) conf.logtarget = (char *)mystrdup("");
+	else conf.logtarget = (char *)mystrdup((char *)argv[1]);
 	if(argc > 2) {
 		conf.logtype = getrotate(*argv[2]);
 	}
 	return 0;
 }
 
-static int h_stacksize(int argc, unsigned char **argv){
+static int h_stacksize(int argc, char **argv){
 	conf.stacksize = atoi((char *)argv[1]);
 	return 0;
 }
 
 
-static int h_force(int argc, unsigned char **argv){
+static int h_force(int argc, char **argv){
 	conf.noforce = 0;
 	return 0;
 }
 
-static int h_noforce(int argc, unsigned char **argv){
+static int h_noforce(int argc, char **argv){
 	conf.noforce = 1;
 	return 0;
 }
 
-static int h_service(int argc, unsigned char **argv){
+static int h_service(int argc, char **argv){
 	return 0;
 }
 
-static int h_daemon(int argc, unsigned char **argv){
+static int h_daemon(int argc, char **argv){
 	if(!conf.demon)daemonize();
 	conf.demon = 1;
 	return 0;
 }
 
-static int h_config(int argc, unsigned char **argv){
+static int h_config(int argc, char **argv){
 	if(conf.conffile)myfree(conf.conffile);
 	conf.conffile = mystrdup((char *)argv[1]);
 	return 0;
 }
 
-static int h_include(int argc, unsigned char **argv){
+static int h_include(int argc, char **argv){
 	int res;
 	FILE *fp1;
 
@@ -293,18 +293,18 @@ static int h_include(int argc, unsigned char **argv){
 	return res;
 }
 
-static int h_archiver(int argc, unsigned char **argv){
+static int h_archiver(int argc, char **argv){
 	int j;
 
 	conf.archiver = myalloc(argc * sizeof(char *));
 	if(conf.archiver) {
 		conf.archiverc = argc;
-		for(j = 0; j < conf.archiverc; j++) conf.archiver[j] = (unsigned char *)mystrdup((char *)argv[j]);
+		for(j = 0; j < conf.archiverc; j++) conf.archiver[j] = (char *)mystrdup((char *)argv[j]);
 	}
 	return 0;
 }
 
-static int h_counter(int argc, unsigned char **argv){
+static int h_counter(int argc, char **argv){
 	struct counter_header ch1;
 	if(conf.counterd >=0)close(conf.counterd);
 	if(!conf.trafcountfunc) conf.trafcountfunc = trafcountfunc;
@@ -344,19 +344,19 @@ static int h_counter(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_rotate(int argc, unsigned char **argv){
+static int h_rotate(int argc, char **argv){
 	conf.rotate = atoi((char *)argv[1]);
 	return 0;
 }
 
-static int h_logformat(int argc, unsigned char **argv){
-	unsigned char * old = conf.logformat;
-	conf.logformat = (unsigned char *)mystrdup((char *)argv[1]);
+static int h_logformat(int argc, char **argv){
+	char * old = conf.logformat;
+	conf.logformat = (char *)mystrdup((char *)argv[1]);
 	if(old) myfree(old);
 	return 0;
 }
 
-static int h_timeouts(int argc, unsigned char **argv){
+static int h_timeouts(int argc, char **argv){
 	int j;
 
 	for(j = 0; conf.timeouts[j] && j + 1 < argc; j++) {
@@ -368,11 +368,11 @@ static int h_timeouts(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_noop(int argc, unsigned char **argv){
+static int h_noop(int argc, char **argv){
 	return 0;
 }
 
-static int h_auth(int argc, unsigned char **argv){
+static int h_auth(int argc, char **argv){
 	struct auth *au, * newau;
 	
 	freeauth(conf.authfuncs);
@@ -397,9 +397,9 @@ static int h_auth(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_users(int argc, unsigned char **argv){
+static int h_users(int argc, char **argv){
   int j;
-  unsigned char *arg;
+  char *arg;
   struct passwords *pwl = NULL;
 
 	for (j = 1; j<argc; j++) {
@@ -409,22 +409,22 @@ static int h_users(int argc, unsigned char **argv){
 		}
 		memset(pwl, 0, sizeof(struct passwords));
 
-		arg = (unsigned char *)strchr((char *)argv[j], ':');
+		arg = (char *)strchr((char *)argv[j], ':');
 		if(!arg||!arg[1]||!arg[2]||arg[3]!=':')	{
-			pwl->user = (unsigned char *)mystrdup((char *)argv[j]);
+			pwl->user = (char *)mystrdup((char *)argv[j]);
 			pwl->pwtype = SYS;
 		}
 		else {
 			*arg = 0;
-			pwl->user = (unsigned char *)mystrdup((char *)argv[j]);
+			pwl->user = (char *)mystrdup((char *)argv[j]);
 			if((arg[1] == 'C' && arg[2] == 'L' && (pwl->pwtype = CL)) ||
 				(arg[1] == 'C' && arg[2] == 'R' && (pwl->pwtype = CR)) ||
 				(arg[1] == 'N' && arg[2] == 'T' && (pwl->pwtype = NT)) ||
 				(arg[1] == 'L' && arg[2] == 'M' && (pwl->pwtype = LM))){
-				pwl->password = (unsigned char *)mystrdup((char *)arg+4);
+				pwl->password = (char *)mystrdup((char *)arg+4);
 			}
 			else {
-				pwl->password = (unsigned char *) mystrdup((char *)arg + 1);
+				pwl->password = (char *) mystrdup((char *)arg + 1);
 				pwl->pwtype = UN;
 			}
 		}
@@ -438,7 +438,7 @@ static int h_users(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_maxconn(int argc, unsigned char **argv){
+static int h_maxconn(int argc, char **argv){
 	conf.maxchild = atoi((char *)argv[1]);
 	if(!conf.maxchild) {
 		return(1);
@@ -458,21 +458,21 @@ static int h_maxconn(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_flush(int argc, unsigned char **argv){
+static int h_flush(int argc, char **argv){
 	freeacl(conf.acl);
 	conf.acl = NULL;
 	return 0;
 }
 
 /*
-static int h_flushusers(int argc, unsigned char **argv){
+static int h_flushusers(int argc, char **argv){
 	freepwl(conf.pwl);
 	conf.pwl = NULL;
 	return 0;
 }
 */
 
-static int h_nserver(int argc, unsigned char **argv){
+static int h_nserver(int argc, char **argv){
   char *str;
 
 	if(numservers < MAXNSERVERS) {
@@ -491,7 +491,7 @@ static int h_nserver(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_authnserver(int argc, unsigned char **argv){
+static int h_authnserver(int argc, char **argv){
   char *str;
 
 	if((str = strchr((char *)argv[1], '/')))
@@ -505,12 +505,12 @@ static int h_authnserver(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_fakeresolve(int argc, unsigned char **argv){
+static int h_fakeresolve(int argc, char **argv){
 	resolvfunc = fakeresolver;
 	return 0;
 }
 
-static int h_nscache(int argc, unsigned char **argv){
+static int h_nscache(int argc, char **argv){
   int res;
 
 	res = atoi((char *)argv[1]);
@@ -524,7 +524,7 @@ static int h_nscache(int argc, unsigned char **argv){
 	}
 	return 0;
 }
-static int h_nscache6(int argc, unsigned char **argv){
+static int h_nscache6(int argc, char **argv){
   int res;
 
 	res = atoi((char *)argv[1]);
@@ -539,7 +539,7 @@ static int h_nscache6(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_nsrecord(int argc, unsigned char **argv){
+static int h_nsrecord(int argc, char **argv){
 #ifndef NOIPV6
 	struct sockaddr_in6 sa;
 #else
@@ -552,7 +552,7 @@ static int h_nsrecord(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_system(int argc, unsigned char **argv){
+static int h_system(int argc, char **argv){
   int res;
 
 	if((res = system((char *)argv[1])) == -1){
@@ -562,7 +562,7 @@ static int h_system(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_pidfile(int argc, unsigned char **argv){
+static int h_pidfile(int argc, char **argv){
   FILE *pidf;
 
 	if(!(pidf = fopen((char *)argv[1], "w"))){
@@ -574,7 +574,7 @@ static int h_pidfile(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_monitor(int argc, unsigned char **argv){
+static int h_monitor(int argc, char **argv){
   struct filemon * fm;
 
 	fm = myalloc(sizeof (struct filemon));
@@ -590,7 +590,7 @@ static int h_monitor(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_parent(int argc, unsigned char **argv){
+static int h_parent(int argc, char **argv){
   struct ace *acl = NULL;
   struct chain *chains;
 
@@ -637,10 +637,10 @@ static int h_parent(int argc, unsigned char **argv){
 #else
 	getip46(46, argv[3], (struct sockaddr *)&chains->addr);
 #endif
-	chains->exthost = (unsigned char *)mystrdup((char *)argv[3]);
+	chains->exthost = (char *)mystrdup((char *)argv[3]);
 	*SAPORT(&chains->addr) = htons((unsigned short)atoi((char *)argv[4]));
-	if(argc > 5) chains->extuser = (unsigned char *)mystrdup((char *)argv[5]);
-	if(argc > 6) chains->extpass = (unsigned char *)mystrdup((char *)argv[6]);
+	if(argc > 5) chains->extuser = (char *)mystrdup((char *)argv[5]);
+	if(argc > 6) chains->extpass = (char *)mystrdup((char *)argv[6]);
 	if(!acl->chains) {
 		acl->chains = chains;
 	}
@@ -654,7 +654,7 @@ static int h_parent(int argc, unsigned char **argv){
 	
 }
 
-static int h_nolog(int argc, unsigned char **argv){
+static int h_nolog(int argc, char **argv){
   struct ace *acl = NULL;
 
 	acl = conf.acl;
@@ -668,7 +668,7 @@ static int h_nolog(int argc, unsigned char **argv){
 	return 0;
 }
 
-int scanipl(unsigned char *arg, struct iplist *dst){
+int scanipl(char *arg, struct iplist *dst){
 #ifndef NOIPV6
 	struct sockaddr_in6 sa;
 #else
@@ -686,7 +686,7 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 	dst->family = *SAFAMILY(&sa);
 	if(dash){
 		if(afdetect(dash+1) == -1) return 1;
-		if(!getip46(46, (unsigned char *)dash+1, (struct sockaddr *)&sa)) return 2;
+		if(!getip46(46, (char *)dash+1, (struct sockaddr *)&sa)) return 2;
 		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
 		if(*SAFAMILY(&sa) != dst->family || memcmp(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa)) < 0) return 3;
 		return 0;
@@ -700,12 +700,12 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 			int i, nbytes = masklen / 8, nbits = (8 - (masklen % 8)) % 8;
 
 			for(i = addrlen; i>(nbytes + (nbits > 0)); i--){
-				((unsigned char *)&dst->ip_from)[i-1] = 0x00;
-				((unsigned char *)&dst->ip_to)[i-1] = 0xff;
+				((char *)&dst->ip_from)[i-1] = 0x00;
+				((char *)&dst->ip_to)[i-1] = 0xff;
 			}
 			for(;nbits;nbits--){
-				((unsigned char *)&dst->ip_from)[nbytes] &= ~(0x01<<(nbits-1));
-				((unsigned char *)&dst->ip_to)[nbytes] |= (0x01<<(nbits-1));
+				((char *)&dst->ip_from)[nbytes] &= ~(0x01<<(nbits-1));
+				((char *)&dst->ip_to)[nbytes] |= (0x01<<(nbits-1));
 			}
 			return 0;
 		}
@@ -713,9 +713,9 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 	return 0;
 }
 
-struct ace * make_ace (int argc, unsigned char ** argv){
+struct ace * make_ace (int argc, char ** argv){
 	struct ace * acl;
-	unsigned char *arg;
+	char *arg;
 	struct iplist *ipl=NULL;
 	struct portlist *portl=NULL;
 	struct userlist *userl=NULL;
@@ -727,7 +727,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 	memset(acl, 0, sizeof(struct ace));
 		if(argc > 0 && strcmp("*", (char *)argv[0])) {
 			arg = argv[0];
-			arg = (unsigned char *)strtok((char *)arg, ",");
+			arg = (char *)strtok((char *)arg, ",");
 			do {
 				if(!acl->users) {
 					acl->users = userl = myalloc(sizeof(struct userlist));
@@ -741,11 +741,11 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					return(NULL);
 				}
 				memset(userl, 0, sizeof(struct userlist));
-				userl->user=(unsigned char*)mystrdup((char *)arg);
-			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
+				userl->user=(char*)mystrdup((char *)arg);
+			} while((arg = (char *)strtok((char *)NULL, ",")));
 		}
 		if(argc > 1  && strcmp("*", (char *)argv[1])) {
-			arg = (unsigned char *)strtok((char *)argv[1], ",");
+			arg = (char *)strtok((char *)argv[1], ",");
 			do {
 				if(!acl->src) {
 					acl->src = ipl = myalloc(sizeof(struct iplist));
@@ -763,13 +763,13 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					fprintf(stderr, "Invalid IP, IP range or CIDR, line %d\n", linenum);
 					return(NULL);
 				}
-			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
+			} while((arg = (char *)strtok((char *)NULL, ",")));
 		}
 		if(argc > 2 && strcmp("*", (char *)argv[2])) {
-			arg = (unsigned char *)strtok((char *)argv[2], ",");
+			arg = (char *)strtok((char *)argv[2], ",");
 			do {
 			 int arglen;
-			 unsigned char *pattern;
+			 char *pattern;
 			 struct iplist tmpip={NULL};
 			 
 			 arglen = (int)strlen((char *)arg);
@@ -799,7 +799,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					arglen--;
 					hostnamel->matchtype ^= MATCHBEGIN;
 				}
-				hostnamel->name = (unsigned char *) mystrdup( (char *)pattern);
+				hostnamel->name = (char *) mystrdup( (char *)pattern);
 				if(!hostnamel->name) {
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
 					return(NULL);
@@ -820,10 +820,10 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				*ipl = tmpip;
 			 }
-			}while((arg = (unsigned char *)strtok((char *)NULL, ",")));
+			}while((arg = (char *)strtok((char *)NULL, ",")));
 		}
 		if(argc > 3 && strcmp("*", (char *)argv[3])) {
-			arg = (unsigned char *)strtok((char *)argv[3], ",");
+			arg = (char *)strtok((char *)argv[3], ",");
 			do {
 				if(!acl->ports) {
 					acl->ports = portl = myalloc(sizeof(struct portlist));
@@ -843,10 +843,10 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					return(NULL);
 				}
 				if (res == 1) portl->endport = portl->startport;
-			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
+			} while((arg = (char *)strtok((char *)NULL, ",")));
 		}
 		if(argc > 4 && strcmp("*", (char *)argv[4])) {
-			arg = (unsigned char *)strtok((char *)argv[4], ",");	
+			arg = (char *)strtok((char *)argv[4], ",");	
 			do {
 				if(!strcmp((char *)arg, "CONNECT")){
 					acl->operation |= CONNECT;
@@ -909,7 +909,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					fprintf(stderr, "Unknown operation type: %s line %d\n", arg, linenum);
 					return(NULL);
 				}
-			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
+			} while((arg = (char *)strtok((char *)NULL, ",")));
 		}
 		if(argc > 5){
 			for(arg = argv[5]; *arg;){
@@ -973,7 +973,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 }
 
 
-static int h_ace(int argc, unsigned char **argv){
+static int h_ace(int argc, char **argv){
   int res = 0;
   int offset = 0;
   struct ace *acl = NULL;
@@ -1187,26 +1187,26 @@ static int h_ace(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_logdump(int argc, unsigned char **argv){
+static int h_logdump(int argc, char **argv){
 	conf.logdumpsrv = (unsigned) atoi((char *) *(argv + 1));
 	if(argc > 2) conf.logdumpcli = (unsigned) atoi((char *) *(argv + 2));
 	return 0;
 }
 
 
-static int h_filtermaxsize(int argc, unsigned char **argv){
+static int h_filtermaxsize(int argc, char **argv){
 	conf.filtermaxsize = atoi((char *) *(argv + 1));
 	return 0;
 }
 
-static int h_delimchar(int argc, unsigned char **argv){
+static int h_delimchar(int argc, char **argv){
 	conf.delimchar = *argv[1];
 	return 0;
 }
 
 
 #ifndef NORADIUS
-static int h_radius(int argc, unsigned char **argv){
+static int h_radius(int argc, char **argv){
 	unsigned short port;
 
 /*
@@ -1248,7 +1248,7 @@ static int h_radius(int argc, unsigned char **argv){
 	return 0;
 }
 #endif
-static int h_authcache(int argc, unsigned char **argv){
+static int h_authcache(int argc, char **argv){
 	conf.authcachetype = 0;
 	if(strstr((char *) *(argv + 1), "ip")) conf.authcachetype |= 1;
 	if(strstr((char *) *(argv + 1), "user")) conf.authcachetype |= 2;
@@ -1262,7 +1262,7 @@ static int h_authcache(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_plugin(int argc, unsigned char **argv){
+static int h_plugin(int argc, char **argv){
 #ifdef NOPLUGINS
 	return 999;
 #else
@@ -1302,7 +1302,7 @@ static int h_plugin(int argc, unsigned char **argv){
 
 #ifndef _WIN32
 
-uid_t strtouid(unsigned char *str){
+uid_t strtouid(char *str){
  uid_t res = 0;
 
 	if(!isnumber(*(char *)str)){
@@ -1315,7 +1315,7 @@ uid_t strtouid(unsigned char *str){
 }
 
 
-static int h_setuid(int argc, unsigned char **argv){
+static int h_setuid(int argc, char **argv){
   uid_t res = 0;
 	res = strtouid(argv[1]);
 	if(!res || setreuid(res,res)) {
@@ -1325,7 +1325,7 @@ static int h_setuid(int argc, unsigned char **argv){
 	return 0;
 }
 
-gid_t strtogid(unsigned char *str){
+gid_t strtogid(char *str){
   gid_t res = 0;
 
 	if(!isnumber(*(char *)str)){
@@ -1337,7 +1337,7 @@ gid_t strtogid(unsigned char *str){
 	return res;
 }
 
-static int h_setgid(int argc, unsigned char **argv){
+static int h_setgid(int argc, char **argv){
   gid_t res = 0;
 
 	res = strtogid(argv[1]);
@@ -1349,7 +1349,7 @@ static int h_setgid(int argc, unsigned char **argv){
 }
 
 
-static int h_chroot(int argc, unsigned char **argv){
+static int h_chroot(int argc, char **argv){
 	uid_t uid = 0;
 	gid_t gid = 0;
 	if(argc > 2) {
@@ -1468,15 +1468,15 @@ struct commands commandhandlers[]={
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
 
-int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned char ** buff, int *inbuf, int *bufsize){
+int parsestr (char *str, char **argm, int nitems, char ** buff, int *inbuf, int *bufsize){
 #define buf (*buff)
 	int argc = 0;
 	int space = 1;
 	int comment = 0;
-	unsigned char * incbegin = 0;
+	char * incbegin = 0;
 	int fd;
 	int res, len;
-	unsigned char *str1;
+	char *str1;
 
 	for(;;str++){
 	 if(*str == '\"'){
@@ -1566,15 +1566,15 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 
 
 int readconfig(FILE * fp){
- unsigned char ** argv = NULL;
- unsigned char * buf = NULL;
+ char ** argv = NULL;
+ char * buf = NULL;
   int bufsize = STRINGBUF*2;
   int inbuf = 0;
   int argc;
   struct commands * cm;
   int res = 0;
 
-  if( !(buf = myalloc(bufsize)) || ! (argv = myalloc((NPARAMS + 1) * sizeof(unsigned char *))) ) {
+  if( !(buf = myalloc(bufsize)) || ! (argv = myalloc((NPARAMS + 1) * sizeof(char *))) ) {
 		fprintf(stderr, "No memory for configuration");
 		return(10);
   }
@@ -1642,9 +1642,9 @@ void freeconf(struct extparam *confp){
  struct ace *acl;
  struct filemon *fm;
  int counterd, archiverc;
- unsigned char *logtarget;
- unsigned char **archiver;
- unsigned char * logformat;
+ char *logtarget;
+ char **archiver;
+ char * logformat;
 
  int i;
 
@@ -1711,7 +1711,7 @@ void freeconf(struct extparam *confp){
 
  {
 	char * args[] = {"auth", "iponly", NULL};
-  	h_auth(2, (unsigned char **)args);
+  	h_auth(2, (char **)args);
  }
  if(tc)dumpcounters(tc,counterd);
  for(; tc; tc = (struct trafcount *) itfree(tc, tc->next)){

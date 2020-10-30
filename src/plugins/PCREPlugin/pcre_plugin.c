@@ -123,7 +123,7 @@ static FILTER_ACTION pcre_filter_client(void *fo, struct clientparam * param, vo
 	return (res)? CONTINUE:PASS;
 }
 
-static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	int ovector[48];
 	int count = 0;
 	struct ace *acl;
@@ -195,7 +195,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 			}
 			memcpy(newbuf, *buf_p, ovector[0]);
 			pl->freefunc(*buf_p);
-			*buf_p = (unsigned char *)newbuf;
+			*buf_p = (char *)newbuf;
 			*bufsize_p = ovector[0] + replen + 1;
 		}
 		memcpy(*buf_p + ovector[0], tmpbuf, replen);
@@ -219,7 +219,7 @@ static void pcre_filter_close(void *fo){
 	pcre_data_free((struct pcre_filter_data *)fo);
 }
 
-static int h_pcre(int argc, unsigned char **argv){
+static int h_pcre(int argc, char **argv){
 	int action = 0;
 	pcre *re = NULL;
 	struct ace *acl;
@@ -317,7 +317,7 @@ static int h_pcre(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_pcre_extend(int argc, unsigned char **argv){
+static int h_pcre_extend(int argc, char **argv){
 	struct ace *acl;
 	if(!pcre_last_filter || !pcre_last_filter->data) return 1;
 	acl = ((struct pcre_filter_data *)pcre_last_filter->data)->acl;
@@ -328,7 +328,7 @@ static int h_pcre_extend(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_pcre_options(int argc, unsigned char **argv){
+static int h_pcre_options(int argc, char **argv){
 	int i,j;
 
 	pcre_options = 0;

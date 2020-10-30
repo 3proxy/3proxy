@@ -58,7 +58,7 @@ void logpush(struct logevent *evt);
 #define HAVESQL 0
 #else
 #ifndef NORADIUS
-int raddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
+int raddobuf(struct clientparam * param, char * buf, int bufsize, const char *s);
 void logradius(const char * buf, int len, struct LOGGER *logger);
 #define HAVERADIUS 1
 #else
@@ -67,7 +67,7 @@ void logradius(const char * buf, int len, struct LOGGER *logger);
 #ifndef NOODBC
 #define HAVESQL 1
 static int sqlinit(struct LOGGER *logger);
-static int sqldobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
+static int sqldobuf(struct clientparam * param, char * buf, int bufsize, const char *s);
 static void sqllog(const char * buf, int len, struct LOGGER *logger);
 static void sqlrotate(struct LOGGER *logger);
 static void sqlclose(struct LOGGER *logger);
@@ -87,7 +87,7 @@ static void syslogclose(struct LOGGER *logger);
 #endif
 
 static int stdloginit(struct LOGGER *logger);
-static int stddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
+static int stddobuf(struct clientparam * param, char * buf, int bufsize, const char *s);
 static void stdlog(const char * buf, int len, struct LOGGER *logger);
 static void stdlogrotate(struct LOGGER *logger);
 static void stdlogclose(struct LOGGER *logger);
@@ -346,7 +346,7 @@ static void delaydolog(struct logevent *evt){
 	}
 }
 
-void dolog(struct clientparam * param, const unsigned char *s){
+void dolog(struct clientparam * param, const char *s){
 	static int init = 0;
 
 	if(!param || !param->srv){
@@ -497,7 +497,7 @@ char months[12][4] = {
 	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 
-unsigned char * dologname (unsigned char *buf,  int bufsize, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
+char * dologname (char *buf,  int bufsize, char *name, const char *ext, ROTATION lt, time_t t) {
 	struct tm *ts;
 
 	ts = localtime(&t);
@@ -538,7 +538,7 @@ unsigned char * dologname (unsigned char *buf,  int bufsize, unsigned char *name
 	return buf;
 }
 
-int dobuf2(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format){
+int dobuf2(struct clientparam * param, char * buf, int bufsize, const char *s, const char * doublec, struct tm* tm, char * format){
 	int i, j;
 	int len;
 	time_t sec;
@@ -670,7 +670,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, int bufsize, const u
 				 if(param->service < 15) {
 					 len = (conf.stringtable)? (int)strlen((char *)conf.stringtable[SERVICES + param->service]) : 0;
 					 if(len > 20) len = 20;
-					 memcpy(buf+i, (len)?conf.stringtable[SERVICES + param->service]:(unsigned char*)"-", (len)?len:1);
+					 memcpy(buf+i, (len)?conf.stringtable[SERVICES + param->service]:(char*)"-", (len)?len:1);
 					 i += (len)?len:1;
 				 }
 				 break;
@@ -787,7 +787,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, int bufsize, const u
 	return i;
 }
 
-int dobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec){
+int dobuf(struct clientparam * param, char * buf, int bufsize, const char *s, const char * doublec){
 	struct tm* tm;
 	int i;
 	char * format;
@@ -828,7 +828,7 @@ static int stdloginit(struct LOGGER *logger){
 	return 0;
 }
 
-static int stddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s){
+static int stddobuf(struct clientparam * param, char * buf, int bufsize, const char *s){
 	return dobuf(param, buf, bufsize, s, NULL);
 }
 
@@ -1014,8 +1014,8 @@ static int sqlinit(struct LOGGER *logger){
 	return 0;
 }
 
-static int sqldobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s){
-	return dobuf(param, buf, bufsize, s, (unsigned char *)"\'");
+static int sqldobuf(struct clientparam * param, char * buf, int bufsize, const char *s){
+	return dobuf(param, buf, bufsize, s, "\'");
 }
 
 

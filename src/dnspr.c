@@ -153,12 +153,12 @@ void * dnsprchild(struct clientparam* param) {
 #endif
 	}
 
-	if(socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
+	if(socksendto(param->remsock, (struct sockaddr *)&param->sinsr, (char *)buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
 		RETURN(820);
 	}
 	param->statscli64 += i;
 	param->nwrites++;
-	len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, buf, BUFSIZE, conf.timeouts[DNS_TO]*1000);
+	len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, (char *)buf, BUFSIZE, conf.timeouts[DNS_TO]*1000);
 	if(len <= 13) {
 		RETURN(821);
 	}
@@ -174,7 +174,7 @@ void * dnsprchild(struct clientparam* param) {
 		if(len != us) RETURN(832);
 	}
 	if(buf[6] || buf[7]){
-		if(socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(param->clisock, (struct sockaddr *)&param->sincr, (char *)buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			RETURN(822);
 		}
 		RETURN(0);
@@ -185,7 +185,7 @@ void * dnsprchild(struct clientparam* param) {
 	buf[2] = 0x85;
 	buf[3] = 0x83;
  }
- res = socksendto(param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000); 
+ res = socksendto(param->clisock, (struct sockaddr *)&param->sincr, (char *)buf, len, conf.timeouts[SINGLEBYTE_L]*1000); 
  if(res != len){RETURN(819);}
  if(!ip) {RETURN(888);}
 

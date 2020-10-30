@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 PROXYFUNC tcppmfunc, proxyfunc, smtppfunc, ftpprfunc;
-static void (*pdolog)(struct clientparam * param, const unsigned char *s);
+static void (*pdolog)(struct clientparam * param, const char *s);
 
 static struct pluginlink * pl;
 
@@ -239,25 +239,25 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
  ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, &ServerCert, &errSSL);
  if ( ServerConn == NULL || ServerCert == NULL ) {
 	param->res = 8011;
-	pdolog(param, (unsigned char *)"SSL handshake to server failed");
-	if(ServerConn == NULL) 	pdolog(param, (unsigned char *)"ServerConn is NULL");
-	if(ServerCert == NULL) 	pdolog(param, (unsigned char *)"ServerCert is NULL");
-	if(errSSL)pdolog(param, (unsigned char *)errSSL);
+	pdolog(param, (char *)"SSL handshake to server failed");
+	if(ServerConn == NULL) 	pdolog(param, (char *)"ServerConn is NULL");
+	if(ServerCert == NULL) 	pdolog(param, (char *)"ServerCert is NULL");
+	if(errSSL)pdolog(param, (char *)errSSL);
 	return 1;
  }
  FakeCert = ssl_copy_cert(ServerCert);
  if ( FakeCert == NULL ) {
 	param->res = 8012;
 	_ssl_cert_free(ServerCert);
-	pdolog(param, (unsigned char *)"Failed to create certificate copy");
+	pdolog(param, (char *)"Failed to create certificate copy");
 	ssl_conn_free(ServerConn);
 	return 2;
  }
  ClientConn = ssl_handshake_to_client(param->clisock, FakeCert, &errSSL);
  if ( ClientConn == NULL ) {
 	param->res = 8012;
-	pdolog(param, (unsigned char *)"Handshake to client failed");
-	if(errSSL)pdolog(param, (unsigned char *)errSSL);
+	pdolog(param, (char *)"Handshake to client failed");
+	if(errSSL)pdolog(param, (char *)errSSL);
 	_ssl_cert_free(ServerCert);
 	_ssl_cert_free(FakeCert);
 	ssl_conn_free(ServerConn);
@@ -329,7 +329,7 @@ static struct filter ssl_filter = {
 int mitm = 0;
 int ssl_inited = 0;
 
-static int h_mitm(int argc, unsigned char **argv){
+static int h_mitm(int argc, char **argv){
 	if(!ssl_inited) {
 		ssl_init();
 		ssl_inited = 1;
@@ -342,7 +342,7 @@ static int h_mitm(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_nomitm(int argc, unsigned char **argv){
+static int h_nomitm(int argc, char **argv){
 	struct filter * sf;
 	if(!(mitm&1)) return 1;
 	if(mitm) usleep(100*SLEEPTIME);
@@ -357,7 +357,7 @@ static int h_nomitm(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_certpath(int argc, unsigned char **argv){
+static int h_certpath(int argc, char **argv){
 	size_t len;
 	len = strlen(argv[1]);
 	if(!len || (argv[1][len - 1] != '/' && argv[1][len - 1] != '\\')) return 1;

@@ -89,9 +89,6 @@ char * proxy_stringtable[] = {
 	"<body><h2>403 Access Denied</h2><h3>Access control list denies you to access this resource</body></html>\r\n",
 
 /* 12*/	"HTTP/1.0 407 Proxy Authentication Required\r\n"
-#ifndef NOCRYPT
-	"Proxy-Authenticate: NTLM\r\n"
-#endif
 	"Proxy-Authenticate: Basic realm=\"proxy\"\r\n"
 	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
@@ -99,10 +96,7 @@ char * proxy_stringtable[] = {
 	"<html><head><title>407 Proxy Authentication Required</title></head>\r\n"
 	"<body><h2>407 Proxy Authentication Required</h2><h3>Access to requested resource disallowed by administrator or you need valid username/password to use this resource</h3></body></html>\r\n",
 
-/* 13*/	"HTTP/1.0 407 Proxy Authentication Required\r\n"
-	"Connection: keep-alive\r\n"
-	"Content-Length: 0\r\n"
-	"Proxy-Authenticate: NTLM ",
+/* 13*/	"",
 
 /* 14*/	"HTTP/1.0 403 Forbidden\r\n"
 	"Connection: close\r\n"
@@ -152,11 +146,11 @@ static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
 		strcpy(se, sb);
 	}
  }
- if(param->res != 555 && param->res != 508)dolog(param, (unsigned char *)(req?buf:NULL));
+ if(param->res != 555 && param->res != 508)dolog(param, (char *)(req?buf:NULL));
 }
 
-void decodeurl(unsigned char *s, int allowcr){
- unsigned char *d = s;
+void decodeurl(char *s, int allowcr){
+ char *d = s;
  unsigned u;
 
  while(*s){
@@ -184,7 +178,7 @@ void decodeurl(unsigned char *s, int allowcr){
  *d = 0;
 }
 
-void file2url(unsigned char *sb, unsigned char *buf, unsigned bufsize, int * inbuf, int skip255){
+void file2url(char *sb, char *buf, unsigned bufsize, int * inbuf, int skip255){
  for(; *sb; sb++){
 	if((bufsize - *inbuf)<16)break;
 	if(*sb=='\r'||*sb=='\n')continue;
@@ -208,14 +202,14 @@ void file2url(unsigned char *sb, unsigned char *buf, unsigned bufsize, int * inb
 
 void * proxychild(struct clientparam* param) {
  int res=0, i=0;
- unsigned char* buf = NULL, *newbuf;
+ char* buf = NULL, *newbuf;
  int inbuf;
  int bufsize;
  unsigned reqlen = 0;
- unsigned char	*sb=NULL, *sg=NULL, *se=NULL, *sp=NULL,
+ char	*sb=NULL, *sg=NULL, *se=NULL, *sp=NULL,
 		*req=NULL, *su=NULL, *ss = NULL;
- unsigned char *ftpbase=NULL;
- unsigned char username[1024];
+ char *ftpbase=NULL;
+ char username[1024];
  int keepalive = 0;
  uint64_t contentlength64 = 0;
  int hascontent =0;
@@ -293,7 +287,7 @@ for(;;){
 	}
 	myfree(req);
  }
- req = (unsigned char *)mystrdup((char *)buf);
+ req = (char *)mystrdup((char *)buf);
  if(!req){RETURN(510);}
  if(i<10) {
 	RETURN(511);
@@ -302,7 +296,7 @@ for(;;){
  param->transparent = 0;
  if((isconnect = !strncasecmp((char *)buf, "CONNECT", 7))) keepalive = 2;
 
- if ((sb=(unsigned char *)(unsigned char *)strchr((char *)buf, ' ')) == NULL) {RETURN(512);}
+ if ((sb=(char *)(char *)strchr((char *)buf, ' ')) == NULL) {RETURN(512);}
  ss = ++sb;
  if(!isconnect) {
 	if (!strncasecmp((char *)sb, "http://", 7)) {
@@ -320,21 +314,21 @@ for(;;){
 	}
  }
  else {
-	 if ((se=(unsigned char *)(unsigned char *)strchr((char *)sb, ' ')) == NULL || sb==se) {RETURN (514);}
+	 if ((se=(char *)(char *)strchr((char *)sb, ' ')) == NULL || sb==se) {RETURN (514);}
 	 *se = 0;
  }
  if(!param->transparent || isconnect) {
 	if(!isconnect) {
-		if ((se=(unsigned char *)(unsigned char *)strchr((char *)sb, '/')) == NULL 
+		if ((se=(char *)(char *)strchr((char *)sb, '/')) == NULL 
 			|| sb==se
-			|| !(sg=(unsigned char *)strchr((char *)sb, ' '))) {RETURN (515);}
+			|| !(sg=(char *)strchr((char *)sb, ' '))) {RETURN (515);}
 		if(se > sg) se=sg;
  		*se = 0;
 	}
 	prefix = (int)(se - buf);
-	su = (unsigned char*)strrchr((char *)sb, '@');
+	su = (char*)strrchr((char *)sb, '@');
 	if(su) {
-		su = (unsigned char *)mystrdup((char *)sb);
+		su = (char *)mystrdup((char *)sb);
 		decodeurl(su, 0);
 		if(parseconnusername((char *)su, (struct clientparam *)param, 1, (unsigned short)((ftp)?21:80))) RETURN (100);
 		myfree(su);
@@ -358,7 +352,7 @@ for(;;){
 /*printf("Got: %s\n", buf+inbuf);*/
 #ifndef WITHMAIN
 	if(i > 25 && !param->srv->transparent && (!strncasecmp((char *)(buf+inbuf), "proxy-authorization", 19))){
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
@@ -369,65 +363,17 @@ for(;;){
 			i = de64(sb, username, 255);
 			if(i<=0)continue;
 			username[i] = 0;
-			sb = (unsigned char *)strchr((char *)username, ':');
+			sb = (char *)strchr((char *)username, ':');
 			if(sb){
 				*sb = 0;
 				if(param->password)myfree(param->password);
-				param->password = (unsigned char *)mystrdup((char *)sb+1);
+				param->password = (char *)mystrdup((char *)sb+1);
 				param->pwtype = 0;
 			}
 			if(param->username)myfree(param->username);
-			param->username = (unsigned char *)mystrdup((char *)username);
+			param->username = (char *)mystrdup((char *)username);
 			continue;
 		}
-#ifndef NOCRYPT
-		if(param->srv->usentlm && !strncasecmp((char *)sb, "ntlm", 4)){
-			sb+=4;
-			while(isspace(*sb))sb++;
-			i = de64(sb, username, 1023);
-			if(i<=16)continue;
-			username[i] = 0;
-			if(strncasecmp((char *)username, "NTLMSSP", 8)) continue;
-			if(username[8] == 1) {
-				while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
-					if(i> 15 && (!strncasecmp((char *)(buf), "content-length", 14))){
-						buf[i]=0;
-						sscanf((char *)buf + 15, "%"PRIu64, &contentlength64);
-					}
-				}
-				while( contentlength64 > 0 && (i = sockgetlinebuf(param, CLIENT, buf, (BUFSIZE < contentlength64)? BUFSIZE - 1:(int)contentlength64, '\n', conf.timeouts[STRING_S])) > 0){
-					if ((uint64_t)i > contentlength64) break;
-					contentlength64-=i;
-				}
-				contentlength64 = 0;
-				if(param->password)myfree(param->password);
-				param->password = myalloc(32);
-				param->pwtype = 2;
-				i = (int)strlen(proxy_stringtable[13]);
-				memcpy(buf, proxy_stringtable[13], i);
-				genchallenge(param, (char *)param->password, (char *)buf + i);
-				memcpy(buf + strlen((char *)buf), "\r\n\r\n", 5);
-				socksend(param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
-				ckeepalive = keepalive = 1;
-				goto REQUESTEND;
-			}
-			if(username[8] == 3 && param->pwtype == 2 && i>=80) {
-				unsigned offset, len;
-
-				len = username[20] + (((unsigned)username[21]) << 8);
-				offset = username[24] + (((unsigned)username[25]) << 8);
-				if(len != 24 || len + offset > (unsigned)i) continue;
-				memcpy(param->password + 8, username + offset, 24);
-				len = username[36] + (((unsigned)username[37]) << 8);
-				offset = username[40] + (((unsigned)username[41]) << 8);
-				if(len> 255 || len + offset > (unsigned)i) continue;
-				if(param->username) myfree(param->username);
-				unicode2text((char *)username+offset, (char *)username+offset, (len>>1));
-				param->username = (unsigned char *)mystrdup((char *)username+offset);
-			}
-			continue;
-		}
-#endif
 	}
 #endif
 	if(!isconnect && (
@@ -435,7 +381,7 @@ for(;;){
 			||
 			(i> 16 && (!strncasecmp((char *)(buf+inbuf), "connection:", 11)))
 			)){
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
@@ -447,16 +393,16 @@ for(;;){
 	}
 	if( i > 11 && !strncasecmp((char *)(buf+inbuf),  "Expect: 100", 11)){
 		keepalive = 1;
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[17], (int)strlen(proxy_stringtable[17]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[17], (int)strlen(proxy_stringtable[17]), conf.timeouts[STRING_S]);
 		continue;
 	}
 	if(param->transparent && i > 6 && !strncasecmp((char *)buf + inbuf, "Host:", 5)){
-		unsigned char c;
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		char c;
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		(se = (unsigned char *)strchr((char *)sb, '\r')) || (se = (unsigned char *)strchr((char *)sb, '\n'));
+		(se = (char *)strchr((char *)sb, '\r')) || (se = (char *)strchr((char *)sb, '\n'));
 		if(se) {
 			c = *se;
 			*se = 0;
@@ -466,7 +412,7 @@ for(;;){
 		}
 		newbuf = myalloc(strlen((char *)req) + strlen((char *)(buf+inbuf)) + 8);
 		if(newbuf){
-			sp = (unsigned char *)strchr((char *)req+1, '/');
+			sp = (char *)strchr((char *)req+1, '/');
 			memcpy(newbuf, req, (sp - req));
 			sprintf((char*)newbuf + (sp - req), "http://%s%s",sb,sp);
 			myfree(req);
@@ -475,7 +421,7 @@ for(;;){
 		if(se)*se = c;
 	}
 	if(ftp && i > 13 && (!strncasecmp((char *)(buf+inbuf), "authorization", 13))){
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
@@ -486,19 +432,19 @@ for(;;){
 			i = de64(sb, username, 255);
 			if(i<=0)continue;
 			username[i] = 0;
-			sb = (unsigned char *)strchr((char *)username, ':');
+			sb = (char *)strchr((char *)username, ':');
 			if(sb){
 				*sb = 0;
 				if(param->extpassword)myfree(param->extpassword);
-				param->extpassword = (unsigned char *)mystrdup((char *)sb+1);
+				param->extpassword = (char *)mystrdup((char *)sb+1);
 			}
 			if(param->extusername)myfree(param->extusername);
-			param->extusername = (unsigned char *)mystrdup((char *)username);
+			param->extusername = (char *)mystrdup((char *)username);
 			continue;
 		}
 	}
 	if(i> 15 && (!strncasecmp((char *)(buf+inbuf), "content-length", 14))){
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
@@ -573,7 +519,7 @@ for(;;){
 	ckeepalive = 1;
 	if(ftpbase) myfree(ftpbase);
 	ftpbase = NULL;
-	if(!(sp = (unsigned char *)strchr((char *)ss, ' '))){RETURN(799);}
+	if(!(sp = (char *)strchr((char *)ss, ' '))){RETURN(799);}
 	*sp = 0;
 
 	decodeurl(ss, 0);
@@ -597,10 +543,10 @@ for(;;){
 	inftpbuf = FTPBUFSIZE - (20 + inftpbuf);
 	res = ftpcd(param, ftpbase, ftpbuf, &inftpbuf);
 	if(res){
-		res = ftptype(param, (unsigned char *)"I");
+		res = ftptype(param, (char *)"I");
 		if(res)RETURN(res);
 		ftpbase[--i] = 0;
-		ftps = ftpcommand(param, param->operation == FTP_PUT? (unsigned char *)"PUT" : (unsigned char *)"RETR", ftpbase);
+		ftps = ftpcommand(param, param->operation == FTP_PUT? (char *)"PUT" : (char *)"RETR", ftpbase);
 	}
 	else {
 		if(inftpbuf){
@@ -609,12 +555,12 @@ for(;;){
 			memcpy(buf+inbuf, "<hr>", 4);
 			inbuf += 4;
 		}
-		ftps = ftpcommand(param, (unsigned char *)"LIST", NULL);
+		ftps = ftpcommand(param, (char *)"LIST", NULL);
 		mode = 1;
 	}
 	if(ftps == INVALID_SOCKET){RETURN(780);}
 	if(!mode){
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 		s = param->remsock;
 		param->remsock = ftps;
 		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
@@ -635,7 +581,7 @@ for(;;){
 		}
 			
 		param->remsock = ftps;
-		if(gotres <= 0) for(; (res = sockgetlinebuf(param, SERVER, (unsigned char *)ftpbuf, FTPBUFSIZE - 20, '\n', conf.timeouts[STRING_S])) > 0; i++){
+		if(gotres <= 0) for(; (res = sockgetlinebuf(param, SERVER, (char *)ftpbuf, FTPBUFSIZE - 20, '\n', conf.timeouts[STRING_S])) > 0; i++){
 			int isdir = 0;
 			int islink = 0;
 			int filetoken =-1;
@@ -643,9 +589,9 @@ for(;;){
 			int modetoken =-1;
 			int datetoken =-1;
 			int spaces = 1;
-			unsigned char * tokens[10];
+			char * tokens[10];
 			unsigned wordlen [10];
-			unsigned char j=0;
+			char j=0;
 			int space = 1;
 
 			ftpbuf[res] = 0;
@@ -654,7 +600,7 @@ for(;;){
 				continue;
 			}
 			if(!isnumber(*ftpbuf) && mode == 1) mode = 2;
-			for(sb=(unsigned char *)ftpbuf; *sb; sb++){
+			for(sb=(char *)ftpbuf; *sb; sb++){
 				if(!space && isspace(*sb)){
 					space = 1;
 					wordlen[j]=(unsigned)(sb-tokens[j]);
@@ -721,7 +667,7 @@ for(;;){
 			memcpy(buf+inbuf, " <A HREF=\"", 10);
 			inbuf+=10;
 			sb = NULL;
-			if(islink) sb = (unsigned char *)strstr((char *)tokens[filetoken], " -> ");
+			if(islink) sb = (char *)strstr((char *)tokens[filetoken], " -> ");
 			if(sb) sb+=4;
 
 			else sb=tokens[filetoken]; 
@@ -760,7 +706,7 @@ for(;;){
 			if((bufsize - inbuf) < LINESIZE){
 				if (bufsize > 20000){
 					if(!headsent++){
-						socksend(param->clisock, (unsigned char *)proxy_stringtable[9], (int)strlen(proxy_stringtable[9]), conf.timeouts[STRING_S]);
+						socksend(param->clisock, (char *)proxy_stringtable[9], (int)strlen(proxy_stringtable[9]), conf.timeouts[STRING_S]);
 					}
 					if((unsigned)socksend(param->clisock, buf, inbuf, conf.timeouts[STRING_S]) != inbuf){
 						RETURN(781);
@@ -791,7 +737,7 @@ for(;;){
 					"Connection: keep-alive\r\n"
 					"Content-Length: %d\r\n\r\n",
 					inbuf);
-				socksend(param->clisock, (unsigned char *)ftpbuf, (int)strlen(ftpbuf), conf.timeouts[STRING_S]);
+				socksend(param->clisock, (char *)ftpbuf, (int)strlen(ftpbuf), conf.timeouts[STRING_S]);
 			}
 			socksend(param->clisock, buf, inbuf, conf.timeouts[STRING_S]);
 			if(res){RETURN(res);}
@@ -803,7 +749,7 @@ for(;;){
  }
 
  if(isconnect && param->redirtype != R_HTTP) {
-	socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
+	socksend(param->clisock, (char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 	if(param->redirectfunc) {
 		 if(req)myfree(req);
 		 if(buf)myfree(buf);
@@ -821,7 +767,7 @@ for(;;){
  else {
 #ifdef TCP_CORK
 	int opt = 1;
-	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (char *)&opt, sizeof(int));
 #endif
 	 redirect = 1;
 	 res = (int)strlen((char *)req);
@@ -846,7 +792,7 @@ for(;;){
  else if(anonymous>1){
 		sprintf((char*)buf+strlen((char *)buf), "Via: 1.1 ");
 		gethostname((char *)(buf+strlen((char *)buf)), 256);
-		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
+		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(char *)"", conf.stringtable?conf.stringtable[3]:(char *)"");
 		if(anonymous != 2)myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 128);
 		else {
 			unsigned long tmp;
@@ -862,7 +808,7 @@ for(;;){
  }
  if(param->extusername){
 	sprintf((char*)buf + strlen((char *)buf), "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
-	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
+	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(char*)"");
 	en64(username, buf+strlen((char *)buf), (int)strlen((char *)username));
 	sprintf((char*)buf + strlen((char *)buf), "\r\n");
  }
@@ -873,7 +819,7 @@ for(;;){
 #ifdef TCP_CORK
  {
 	int opt = 0;
-	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (char *)&opt, sizeof(int));
  }
 #endif
  param->statscli64 += res;
@@ -904,7 +850,7 @@ for(;;){
 	   ||
 	    (i> 16 && !strncasecmp((char *)(buf+inbuf), "connection:", 11))
 			)){
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
@@ -919,7 +865,7 @@ for(;;){
 	}
 	else if(i > 15 && (!strncasecmp((char *)(buf+inbuf), "content-length", 14))){
 		buf[inbuf+i]=0;
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
@@ -935,7 +881,7 @@ for(;;){
 	}
 	else if(i>25 && (!strncasecmp((char *)(buf+inbuf), "transfer-encoding", 17))){
 		buf[inbuf+i]=0;
-		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		sb = (char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
@@ -1020,7 +966,7 @@ for(;;){
  if((param->chunked || contentlength64 > 0) && param->operation != HTTP_HEAD && res != 204 && res != 304) {
  	do {
 		if(param->chunked){
-			unsigned char smallbuf[32];
+			char smallbuf[32];
 			while ((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) == 2) {
 				if (socksend(param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
 					RETURN(533);
@@ -1086,41 +1032,41 @@ CLEANRET:
  if(param->res != 555 && param->res && param->clisock != INVALID_SOCKET && (param->res < 90 || param->res >=800 || param->res == 100 ||(param->res > 500 && param->res< 800))) {
 	if((param->res>=509 && param->res < 517) || param->res > 900) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2);
 	if(param->res == 10) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
 	}
 	else if (res == 700 || res == 701){
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
-		socksend(param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 100 || (param->res >10 && param->res < 20) || (param->res >701 && param->res <= 705)) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[1], (int)strlen(proxy_stringtable[1]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[1], (int)strlen(proxy_stringtable[1]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res >=20 && param->res < 30) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[6], (int)strlen(proxy_stringtable[6]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[6], (int)strlen(proxy_stringtable[6]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res >=30 && param->res < 80) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[5], (int)strlen(proxy_stringtable[5]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[5], (int)strlen(proxy_stringtable[5]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 1 || (!param->srv->needuser && param->res < 10)) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[11], (int)strlen(proxy_stringtable[11]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[11], (int)strlen(proxy_stringtable[11]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res < 10) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[param->srv->usentlm?12:7], (int)strlen(proxy_stringtable[param->srv->usentlm?12:7]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[7], (int)strlen(proxy_stringtable[7]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 999) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[4], (int)strlen(proxy_stringtable[4]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[4], (int)strlen(proxy_stringtable[4]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 519) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[3], (int)strlen(proxy_stringtable[3]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[3], (int)strlen(proxy_stringtable[3]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 517) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[15], (int)strlen(proxy_stringtable[15]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[15], (int)strlen(proxy_stringtable[15]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 780) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[10], (int)strlen(proxy_stringtable[10]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[10], (int)strlen(proxy_stringtable[10]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res >= 511 && param->res<=516){
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[0], (int)strlen(proxy_stringtable[0]), conf.timeouts[STRING_S]);
+		socksend(param->clisock, (char *)proxy_stringtable[0], (int)strlen(proxy_stringtable[0]), conf.timeouts[STRING_S]);
 	}
  } 
  logurl(param, (char *)buf, (char *)req, ftp);

@@ -16,13 +16,13 @@
 #endif
 
 
-void tohex(unsigned char *in, unsigned char *out, int len);
+void tohex(char *in, char *out, int len);
 
-static unsigned char itoa64[] =
+static char itoa64[] =
         "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 void
-_crypt_to64(unsigned char *s, unsigned long v, int n)
+_crypt_to64(char *s, unsigned long v, int n)
 {
         while (--n >= 0) {
                 *s++ = itoa64[v&0x3f];
@@ -31,9 +31,9 @@ _crypt_to64(unsigned char *s, unsigned long v, int n)
 }
 
 
-unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPassword, int ctohex)
+char * ntpwdhash (char *szHash, const char *szPassword, int ctohex)
 {
-	unsigned char szUnicodePass[513];
+	char szUnicodePass[513];
 	unsigned int nPasswordLen;
 	MD4_CTX ctx;
 	unsigned int i;
@@ -61,14 +61,14 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 }
 
 
-unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsigned char *passwd){
+char * mycrypt(const char *pw, const char *salt, char *passwd){
 
- const unsigned char *ep;
- if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
-	static unsigned char	*magic = (unsigned char *)"$1$";	
-	unsigned char  *p;
-	const unsigned char *sp;
-	unsigned char	final[MD5_SIZE];
+ const char *ep;
+ if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (char *)strchr((char *)salt+3, '$'))) {
+	static char	*magic = (char *)"$1$";	
+	char  *p;
+	const char *sp;
+	char	final[MD5_SIZE];
 	int sl,pl,i;
 	MD5_CTX	ctx,ctx1;
 	unsigned long l;
@@ -90,7 +90,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	/* Then the raw salt */
 	MD5Update(&ctx,sp,sl);
 
-	/* Then just as many unsigned characters of the MD5(pw,salt,pw) */
+	/* Then just as many characters of the MD5(pw,salt,pw) */
 	MD5Init(&ctx1);
 	MD5Update(&ctx1,pw,strlen((char *)pw));
 	MD5Update(&ctx1,sp,sl);
@@ -170,7 +170,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 
 #include <stdio.h>
 int main(int argc, char* argv[]){
-	unsigned char buf[1024];
+	char buf[1024];
 	unsigned i;
 	if(argc < 2 || argc > 3) {
 		fprintf(stderr, "usage: \n"
@@ -185,13 +185,13 @@ int main(int argc, char* argv[]){
 			return 1;
 	}
 	if(argc == 2) {
-		printf("NT:%s\n", ntpwdhash(buf, (unsigned char *)argv[1], 1));
+		printf("NT:%s\n", ntpwdhash(buf, (char *)argv[1], 1));
 	}
 	else {
 		i = (int)strlen((char *)argv[1]);
 		if (i > 64) argv[1][64] = 0;
 		sprintf((char *)buf, "$1$%s$", argv[1]);
-		printf("CR:%s\n", mycrypt((unsigned char *)argv[2], buf, buf+256));
+		printf("CR:%s\n", mycrypt(argv[2], buf, buf+256));
 	}
 	return 0;
 }

@@ -22,17 +22,17 @@ static struct auth alwaysauth;
 extern "C" {
 #endif
 
-unsigned char * conv_utf8_to_cp1251(unsigned char *s){
-	int i, j=0, n=(int)strlen((char *)s);
-	int byte2 = 0;
-	int c1, new_c1, new_c2, new_i;
+char * conv_utf8_to_cp1251(char *s){
+	unsigned i, j=0, n=(int)strlen((char *)s);
+	unsigned byte2 = 0;
+	unsigned c1, new_c1, new_c2, new_i;
 	for(i = 0; i < n; i++){
-		if(byte2 && s[i]>=128 && s[i]<=192){
+		if(byte2 && ((unsigned)s[i])>=128 && ((unsigned)s[i])<=192){
 			new_c2=(c1&3)*64+(s[i]&63);
 			new_c1=(c1>>2)&5;
 			new_i=(new_c1*256)+new_c2;
-			if(new_i == 1025) s[j++] = 168;
-			else if (new_i==1105) s[j++] = 184;
+			if(new_i == 1025) s[j++] = (char)(unsigned char)168;
+			else if (new_i==1105) s[j++] = (char)(unsigned char)184;
 			else if (new_i < (192 + 848) || new_i > (255 + 848)){
 				return s;
 			}
@@ -46,7 +46,7 @@ unsigned char * conv_utf8_to_cp1251(unsigned char *s){
 			c1 = s[i];
 			byte2 = 1;
 		}
-		else if(s[i] < 128) s[j++] = s[i];
+		else if(((unsigned)s[i]) < 128) s[j++] = s[i];
 		else return s;
 	}
 	s[j] = 0;

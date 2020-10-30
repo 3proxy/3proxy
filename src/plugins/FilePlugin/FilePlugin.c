@@ -760,7 +760,7 @@ static FILTER_ACTION fp_client(void *fo, struct clientparam * param, void** fc){
 	return CONTINUE;
 }
 
-static FILTER_ACTION fp_request(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+static FILTER_ACTION fp_request(void *fc, struct clientparam * param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	if(fc && (param->service == S_PROXY)){
 		if(FC->state) {
 			closefiles(FC);
@@ -776,7 +776,7 @@ static FILTER_ACTION fp_request(void *fc, struct clientparam * param, unsigned c
 	return CONTINUE;
 }
 
-static FILTER_ACTION fp_hcli(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+static FILTER_ACTION fp_hcli(void *fc, struct clientparam * param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	if(fc && param->service == S_SMTPP) {
 		processcallbacks(FC, FP_CALLONREQUEST, *buf_p + offset, *length_p - offset);
 		if(FC->what & FP_REJECT) return REJECT;
@@ -792,7 +792,7 @@ static FILTER_ACTION fp_hcli(void *fc, struct clientparam * param, unsigned char
 	return CONTINUE;
 }
 
-static FILTER_ACTION fp_hsrv(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+static FILTER_ACTION fp_hsrv(void *fc, struct clientparam * param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	if(fc && param->service == S_PROXY && (FC->state == GOT_HTTP_REQUEST || FC->state == GOT_HTTP_CLI_HDR || FC->state == GOT_HTTP_CLIDATA)){
 		if(FC->what & FP_SRVHEADER) initserverfile(FC);
 		FC->state = GOT_HTTP_SRV_HDR;
@@ -801,7 +801,7 @@ static FILTER_ACTION fp_hsrv(void *fc, struct clientparam * param, unsigned char
 	return CONTINUE;
 }
 
-static FILTER_ACTION fp_dcli(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+static FILTER_ACTION fp_dcli(void *fc, struct clientparam * param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	if(fc && FC->state == GOT_HTTP_REQUEST){
 		FC->state = GOT_HTTP_CLI_HDR2;
 	}	
@@ -809,7 +809,7 @@ static FILTER_ACTION fp_dcli(void *fc, struct clientparam * param, unsigned char
 }
 
 
-static FILTER_ACTION fp_dsrv(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
+static FILTER_ACTION fp_dsrv(void *fc, struct clientparam * param, char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	if(fc && (FC->state == GOT_HTTP_REQUEST || FC->state == GOT_HTTP_CLI_HDR || FC->state == GOT_HTTP_CLIDATA || FC->state == GOT_HTTP_CLIDATA || FC->state == GOT_HTTP_SRV_HDR)){
 		FC->state = GOT_HTTP_SRV_HDR2;
 	}	
@@ -846,7 +846,7 @@ static struct symbol fp_symbols[] = {
 	{NULL, "fp_stringtable", (void*) fp_stringtable}
 };
 
-static int h_cachedir(int argc, unsigned char **argv){
+static int h_cachedir(int argc, char **argv){
 	char * dirp;
 	size_t len;
 
@@ -866,7 +866,7 @@ static int h_cachedir(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_preview(int argc, unsigned char **argv){
+static int h_preview(int argc, char **argv){
 	preview = atoi(argv[1]);
 	return 0;
 }

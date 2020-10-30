@@ -150,14 +150,14 @@ int
 
 #ifndef NOIPV6
 #define SAPORT(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? &((struct sockaddr_in6 *)sa)->sin6_port : &((struct sockaddr_in *)sa)->sin_port)
-#define SAADDR(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDR(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? (char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
 #define SAADDRLEN(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
 #define SASOCK(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
 #define SASIZE(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
-#define SAISNULL(sa) (!memcmp(((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr, NULLADDR,  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4))) 
+#define SAISNULL(sa) (!memcmp(((struct sockaddr_in *)sa)->sin_family == AF_INET6? (char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr, NULLADDR,  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4))) 
 #else
 #define SAPORT(sa)  (&((struct sockaddr_in *)sa)->sin_port)
-#define SAADDR(sa)  ((unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDR(sa)  ((char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
 #define SAADDRLEN(sa) (4)
 #define SASOCK(sa) (PF_INET)
 #define SASIZE(sa) (sizeof(struct sockaddr_in))
@@ -199,7 +199,7 @@ struct LOGFUNC;
 struct LOGGER;
 typedef int (*AUTHFUNC)(struct clientparam * param);
 typedef void * (*REDIRECTFUNC)(struct clientparam * param);
-typedef unsigned long (*RESOLVFUNC)(int af, unsigned char *name, unsigned char *value);
+typedef unsigned long (*RESOLVFUNC)(int af, char *name, char *value);
 typedef unsigned (*BANDLIMFUNC)(struct clientparam * param, unsigned nbytesin, unsigned nbytesout);
 typedef void (*TRAFCOUNTFUNC)(struct clientparam * param);
 typedef void * (*EXTENDFUNC) (struct node *node);
@@ -249,7 +249,7 @@ struct portlist {
 
 struct userlist {
 	struct userlist * next;
-	unsigned char * user;
+	char * user;
 };
 
 typedef enum {
@@ -263,8 +263,8 @@ typedef enum {
 
 struct passwords {
 	struct passwords *next;
-	unsigned char * user;
-	unsigned char * password;
+	char * user;
+	char * password;
 	int pwtype;
 };
 
@@ -295,9 +295,9 @@ struct chain {
 	struct sockaddr_in addr;
 #endif
 	unsigned short weight;
-	unsigned char * exthost;
-	unsigned char * extuser;
-	unsigned char * extpass;
+	char * exthost;
+	char * extuser;
+	char * extpass;
 };
 
 struct period {
@@ -311,7 +311,7 @@ struct period {
 
 struct hostname {
 	struct hostname *next;
-	unsigned char * name;
+	char * name;
 	int matchtype;
 };
 
@@ -375,7 +375,7 @@ struct trafcount {
 struct LOGFUNC {
 	struct LOGFUNC* next;	
 	int (*init)(struct LOGGER *logger);
-	int (*dobuf)(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
+	int (*dobuf)(struct clientparam * param, char * buf, int bufsize, const char *s);
 	void (*log)(const char * buf, int len, struct LOGGER *logger);
 	void (*rotate)(struct LOGGER *logger);
 	void (*flush)(struct LOGGER *logger);
@@ -420,7 +420,7 @@ typedef enum {
 typedef	void*	 	FILTER_OPEN(void * idata, struct srvparam * param);
 typedef	FILTER_ACTION 	FILTER_CLIENT(void *fo, struct clientparam * param, void** fc);
 typedef	FILTER_ACTION	FILTER_PREDATA(void *fc, struct clientparam * param);
-typedef	FILTER_ACTION	FILTER_BUFFER(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
+typedef	FILTER_ACTION	FILTER_BUFFER(void *fc, struct clientparam * param, char ** buf_p, int * bufsize_p, int offset, int * length_p);
 typedef	void		FILTER_CLOSE(void *fo);
 
 struct filter {
@@ -487,7 +487,7 @@ struct srvparam {
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
 	FILE *stdlog;
-	unsigned char * target;
+	char * target;
 #ifdef SO_BINDTODEVICE
 	char * ibindtodevice;
 	char * obindtodevice;
@@ -497,12 +497,12 @@ struct srvparam {
 	struct ace *preacl, *acl;
 	struct auth *authfuncs;
 	struct filter *filter;
-	unsigned char * logtarget;
-	unsigned char * logformat;
-	unsigned char * nonprintable;
+	char * logtarget;
+	char * logformat;
+	char * nonprintable;
 	struct LOGGER *log;
 	unsigned short targetport;
-	unsigned char replace;
+	char replace;
 	time_t time_start;
 };
 
@@ -553,7 +553,7 @@ struct clientparam {
 		paused,
 		version;
 
-	unsigned char 	*hostname,
+	char 	*hostname,
 			*username,
 			*password,
 			*extusername,
@@ -610,7 +610,7 @@ struct extparam {
 		demon, maxchild, needreload, timetoexit, version, noforce;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
-	unsigned char **archiver;
+	char **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;
 #ifndef NOIPV6
@@ -627,12 +627,12 @@ struct extparam {
 	BANDLIMFUNC bandlimfunc;
 	TRAFCOUNTFUNC trafcountfunc;
 	void (*prelog)(struct clientparam * param);
-	unsigned char *logtarget, *logformat;
+	char *logtarget, *logformat;
 	struct filemon * fmon;
 	struct filter * filters;
 	struct auth *authfuncs;
 	char* demanddialprog;
-	unsigned char **stringtable;
+	char **stringtable;
 	time_t time;
 	unsigned logdumpsrv, logdumpcli;
 	char delimchar;
@@ -670,7 +670,7 @@ struct dictionary {
 struct commands {
 	struct commands *next;
 	char * command;
-	int (* handler)(int argc, unsigned char ** argv);
+	int (* handler)(int argc, char ** argv);
 	int minargs;
 	int maxargs;	
 };
@@ -694,11 +694,11 @@ extern struct proxydef childdef;
 
 struct child {
 	int argc;
-	unsigned char **argv;
+	char **argv;
 };
 
 struct hashentry {
-	unsigned char hash[sizeof(unsigned)*4];
+	char hash[sizeof(unsigned)*4];
 	time_t expires;
 	struct hashentry *next;
 	char value[4];
@@ -763,31 +763,31 @@ struct pluginlink {
 	struct auth *authfuncs;
 	struct commands * commandhandlers;
 	void * (*findbyname)(const char *name);
-	int (*socksend)(SOCKET sock, unsigned char * buf, int bufsize, int to);
-	int (*socksendto)(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
-	int (*sockrecvfrom)(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
+	int (*socksend)(SOCKET sock, char * buf, int bufsize, int to);
+	int (*socksendto)(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
+	int (*sockrecvfrom)(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
 	int (*sockgetcharcli)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetcharsrv)(struct clientparam * param, int timeosec, int timeousec);
-	int (*sockgetlinebuf)(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
+	int (*sockgetlinebuf)(struct clientparam * param, DIRECTION which, char * buf, int bufsize, int delim, int to);
 	int (*myinet_ntop)(int af, void *src, char *dst, socklen_t size);
-	int (*dobuf)(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec);
-	int (*dobuf2)(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
-	int (*scanaddr)(const unsigned char *s, unsigned long * ip, unsigned long * mask);
-	unsigned long (*getip46)(int family, unsigned char *name,  struct sockaddr *sa);
+	int (*dobuf)(struct clientparam * param, char * buf, int bufsize, const char *s, const char * doublec);
+	int (*dobuf2)(struct clientparam * param, char * buf, int bufsize, const char *s, const char * doublec, struct tm* tm, char * format);
+	int (*scanaddr)(const char *s, unsigned long * ip, unsigned long * mask);
+	unsigned long (*getip46)(int family, char *name,  struct sockaddr *sa);
 	int (*sockmap)(struct clientparam * param, int timeo, int usesplice);
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);
 	int (*alwaysauth)(struct clientparam * param);
 	int (*checkACL)(struct clientparam * param);
 	int (*checkpreACL)(struct clientparam * param);
-	void (*nametohash)(const unsigned char * name, unsigned char *hash);
-	unsigned (*hashindex)(const unsigned char* hash);
-	unsigned char* (*en64)(const unsigned char *in, unsigned char *out, int inlen);
-	int (*de64)(const unsigned char *in, unsigned char *out, int maxlen);
-	void (*tohex)(unsigned char *in, unsigned char *out, int len);
-	void (*fromhex)(unsigned char *in, unsigned char *out, int len);
-	void (*decodeurl)(unsigned char *s, int allowcr);
-	int (*parsestr) (unsigned char *str, unsigned char **argm, int nitems, unsigned char ** buff, int *inbuf, int *bufsize);
-	struct ace * (*make_ace) (int argc, unsigned char ** argv);
+	void (*nametohash)(const char * name, char *hash);
+	unsigned (*hashindex)(const char* hash);
+	char* (*en64)(const char *in, char *out, int inlen);
+	int (*de64)(const char *in, char *out, int maxlen);
+	void (*tohex)(char *in, char *out, int len);
+	void (*fromhex)(char *in, char *out, int len);
+	void (*decodeurl)(char *s, int allowcr);
+	int (*parsestr) (char *str, char **argm, int nitems, char ** buff, int *inbuf, int *bufsize);
+	struct ace * (*make_ace) (int argc, char ** argv);
 	void * (*mallocfunc)(size_t size);
 	void (*freefunc)(void *ptr);
 	void *(*reallocfunc)(void *ptr, size_t size);
@@ -804,11 +804,11 @@ struct pluginlink {
 	int (*parseusername)(char *username, struct clientparam *param, int extpasswd);
 	int (*parseconnusername)(char *username, struct clientparam *param, int extpasswd, unsigned short port);
 	struct sockfuncs *so;
-	unsigned char * (*dologname) (unsigned char *buf, int bufsize, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
+	char * (*dologname) (char *buf, int bufsize, char *name, const char *ext, ROTATION lt, time_t t);
 };
 
 struct counter_header {
-	unsigned char sig[4];
+	char sig[4];
 	time_t updated;
 };
 

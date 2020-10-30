@@ -9,26 +9,26 @@
 #include <stdio.h>
 #include "version.h"
 
-unsigned char * strings[] = {
-/* 00 */	(unsigned char *)"3proxy tiny proxy server " VERSION " stringtable file",
-/* 01 */	(unsigned char *)"3proxy",
-/* 02 */	(unsigned char *)"3proxy tiny proxy server",
-/* 03 */	(unsigned char *)VERSION " (" BUILDDATE ")",
-/* 04 */	(unsigned char *)"3proxy allows to share and control Internet connection and count traffic",
-/* 05 */	(unsigned char *)"SERVR",
-/* 06 */	(unsigned char *)"PROXY",
-/* 07 */	(unsigned char *)"TCPPM",
-/* 08 */	(unsigned char *)"POP3P",
-/* 09 */	(unsigned char *)"SOCK4",
-/* 10 */	(unsigned char *)"SOCK5",
-/* 11 */	(unsigned char *)"UDPPM",
-/* 12 */	(unsigned char *)"SOCKS",
-/* 13 */	(unsigned char *)"SOC45",
-/* 14 */	(unsigned char *)"ADMIN",
-/* 15 */	(unsigned char *)"DNSPR",
-/* 16 */	(unsigned char *)"FTPPR",
-/* 17 */	(unsigned char *)"SMTPP",
-/* 18 */	(unsigned char *)"ZOMBIE",
+char * strings[] = {
+/* 00 */	"3proxy tiny proxy server " VERSION " stringtable file",
+/* 01 */	"3proxy",
+/* 02 */	"3proxy tiny proxy server",
+/* 03 */	VERSION " (" BUILDDATE ")",
+/* 04 */	"3proxy allows to share and control Internet connection and count traffic",
+/* 05 */	"SERVR",
+/* 06 */	"PROXY",
+/* 07 */	"TCPPM",
+/* 08 */	"POP3P",
+/* 09 */	"SOCK4",
+/* 10 */	"SOCK5",
+/* 11 */	"UDPPM",
+/* 12 */	"SOCKS",
+/* 13 */	"SOC45",
+/* 14 */	"ADMIN",
+/* 15 */	"DNSPR",
+/* 16 */	"FTPPR",
+/* 17 */	"SMTPP",
+/* 18 */	"ZOMBIE",
 /* 19 */	NULL,
 /* 20 */	NULL,
 /* 21 */	NULL,
@@ -37,12 +37,12 @@ unsigned char * strings[] = {
 /* 24 */	NULL,
 #ifndef TPROXY_CONF
 #ifndef _WIN32
-/* 25 */	(unsigned char *)"/usr/local/etc/3proxy/3proxy.cfg",
+/* 25 */	"/usr/local/etc/3proxy/3proxy.cfg",
 #else
-/* 25 */	(unsigned char *)"3proxy.cfg",
+/* 25 */	"3proxy.cfg",
 #endif
 #else
-/* 25 */       (unsigned char *)TPROXY_CONF,
+/* 25 */       TPROXY_CONF,
 #endif
 /* 26 */	NULL,
 /* 27 */	NULL,
@@ -53,7 +53,7 @@ unsigned char * strings[] = {
 /* 32 */	NULL,
 /* 33 */	NULL,
 /* 34 */	NULL,
-/* 35 */	(unsigned char *)
+/* 35 */	
 	"<table align=\"center\" width=\"75%\"><tr><td>\n"
 	"<h3>Welcome to 3proxy Web Interface</h3>\n"
 	"Probably you've noticed interface is very ugly currently.\n"

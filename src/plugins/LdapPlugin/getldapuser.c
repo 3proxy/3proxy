@@ -27,7 +27,7 @@ main(int argc, char *argv[])
  char	*attrs[] = { NULL, NULL };
  int  	i, rc = -1;
  int    lderrno;
- unsigned char tmpbuf[1000];
+ char tmpbuf[1000];
 
  if ( argc < 6 )
   {

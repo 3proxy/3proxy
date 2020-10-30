@@ -47,7 +47,7 @@ static char hexMap[] = {
 static BIO *bio_err=NULL;
 
 
-static size_t bin2hex (const unsigned char* bin, size_t bin_length, char* str, size_t str_length) 
+static size_t bin2hex (const char* bin, size_t bin_length, char* str, size_t str_length) 
 {
 	char *p;
 	size_t i;
@@ -111,9 +111,9 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	EVP_PKEY *pk = NULL;
 	RSA *rsa = NULL;
 
-	unsigned char p1[] = "RU";
-	unsigned char p2[] = "3proxy";
-	unsigned char p3[] = "3proxy CA";
+	char p1[] = "RU";
+	char p2[] = "3proxy";
+	char p3[] = "3proxy CA";
 
 	char hash_name_sha1[sizeof(src_cert->sha1_hash)*2 + 1];
 	char cache_name[200];

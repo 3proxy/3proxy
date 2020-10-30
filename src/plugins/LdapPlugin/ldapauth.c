@@ -22,7 +22,7 @@ static struct commands ldap_trafgroup_handler;
 static struct commands ldap_attrsgroup_handler;
 static struct commands ldap_dircount_handler;
 
-static void (*dolog)(struct clientparam * param, const unsigned char *s);
+static void (*ldolog)(struct clientparam * param, const char *s);
 
 
 static char   *attrs[] = { NULL, NULL};
@@ -61,7 +61,7 @@ int savecounters(void)
  struct trafcount *tcd;
  struct counter_record wcounter;  
  FILE *f;
- unsigned char *tmpbuf,pat_file[]="%s%s.lc";
+ char *tmpbuf,pat_file[]="%s%s.lc";
 
 
  /* timetoexit !=0 - будем завершаться.*/
@@ -112,7 +112,7 @@ static int ldapfunc(struct clientparam *param)
   ld = ldap_init( ldap_serv, 389 );
   if ( ld == NULL ) 
    {
-    dolog(param,"Error ldap_init: No init lib ldap");
+    ldolog(param,"Error ldap_init: No init lib ldap");
     /*ldap_perror( ld, "Error ldap_init" ); */
     return 7; 
    }
@@ -136,7 +136,7 @@ static int ldapfunc(struct clientparam *param)
   
   if ( rc != LDAP_SUCCESS ) 
     {
-     dolog(param,"Error ldap_bind: No connect ldap catalog");
+     ldolog(param,"Error ldap_bind: No connect ldap catalog");
      ldap_unbind_s(ld);	
      return 7;
     }
@@ -147,7 +147,7 @@ static int ldapfunc(struct clientparam *param)
 
   if ( ld == NULL ) 
    {
-    dolog(param,"Error ldap_init: No init lib ldap");
+    ldolog(param,"Error ldap_init: No init lib ldap");
     /*ldap_perror( ld, "Error ldap_init" ); */
     return 7; 
    }
@@ -156,7 +156,7 @@ static int ldapfunc(struct clientparam *param)
  
    if ( rc != LDAP_SUCCESS ) 
     {
-     dolog(param, "Error ldap_bind: Not authorize in ldap\
+     ldolog(param, "Error ldap_bind: Not authorize in ldap\
      catalog,  checked option \'ldapconnect\' ");
      ldap_unbind_s(ld);
      return 7;
@@ -187,7 +187,7 @@ static int ldapfunc(struct clientparam *param)
 
 /* --------------------------------------------------------------------------
  handle command ldapserv */
-int h_ldapconnect(int argc, unsigned char ** argv)
+int h_ldapconnect(int argc, char ** argv)
 {
  LDAP		*ld = NULL;
  
@@ -216,7 +216,7 @@ int h_ldapconnect(int argc, unsigned char ** argv)
 }
 /* --------------------------------------------------------------------------
  handle command ldapaccess */
-int h_access(int argc, unsigned char ** argv)
+int h_access(int argc, char ** argv)
 {
  if (argc < 1) 
   {
@@ -229,7 +229,7 @@ int h_access(int argc, unsigned char ** argv)
 /* --------------------------------------------------------------------------
  handle command ldapsbase
  searching base */
-int h_sbase(int argc, unsigned char ** argv)
+int h_sbase(int argc, char ** argv)
 {
  if (argc < 1) 
   {
@@ -241,7 +241,7 @@ int h_sbase(int argc, unsigned char ** argv)
 }
 /* --------------------------------------------------------------------------	
  handle command ldapuserenv */
-int h_userenv(int argc, unsigned char ** argv)
+int h_userenv(int argc, char ** argv)
 {
  if (argc < 1) 
   {
@@ -253,7 +253,7 @@ int h_userenv(int argc, unsigned char ** argv)
 }
 /* --------------------------------------------------------------------------
  handle command ldaptrafgroup */
-int h_trafgroup(int argc, unsigned char ** argv)
+int h_trafgroup(int argc, char ** argv)
 {
   struct trafcount *newtrafcount;
   struct bandlim *newbandlim;
@@ -418,7 +418,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
 }
 /* --------------------------------------------------------------------------
  handle command ldapattrsgroup */
-int h_attrsgroup(int argc, unsigned char ** argv)
+int h_attrsgroup(int argc, char ** argv)
 {
  if (argc < 1) 
   {
@@ -435,7 +435,7 @@ int h_attrsgroup(int argc, unsigned char ** argv)
 }
 /* --------------------------------------------------------------------------
  handle command ldapdircount */
-int h_dircount(int argc, unsigned char ** argv)
+int h_dircount(int argc, char ** argv)
 {
  if (argc < 1) 
   {
@@ -476,7 +476,7 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink,
    }
 
 
-   dolog=pluginlink->findbyname("dolog");
+   ldolog=pluginlink->findbyname("dolog");
 
    already_loaded = 1;
     

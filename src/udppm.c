@@ -28,7 +28,7 @@ struct udpmap {
 
 
 void * udppmchild(struct clientparam* param) {
- unsigned char *buf = NULL;
+ char *buf = NULL;
  int res, i;
 #ifdef _WIN32
  SASIZETYPE size;

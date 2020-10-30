@@ -13,8 +13,8 @@
 
 void * ftpprchild(struct clientparam* param) {
  int i=0, res;
- unsigned char *buf;
- unsigned char *se;
+ char *buf;
+ char *se;
  int status = 0;
  int inbuf;
  int pasv = 0;
@@ -29,7 +29,7 @@ void * ftpprchild(struct clientparam* param) {
  param->operation = CONNECT;
  lg.l_onoff = 1;
  lg.l_linger = conf.timeouts[STRING_L];;
- if(socksend(param->ctrlsock, (unsigned char *)"220 Ready\r\n", 11, conf.timeouts[STRING_S])!=11) {RETURN (801);}
+ if(socksend(param->ctrlsock, (char *)"220 Ready\r\n", 11, conf.timeouts[STRING_S])!=11) {RETURN (801);}
  for(;;){
 	i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 10, '\n', conf.timeouts[CONNECTION_S]);
 	if(!i) {
@@ -37,7 +37,7 @@ void * ftpprchild(struct clientparam* param) {
 	}
 	if(i<4) {RETURN(802);}
 	buf[i] = 0;
-	if ((se=(unsigned char *)strchr((char *)buf, '\r'))) *se = 0;
+	if ((se=(char *)strchr((char *)buf, '\r'))) *se = 0;
 	if (req) myfree (req);
 	req = NULL;
 
@@ -50,7 +50,7 @@ void * ftpprchild(struct clientparam* param) {
 		}
 		if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
 		param->ctrlsocksrv = param->remsock;
-		if(socksend(param->ctrlsock, (unsigned char *)"220 Ready\r\n", 11, conf.timeouts[STRING_S])!=11) {RETURN (801);}
+		if(socksend(param->ctrlsock, (char *)"220 Ready\r\n", 11, conf.timeouts[STRING_S])!=11) {RETURN (801);}
 		status = 1;
 	}
 	else if (!strncasecmp((char *)buf, "USER ", 5)){
@@ -59,12 +59,12 @@ void * ftpprchild(struct clientparam* param) {
 			if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
 			param->ctrlsocksrv = param->remsock;
 		}
-		if(socksend(param->ctrlsock, (unsigned char *)"331 ok\r\n", 8, conf.timeouts[STRING_S])!=8) {RETURN (807);}
+		if(socksend(param->ctrlsock, (char *)"331 ok\r\n", 8, conf.timeouts[STRING_S])!=8) {RETURN (807);}
 		status = 2;
 
 	}
 	else if (!strncasecmp((char *)buf, "PASS ", 5)){
-		param->extpassword = (unsigned char *)mystrdup((char *)buf+5);
+		param->extpassword = (char *)mystrdup((char *)buf+5);
 		inbuf = BUFSIZE;
 		res = ftplogin(param, (char *)buf, &inbuf);
 		param->res = res;
@@ -129,16 +129,16 @@ void * ftpprchild(struct clientparam* param) {
 			if(pasv == 1){
 				if(*SAFAMILY(&param->sincl) == AF_INET)
 					sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
-					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[0]),
-					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[1]),
-					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[2]),
-					 (unsigned)(((unsigned char *)(SAADDR(&param->sincl)))[3]),
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[0]),
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[1])
+					 (unsigned)(((char *)(SAADDR(&param->sincl)))[0]),
+					 (unsigned)(((char *)(SAADDR(&param->sincl)))[1]),
+					 (unsigned)(((char *)(SAADDR(&param->sincl)))[2]),
+					 (unsigned)(((char *)(SAADDR(&param->sincl)))[3]),
+					 (unsigned)(((char *)(SAPORT(&param->sincl)))[0]),
+					 (unsigned)(((char *)(SAPORT(&param->sincl)))[1])
 					);
 				else sprintf((char *)buf, "227 OK (127,0,0,1,%u,%u)\r\n", 
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[0]),
-					 (unsigned)(((unsigned char *)(SAPORT(&param->sincl)))[1])
+					 (unsigned)(((char *)(SAPORT(&param->sincl)))[0]),
+					 (unsigned)(((char *)(SAPORT(&param->sincl)))[1])
 					);
 			}
 			else {
@@ -230,11 +230,11 @@ void * ftpprchild(struct clientparam* param) {
 			so._closesocket(clidatasock);
 			clidatasock = INVALID_SOCKET;
 			
-			if(socksend(param->ctrlsock, (unsigned char *)"550 err\r\n", 9, conf.timeouts[STRING_S])!=9) {RETURN (831);}
+			if(socksend(param->ctrlsock, (char *)"550 err\r\n", 9, conf.timeouts[STRING_S])!=9) {RETURN (831);}
 			continue;
 		}
 
-		if(socksend(param->ctrlsock, (unsigned char *)"125 data\r\n", 10, conf.timeouts[STRING_S]) != 10) {
+		if(socksend(param->ctrlsock, (char *)"125 data\r\n", 10, conf.timeouts[STRING_S]) != 10) {
 			param->remsock = INVALID_SOCKET;
 			RETURN (832);
 		}
@@ -274,7 +274,7 @@ void * ftpprchild(struct clientparam* param) {
 	}
 	else {
 		if(status < 3) {
-			if(socksend(param->remsock, (unsigned char *)"530 login\r\n", 11, conf.timeouts[STRING_S])!=1) {RETURN (810);}
+			if(socksend(param->remsock, (char *)"530 login\r\n", 11, conf.timeouts[STRING_S])!=1) {RETURN (810);}
 			continue;
 		}
 		if(!strncasecmp((char *)buf, "QUIT", 4)) status = 5;
@@ -295,7 +295,7 @@ void * ftpprchild(struct clientparam* param) {
 	sasize = sizeof(param->sincr);
 	if(so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize)){RETURN(819);}
 	if(req && (param->statscli64 || param->statssrv64)){
-		dolog(param, (unsigned char *)req);
+		dolog(param, (char *)req);
 	}
  }
 
@@ -316,7 +316,7 @@ CLEANRET:
  sasize = sizeof(param->sincr);
  so._getpeername(param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize);
  if(param->res != 0 || param->statscli64 || param->statssrv64 ){
-	dolog(param, (unsigned char *)((req && (param->res > 802))? req:NULL));
+	dolog(param, (req && (param->res > 802))? req:NULL);
  }
  if(req) myfree(req);
  if(buf) myfree(buf);
