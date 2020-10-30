@@ -1161,7 +1161,7 @@ static int h_ace(int argc, char **argv){
 					sizeof(struct counter_header) + (tl->number - 1) * sizeof(struct counter_record),
 					SEEK_SET);
 				memset(&crecord, 0, sizeof(struct counter_record));
-				read(conf.counterd, &crecord, sizeof(struct counter_record));
+				(void)read(conf.counterd, &crecord, sizeof(struct counter_record));
 				tl->traf64 = crecord.traf64;
 				tl->cleared = crecord.cleared;
 				tl->updated = crecord.updated;
@@ -1379,15 +1379,18 @@ static int h_chroot(int argc, char **argv){
 		}
 		chrootp = mystrdup((char *)argv[1]);
 	}
-	if (gid && setregid(gid,gid)) {
+	if(gid && setregid(gid,gid)) {
 		fprintf(stderr, "Unable to set gid %d", (int)gid);
 		return(4);
 	}
-	if (uid && setreuid(uid,uid)) {
+	if(uid && setreuid(uid,uid)) {
 		fprintf(stderr, "Unable to set uid %d", (int)uid);
 		return(5);
 	}
-	chdir("/");
+	if(chdir("/")){
+		fprintf(stderr, "Unable to chdir to /");
+		return(5);
+	}
 	return 0;
 }
 #endif

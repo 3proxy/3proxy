@@ -836,9 +836,13 @@ static void stdlog(const char * buf, int len, struct LOGGER *logger) {
 	FILE *log = ((struct stdlogdata *)logger->data)->fp;
 
 	fprintf(log, "%s\n", buf);
+#ifdef WITHMAIN
+	fflush(log);
+#endif
 }
 
 static void stdlogrotate(struct LOGGER *logger){
+#ifndef WITHMAIN
  char tmpbuf[1024];
  struct stdlogdata *lp = (struct stdlogdata *)logger->data;
  if(lp->fp) lp->fp = freopen((char *)dologname (tmpbuf, sizeof(tmpbuf) -1, logger->selector, NULL, logger->rotate, conf.time), "a", lp->fp);
@@ -886,9 +890,10 @@ static void stdlogrotate(struct LOGGER *logger){
 			else
 				strcat((char *)tmpbuf, (char *)conf.archiver[i]);
 		}
-		system((char *)tmpbuf+1);
+		(void)system((char *)tmpbuf+1);
 	}
  }
+#endif
 }
 
 static void stdlogflush(struct LOGGER *logger){
@@ -913,8 +918,10 @@ static void logsyslog(const char * buf, int len, struct LOGGER *logger) {
 }
 
 static void syslogrotate(struct LOGGER *logger){
+#ifndef WITHMAIN
 	closelog();
 	openlog(logger->selector+1, LOG_PID, LOG_DAEMON);
+#endif
 }
 
 static void syslogclose(struct LOGGER *logger){

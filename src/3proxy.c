@@ -202,7 +202,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 
 	cheader.updated = conf.time;
 	lseek(counterd, 0, SEEK_SET);
-	write(counterd, &cheader, sizeof(struct counter_header));			
+	(void)write(counterd, &cheader, sizeof(struct counter_header));			
 	for(tl=tlin; tl; tl = tl->next){
 		if(tl->number){
 			lseek(counterd, 
@@ -211,7 +211,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 			crecord.traf64 = tl->traf64;
 			crecord.cleared = tl->cleared;
 			crecord.updated = tl->updated;
-			write(counterd, &crecord, sizeof(struct counter_record));
+			(void)write(counterd, &crecord, sizeof(struct counter_record));
 		}
 		if(tl->type!=NEVER && timechanged(tl->cleared, conf.time, tl->type)){
 			tl->cleared = conf.time;

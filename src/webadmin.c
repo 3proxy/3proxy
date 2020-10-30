@@ -557,7 +557,7 @@ void * adminchild(struct clientparam* param) {
 			if(writable && !error){
 				fflush(writable);
 #ifndef _WINCE
-				ftruncate(fileno(writable), ftell(writable));
+				(void)ftruncate(fileno(writable), ftell(writable));
 #endif
 			}
 			printstr(&pp, error?    "<h3><font color=\"red\">Config file is not writable</font></h3>Make sure you have \"writable\" command in configuration file":
