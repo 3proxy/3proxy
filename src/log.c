@@ -57,10 +57,13 @@ void logpush(struct logevent *evt);
 #define HAVERADIUS 0
 #define HAVESQL 0
 #else
+#ifndef NORADIUS
 int raddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
 void logradius(const char * buf, int len, struct LOGGER *logger);
 #define HAVERADIUS 1
-
+#else
+#define HAVERADIUS 0
+#endif
 #ifndef NOODBC
 #define HAVESQL 1
 static int sqlinit(struct LOGGER *logger);
