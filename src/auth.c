@@ -1242,7 +1242,7 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 		memcpy((char *)buf + 13, name, len);
 		len += 13;
 		buf[len] = 0;
-		for(s2 = buf + 12; (s1 = (unsigned char *)strchr((char *)s2 + 1, '.')); s2 = s1)*s2 = ((s1 - s2) - 1);
+		for(s2 = buf + 12; (s1 = (unsigned char *)strchr((char *)s2 + 1, '.')); s2 = s1)*s2 = (unsigned char)((s1 - s2) - 1);
 		*s2 = (len - (int)(s2 - buf)) - 1;
 		len++;
 		buf[len++] = 0;
