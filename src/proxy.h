@@ -197,6 +197,7 @@ void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);
 int startconnlims (struct clientparam *param);
 void stopconnlims (struct clientparam *param);
+int timechanged (time_t oldtime, time_t newtime, ROTATION lt);
 
 
 

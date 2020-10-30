@@ -123,6 +123,12 @@ static void delayflushlogs(void){
 	struct LOGGER *log;
 	for(log = loggers; log; log=log->next){
 		if(log->logfunc && log->logfunc->flush)log->logfunc->flush(log);
+#ifndef WITHMAIN
+		if(log->rotate && log->logfunc && log->logfunc->rotate && timechanged(log->rotated, conf.time, log->rotate)){
+			log->logfunc->rotate(log);
+			log->rotated = conf.time;
+		}
+#endif
 	}
 }
 
@@ -145,6 +151,7 @@ void delayregisterlog(struct LOGGER *log){
 		if(!strncmp(log->selector, funcs->prefix, strlen(funcs->prefix))){
 			if(funcs->init && funcs->init(log)) break;
 			log->logfunc = funcs;
+			log->rotated = conf.time;
 			return;
 		}
 	}
@@ -495,10 +502,7 @@ unsigned char * dologname (unsigned char *buf,  int bufsize, unsigned char *name
 
 	ts = localtime(&t);
 	if(strchr((char *)name, '%')){
-		struct clientparam fakecli;
-
-		memset(&fakecli, 0, sizeof(fakecli));
-		dobuf2(&fakecli, buf, bufsize - strlen(ext), NULL, NULL, ts, (char *)name);
+		dobuf2(&logparam, buf, bufsize - (ext?strlen(ext):0), NULL, NULL, ts, (char *)name);
 	}
 	else switch(lt){
 		case NONE:
