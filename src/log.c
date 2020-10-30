@@ -8,25 +8,24 @@
 
 #include "proxy.h"
 pthread_mutex_t log_mutex;
-/*
 #ifdef _WIN32
 HANDLE log_sem;
 #else
 sem_t log_sem;
 #endif
-*/
-#define MAXLOG 64
-#define MAXLOGGERS 64
-#define LOGBUFSIZE 4096
+#define MAXLOG 1024
+#define EVENTSIZE (4096 - sizeof(void *))
+#define LOGBUFSIZE (EVENTSIZE - sizeof(struct logevent))
+#define MAX_SEM_COUNT 256
 
-struct logqueue {
-	int event;
-	int inbuf;
-	char buf[LOGBUFSIZE];
-} logq[MAXLOG];
+typedef enum {
+	REGISTER,
+	UNREGISTER,
+	LOG,
+	FLUSH,
+	FREEPARAM
+} EVENTTYPE;
 
-int loghead=0;
-int logtail=0;
 
 
 struct clientparam logparam;
@@ -36,18 +35,39 @@ struct LOGGER;
 
 void(*prelog)(struct clientparam * param) = NULL;
 
+
+struct logevent {
+	struct logevent *next;
+	struct LOGGER *log;
+	EVENTTYPE event;
+	int inbuf;
+	struct clientparam *param;
+	char * logstring;
+	char buf[1];
+} *logtail=NULL, *loghead=NULL;
+
+
+
+static void delayflushlogs(void);
+static void delayunregisterlog (struct LOGGER * log);
+static void delayregisterlog (struct LOGGER * log);
+static void delaydolog(struct logevent *evt);
+static void delayfreeparam(struct clientparam *param);
+
+void logpush(struct logevent *evt);
+
 #ifdef WITHMAIN
 #define HAVERADIUS 0
 #define HAVESQL 0
 #else
-int raddobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s);
+int raddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
 void logradius(const char * buf, int len, struct LOGGER *logger);
 #define HAVERADIUS 1
 
 #ifndef NOODBC
 #define HAVESQL 1
 static int sqlinit(struct LOGGER *logger);
-static int sqldobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s);
+static int sqldobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
 static void sqllog(const char * buf, int len, struct LOGGER *logger);
 static void sqlrotate(struct LOGGER *logger);
 static void sqlclose(struct LOGGER *logger);
@@ -67,24 +87,24 @@ static void syslogclose(struct LOGGER *logger);
 #endif
 
 static int stdloginit(struct LOGGER *logger);
-int stddobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s);
+int stddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s);
 static void stdlog(const char * buf, int len, struct LOGGER *logger);
 static void stdlogrotate(struct LOGGER *logger);
 static void stdlogclose(struct LOGGER *logger);
-
+static void stdlogflush(struct LOGGER *logger);
 
 
 struct LOGFUNC stdlogfuncs[] = {
 #if HAVESYSLOG > 0
-		{stdlogfuncs+1, sysloginit, stddobuf, logsyslog, syslogrotate, syslogclose, "@"},
+		{stdlogfuncs+1, sysloginit, stddobuf, logsyslog, syslogrotate, NULL, syslogclose, "@"},
 #endif
 #if HAVERADIUS > 0
-		{stdlogfuncs+1+HAVESYSLOG, NULL, raddobuf, logradius, NULL, NULL, "radius"},
+		{stdlogfuncs+1+HAVESYSLOG, NULL, raddobuf, logradius, NULL, NULL, NULL, "radius"},
 #endif
 #if HAVESQL > 0
-		{stdlogfuncs+1+HAVESYSLOG+HAVERADIUS, sqlinit, sqldobuf, sqllog, sqlrotate, sqlclose, "&"},
+		{stdlogfuncs+1+HAVESYSLOG+HAVERADIUS, sqlinit, sqldobuf, sqllog, sqlrotate, NULL, sqlclose, "&"},
 #endif
-		{NULL, stdloginit, stddobuf, stdlog, stdlogrotate, stdlogclose, ""}
+		{NULL, stdloginit, stddobuf, stdlog, stdlogrotate, stdlogflush, stdlogclose, ""}
 	     };
 
 struct LOGFUNC *logfuncs = stdlogfuncs;
@@ -93,43 +113,128 @@ struct stdlogdata{
 	FILE *fp;
 } errld;
 
-struct LOGGER errlogger = {NULL, "stderr", &errld, stdlogfuncs+1+HAVESYSLOG+HAVERADIUS+HAVESQL, 0, 0, 1};
+struct LOGGER errlogger = {NULL, NULL, "stderr", &errld, stdlogfuncs+1+HAVESYSLOG+HAVERADIUS+HAVESQL, 0, 0, 1};
 
 struct LOGGER *loggers = &errlogger;
 
-struct LOGGER * registerlog(const char * logstring, int logtype){
+
+
+static void delayflushlogs(void){
 	struct LOGGER *log;
+	for(log = loggers; log; log=log->next){
+		if(log->logfunc && log->logfunc->flush)log->logfunc->flush(log);
+	}
+}
+
+
+
+void flushlogs(void){
+	struct logevent * evt;
+	evt = malloc(sizeof(struct logevent));
+	evt->event = FLUSH;
+	logpush(evt);
+}
+
+
+void delayregisterlog(struct LOGGER *log){
 	struct LOGFUNC *funcs;
 
+
+printf("delayregisterlog %s\n", log->selector);
+fflush(stdout);
+	if(log->logfunc) return;
+	for(funcs = logfuncs; funcs; funcs=funcs->next){
+		if(!strncmp(log->selector, funcs->prefix, strlen(funcs->prefix))){
+			if(funcs->init && funcs->init(log)) break;
+			log->logfunc = funcs;
+printf("new log initialised\n");
+fflush(stdout);
+			return;
+		}
+	}
+}
+
+
+struct LOGGER * registerlog(const char * logstring, int logtype){
+	struct LOGGER *log;
+
+printf("registerlog %s\n", logstring);
+fflush(stdout);
 	if(!logstring || !strcmp(logstring, "NUL") || !strcmp(logstring, "/dev/null")) return NULL;
+	pthread_mutex_lock(&log_mutex);
 	for(log = loggers; log; log=log->next){
 		if(!strcmp(logstring, log->selector)){
 			if(logtype >= 0) log->rotate = logtype;
 			log->registered++;
+printf("log registered\n");
+fflush(stdout);
+			pthread_mutex_unlock(&log_mutex);
 			return log;
 		}
 	}
 	log = malloc(sizeof(struct LOGGER));
-	if(!log) return NULL;
+	if(!log) {
+		pthread_mutex_unlock(&log_mutex);
+		return NULL;
+	}
 	memset (log, 0, sizeof(struct LOGGER));
 	log->selector = mystrdup(logstring);
 	if(log->selector){
+		struct logevent *evt;
 		if(logtype)log->rotate = logtype;
-		for(funcs = logfuncs; funcs; funcs=funcs->next){
-			if(!strncmp(logstring, funcs->prefix, strlen(funcs->prefix))){
-				if(funcs->init && funcs->init(log)) break;
-				log->registered++;
-				return log;
-			}
-		}
-		myfree(log->selector);
+		log->registered++;
+		log->next = loggers;
+		if (log->next)log->next->prev = log;
+		loggers = log;
+		pthread_mutex_unlock(&log_mutex);
+
+		evt = malloc(sizeof(struct logevent));
+		evt->event = REGISTER;
+		evt->log = log;
+		logpush(evt);
+printf("new log registered\n");
+fflush(stdout);
+		return log;
 	}
+	pthread_mutex_unlock(&log_mutex);
 	myfree(log);
 	return NULL;
 }
 
+static void delayunregisterlog (struct LOGGER * log){
+	if(log){
+		pthread_mutex_lock(&log_mutex);
+		log->registered--;
+		if(!log->registered){
+			if(log->prev)log->prev->next = log->next;
+			else loggers = log->next;
+			if(log->next)log->next->prev = log->prev;
+			pthread_mutex_unlock(&log_mutex);
+
+			if(log->logfunc){
+				if(log->logfunc->flush) log->logfunc->flush(log);
+				if(log->logfunc->close) log->logfunc->close(log);
+			}
+			myfree(log->selector);
+			myfree(log);
+printf("log closed\n");
+fflush(stdout);
+		}
+		else pthread_mutex_unlock(&log_mutex);
+
+printf("log unregistered\n");
+fflush(stdout);
+	}
+}
+
 void unregisterlog (struct LOGGER * log){
-	if(log)log->registered--;
+	struct logevent *evt;
+
+	if(!log) return;
+	evt = malloc(sizeof(struct logevent));
+	evt->event = UNREGISTER;
+	evt->log = log;
+	logpush(evt);
 }
 
 #ifdef _WIN32
@@ -138,20 +243,102 @@ DWORD WINAPI logthreadfunc(LPVOID p) {
 void * logthreadfunc (void *p) {
 #endif
 
+printf("enter logthreadfunc\n");
+fflush(stdout);
+
+
+
+	for(;;){
+		struct logevent *evt;
+#ifdef _WIN32
+		WaitForSingleObject(log_sem, INFINITE);
+#else
+		sem_wait(&log_sem);
+#endif
+printf("got semaphore\n");
+fflush(stdout);
+
+		while(loghead){
+			pthread_mutex_lock(&log_mutex);
+			evt = loghead;
+			loghead = evt->next;
+			if(!loghead)logtail = NULL;
+			pthread_mutex_unlock(&log_mutex);
+			switch(evt->event){
+				case REGISTER:
+printf("got register\n");
+fflush(stdout);
+					delayregisterlog(evt->log);
+					break;
+				case UNREGISTER:
+printf("got unregister\n");
+fflush(stdout);
+					delayunregisterlog(evt->log);
+					break;
+				case FLUSH:
+printf("got flush\n");
+fflush(stdout);
+//					delayflushlogs();
+					break;
+				case LOG:
+printf("got log\n");
+fflush(stdout);
+					delaydolog(evt);
+					break;
+				case FREEPARAM:
+printf("got freeparam\n");
+fflush(stdout);
+					delayfreeparam(evt->param);
+					break;
+
+				default:
+					break;
+			}
+			myfree(evt);
+		}
+
+
+
+	}
+
+printf("finish logthreadfunc\n");
+fflush(stdout);
+	return 0;
+}
+
+
+
+void logpush(struct logevent *evt){
+printf("logpush\n");
+fflush(stdout);
+	pthread_mutex_lock(&log_mutex);
+	if(logtail) logtail->next = evt;
+	logtail = evt;
+	evt->next = NULL;
+	if(!loghead)loghead = evt;
+	
+	pthread_mutex_unlock(&log_mutex);
+printf("sending post\n");
+fflush(stdout);
+#ifdef _WIN32
+	ReleaseSemaphore(log_sem, 1, NULL);
+#else
+	sem_post(&log_sem);
+#endif
 }
 
 void initlog(void){
 	pthread_t thread;
 
+printf("initlog\n");
+fflush(stdout);
 	srvinit(&logsrv, &logparam);
 	pthread_mutex_init(&log_mutex, NULL);
 	errld.fp = stdout;
-/*
 #ifdef _WIN32
 	{
 		HANDLE h;
-		log_sem = CreateSemaphore(NULL, 0, MAX_SEM_COUNT, NULL);
-		sem_init(&log_sem, 0, 0);
+		if(!(log_sem = CreateSemaphore(NULL, 0, MAX_SEM_COUNT, NULL))) exit(11);
 #ifndef _WINCE
 		h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 65536, (void *)logthreadfunc, NULL, 0, &thread);
 #else
@@ -168,45 +355,167 @@ void initlog(void){
 	{
 		pthread_attr_t pa;
 		pthread_attr_init(&pa);
+
 		pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 1024*256);
 		pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 
+		if(sem_init(&log_sem, 0, 0)) exit(11);
 		if(pthread_create(&thread, &pa, logthreadfunc, (void *)newparam)) exit(10);
 	}
 #endif
-*/
+}
+
+static void delaydolog(struct logevent *evt){
+
+printf("delaylog\n");
+fflush(stdout);
+	if(!evt->log->logfunc || !evt->log->logfunc->log) return;
+	if(evt->inbuf){
+printf("havebuffer\n");
+fflush(stdout);
+		evt->log->logfunc->log(evt->buf, evt->inbuf, evt->log);
+	}
+	else if(evt->param && evt->log->logfunc->dobuf){
+		char buf[LOGBUFSIZE];
+
+printf("haveparam\n");
+fflush(stdout);
+		evt->log->logfunc->log(buf, evt->log->logfunc->dobuf(evt->param, buf, LOGBUFSIZE, evt->logstring), evt->log);
+	}
 }
 
 void dolog(struct clientparam * param, const unsigned char *s){
 	static int init = 0;
 
-/* TODO: dobuf */
-/* TODO: spooling */
+printf("dolog\n");
+fflush(stdout);
 	if(!param || !param->srv){
 		stdlog(s, strlen(s), &errlogger);
+		return;
 	}
-	else if(!param->nolog && param->srv->logtarget){
-		if(prelog)prelog(param);
-		if(param->srv->log && param->srv->log->logfunc && param->srv->log->logfunc->log){
-			char buf[LOGBUFSIZE];
-			int inbuf = 0;
+	if(prelog)prelog(param);
+	if(!param->nolog && param->srv->log) {
+		struct logevent *evt;
 
-
-/*
-	int (*dobuf)(struct clientparam * param, unsigned char * buf, const unsigned char *s);
-	int (*log)(const char * buf, int len, struct LOGGER *logger);
-*/
-			if(param->srv->log->logfunc->dobuf){
-				param->srv->log->logfunc->dobuf(param, buf, s);
+		if(!param->srv->log->logfunc) {
+			int inbuf=0, len =0;
+			
+			if(!(evt = malloc(sizeof(struct logevent) + param->hostname?strlen(param->hostname)+1:0 + s? strlen(s)+1:0 + param->username?strlen(param->username):0))) return;
+			evt->inbuf = 0;
+			evt->param=param;
+			evt->logstring = NULL;
+			if(s){
+				len = strlen(s);
+				memcpy(evt->buf,s, len);
+				inbuf+=len;
+				evt->logstring = evt->buf;
 			}
+			if(param->hostname){
+				len = strlen(param->hostname);
+				memcpy(evt->buf+inbuf,param->hostname, len);
+				param->hostname = evt->buf + inbuf;
+				inbuf+=len;
+			}
+			if(param->username){
+				len = strlen(param->username);
+				memcpy(evt->buf+inbuf,param->username, len);
+				param->username = evt->buf + inbuf;
+				inbuf+=len;
+			}
+			evt->event = LOG;
+			evt->log = param->srv->log;
+			logpush(evt);
+		}
+		else if (param->srv->log->logfunc->log){
 
-			param->srv->log->logfunc->log(buf, inbuf, param->srv->log);
+printf("havelog\n");
+fflush(stdout);
+			if(!(evt = malloc(param->srv->log->logfunc->dobuf?EVENTSIZE:sizeof(struct logevent)))) return;
+			evt->inbuf = 0;
+			evt->param = NULL;
+			evt->logstring = NULL;
+		
+			if(param->srv->log->logfunc->dobuf){
+				evt->inbuf = param->srv->log->logfunc->dobuf(param, evt->buf, LOGBUFSIZE, s);
+			}
+			evt->event = LOG;
+			evt->log = param->srv->log;
+printf("pushing event\n");
+fflush(stdout);
+			logpush(evt);
 		}
 	}
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
 	clearstat(param);
 }
 
+
+static void delayfreeparam(struct clientparam * param) {
+	if(param->res == 2) return;
+	if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
+		so._shutdown(param->ctrlsocksrv, SHUT_RDWR);
+		so._closesocket(param->ctrlsocksrv);
+	}
+	if(param->ctrlsock != INVALID_SOCKET && param->ctrlsock != param->clisock) {
+		so._shutdown(param->ctrlsock, SHUT_RDWR);
+		so._closesocket(param->ctrlsock);
+	}
+	if(param->remsock != INVALID_SOCKET) {
+		so._shutdown(param->remsock, SHUT_RDWR);
+		so._closesocket(param->remsock);
+	}
+	if(param->clisock != INVALID_SOCKET) {
+		so._shutdown(param->clisock, SHUT_RDWR);
+		so._closesocket(param->clisock);
+	}
+	myfree(param->clibuf);
+	myfree(param->srvbuf);
+	if(param->datfilterssrv) myfree(param->datfilterssrv);
+#ifndef STDMAIN
+	if(param->reqfilters) myfree(param->reqfilters);
+	if(param->hdrfilterscli) myfree(param->hdrfilterscli);
+	if(param->hdrfilterssrv) myfree(param->hdrfilterssrv);
+	if(param->predatfilters) myfree(param->predatfilters);
+	if(param->datfilterscli) myfree(param->datfilterscli);
+	if(param->filters){
+		if(param->nfilters)while(param->nfilters--){
+			if(param->filters[param->nfilters].filter->filter_clear)
+				(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
+		}
+		myfree(param->filters);
+	}
+	if(conf.connlimiter && (param->res != 95 || param->remsock != INVALID_SOCKET)) stopconnlims(param);
+#endif
+	if(param->srv){
+		pthread_mutex_lock(&param->srv->counter_mutex);
+		if(param->prev){
+			param->prev->next = param->next;
+		}
+		else
+			param->srv->child = param->next;
+		if(param->next){
+			param->next->prev = param->prev;
+		}
+		(param->srv->childcount)--;
+		if(param->srv->service == S_ZOMBIE && !param->srv->child)srvpostfree(param->srv);
+		pthread_mutex_unlock(&param->srv->counter_mutex);
+	}
+	if(param->hostname) myfree(param->hostname);
+	if(param->username) myfree(param->username);
+	if(param->password) myfree(param->password);
+	if(param->extusername) myfree(param->extusername);
+	if(param->extpassword) myfree(param->extpassword);
+	myfree(param);
+}
+
+void freeparam(struct clientparam * param) {
+	struct logevent *evt;
+
+	evt = malloc(sizeof(struct logevent));
+	evt->event = FREEPARAM;
+	evt->param = param;
+	logpush(evt);
+}
 
 void clearstat(struct clientparam * param) {
 
@@ -235,7 +544,7 @@ char months[12][4] = {
 	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 
-unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
+unsigned char * dologname (unsigned char *buf,  int bufsize, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
 	struct tm *ts;
 
 	ts = localtime(&t);
@@ -243,7 +552,7 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 		struct clientparam fakecli;
 
 		memset(&fakecli, 0, sizeof(fakecli));
-		dobuf2(&fakecli, buf, NULL, NULL, ts, (char *)name);
+		dobuf2(&fakecli, buf, bufsize - strlen(ext), NULL, NULL, ts, (char *)name);
 	}
 	else switch(lt){
 		case NONE:
@@ -279,7 +588,7 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 	return buf;
 }
 
-int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format){
+int dobuf2(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format){
 	int i, j;
 	int len;
 	time_t sec;
@@ -314,7 +623,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 
 	delay = param->time_start?((unsigned) ((sec - param->time_start))*1000 + msec) - param->msec_start : 0;
 	*buf = 0;
-	for(i=0, j=0; format[j] && i < (LOGBUFSIZE-70); j++){
+	for(i=0, j=0; format[j] && i < (bufsize-70); j++){
 		if(format[j] == '%' && format[j+1]){
 			j++;
 			switch(format[j]){
@@ -376,7 +685,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 break;
 				case 'U':
 				 if(param->username && *param->username){
-					for(len = 0; i< (LOGBUFSIZE - 3) && param->username[len]; len++){
+					for(len = 0; i< (bufsize - 3) && param->username[len]; len++){
 					 buf[i] = param->username[len];
 					 if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
 					 if(doublec && strchr((char *)doublec, buf[i])) {
@@ -392,7 +701,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 break;
 				case 'n':
 					len = param->hostname? (int)strlen((char *)param->hostname) : 0;
-					if (len > 0 && !strchr((char *)param->hostname, ':')) for(len = 0; param->hostname[len] && i < (LOGBUFSIZE-3); len++, i++){
+					if (len > 0 && !strchr((char *)param->hostname, ':')) for(len = 0; param->hostname[len] && i < (bufsize-3); len++, i++){
 						buf[i] = param->hostname[len];
 					 	if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
 						if(doublec && strchr((char *)doublec, buf[i])) {
@@ -421,7 +730,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 break;
 				case 'T':
 				 if(s){
-					for(len = 0; i < (LOGBUFSIZE-3) && s[len]; len++){
+					for(len = 0; i < (bufsize-3) && s[len]; len++){
 					 buf[i] = s[len];
 					 if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
 					 if(doublec && strchr((char *)doublec, buf[i])) {
@@ -505,7 +814,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 								while(isspace(s[len+1]))len++;
 								if(k == pmin) continue;
 							}
-							if(k>=pmin && k<=pmax && i < (LOGBUFSIZE-3)) {
+							if(k>=pmin && k<=pmax && i < (bufsize-3)) {
 								buf[i] = s[len];
 								if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
 								if(doublec && strchr((char *)doublec, buf[i])) {
@@ -528,7 +837,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 	return i;
 }
 
-int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec){
+int dobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s, const unsigned char * doublec){
 	struct tm* tm;
 	int i;
 	char * format;
@@ -539,7 +848,7 @@ int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *
 	format = param->srv->logformat?(char *)param->srv->logformat : DEFLOGFORMAT;
 	tm = (*format == 'G' || *format == 'g')?
 		gmtime(&t) : localtime(&t);
-	i = dobuf2(param, buf, s, doublec, tm, format + 1);
+	i = dobuf2(param, buf, bufsize, s, doublec, tm, format + 1);
 	return i;
 }
 
@@ -547,10 +856,13 @@ int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *
 static int stdloginit(struct LOGGER *logger){
 	char tmpbuf[1024];
 	struct stdlogdata *lp;
+
+printf("stdloginit %s\n", logger->selector);
+fflush(stdout);
 	lp = myalloc(sizeof(struct stdlogdata));
 	if(!lp) return 1;
 	logger->data = lp;
-	if(!*logger->selector || !strstr(logger->selector, "stdout")){
+	if(!*logger->selector || !strcmp(logger->selector, "stdout")){
 		logger->rotate = NONE;
 		lp->fp = stdout;
 	}
@@ -559,31 +871,38 @@ static int stdloginit(struct LOGGER *logger){
 		lp->fp = stderr;
 	}
 	else {
-		lp->fp = fopen((char *)dologname (tmpbuf, logger->selector, NULL, logger->rotate, time(NULL)), "a");
+		lp->fp = fopen((char *)dologname (tmpbuf, sizeof(tmpbuf) - 1, logger->selector, NULL, logger->rotate, time(NULL)), "a");
 		if(!lp->fp){
+printf("file not created: %s\n", tmpbuf);
 			myfree(lp);
 			return(2);
 		}
+printf("file created: %s\n", tmpbuf);
+fflush(stdout);
 	}
 	return 0;
 }
 
-static int stddobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s){
-	return dobuf(param, buf, s, NULL);
+static int stddobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s){
+printf("stddobuf\n");
+fflush(stdout);
+	return dobuf(param, buf, bufsize, s, NULL);
 }
 
 static void stdlog(const char * buf, int len, struct LOGGER *logger) {
 	FILE *log = ((struct stdlogdata *)logger->data)->fp;
 
+printf("stdlog\n");
+fflush(stdout);
 	fprintf(log, "%s\n", buf);
-	if(log == stdout || log == stderr)fflush(log);
+fflush(log);
 }
 
 static void stdlogrotate(struct LOGGER *logger){
  char tmpbuf[1024];
  struct stdlogdata *lp = (struct stdlogdata *)logger->data;
- if(lp->fp) lp->fp = freopen((char *)dologname (tmpbuf, logger->selector, NULL, logger->rotate, conf.time), "a", lp->fp);
- else lp->fp = fopen((char *)dologname (tmpbuf, logger->selector, NULL, logger->rotate, conf.time), "a");
+ if(lp->fp) lp->fp = freopen((char *)dologname (tmpbuf, sizeof(tmpbuf) -1, logger->selector, NULL, logger->rotate, conf.time), "a", lp->fp);
+ else lp->fp = fopen((char *)dologname (tmpbuf, sizeof(tmpbuf) -1, logger->selector, NULL, logger->rotate, conf.time), "a");
  logger->rotated = conf.time;
  if(logger->rotate) {
 	int t;
@@ -604,7 +923,10 @@ static void stdlogrotate(struct LOGGER *logger){
 		default:
 			break;
 	}
-	dologname (tmpbuf, logger->selector, (conf.archiver)?conf.archiver[1]:NULL, logger->rotate, (logger->rotated - t * conf.rotate));
+/*
+	FIXME: move archiver to thread
+*/
+	dologname (tmpbuf, sizeof(tmpbuf) -1, logger->selector, (conf.archiver)?conf.archiver[1]:NULL, logger->rotate, (logger->rotated - t * conf.rotate));
 	remove ((char *) tmpbuf);
 	if(conf.archiver) {
 		int i;
@@ -613,12 +935,12 @@ static void stdlogrotate(struct LOGGER *logger){
 			strcat((char *)tmpbuf, " ");
 			if(!strcmp((char *)conf.archiver[i], "%A")){
 				strcat((char *)tmpbuf, "\"");
-				dologname (tmpbuf + strlen((char *)tmpbuf), logger->selector, conf.archiver[1], logger->rotate, (logger->rotated - t));
+				dologname (tmpbuf + strlen((char *)tmpbuf), sizeof(tmpbuf) - (strlen((char *)tmpbuf) + 1), logger->selector, conf.archiver[1], logger->rotate, (logger->rotated - t));
 				strcat((char *)tmpbuf, "\"");
 			}
 			else if(!strcmp((char *)conf.archiver[i], "%F")){
 				strcat((char *)tmpbuf, "\"");
-				dologname (tmpbuf+strlen((char *)tmpbuf), logger->selector, NULL, logger->rotate, (logger->rotated-t));
+				dologname (tmpbuf+strlen((char *)tmpbuf), sizeof(tmpbuf) - (strlen((char *)tmpbuf) + 1), logger->selector, NULL, logger->rotate, (logger->rotated-t));
 				strcat((char *)tmpbuf, "\"");
 			}
 			else
@@ -629,9 +951,14 @@ static void stdlogrotate(struct LOGGER *logger){
  }
 }
 
+static void stdlogflush(struct LOGGER *logger){
+	fflush(((struct stdlogdata *)logger->data)->fp);
+}
+
 static void stdlogclose(struct LOGGER *logger){
-	fclose(((struct stdlogdata *)logger->data)->fp);
-	myfree(((struct stdlogdata *)logger->data)->fp);
+	if(((struct stdlogdata *)logger->data)->fp != stdout && ((struct stdlogdata *)logger->data)->fp != stderr)
+		fclose(((struct stdlogdata *)logger->data)->fp);
+	myfree(logger->data);
 }
 
 #if HAVESYSLOG > 0
@@ -748,8 +1075,8 @@ static int sqlinit(struct LOGGER *logger){
 	return 0;
 }
 
-static int sqldobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s){
-	return dobuf(param, buf, s, (unsigned char *)"\'");
+static int sqldobuf(struct clientparam * param, unsigned char * buf, int bufsize, const unsigned char *s){
+	return dobuf(param, buf, bufsize, s, (unsigned char *)"\'");
 }
 
 

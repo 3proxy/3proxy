@@ -522,7 +522,6 @@ unsigned long getip(unsigned char *name){
 	}
 	if((tmpresolv=resolvfunc)){
 		if((*tmpresolv)(AF_INET, name, (unsigned char *)&retval)) return retval;
-		if(conf.demanddialprog) system(conf.demanddialprog);
 		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
 	}
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)

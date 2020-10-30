@@ -189,7 +189,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 	if(cheader.updated && conf.countertype && timechanged(cheader.updated, conf.time, conf.countertype)){
 		FILE * cfp;
 				
-		cfp = fopen((char *)dologname(tmpbuf, (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
+		cfp = fopen((char *)dologname(tmpbuf, sizeof(tmpbuf), (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
 				if(tl->type >= conf.countertype)
@@ -229,6 +229,7 @@ void cyclestep(void){
  for(;;){
 	usleep(SLEEPTIME*999);
 	
+//	flushlogs();
 	conf.time = time(0);
 	if(conf.needreload) {
 		doschedule();
