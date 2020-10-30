@@ -26,7 +26,7 @@ typedef enum {
 	FREEPARAM
 } EVENTTYPE;
 
-
+static int loginit = 0;
 
 struct clientparam logparam;
 struct srvparam logsrv;
@@ -50,6 +50,8 @@ static void delayunregisterlog (struct LOGGER * log);
 static void delayregisterlog (struct LOGGER * log);
 static void delaydolog(struct logevent *evt);
 static void delayfreeparam(struct clientparam *param);
+
+static void initlog2(void);
 
 void logpush(struct logevent *evt);
 
@@ -163,6 +165,10 @@ struct LOGGER * registerlog(const char * logstring, int logtype){
 
 	if(!logstring || !strcmp(logstring, "NUL") || !strcmp(logstring, "/dev/null")) return NULL;
 	pthread_mutex_lock(&log_mutex);
+	if(!loginit){
+		initlog2();
+		loginit = 1;
+	}
 	for(log = loggers; log; log=log->next){
 		if(!strcmp(logstring, log->selector)){
 			if(logtype >= 0) log->rotate = logtype;
@@ -297,40 +303,39 @@ void logpush(struct logevent *evt){
 #endif
 }
 
-void initlog(void){
+static void initlog2(void){
 	pthread_t thread;
 
+#ifdef _WIN32
+	HANDLE h;
+	if(!(log_sem = CreateSemaphore(NULL, 0, MAX_SEM_COUNT, NULL))) exit(11);
+#ifndef _WINCE
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 65536, (void *)logthreadfunc, NULL, 0, &thread);
+#else
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 65536, (void *)logthreadfunc, NULL, 0, &thread);
+#endif
+	if (h) {
+		CloseHandle(h);
+	}
+	else {
+		exit(10);
+	}
+#else
+	pthread_attr_t pa;
+	pthread_attr_init(&pa);
+
+	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 1024*256);
+	pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
+
+	if(sem_init(&log_sem, 0, 0)) exit(11);
+	if(pthread_create(&thread, &pa, logthreadfunc, NULL)) exit(10);
+#endif
+}
+
+void initlog(void){
 	srvinit(&logsrv, &logparam);
 	pthread_mutex_init(&log_mutex, NULL);
 	errld.fp = stdout;
-#ifdef _WIN32
-	{
-		HANDLE h;
-		if(!(log_sem = CreateSemaphore(NULL, 0, MAX_SEM_COUNT, NULL))) exit(11);
-#ifndef _WINCE
-		h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 65536, (void *)logthreadfunc, NULL, 0, &thread);
-#else
-		h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 65536, (void *)logthreadfunc, NULL, 0, &thread);
-#endif
-		if (h) {
-			CloseHandle(h);
-		}
-		else {
-			exit(10);
-		}
-	}
-#else
-	{
-		pthread_attr_t pa;
-		pthread_attr_init(&pa);
-
-		pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + 1024*256);
-		pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
-
-		if(sem_init(&log_sem, 0, 0)) exit(11);
-		if(pthread_create(&thread, &pa, logthreadfunc, NULL)) exit(10);
-	}
-#endif
 }
 
 static void delaydolog(struct logevent *evt){
