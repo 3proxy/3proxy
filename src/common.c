@@ -123,6 +123,7 @@ struct extparam conf = {
 	doconnect, /* AUTHFUNC authfunc; */
 	NULL, /* BANDLIMFUNC bandlimfunc; */
 	NULL, /* TRAFCOUNTFUNC trafcountfunc; */
+	NULL, /* void (*prelog)(struct clientparam * param); */
 	NULL, NULL, /* unsigned char *logtarget, *logformat; */
 	NULL, /* struct filemon * fmon; */
 	NULL, /* struct filter * filters; */

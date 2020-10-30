@@ -33,9 +33,6 @@ struct srvparam logsrv;
 
 struct LOGGER;
 
-void(*prelog)(struct clientparam * param) = NULL;
-
-
 struct logevent {
 	struct logevent *next;
 	struct LOGGER *log;
@@ -353,7 +350,7 @@ void dolog(struct clientparam * param, const unsigned char *s){
 		stdlog(s, strlen(s), &errlogger);
 		return;
 	}
-	if(prelog)prelog(param);
+	if(conf.prelog)conf.prelog(param);
 	if(!param->nolog && param->srv->log) {
 		struct logevent *evt;
 

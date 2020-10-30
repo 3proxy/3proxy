@@ -626,6 +626,7 @@ struct extparam {
 	AUTHFUNC authfunc;
 	BANDLIMFUNC bandlimfunc;
 	TRAFCOUNTFUNC trafcountfunc;
+	void (*prelog)(struct clientparam * param);
 	unsigned char *logtarget, *logformat;
 	struct filemon * fmon;
 	struct filter * filters;
