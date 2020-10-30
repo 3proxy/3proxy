@@ -194,7 +194,7 @@ static int calc_replydigest(char *packet, char *original, const char *secret, in
 
 	memcpy(calc_vector, packet + 4, AUTH_VECTOR_LEN);
 	memcpy(packet + 4, original, AUTH_VECTOR_LEN);
-	secretlen = strlen(secret);
+	secretlen = (int)strlen(secret);
 	memcpy(packet + len, secret, secretlen);
 	md5_calc(calc_digest, (u_char *)packet, len + secretlen);
 
@@ -212,7 +212,7 @@ static int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char
 	int	i, n, secretlen;
 	int	len;
 
-	len = strlen(passwd);
+	len = (int)strlen(passwd);
 	if (len > 128) len = 128;
 	*pwlen = len;
 	if (len % AUTH_PASS_LEN != 0) {
@@ -222,7 +222,7 @@ static int rad_pwencode(char *passwd, int *pwlen, const char *secret, const char
 		len = *pwlen = i;
 	}
 
-	secretlen = strlen(secret);
+	secretlen = (int)strlen(secret);
 	memcpy(buffer, secret, secretlen);
 	memcpy(buffer + secretlen, vector, AUTH_VECTOR_LEN);
 	md5_calc((u_char *)digest, buffer, secretlen + AUTH_VECTOR_LEN);
@@ -325,7 +325,7 @@ static int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, i
 
 	/* Acct-Session-Id */
 	sprintf(buf, "%u.%u.%u", (unsigned)param->time_start, (unsigned)param->msec_start, (unsigned)param->threadid);
-        len = strlen(buf);
+        len = (int)strlen(buf);
 	*ptr++ =  PW_ACCT_SESSION_ID;
 	*ptr++ = 2+len;
 	memcpy(ptr, buf, len);
@@ -365,7 +365,7 @@ static int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, i
 	/* NAS-Identifier */
 	if(conf.stringtable){
 		*ptr++ = PW_NAS_IDENTIFIER;
-		len = strlen(conf.stringtable[SERVICES+param->service]);
+		len = (int)strlen(conf.stringtable[SERVICES+param->service]);
 		*ptr++ = (2 + len);
 		memcpy(ptr, conf.stringtable[SERVICES+param->service], len);
 		ptr += len;
@@ -390,7 +390,7 @@ static int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, i
 	/* Called-Station-ID */
 	if(param->hostname){
 		*ptr++ = PW_CALLED_STATION_ID;
-		len = strlen(param->hostname);
+		len = (int)strlen(param->hostname);
 		*ptr++ = (2 + len);
 		memcpy(ptr, param->hostname, len);
 		ptr += len;
@@ -432,7 +432,7 @@ static int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, i
 
 	/* Username */
 	if(param->username){
-	    len = strlen(param->username);
+	    len = (int)strlen(param->username);
 	    if(len>128)len=128;
 	    *ptr++ = PW_USER_NAME;
 	    *ptr++ = len + 2;
@@ -475,7 +475,7 @@ static int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, i
 	}
 	
 	if(auth && param->password){
-    	    len = strlen(param->password);
+    	    len = (int)strlen(param->password);
 	    if(len > 128) len = 128;
 	    *ptr++ = PW_PASSWORD;
 	    ptr++;
@@ -493,7 +493,7 @@ static int radbuf(struct clientparam * param, unsigned char * inbuf, int auth, i
 	packet.length = htons(total_length);
 	
 	if(!auth){
-		len = strlen(radiussecret);
+		len = (int)strlen(radiussecret);
 		memcpy(ptr,radiussecret,len);
 		md5_calc(packet.vector, (u_char *)&packet, total_length + len);
 	}

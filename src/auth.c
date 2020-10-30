@@ -10,7 +10,7 @@
 
 
 int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr, char * hostname){
-	unsigned char *buf;
+	char *buf;
 	char *username;
 	int res;
 	int len=0;
@@ -393,8 +393,8 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 					break;
 
 					case 2:
-					lname = strlen((char *)hstentry->name);
-					lhost = strlen((char *)param->hostname);
+					lname = (int)strlen((char *)hstentry->name);
+					lhost = (int)strlen((char *)param->hostname);
 					if(lhost > lname){
 						if(!strncasecmp((char *)param->hostname + (lhost - lname),
 							(char *)hstentry->name,
@@ -1170,7 +1170,7 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 	for(i=0; i<n; i++){
 		unsigned short nq, na;
 		char b[4098], *s1, *s2;
-		unsigned char *buf;
+		char *buf;
 		int j, k, len, flen;
 		SOCKET sock;
 		unsigned ttl;
@@ -1184,7 +1184,7 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 		int usetcp = 0;
 		unsigned short serial = 1;
 
-		buf = (unsigned char*)b+2;
+		buf = b+2;
 
 		sinsl = (param && !makeauth)? &param->sinsl : &addr;
 		sinsr = (param && !makeauth)? &param->sinsr : &addr;
@@ -1221,11 +1221,11 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 #ifdef TCP_NODELAY
 			{
 				int opt = 1;
-				setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *)&opt, sizeof(opt));
+				setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void *)&opt, sizeof(opt));
 			}
 #endif
 		}
-		len = (int)strlen((char *)name);
+		len = (int)strlen(name);
 		
 		serial = myrand(name,len);
 		*(unsigned short*)buf = serial; /* query id */
@@ -1242,7 +1242,7 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 		memcpy(buf + 13, name, len);
 		len += 13;
 		buf[len] = 0;
-		for(s2 = buf + 12; (s1 = (char *)strchr((char *)s2 + 1, '.')); s2 = s1)*s2 = (char)((s1 - s2) - 1);
+		for(s2 = buf + 12; (s1 = strchr(s2 + 1, '.')); s2 = s1)*s2 = (char)(unsigned char)((s1 - s2) - 1);
 		*s2 = (len - (int)(s2 - buf)) - 1;
 		len++;
 		buf[len++] = 0;

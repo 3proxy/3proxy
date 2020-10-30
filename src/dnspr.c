@@ -27,7 +27,7 @@ void * dnsprchild(struct clientparam* param) {
  int len;
  unsigned type=0;
  unsigned ttl;
- unsigned char addr[16];
+ char addr[16];
 #ifdef _WIN32
 	unsigned long ul = 1;
 #endif
@@ -83,7 +83,7 @@ void * dnsprchild(struct clientparam* param) {
 
  type = ((unsigned)buf[len+1])*256 + (unsigned)buf[len+2];
  if((type==0x01 || type==0x1c) && !param->srv->singlepacket){
- 	ip = udpresolve((type==0x1c)?AF_INET6:AF_INET, (unsigned char *)host, addr, &ttl, param, 0);
+ 	ip = udpresolve((type==0x1c)?AF_INET6:AF_INET, host, addr, &ttl, param, 0);
  }
 
  len+=5;
@@ -170,7 +170,7 @@ void * dnsprchild(struct clientparam* param) {
 		if(us > 4096) RETURN(833);
 		buf += 2;
 		len -= 2;
-		if(len < us) len += sockgetlinebuf(param, SERVER, buf+len, us - len, 0, conf.timeouts[SINGLEBYTE_L]);
+		if(len < us) len += sockgetlinebuf(param, SERVER, (char *)buf+len, us - len, 0, conf.timeouts[SINGLEBYTE_L]);
 		if(len != us) RETURN(832);
 	}
 	if(buf[6] || buf[7]){
@@ -198,7 +198,7 @@ CLEANRET:
 	if((ip && type == 0x01) || type == 0x1c){
 		myinet_ntop(type == 0x01? AF_INET:AF_INET6, addr, (char *)buf+strlen((char *)buf), 64);
 	}
-	dolog(param, buf);
+	dolog(param, (char *)buf);
  }
  if(bbuf)myfree(bbuf);
  if(host)myfree(host);

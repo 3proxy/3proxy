@@ -42,7 +42,7 @@ char * ntpwdhash (char *szHash, const char *szPassword, int ctohex)
 	 *	NT passwords are unicode.  Convert plain text password
 	 *	to unicode by inserting a zero every other byte
 	 */
-	nPasswordLen = (int)strlen((char *)szPassword);
+	nPasswordLen = (int)strlen(szPassword);
 	if(nPasswordLen > 255)nPasswordLen = 255;
 	for (i = 0; i < nPasswordLen; i++) {
 		szUnicodePass[i << 1] = szPassword[i];
@@ -51,8 +51,8 @@ char * ntpwdhash (char *szHash, const char *szPassword, int ctohex)
 
 	/* Encrypt Unicode password to a 16-byte MD4 hash */
 	MD4Init(&ctx);
-	MD4Update(&ctx, szUnicodePass, (nPasswordLen<<1));
-	MD4Final(szUnicodePass, &ctx);
+	MD4Update(&ctx, (unsigned char*)szUnicodePass, (nPasswordLen<<1));
+	MD4Final((unsigned char*)szUnicodePass, &ctx);
 	if (ctohex){
 		tohex(szUnicodePass, szHash, 16);
 	}
@@ -64,8 +64,8 @@ char * ntpwdhash (char *szHash, const char *szPassword, int ctohex)
 char * mycrypt(const char *pw, const char *salt, char *passwd){
 
  const char *ep;
- if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (char *)strchr((char *)salt+3, '$'))) {
-	static char	*magic = (char *)"$1$";	
+ if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = strchr(salt+3, '$'))) {
+	static char	*magic = "$1$";	
 	char  *p;
 	const char *sp;
 	char	final[MD5_SIZE];
@@ -82,39 +82,39 @@ char * mycrypt(const char *pw, const char *salt, char *passwd){
 	MD5Init(&ctx);
 
 	/* The password first, since that is what is most unknown */
-	MD5Update(&ctx,pw,strlen((char *)pw));
+	MD5Update(&ctx,(unsigned char*)pw,strlen(pw));
 
 	/* Then our magic string */
-	MD5Update(&ctx,magic,strlen((char *)magic));
+	MD5Update(&ctx,(unsigned char*)magic,strlen(magic));
 
 	/* Then the raw salt */
-	MD5Update(&ctx,sp,sl);
+	MD5Update(&ctx,(unsigned char*)sp,sl);
 
 	/* Then just as many characters of the MD5(pw,salt,pw) */
 	MD5Init(&ctx1);
-	MD5Update(&ctx1,pw,strlen((char *)pw));
-	MD5Update(&ctx1,sp,sl);
-	MD5Update(&ctx1,pw,strlen((char *)pw));
-	MD5Final(final,&ctx1);
-	for(pl = (int)strlen((char *)pw); pl > 0; pl -= MD5_SIZE)
-		MD5Update(&ctx,final,pl>MD5_SIZE ? MD5_SIZE : pl);
+	MD5Update(&ctx1,(unsigned char*)pw,strlen(pw));
+	MD5Update(&ctx1,(unsigned char*)sp,sl);
+	MD5Update(&ctx1,(unsigned char*)pw,strlen(pw));
+	MD5Final((unsigned char*)final,&ctx1);
+	for(pl = (int)strlen(pw); pl > 0; pl -= MD5_SIZE)
+		MD5Update(&ctx,(unsigned char*)final,pl>MD5_SIZE ? MD5_SIZE : pl);
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final,0,sizeof final);
 
 	/* Then something really weird... */
-	for (i = (int)strlen((char *)pw); i ; i >>= 1)
+	for (i = (int)strlen(pw); i ; i >>= 1)
 		if(i&1)
-		    MD5Update(&ctx, final, 1);
+		    MD5Update(&ctx, (unsigned char*)final, 1);
 		else
-		    MD5Update(&ctx, pw, 1);
+		    MD5Update(&ctx, (unsigned char*)pw, 1);
 
 	/* Now make the output string */
-	strcpy((char *)passwd,(char *)magic);
-	strncat((char *)passwd,(char *)sp,sl);
-	strcat((char *)passwd,"$");
+	strcpy(passwd,magic);
+	strncat(passwd,sp,sl);
+	strcat(passwd,"$");
 
-	MD5Final(final,&ctx);
+	MD5Final((unsigned char*)final,&ctx);
 
 	/*
 	 * and now, just to make sure things don't run too fast
@@ -124,24 +124,24 @@ char * mycrypt(const char *pw, const char *salt, char *passwd){
 	for(i=0;i<1000;i++) {
 		MD5Init(&ctx1);
 		if(i & 1)
-			MD5Update(&ctx1,pw,strlen((char *)pw));
+			MD5Update(&ctx1,(unsigned char*)pw,strlen(pw));
 		else
-			MD5Update(&ctx1,final,MD5_SIZE);
+			MD5Update(&ctx1,(unsigned char*)final,MD5_SIZE);
 
 		if(i % 3)
-			MD5Update(&ctx1,sp,sl);
+			MD5Update(&ctx1,(unsigned char*)sp,sl);
 
 		if(i % 7)
-			MD5Update(&ctx1,pw,strlen((char *)pw));
+			MD5Update(&ctx1,(unsigned char*)pw,strlen(pw));
 
 		if(i & 1)
-			MD5Update(&ctx1,final,MD5_SIZE);
+			MD5Update(&ctx1,(unsigned char*)final,MD5_SIZE);
 		else
-			MD5Update(&ctx1,pw,strlen((char *)pw));
-		MD5Final(final,&ctx1);
+			MD5Update(&ctx1,(unsigned char*)pw,strlen(pw));
+		MD5Final((unsigned char*)final,&ctx1);
 	}
 
-	p = passwd + strlen((char *)passwd);
+	p = passwd + strlen(passwd);
 
 	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
 	_crypt_to64(p,l,4); p += 4;
@@ -185,12 +185,12 @@ int main(int argc, char* argv[]){
 			return 1;
 	}
 	if(argc == 2) {
-		printf("NT:%s\n", ntpwdhash(buf, (char *)argv[1], 1));
+		printf("NT:%s\n", ntpwdhash(buf, argv[1], 1));
 	}
 	else {
-		i = (int)strlen((char *)argv[1]);
+		i = (int)strlen(argv[1]);
 		if (i > 64) argv[1][64] = 0;
-		sprintf((char *)buf, "$1$%s$", argv[1]);
+		sprintf(buf, "$1$%s$", argv[1]);
 		printf("CR:%s\n", mycrypt(argv[2], buf, buf+256));
 	}
 	return 0;

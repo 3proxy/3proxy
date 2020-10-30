@@ -77,7 +77,7 @@ static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
 	buf[1] = 0;
 	inet_ntop(*SAFAMILY(node->value), SAADDR(node->value), buf+1, sizeof(buf)-10);
 	sprintf(buf + strlen(buf), "]:%hu", (unsigned short)*SAPORT(node->value));
-	if(node->value)(*cbf)(cb, buf, strlen(buf));
+	if(node->value)(*cbf)(cb, buf, (int)strlen(buf));
 #endif
 }
 

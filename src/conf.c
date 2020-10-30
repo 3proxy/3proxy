@@ -701,7 +701,7 @@ int scanipl(char *arg, struct iplist *dst){
 
 			for(i = addrlen; i>(nbytes + (nbits > 0)); i--){
 				((char *)&dst->ip_from)[i-1] = 0x00;
-				((char *)&dst->ip_to)[i-1] = 0xff;
+				((char *)&dst->ip_to)[i-1] = (char)(unsigned char)0xff;
 			}
 			for(;nbits;nbits--){
 				((char *)&dst->ip_from)[nbytes] &= ~(0x01<<(nbits-1));

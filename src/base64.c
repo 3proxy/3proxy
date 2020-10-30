@@ -10,7 +10,7 @@
 static const char base64digits[] =
    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-#define BAD 255
+#define BAD -1
 static const char base64val[] = {
     BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD,
     BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD, BAD,BAD,BAD,BAD,
@@ -23,7 +23,7 @@ static const char base64val[] = {
 };
 #define DECODE64(c)  ((c > 32 && c<127)? base64val[(int)c] : BAD)
 
-unsigned char* en64 (const char *in, char *out, int inlen)
+char* en64 (const char *in, char *out, int inlen)
 {
     for (; inlen > 0; inlen -= 3, in+=3)
     {
@@ -40,7 +40,7 @@ unsigned char* en64 (const char *in, char *out, int inlen)
 int de64 (const char *in, char *out, int maxlen)
 {
     int len = 0;
-    register unsigned char digit1, digit2, digit3, digit4;
+    register char digit1, digit2, digit3, digit4;
 
     if (in[0] == '+' && in[1] == ' ')
 	in += 2;

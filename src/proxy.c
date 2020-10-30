@@ -159,7 +159,7 @@ void decodeurl(char *s, int allowcr){
 		if(allowcr && u != '\r')*d++ = u;
 		else if (u != '\r' && u != '\n') {
 			if (u == '\"' || u == '\\') *d++ = '\\';
-			else if (u == 255) *d++ = 255;
+			else if (u == 255) *d++ = (char)(unsigned char)255;
 			*d++ = u;
 		}
 		s+=3;
@@ -187,7 +187,7 @@ void file2url(char *sb, char *buf, unsigned bufsize, int * inbuf, int skip255){
 		memcpy(buf+*inbuf, "%5C%22", 6);
 		(*inbuf)+=6;
 	}
-	else if(skip255 && *sb == 255 && *(sb+1) == 255) {
+	else if(skip255 && *sb == (char)(unsigned char)255 && *(sb+1) == (char)(unsigned char)255) {
 		memcpy(buf+*inbuf, "%ff", 3);
 		(*inbuf)+=3;
 		sb++;
@@ -780,7 +780,7 @@ for(;;){
  inbuf = 0;
 #ifndef ANONYMOUS
  if(!anonymous){
-		int len = strlen((char *)buf);
+		int len = (int)strlen((char *)buf);
 		len += sprintf((char*)buf + len, "Forwarded: for=");
 		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "\"[");
 		len += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + len, 128);

@@ -350,7 +350,7 @@ void dolog(struct clientparam * param, const char *s){
 	static int init = 0;
 
 	if(!param || !param->srv){
-		stdlog(s, strlen(s), &errlogger);
+		stdlog(s, (int)strlen(s), &errlogger);
 		return;
 	}
 	if(conf.prelog)conf.prelog(param);
@@ -360,9 +360,9 @@ void dolog(struct clientparam * param, const char *s){
 		if(!param->srv->log->logfunc) {
 			int slen =0, hlen=0, ulen=0;
 			
-			slen = s?strlen(s)+1 : 0;
-			hlen = param->hostname? strlen(param->hostname)+1 : 0;
-			ulen = param->username? strlen(param->username)+1 : 0;
+			slen = s?(int)strlen(s)+1 : 0;
+			hlen = param->hostname? (int)strlen(param->hostname)+1 : 0;
+			ulen = param->username? (int)strlen(param->username)+1 : 0;
 			if(!(evt = malloc(sizeof(struct logevent) + slen + ulen + hlen))) return;
 			evt->inbuf = 0;
 			evt->param=param;
@@ -502,7 +502,7 @@ char * dologname (char *buf,  int bufsize, char *name, const char *ext, ROTATION
 
 	ts = localtime(&t);
 	if(strchr((char *)name, '%')){
-		dobuf2(&logparam, buf, bufsize - (ext?strlen(ext):0), NULL, NULL, ts, (char *)name);
+		dobuf2(&logparam, buf, bufsize - (ext?(int)strlen(ext):0), NULL, NULL, ts, (char *)name);
 	}
 	else switch(lt){
 		case NONE:
@@ -875,12 +875,12 @@ static void stdlogrotate(struct LOGGER *logger){
 			strcat((char *)tmpbuf, " ");
 			if(!strcmp((char *)conf.archiver[i], "%A")){
 				strcat((char *)tmpbuf, "\"");
-				dologname (tmpbuf + strlen((char *)tmpbuf), sizeof(tmpbuf) - (strlen((char *)tmpbuf) + 1), logger->selector, conf.archiver[1], logger->rotate, (logger->rotated - t));
+				dologname (tmpbuf + strlen((char *)tmpbuf), (int)(sizeof(tmpbuf) - (strlen((char *)tmpbuf) + 1)), logger->selector, conf.archiver[1], logger->rotate, (logger->rotated - t));
 				strcat((char *)tmpbuf, "\"");
 			}
 			else if(!strcmp((char *)conf.archiver[i], "%F")){
 				strcat((char *)tmpbuf, "\"");
-				dologname (tmpbuf+strlen((char *)tmpbuf), sizeof(tmpbuf) - (strlen((char *)tmpbuf) + 1), logger->selector, NULL, logger->rotate, (logger->rotated-t));
+				dologname (tmpbuf+strlen((char *)tmpbuf), (int)(sizeof(tmpbuf) - (strlen((char *)tmpbuf) + 1)), logger->selector, NULL, logger->rotate, (logger->rotated-t));
 				strcat((char *)tmpbuf, "\"");
 			}
 			else

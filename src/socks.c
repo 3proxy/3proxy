@@ -10,7 +10,7 @@
 
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
-unsigned char * commands[] = {(unsigned char *)"UNKNOWN", (unsigned char *)"CONNECT", (unsigned char *)"BIND", (unsigned char *)"UDPMAP"};
+char * commands[] = {"UNKNOWN", "CONNECT", "BIND", "UDPMAP"};
 
 #define BUFSIZE 1024
 #define LARGEBUFSIZE 67000
@@ -63,11 +63,11 @@ void * sockschild(struct clientparam* param) {
 		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
 		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(441);};
 		buf[i] = 0;
-		if(!param->username)param->username = (unsigned char *)mystrdup((char *)buf);
+		if(!param->username)param->username = mystrdup(buf);
 		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(445);}
 		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(441);};
 		buf[i] = 0;
-		if(!param->password)param->password = (unsigned char *)mystrdup((char *)buf);
+		if(!param->password)param->password = mystrdup(buf);
 		buf[0] = 1;
 		buf[1] = 0;
 		if(socksend(param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(481);}
@@ -123,7 +123,7 @@ void * sockschild(struct clientparam* param) {
 		if(command == 1 && SAISNULL(&param->req)) {
 			RETURN(431);
 		}
-		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);
+		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), buf, 64);
 		break;
 	case 3:
 		if ((size = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
@@ -139,7 +139,7 @@ void * sockschild(struct clientparam* param) {
 		RETURN(997);
  }
  if(param->hostname)myfree(param->hostname);
- param->hostname = (unsigned char *)mystrdup((char *)buf);
+ param->hostname = mystrdup(buf);
  if (ver == 5) {
 	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	 buf[0] = (unsigned char) res;
@@ -151,13 +151,13 @@ void * sockschild(struct clientparam* param) {
  else {
 	sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]);
 	buf[127] = 0;
-	if(param->srv->needuser && *buf && !param->username)param->username = (unsigned char *)mystrdup((char *)buf);
+	if(param->srv->needuser && *buf && !param->username)param->username = mystrdup(buf);
 	if(!memcmp(SAADDR(&param->req), "\0\0\0", 3)){
 		param->service = S_SOCKS45;
 		sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]);
 		buf[127] = 0;
 		if(param->hostname)myfree(param->hostname);
-		param->hostname = (unsigned char *)mystrdup((char *)buf);
+		param->hostname = mystrdup(buf);
 		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
 		param->sinsr = param->req;
 	}
@@ -185,11 +185,11 @@ void * sockschild(struct clientparam* param) {
 
 #ifdef SO_REUSEADDR
 		opt = 1;
-		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;
-		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(int));
 #endif
 	}
 #endif
