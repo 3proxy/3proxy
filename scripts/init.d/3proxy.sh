@@ -18,7 +18,7 @@ case "$1" in
        echo Starting 3Proxy
    
        /bin/mkdir -p /var/run/3proxy
-       /bin/3proxy /etc/3proxy/3proxy.cfg
+       /bin/3proxy /etc/3proxy/3proxy.cfg &
    
        RETVAL=$?
        echo
@@ -29,6 +29,7 @@ case "$1" in
        echo Stopping 3Proxy
        if [ -f /var/run/3proxy/3proxy.pid ]; then
 	       /bin/kill `cat /var/run/3proxy/3proxy.pid`
+		rm /var/run/3proxy/3proxy.pid
        else
                /usr/bin/killall 3proxy
        fi
@@ -42,6 +43,7 @@ case "$1" in
        echo Reloading 3Proxy
        if [ -f /var/run/3proxy/3proxy.pid ]; then
 	       /bin/kill -s USR1 `cat /var/run/3proxy/3proxy.pid`
+		rm /var/run/3proxy/3proxy.pid
        else
                /usr/bin/killall -s USR1 3proxy
        fi
