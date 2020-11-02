@@ -167,10 +167,6 @@ log(logbuf);
 		memset(fds, 0, sizeof(fds));
 		fds[0].fd = param->clisock;
 		fds[1].fd = param->remsock;
-#ifdef POLLRDHUP
-		fds[0].events = POLLRDHUP;
-		fds[1].events = POLLRDHUP;
-#endif
 		so._poll(fds, 2, sleeptime);
 		sleeptime = 0;
 	}
@@ -455,11 +451,7 @@ log("done read from server to buf");
 #ifdef WITHLOG
 log("wait reading from client");
 #endif
-							fds[fdsc].events |= (POLLIN
-#ifdef POLLRDHUP
-								|POLLRDHUP
-#endif
-							);
+							fds[fdsc].events |= (POLLIN);
 						}
 				if(!TOCLIENT && (inserverbuf
 #ifdef WITHSPLICE
@@ -477,11 +469,7 @@ log("wait writing to client");
 					CLIENTTERM = 1;
 					HASERROR |= 1;
 				}
-				else if(fds[fdsc].revents &  (POLLHUP
-#ifdef POLLRDHUP
-					|POLLRDHUP
-#endif
-				)) {
+				else if(fds[fdsc].revents &  (POLLHUP)) {
 					CLIENTTERM = 1;
 				}
 				else {
@@ -516,11 +504,7 @@ log("ready to write to client");
 #ifdef WITHLOG
 log("wait reading from server");
 #endif
-							fds[fdsc].events |= (POLLIN
-#ifdef POLLRDHUP
-								|POLLRDHUP
-#endif
-							);
+							fds[fdsc].events |= (POLLIN);
 						}
 				if(!TOSERVER && (inclientbuf
 #ifdef WITHSPLICE
@@ -542,11 +526,7 @@ log("poll from server failed");
 					SERVERTERM = 1;
 					HASERROR |=2;
 				}
-				if(fds[fdsc].revents &  (POLLHUP
-#ifdef POLLRDHUP
-					|POLLRDHUP
-#endif
-					)) {
+				if(fds[fdsc].revents &  (POLLHUP)) {
 #ifdef WITHLOG
 log("server terminated connection");
 #endif
