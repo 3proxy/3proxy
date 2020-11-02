@@ -277,8 +277,15 @@ int MODULEMAINFUNC (int argc, char** argv){
  srv.service = defparam.service = childdef.service;
  
 #ifndef STDMAIN
- srv.acl = copyacl(conf.acl);
- srv.authfuncs = copyauth(conf.authfuncs);
+ if(conf.acl){
+	srv.acl = copyacl(conf.acl);
+	if(!srv.acl) haveerror = 2;
+ }
+
+ if(conf.authfuncs){
+	srv.authfuncs = copyauth(conf.authfuncs);
+	if(!srv.authfuncs) haveerror = 2;
+ }
  if(!conf.services){
 	conf.services = &srv;
  }
@@ -1032,7 +1039,14 @@ struct auth * copyauth (struct auth * authfuncs){
 	struct auth * newauth = NULL;
 
  	newauth = authfuncs = itcopy(authfuncs, sizeof(struct auth));
-	for( ; authfuncs; authfuncs = authfuncs->next = itcopy(authfuncs->next, sizeof(struct auth)));
+	for( ; authfuncs->next; authfuncs = authfuncs->next){
+		authfuncs->next = itcopy(authfuncs->next, sizeof(struct auth));
+		if(!authfuncs->next)break;
+	}
+	if(authfuncs){
+		freeauth(newauth);
+		return NULL;
+	}
 	return newauth;
 }
 
@@ -1046,31 +1060,127 @@ struct ace * copyacl (struct ace *ac){
  struct hostname *hst;
 
  ret = ac = itcopy(ac, sizeof(struct ace));
- for( ; ac; ac = ac->next = itcopy(ac->next, sizeof(struct ace))){
-	ac->src = itcopy(ac->src, sizeof(struct iplist));
-	for(ipl = ac->src; ipl; ipl = ipl->next = itcopy(ipl->next, sizeof(struct iplist)));
-	ac->dst = itcopy(ac->dst, sizeof(struct iplist));
-	for(ipl = ac->dst; ipl; ipl = ipl->next = itcopy(ipl->next, sizeof(struct iplist)));
-	ac->ports = itcopy(ac->ports, sizeof(struct portlist));
-	for(pl = ac->ports; pl; pl = pl->next = itcopy(pl->next, sizeof(struct portlist)));
-	ac->periods = itcopy(ac->periods, sizeof(struct period));
-	for(pel = ac->periods; pel; pel = pel->next = itcopy(pel->next, sizeof(struct period)));
-	ac->users = itcopy(ac->users, sizeof(struct userlist));
-	for(ul = ac->users; ul; ul = ul->next = itcopy(ul->next, sizeof(struct userlist))){
-		if(ul->user) ul->user = (unsigned char*)mystrdup((char *)ul->user);
+ for( ; ac->next; ac = ac->next){
+	if(ac->src){
+		ac->src = itcopy(ac->src, sizeof(struct iplist));
+		if(!ac->src) goto ERRORSRC;
+		for(ipl = ac->src; ipl->next; ipl = ipl->next){
+			ipl->next = itcopy(ipl->next, sizeof(struct iplist));
+			if(!ipl->next) goto ERRORSRC;
+		}
 	}
-	ac->dstnames = itcopy(ac->dstnames, sizeof(struct hostname));
-	for(hst = ac->dstnames; hst; hst = hst->next = itcopy(hst->next, sizeof(struct hostname))){
-		if(hst->name) hst->name = (unsigned char*)mystrdup((char *)hst->name);
+	if(ac->dst){
+		ac->dst = itcopy(ac->dst, sizeof(struct iplist));
+		if(!ac->dst) goto ERRORDST;
+		for(ipl = ac->dst; ipl->next; ipl = ipl->next){
+			ipl->next = itcopy(ipl->next, sizeof(struct iplist));
+			if(!ipl->next) goto ERRORDST;
+		}
 	}
-	ac->chains = itcopy(ac->chains, sizeof(struct chain));
-	for(ch = ac->chains; ch; ch = ch->next = itcopy(ch->next, sizeof(struct chain))){
-		if(ch->extuser)ch->extuser = (unsigned char*)mystrdup((char *)ch->extuser);
-		if(ch->extpass)ch->extpass = (unsigned char*)mystrdup((char *)ch->extpass);
-		if(ch->exthost)ch->exthost = (unsigned char*)mystrdup((char *)ch->exthost);
+	if(ac->ports){
+		ac->ports = itcopy(ac->ports, sizeof(struct portlist));
+		if(!ac->ports) goto ERRORPORTS;
+		for(pl = ac->ports; pl->next; pl = pl->next){
+			pl->next = itcopy(pl->next, sizeof(struct portlist));
+			if(!pl->next) goto ERRORPORTS;
+		}
+	}
+	if(ac->periods){
+		ac->periods = itcopy(ac->periods, sizeof(struct period));
+		if(!ac->periods) goto ERRORPERIODS;
+		for(pel = ac->periods; pel->next; pel = pel->next){
+			pel->next = itcopy(pel->next, sizeof(struct period));
+			if(!pel->next) goto ERRORPERIODS;
+		}
+	}
+	if(ac->users){
+		ac->users = itcopy(ac->users, sizeof(struct userlist));
+		if(!ac->users) goto ERRORUSERS;
+		for(ul = ac->users; ul; ul = ul->next){
+			if(ul->user) {
+				ul->user = (unsigned char*)mystrdup((char *)ul->user);
+				if(!ul->user) {
+					ul->next = NULL;
+					goto ERRORUSERS;
+				}
+			}
+			if(ul->next){
+				ul->next = itcopy(ul->next, sizeof(struct userlist));
+				if(!ul->next) goto ERRORUSERS;
+			}
+		}
+	}
+	if(ac->dstnames){
+		ac->dstnames = itcopy(ac->dstnames, sizeof(struct hostname));
+		if(!ac->dstnames) goto ERRORDSTNAMES;
+		for(hst = ac->dstnames; hst; hst = hst->next){
+			if(hst->name) {
+				hst->name = (unsigned char*)mystrdup((char *)hst->name);
+				if(!hst->name) {
+					hst->next = NULL;
+					goto ERRORDSTNAMES;
+				}
+			}
+			if(hst->next){
+				hst->next = itcopy(hst->next, sizeof(struct hostname));
+				if(!hst->next) goto ERRORDSTNAMES;
+			}
+		}
+	}
+	if(ac->chains){
+		ac->chains = itcopy(ac->chains, sizeof(struct chain));
+		if(!ac->chains) goto ERRORCHAINS;
+		for(ch = ac->chains; ch; ch = ch->next){
+			if(ch->extuser){
+				ch->extuser = (unsigned char*)mystrdup((char *)ch->extuser);
+				if(!ch->extuser){
+					ch->extpass = NULL;
+					ch->exthost = NULL;
+					ch->next = NULL;
+					goto ERRORCHAINS;
+				}
+			}
+			if(ch->extpass){
+				ch->extpass = (unsigned char*)mystrdup((char *)ch->extpass);
+				if(!ch->extpass){
+					ch->exthost = NULL;
+					ch->next = NULL;
+					goto ERRORCHAINS;
+				}
+			}
+			if(ch->exthost){
+				ch->exthost = (unsigned char*)mystrdup((char *)ch->exthost);
+				if(!ch->exthost){
+					ch->next = NULL;
+					goto ERRORCHAINS;
+				}
+
+			}
+			if(ch->next){
+				ch->next = itcopy(ch->next, sizeof(struct chain));
+				if(!ch->next) goto ERRORCHAINS;
+			}
+		}
 	}
  }
- return ret;
+ if(!ac) return ret;
+ERRORSRC:
+	ac->dst	= NULL;
+ERRORDST:
+	ac->ports = NULL;
+ERRORPORTS:
+	ac->periods = NULL;
+ERRORPERIODS:
+	ac->users = NULL;
+ERRORUSERS:
+	ac->dstnames = NULL;
+ERRORDSTNAMES:
+	ac->chains = NULL;
+ERRORCHAINS:
+	ac->next = NULL;
+	freeacl(ret);
+	return NULL;
+
 }
 
 

@@ -168,7 +168,7 @@ int start_proxy_thread(struct child * chp){
 #endif
 	while(conf.threadinit)usleep(SLEEPTIME);
 	if(haveerror)  {
-		fprintf(stderr, "Service not started on line: %d\n", linenum);
+		fprintf(stderr, "Service not started on line: %d%s\n", linenum, haveerror == 2? ": insufficient memory":"");
 		return(40);
 	}
 	return 0;
