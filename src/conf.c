@@ -276,6 +276,7 @@ static int h_daemon(int argc, char **argv){
 static int h_config(int argc, char **argv){
 	if(conf.conffile)myfree(conf.conffile);
 	conf.conffile = mystrdup((char *)argv[1]);
+	if(!conf.conffile) return 21;
 	return 0;
 }
 
@@ -382,6 +383,9 @@ static int h_auth(int argc, char **argv){
 	  for(au = authfuncs; au; au=au->next){
 		if(!strcmp((char *)argv[argc], au->desc)){
 			newau = myalloc(sizeof(struct auth));
+			if(!newau) {
+				return 21;
+			}
 			newau->next = conf.authfuncs;
 			conf.authfuncs = newau;
 			conf.authfuncs->desc = au->desc;
@@ -404,30 +408,31 @@ static int h_users(int argc, char **argv){
 
 	for (j = 1; j<argc; j++) {
 		if(!(pwl = myalloc(sizeof(struct passwords)))) {
-			fprintf(stderr, "No memory for PWL entry, line %d\n", linenum);
-			return(1);
+			return(21);
 		}
 		memset(pwl, 0, sizeof(struct passwords));
 
-		arg = (char *)strchr((char *)argv[j], ':');
+		arg = strchr((char *)argv[j], ':');
 		if(!arg||!arg[1]||!arg[2]||arg[3]!=':')	{
-			pwl->user = (char *)mystrdup((char *)argv[j]);
+			pwl->user = mystrdup((char *)argv[j]);
 			pwl->pwtype = SYS;
 		}
 		else {
 			*arg = 0;
-			pwl->user = (char *)mystrdup((char *)argv[j]);
+			pwl->user = mystrdup((char *)argv[j]);
 			if((arg[1] == 'C' && arg[2] == 'L' && (pwl->pwtype = CL)) ||
 				(arg[1] == 'C' && arg[2] == 'R' && (pwl->pwtype = CR)) ||
 				(arg[1] == 'N' && arg[2] == 'T' && (pwl->pwtype = NT)) ||
 				(arg[1] == 'L' && arg[2] == 'M' && (pwl->pwtype = LM))){
-				pwl->password = (char *)mystrdup((char *)arg+4);
+				pwl->password = mystrdup((char *)arg+4);
 			}
 			else {
-				pwl->password = (char *) mystrdup((char *)arg + 1);
+				pwl->password = mystrdup((char *)arg + 1);
 				pwl->pwtype = UN;
 			}
+			if(!pwl->password) return 3;
 		}
+		if(!pwl->user) return 21;
 		pthread_mutex_lock(&pwl_mutex);
 		pwl->next = conf.pwl;
 		conf.pwl = pwl;
@@ -578,12 +583,14 @@ static int h_monitor(int argc, char **argv){
   struct filemon * fm;
 
 	fm = myalloc(sizeof (struct filemon));
+	if(!fm) return 21;
 	if(stat((char *)argv[1], &fm->sb)){
 		myfree(fm);
 		fprintf(stderr, "Warning: file %s doesn't exist on line %d\n", argv[1], linenum);
 	}
 	else {
 		fm->path = mystrdup((char *)argv[1]);
+		if(!fm->path) return 21;
 		fm->next = conf.fmon;
 		conf.fmon = fm;
 	}
@@ -604,8 +611,7 @@ static int h_parent(int argc, char **argv){
 
 	chains = myalloc(sizeof(struct chain));
 	if(!chains){
-		fprintf(stderr, "Chainig error: unable to allocate memory for chain\n");
-		return(2);
+		return(21);
 	}
 	memset(chains, 0, sizeof(struct chain));
 	chains->weight = (unsigned)atoi((char *)argv[1]);
@@ -637,10 +643,11 @@ static int h_parent(int argc, char **argv){
 #else
 	getip46(46, argv[3], (struct sockaddr *)&chains->addr);
 #endif
-	chains->exthost = (char *)mystrdup((char *)argv[3]);
+	chains->exthost = mystrdup((char *)argv[3]);
+	if(!chains->exthost) return 21;
 	*SAPORT(&chains->addr) = htons((unsigned short)atoi((char *)argv[4]));
-	if(argc > 5) chains->extuser = (char *)mystrdup((char *)argv[5]);
-	if(argc > 6) chains->extpass = (char *)mystrdup((char *)argv[6]);
+	if(argc > 5) chains->extuser = mystrdup((char *)argv[5]);
+	if(argc > 6) chains->extpass = mystrdup((char *)argv[6]);
 	if(!acl->chains) {
 		acl->chains = chains;
 	}
@@ -741,8 +748,9 @@ struct ace * make_ace (int argc, char ** argv){
 					return(NULL);
 				}
 				memset(userl, 0, sizeof(struct userlist));
-				userl->user=(char*)mystrdup((char *)arg);
-			} while((arg = (char *)strtok((char *)NULL, ",")));
+				userl->user=mystrdup((char *)arg);
+				if(!userl->user) return NULL;
+			} while((arg = strtok((char *)NULL, ",")));
 		}
 		if(argc > 1  && strcmp("*", (char *)argv[1])) {
 			arg = (char *)strtok((char *)argv[1], ",");
@@ -1035,11 +1043,10 @@ static int h_ace(int argc, char **argv){
 	switch(acl->action){
 	case REDIRECT:
 		acl->chains = myalloc(sizeof(struct chain));
-		memset(acl->chains, 0, sizeof(struct chain)); 
 		if(!acl->chains) {
-			fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
-			return(2);
+			return(21);
 		}
+		memset(acl->chains, 0, sizeof(struct chain)); 
 		acl->chains->type = R_HTTP;
 		if(!getip46(46, argv[1], (struct sockaddr *)&acl->chains->addr)) return 5;
 		*SAPORT(&acl->chains->addr) = htons((unsigned short)atoi((char *)argv[2]));
@@ -1060,8 +1067,7 @@ static int h_ace(int argc, char **argv){
 	case NOCONNLIM:
 		ncl = myalloc(sizeof(struct connlim));
 		if(!ncl) {
-			fprintf(stderr, "No memory to create connection limit filter\n");
-			return(3);
+			return(21);
 		}
 		memset(ncl, 0, sizeof(struct connlim));
 		ncl->ace = acl;
@@ -1087,8 +1093,7 @@ static int h_ace(int argc, char **argv){
 
 		nbl = myalloc(sizeof(struct bandlim));
 		if(!nbl) {
-			fprintf(stderr, "No memory to create band limit filter\n");
-			return(3);
+			return(21);
 		}
 		memset(nbl, 0, sizeof(struct bandlim));
 		nbl->ace = acl;
@@ -1122,7 +1127,7 @@ static int h_ace(int argc, char **argv){
 				bli->next = nbl;
 			}
 		}
-
+		conf.bandlimver++;
 		pthread_mutex_unlock(&bandlim_mutex);			
 		break;
 
@@ -1134,8 +1139,7 @@ static int h_ace(int argc, char **argv){
 	case NOCOUNTALL:
 		tl = myalloc(sizeof(struct trafcount));
 		if(!tl) {
-			fprintf(stderr, "No memory to create traffic limit filter\n");
-			return(5);
+			return(21);
 		}
 		memset(tl, 0, sizeof(struct trafcount));
 		tl->ace = acl;
@@ -1378,6 +1382,7 @@ static int h_chroot(int argc, char **argv){
 			*p = 0;
 		}
 		chrootp = mystrdup((char *)argv[1]);
+		if(!chrootp) return 21;
 	}
 	if(gid && setregid(gid,gid)) {
 		fprintf(stderr, "Unable to set gid %d", (int)gid);
@@ -1451,22 +1456,24 @@ struct commands commandhandlers[]={
 	{commandhandlers+43, "nocountin", h_ace, 1, 0},
 	{commandhandlers+44, "countout", h_ace, 4, 0},
 	{commandhandlers+45, "nocountout", h_ace, 1, 0},
-	{commandhandlers+46, "connlim", h_ace, 4, 0},
-	{commandhandlers+47, "noconnlim", h_ace, 1, 0},
-	{commandhandlers+48, "plugin", h_plugin, 3, 0},
-	{commandhandlers+49, "logdump", h_logdump, 2, 3},
-	{commandhandlers+50, "filtermaxsize", h_filtermaxsize, 2, 2},
-	{commandhandlers+51, "nolog", h_nolog, 1, 1},
-	{commandhandlers+52, "weight", h_nolog, 2, 2},
-	{commandhandlers+53, "authcache", h_authcache, 2, 3},
-	{commandhandlers+54, "smtpp", h_proxy, 1, 0},
-	{commandhandlers+55, "delimchar",h_delimchar, 2, 2},
-	{commandhandlers+56, "authnserver", h_authnserver, 2, 2},
-	{commandhandlers+57, "stacksize", h_stacksize, 2, 2},
-	{commandhandlers+58, "force", h_force, 1, 1},
-	{commandhandlers+59, "noforce", h_noforce, 1, 1},
+	{commandhandlers+46, "countall", h_ace, 4, 0},
+	{commandhandlers+47, "nocountall", h_ace, 1, 0},
+	{commandhandlers+48, "connlim", h_ace, 4, 0},
+	{commandhandlers+49, "noconnlim", h_ace, 1, 0},
+	{commandhandlers+50, "plugin", h_plugin, 3, 0},
+	{commandhandlers+51, "logdump", h_logdump, 2, 3},
+	{commandhandlers+52, "filtermaxsize", h_filtermaxsize, 2, 2},
+	{commandhandlers+53, "nolog", h_nolog, 1, 1},
+	{commandhandlers+54, "weight", h_nolog, 2, 2},
+	{commandhandlers+55, "authcache", h_authcache, 2, 3},
+	{commandhandlers+56, "smtpp", h_proxy, 1, 0},
+	{commandhandlers+57, "delimchar",h_delimchar, 2, 2},
+	{commandhandlers+58, "authnserver", h_authnserver, 2, 2},
+	{commandhandlers+59, "stacksize", h_stacksize, 2, 2},
+	{commandhandlers+60, "force", h_force, 1, 1},
+	{commandhandlers+61, "noforce", h_noforce, 1, 1},
 #ifndef NORADIUS
-	{commandhandlers+61, "radius", h_radius, 3, 0},
+	{commandhandlers+62, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
@@ -1588,7 +1595,7 @@ int readconfig(FILE * fp){
 	argc = parsestr (buf, argv, NPARAMS-1, &buf, &inbuf, &bufsize);
 	if(argc < 1) {
 		fprintf(stderr, "Parse error line %d\n", linenum);
-		return(21);
+		return(11);
 	}
 	argv[argc] = NULL;
 	if(!strcmp((char *)argv[0], "end") && argc == 1) {	

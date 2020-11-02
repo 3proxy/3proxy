@@ -102,7 +102,7 @@ struct extparam conf = {
 	NULL, /* struct srvparam *services; */
 	0, /* int stacksize, */ 
 	0, -1, 0, 0, 0, 0, /* threadinit, counterd, haveerror, rotate, paused, archiverc, */
-	0, 500, 0, 0, 0, 0, /* demon, maxchild, needreload, timetoexit, version, noforce; */
+	0, 500, 0, 0, 0, 0, 0, /* demon, maxchild, needreload, timetoexit, version, noforce, bandlimver; */
 	6, 600, /* int authcachetype, authcachetime; */
 	1048576, /* int filtermaxsize; */
 	NULL, /* **archiver; */
