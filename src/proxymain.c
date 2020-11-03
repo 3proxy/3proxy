@@ -1145,7 +1145,10 @@ ERRORDSTNAMES:
 ERRORCHAINS:
 	ac->next = NULL;
 ERRORNEXT:
-	freeacl(ret);
+	freeacl(srv->preacl);
+	srv->preacl = NULL;
+	freeacl(srv->acl);
+	srv->acl = NULL;
 	return 21;
 
 }
