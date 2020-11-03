@@ -244,7 +244,6 @@ int checkpreACL(struct clientparam * param);
 extern int havelog;
 unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, struct clientparam* param, int makeauth);
 
-void copyacl (struct ace *ac, struct srvparam *srv);
 struct auth * copyauth (struct auth *);
 void * itfree(void *data, void * retval);
 void freeacl(struct ace *ac);

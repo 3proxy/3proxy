@@ -9,6 +9,7 @@
 #include "proxy.h"
 
 void srvpostfree(struct srvparam * srv);
+static int copyacl (struct ace *ac, struct srvparam *srv);
 
 #define param ((struct clientparam *) p)
 #ifdef _WIN32
@@ -280,20 +281,14 @@ int MODULEMAINFUNC (int argc, char** argv){
  srv->service = defparam.service = childdef.service;
  
 #ifndef STDMAIN
-<<<<<<< HEAD
- copyacl(conf.acl, srv);
- srv->authfuncs = copyauth(conf.authfuncs);
-=======
  if(conf.acl){
-	srv.acl = copyacl(conf.acl);
-	if(!srv.acl) haveerror = 2;
+	if(copyacl(conf.acl, srv)) haveerror = 2;
  }
 
  if(conf.authfuncs){
-	srv.authfuncs = copyauth(conf.authfuncs);
-	if(!srv.authfuncs) haveerror = 2;
+	srv->authfuncs = copyauth(conf.authfuncs);
+	if(!srv->authfuncs) haveerror = 2;
  }
->>>>>>> b81089f... More correct handling of insufficient memory
  if(!conf.services){
 	conf.services = srv;
  }
@@ -984,10 +979,12 @@ static void * itcopy (void * from, size_t size){
 struct auth * copyauth (struct auth * authfuncs){
 	struct auth * newauth = NULL;
 
- 	newauth = authfuncs = itcopy(authfuncs, sizeof(struct auth));
-	for( ; authfuncs->next; authfuncs = authfuncs->next){
-		authfuncs->next = itcopy(authfuncs->next, sizeof(struct auth));
-		if(!authfuncs->next)break;
+ 	newauth = itcopy(authfuncs, sizeof(struct auth));
+	for( authfuncs=newauth; authfuncs; authfuncs = authfuncs->next){
+		if(authfuncs->next){
+			authfuncs->next = itcopy(authfuncs->next, sizeof(struct auth));
+			if(!authfuncs->next)break;
+		}
 	}
 	if(authfuncs){
 		freeauth(newauth);
@@ -996,7 +993,7 @@ struct auth * copyauth (struct auth * authfuncs){
 	return newauth;
 }
 
-void copyacl (struct ace *ac, struct srvparam *srv){
+static int copyacl (struct ace *ac, struct srvparam *srv){
  struct iplist *ipl;
  struct portlist *pl;
  struct userlist *ul;
@@ -1004,9 +1001,12 @@ void copyacl (struct ace *ac, struct srvparam *srv){
  struct period *pel;
  struct hostname *hst;
  int preacl = 1;
- struct ace *acc;
 
- for( ; ac; ac = ac->next){
+ if(ac) {
+	ac = itcopy(ac, sizeof(struct ace));
+	if(!ac) return 21;
+ }
+ for(; ac; ac = ac->next){
 	if(ac->src){
 		ac->src = itcopy(ac->src, sizeof(struct iplist));
 		if(!ac->src) goto ERRORSRC;
@@ -1108,8 +1108,14 @@ void copyacl (struct ace *ac, struct srvparam *srv){
 			}
 		}
 	}
+	if(ac->next){
+		ac->next = itcopy(ac->next, sizeof(struct ace));
+		if(!ac->next) goto ERRORNEXT;
+	}
 	if(preacl){
 		if(ac->dst || ac->ports || ac->users || ac->dstnames || ac->chains|| ac->action>1){
+			struct ace *acc;
+
 			preacl = 0;
 			for(acc = srv->preacl; acc; acc=acc->next)if(acc->next == ac) {
 				acc->next = NULL;
@@ -1123,7 +1129,7 @@ void copyacl (struct ace *ac, struct srvparam *srv){
 	}
 	
  }
- if(!ac) return ret;
+ if(!ac) return 0;
 ERRORSRC:
 	ac->dst	= NULL;
 ERRORDST:
@@ -1138,8 +1144,9 @@ ERRORDSTNAMES:
 	ac->chains = NULL;
 ERRORCHAINS:
 	ac->next = NULL;
+ERRORNEXT:
 	freeacl(ret);
-	return NULL;
+	return 21;
 
 }
 
