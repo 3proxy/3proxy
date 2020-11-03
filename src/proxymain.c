@@ -1038,10 +1038,12 @@ static void * itcopy (void * from, size_t size){
 struct auth * copyauth (struct auth * authfuncs){
 	struct auth * newauth = NULL;
 
- 	newauth = authfuncs = itcopy(authfuncs, sizeof(struct auth));
-	for( ; authfuncs->next; authfuncs = authfuncs->next){
-		authfuncs->next = itcopy(authfuncs->next, sizeof(struct auth));
-		if(!authfuncs->next)break;
+ 	newauth = itcopy(authfuncs, sizeof(struct auth));
+	for( authfuncs=newauth; authfuncs; authfuncs = authfuncs->next){
+		if(authfuncs->next){
+			authfuncs->next = itcopy(authfuncs->next, sizeof(struct auth));
+			if(!authfuncs->next)break;
+		}
 	}
 	if(authfuncs){
 		freeauth(newauth);
@@ -1059,8 +1061,8 @@ struct ace * copyacl (struct ace *ac){
  struct period *pel;
  struct hostname *hst;
 
- ret = ac = itcopy(ac, sizeof(struct ace));
- for( ; ac->next; ac = ac->next){
+ ret = itcopy(ac, sizeof(struct ace));
+ for( ac = ret; ac; ac = ac->next){
 	if(ac->src){
 		ac->src = itcopy(ac->src, sizeof(struct iplist));
 		if(!ac->src) goto ERRORSRC;
@@ -1161,6 +1163,10 @@ struct ace * copyacl (struct ace *ac){
 				if(!ch->next) goto ERRORCHAINS;
 			}
 		}
+	}
+	if(ac->next){
+		ac->next = itcopy(ac->next, sizeof(struct ace));
+		if(!ac->next) break;
 	}
  }
  if(!ac) return ret;
