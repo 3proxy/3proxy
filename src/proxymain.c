@@ -1166,7 +1166,7 @@ struct ace * copyacl (struct ace *ac){
 	}
 	if(ac->next){
 		ac->next = itcopy(ac->next, sizeof(struct ace));
-		if(!ac->next) break;
+		if(!ac->next) goto ERRORCHAINS;
 	}
  }
  if(!ac) return ret;
@@ -1184,6 +1184,7 @@ ERRORDSTNAMES:
 	ac->chains = NULL;
 ERRORCHAINS:
 	ac->next = NULL;
+ERRORCHAINS:
 	freeacl(ret);
 	return NULL;
 
