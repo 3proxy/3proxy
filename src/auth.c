@@ -505,6 +505,11 @@ void stopconnlims (struct clientparam *param){
 static void initbandlims (struct clientparam *param){
 	struct bandlim * be;
 	int i;
+
+	param->bandlimfunc = NULL;
+	param->bandlims[0] = NULL;
+	param->bandlimsout[0] = NULL;
+	if(!param->bandlimfunc || (!conf.bandlimiter && !conf.bandlimiterout)) return;
 	for(i=0, be = conf.bandlimiter; be && i<MAXBANDLIMS; be = be->next) {
 		if(ACLmatches(be->ace, param)){
 			if(be->ace->action == NOBANDLIM) {
@@ -552,13 +557,8 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 	if(!nbytesin && !nbytesout) return 0;
 	pthread_mutex_lock(&bandlim_mutex);
 	if(param->bandlimver != conf.bandlimver){
-		if(!conf.bandlimfunc){
-			param->bandlimfunc = NULL;
-			pthread_mutex_unlock(&bandlim_mutex);
-			return 0;
-		}
 		initbandlims(param);
-		param->bandlimver = conf.paused;
+		param->bandlimver = conf.bandlimver;
 	}
 	for(i=0; nbytesin&& i<MAXBANDLIMS && param->bandlims[i]; i++){
 		if( !param->bandlims[i]->basetime || 
@@ -575,7 +575,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 			param->bandlims[i]->nexttime - now : 0;
 		sleeptime = (nsleeptime > sleeptime)? nsleeptime : sleeptime;
 		param->bandlims[i]->basetime = sec;
-		param->bandlims[i]->nexttime = msec + nsleeptime + ((param->bandlims[i]->rate > 1000000)? ((nbytesin/32)*(256000000/param->bandlims[i]->rate)) : (nbytesin * (8000000/param->bandlims[i]->rate)));
+		param->bandlims[i]->nexttime = msec + nsleeptime + (nbytesin > 512)? ((nbytesin+32)/64)*(((64*8*1000000)/param->bandlims[i]->rate)) : ((nbytesin+1) * (8*1000000))/param->bandlims[i]->rate;
 	}
 	for(i=0; nbytesout && i<MAXBANDLIMS && param->bandlimsout[i]; i++){
 		if( !param->bandlimsout[i]->basetime || 
@@ -592,7 +592,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 			param->bandlimsout[i]->nexttime - now : 0;
 		sleeptime = (nsleeptime > sleeptime)? nsleeptime : sleeptime;
 		param->bandlimsout[i]->basetime = sec;
-		param->bandlimsout[i]->nexttime = msec + nsleeptime + ((param->bandlimsout[i]->rate > 1000000)? ((nbytesout/32)*(256000000/param->bandlimsout[i]->rate)) : (nbytesout * (8000000/param->bandlimsout[i]->rate)));
+		param->bandlimsout[i]->nexttime = msec + nsleeptime + (nbytesout > 512)? ((nbytesout+32)/64)*((64*8*1000000)/param->bandlimsout[i]->rate) : ((nbytesout+1)* (8*1000000))/param->bandlimsout[i]->rate;
 	}
 	pthread_mutex_unlock(&bandlim_mutex);
 	return sleeptime/1000;
@@ -644,7 +644,7 @@ int alwaysauth(struct clientparam * param){
 	if(conf.connlimiter && param->remsock == INVALID_SOCKET && startconnlims(param)) return 95;
 	res = doconnect(param);
 	if(!res){
-		if(conf.bandlimfunc && conf.bandlimiter){
+		if(conf.bandlimfunc && (conf.bandlimiter||conf.bandlimiter)){
 			pthread_mutex_lock(&bandlim_mutex);
 			initbandlims(param);
 			pthread_mutex_unlock(&bandlim_mutex);
