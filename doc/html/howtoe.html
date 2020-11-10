@@ -8,7 +8,6 @@
 		<li><A HREF="#INTL">How to compile 3proxy with Intel C Compiler under Windows</A>
 		<li><A HREF="#GCCWIN">How to compile 3proxy with GCC under Windows</A>
 		<li><A HREF="#GCCUNIX">How to compile 3proxy with GCC under Unix/Linux</A>
-		<li><A HREF="#CCCUNIX">How to compile 3proxy with Compaq C Compiler under Unix/Linux</A>
 	</ul>
 	<li><A HREF="#INSTALL">Proxy server installation and removal</A>
 	<ul>
@@ -18,20 +17,31 @@
 	</ul>
 	<li><A HREF="#SERVER">Server configuration</A>
 	<ul>
-		<li><A HREF="#SAMPLE">Where to find configuration example</A>
+  <li><a href="#NOTHING">How to make 3proxy start</a></li>
+    <li><a href="#LIMITS">How to make limitation (access, bandwidth, traffic, connections) work</a></li>
+    <li><a href="#SERVICE">How to make 3proxy to run as a service</a></li>
+    <li><a href="#INTEXT">How to understand internal и external</a></li>
+    <li><a href="#ODBC">How to make ODBC logging work?</a></li>
+    <li><a href="#IPV6">How to make IPv6 work</a></li>
+    <li><a href="#CRASH">How to fix 3proxy crashes</a></li>
+  		<li><A HREF="#SAMPLE">Where to find configuration example</A>
 		<li><A HREF="#LOGGING">How to set up logging</A>
 		<li><A HREF="#LOGFORMAT">How to setup logging format</A>
 		<li><A HREF="#LOGANALIZERS">How to use log analizers with 3proxy</A>
 		<li><A HREF="#LAUNCH">How to start any of proxy services (HTTP, SOCKS etc)</A>
-		<li><A HREF="#BIND">How to bind service to specific interface and port?</A>
+		<li><a href="#BIND">How to bind service to specific interface or port</a>
+		<li><a href="#NAMES">How to resolve names through a parent proxy</a></li>
+		<li><a href="#ISFTP">How to setup FTP proxy</a></li>
 		<li><A HREF="#AUTH">How to limit service access</A>
 		<li><A HREF="#USERS">How to create user list</A>
 		<li><A HREF="#ACL">How to limit user access to resources</A>
 		<li><A HREF="#REDIR">How to manage redirections</A>
+		<li><a href="#SOCKSREDIR">How to manage local redirections</a>
 		<li><A HREF="#ROUNDROBIN">How to balance traffic between few external channgels?</A>
 		<li><A HREF="#CHAIN">How to manage proxy chains</A>
 		<li><A HREF="#BANDLIM">How to limit bandwidth</A>
 		<li><A HREF="#TRAFLIM">How to limit traffic amount</A>
+		<li><a href="#TRAF">How to fix incorrect traffic accounting</a>
 		<li><A HREF="#NETLIST">How to build network lists</A>
 		<li><a href="#NSCACHING">How to configure name resolution and DNS caching</a>
 		<li><a href="#IPV6">How to use IPv6</a>
@@ -84,12 +94,6 @@ shouldn't have problems under different Solaris, BSD or linux compatible systems
 For different systems you may be required to patch Makefile or even source codes.
 If you want to use ODBC support, make sure to install ODBC for unix, remove -DNOODBC
 option from makefile compiler options and add ODBC library to linker variable.
-</p>
-	</ul>
-<hr>
-		<li><A NAME="CCCUNIX">How to compile 3proxy with Compaq C Compiler under Unix/Linux</A></li>
-<p>
-See <A HREF="#GCCUNIX">How to compile 3proxy with GCC under Unix/Linux</A>, use Makefile.ccc instead of Makefile.unix.
 </p>
 	</ul>
 <hr>
@@ -164,6 +168,83 @@ Add 3proxy to system startup scripts.
 	<li><A NAME="SERVER">Server configuration</A>
 <p>
 	<ul>
+  <li><a name="NOTHING">How to make 3proxy start</a>
+<p>Valid configuration file is required.
+
+    <li><a name="IMITS">How to make limitation (access, bandwidth, traffic, connections) work</a>
+<p> Most probable reasons for non-working limitations: 'auth none' or no auth is used. For any ACL based feature one of 'iponly', 'nbname' or 'strong' auths required. Sequence of commands may be invalid. Commands are executed one-by-one and 'proxy', 'tcppm', 'socks' or another service commands must follow valid configuration. Invalid sequence of ACLs. First matching ACL is used (except of internal redirections, see below). If ACL contains at least one records last record is assumed to be 'deny *'.
+
+    <li><a name="SERVICE">How to make 3proxy to run as a service</a>
+<p>Possible reasons for 3proxy starts manually but fails to start as a service:
+<ul>
+<li>there are relative paths in configuration file for included files,
+log files, etc. Always use absolute paths. For example
+$"c:\3proxy\networks.local" instead of  $networks.local. For debugging remove
+'service' and 'daemon', log to stdout an try to execute 3proxy from command
+line from some different directory (for example from disk root).
+<li>SYSTEM account doesn't have access to executable file, configuration files,
+log files, etc.
+<li>configuration files is not located in default path (3proxy.cfg in same
+location with 3proxy.exe). For alternative configuration file location use
+<pre>
+3proxy --install full_path_to_configuration_file
+</pre>
+<li>user has no rights to install or start service
+<li>service is already installed and/or started
+
+</ul>
+
+<p><A NAME="INTEXT">How to understant internal and external</A>
+<p>
+Both internal and external IPs are IPs of the host running 3proxy itself.
+This configuration option is usefull in situation 3proxy is running on the
+border host with 2 (or more) connections: e.g. LAN and WAN with different IPs
+<pre>
+     LAN connection +-------------+ Internet connection
+LAN <-------------->| 3proxy host |<-------------------> INTERNET
+                   ^+-------------+^
+	           |               |
+              Internal IP       External IP
+</pre>
+If 3proxy is used on the host with single connection, both internal and
+external are usually same IP.
+<br>Internal should exist and be UP on the moment 3proxy is started and
+should never be disconnected/DOWN. If this interface is periodically
+disconnected (e.g. direct link between 2 hosts), do not specify internal
+address or use 0.0.0.0 instead. In this case, if you have 2 or more
+interfaces you must use firewall (preferably) or 3proxy ACLs to avoid open
+proxy situation. 
+<br>
+External IP (if specified) must exist in the momet 3proxy
+serves client request. If external interface is no specified (or 0.0.0.0),
+system select external IP. It may be possible to access resources of internal
+network, to prevent this use ACLs. In addition, SOCKSv5 will not support BIND
+operation, required for incoming connections (this operation is quite rarely
+implemented in SOCKSv5 clients and usually is not required). In case of
+dynamic address, do not specify external or use external 0.0.0.0 or, if
+external address is required, create a script to determine current external
+IP and save it to file, and use external "$path_to_file" with "monitor" command
+to automatically reload configuration on address change.
+
+    <li><a name="ODBC">How to make ODBC logging work?</a>
+<p>
+Check you use system DSN. 
+Check SQL request is valid. 
+The best way to check is to make file or stdout logging, get SQL request from log file or console and execute this request manually.
+Under Unix, you may also want to adjust 'stacksize' parameter.
+
+    <li><a name="IPV6">How to make IPv6 work</a>
+<p> Proxy can not access destination directly over IPv6 if client requests IPv4 address.
+To access IPv6 destination, either IPv6 address or hostname  must be used in request.
+Best solution is to enable option to resolve hostnames via proxy on client side.
+
+    <li><a name="CRASH">How to fix 3proxy crashes</a>
+<p> default stacksize may be insufficient, if some non-default plugins
+  are used (e.g. PAM and ODBC on Linux) or if compiled on some platforms with
+  invalid system defined values (few versionds of FreeBSD on amd64).
+  Problem can be resolved with 'stacksize' command or '-S' option starting 3proxy 0.8.4.
+
+
 		<li><A NAME="SAMPLE">Where to find configuration example</A>
 <p>
 Server configuration example 3proxy.cfg.sample is in any 3proxy distribution.
@@ -382,6 +463,22 @@ proxy -p8080 -i192.168.1.1
 proxy -p8080 -i192.168.2.1
 </pre>
 </p>
+  <li><a name="NAMES">How to resolve names through a parent proxy</a></li>
+  <p>
+  <i>A:</i> Use one of connect+, socks4+ и socks5+ as a parent type. 3proxy
+  itself still performs a name resolution, it's required e.g. to ACLs matching.
+  So, if no name resolution must be performed by 3proxy itself add a command
+  <pre>
+  fakeresolve</pre>
+  this command resolves any name to 127.0.0.2 address.
+  </p>
+  <li><a name="ISFTP"><i>How to setup FTP proxy</i></a></li>
+  <p>
+  There is FTP over HTTP (what is called FTP proxy in browsers) and FTP over FTP прокси
+  (what is called FTP proxy in file managers and FTP clients). For browsers, there is no need to start additional
+  proxy service, 'proxy' supports FTP over HTTP, configure 'proxy' port as an FTP proxy. For ftp clients and file
+  managers use ftppr. FTP proxy supports both active and passive mode with client, but always use passive mode with FTP servers.
+  </p>
 		<li><A NAME="AUTH">How to limit service access</A>
 <p>
 First, always specify internal interface to accept incoming connection with
@@ -518,7 +615,7 @@ allow &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&
 'flush' command is used to finish with existing ACL and to start new one.
 It's required to have different ACLs for different services.
 'allow' is used to allow connection and 'deny' to deny connection. 'allow'
-command can be extended by 'parent' command to manage redirections (see <A NAME="REDIR">How to manage redirections</A>)). If ACL
+command can be extended by 'parent' command to manage redirections (see <A href="#REDIR">How to manage redirections</A>)). If ACL
 is empty it allow everything. If ACL is not empty, first matching ACL entry
 is searched for user request and ACL action (allow or deny) performed. If
 no matching record found, connection is denied and user will be asked to
@@ -607,6 +704,60 @@ no need to run these services expicitly. Local redirections are usefull if
 you want to see and control via ACLs protocol specific parameters, e.g.
 filenames requests thorugh FTP while clients are using SOCKS.
 </p>
+    <li><a name="SOCKSREDIR">Как управлять локальными перенаправлениями</a>
+<p>
+<p><i>Q: What is it for?</i></p>
+A: To have control based on request and to have URLs and another protocol specific parameters to be logged.
+
+<p><i>Q: What are restrictions?</i></p>
+A: It's hard to redirect services for non-default ports; Internet Explorer supports only SOCKSv4 with no password authentication (Internet Explorer sends username, but not password), for SOCKSv5 only cleartext password authentication is supported.
+
+<p><i>Q: What are advantages?</i></p>
+A: You need only to setup SOCKS proxy in browser settings. You can use socksifier, i.e. FreeCAP or SocksCAP with application which is not proxy aware.
+
+<p><i>Q: How to setup?</i></p>
+A: You should specify parent proxy with IP of 0.0.0.0 and port 0. Examples:
+<pre>
+auth iponly
+allow * * * 80,8080-8088
+parent 1000 http 0.0.0.0 0
+allow * * * 80,8080-8088
+#redirect ports 80 and 8080-8088 to local HTTP proxy
+#Second allow is required, because ACLs are checked
+#twice: first time by socks and second by http proxy.
+
+allow * * * 21,2121
+parent 1000 ftp 0.0.0.0 0
+allow * * * 21,2121
+#redirect ports 21 and 2121 to local 
+#ftp proxy
+
+
+allow *
+#allow rest of connections directly
+
+socks
+#now let socks server to start
+</pre>
+
+<p><i>Q: How it affects different ACL rules</i></p>
+A: After local redirections rules are applied again to protocol-level request. Redirection rule itself is skipped. It makes it possible to redirect request again on the external proxy depending on request itself.
+<pre>
+allow * * * 80,8080-8088
+parent 1000 http 0.0.0.0 0
+#redirect http traffic to internal proxy
+
+allow * * $c:\3proxy\local.nets 80,8080-8088
+#allow direct access to local.nets networks
+allow * * * 80,8080-8088
+parent 1000 http proxy.3proxy.org 3128
+#use parent caching proxy for rest of the networks
+
+allow *
+#allow direct connections for rest of socks
+#requests
+</pre>
+
 		<li><A NAME="ROUNDROBIN">How to balance traffic between few external channgels?</A>
 <p>
 Proxy itself doesn't manage network level routing. The only way to control
@@ -722,30 +873,9 @@ reportpath specifies location of text reports, type parameter of 'counter'
 command controls how often text reports are created. amount is amount of
 allowed traffic in Megabytes (MB). nocountin allows you to set exclusions.
 </p>
-		<li><A NAME="NETLIST">How to build network lists</A>
-<p>Networks or users lists are often very huge. 3proxy doesn't currently
-supports user groups, but ones can be created by the means of include files.
-You can store comma-delimited lists of networks or users in the separate
-file and use $ macro to insert this list into 3proxy.cfg.
-3proxy comes with 'dighosts'
-utility. This utility helps to grab the list of the network from HTTP page.
-It may be usefull to e.g. obtain a regullary updated list of local networks
-from ISP's server. A network list can be either in form of NETWORK MASK,
-e.g. 192.168.1.0 255.255.255.0 or NETWORK/LENGTH, e.g. 192.168.1.0/24. You can
-launch dighosts from 3proxy.cfg to be executed on every 3proxy startup or
-configuration reload:
-<pre>
-system "dighosts http://provider/network.html local.networks"
-allow * * $local.networks
-allow *
-parent 1000 proxy.provider 3128 *
-proxy
-flush
-</pre>
-In this example we obtain list of local networks from provider's page to
-local.networks file, allow direct access to these networks and redirect all
-connection to external networks to provider's proxy.
-</p>
+  <li><a name="TRAF"><i>How to fix incorrect traffic accounting</i></a>
+
+  <p>3proxy accounts protocol level traffic. Provider counts channel or IP-level traffic with network and transport headers. In additions, 3proxy doesn't counts DNS resolutions, pings, floods, scans, etc. It makes approx. 10% of difference. That's why you should have 15% reserve if you use 3proxy to limit your traffic. If difference with your provider is significantly above 10% you should look for traffic avoiding proxy server, for example connections through NAT, traffic originated from the host with proxy installed, traffic from server applications, etc.
   <li><a name="NSCACHING"><i>How to configure name resolution and DNS caching</i></a>
   <p>
   For name resolution and caching use commands nserver, nscache / nscache6 and nsrecord.
