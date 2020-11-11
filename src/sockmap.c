@@ -355,7 +355,7 @@ log("done read from server to pipe\n");
 				if(inserverpipe >= MAXSPLICE) TOSERVERPIPE = 0;
 				if(param->bandlimfunc) {
 					int sl1;
-					sl1 = (*param->bandlimfunc)(param, 1, res);
+					sl1 = (*param->bandlimfunc)(param, res, 0);
 					if(sl1 > sleeptime) sleeptime = sl1;
 		    		}
  				if(param->operation == UDPASSOC && param->srv->singlepacket){
@@ -418,7 +418,7 @@ log("done read from server to buf");
 				param->srvinbuf += res;
 				if(param->bandlimfunc) {
 					int sl1;
-					sl1 = (*param->bandlimfunc)(param, 1, res);
+					sl1 = (*param->bandlimfunc)(param, res, 0);
 					if(sl1 > sleeptime) sleeptime = sl1;
 		    		}
 				if(param->srvbufsize == param->srvinbuf) TOSERVERBUF = 0;

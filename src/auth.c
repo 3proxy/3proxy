@@ -575,7 +575,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 			param->bandlims[i]->nexttime - now : 0;
 		sleeptime = (nsleeptime > sleeptime)? nsleeptime : sleeptime;
 		param->bandlims[i]->basetime = sec;
-		param->bandlims[i]->nexttime = msec + nsleeptime + (nbytesin > 512)? ((nbytesin+32)/64)*(((64*8*1000000)/param->bandlims[i]->rate)) : ((nbytesin+1) * (8*1000000))/param->bandlims[i]->rate;
+		param->bandlims[i]->nexttime = msec + nsleeptime + ((nbytesin > 512)? ((nbytesin+32)/64)*(((64*8*1000000)/param->bandlims[i]->rate)) : ((nbytesin+1) * (8*1000000))/param->bandlims[i]->rate);
 	}
 	for(i=0; nbytesout && i<MAXBANDLIMS && param->bandlimsout[i]; i++){
 		if( !param->bandlimsout[i]->basetime || 
@@ -592,7 +592,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 			param->bandlimsout[i]->nexttime - now : 0;
 		sleeptime = (nsleeptime > sleeptime)? nsleeptime : sleeptime;
 		param->bandlimsout[i]->basetime = sec;
-		param->bandlimsout[i]->nexttime = msec + nsleeptime + (nbytesout > 512)? ((nbytesout+32)/64)*((64*8*1000000)/param->bandlimsout[i]->rate) : ((nbytesout+1)* (8*1000000))/param->bandlimsout[i]->rate;
+		param->bandlimsout[i]->nexttime = msec + nsleeptime + ((nbytesout > 512)? ((nbytesout+32)/64)*((64*8*1000000)/param->bandlimsout[i]->rate) : ((nbytesout+1)* (8*1000000))/param->bandlimsout[i]->rate);
 	}
 	pthread_mutex_unlock(&bandlim_mutex);
 	return sleeptime/1000;
