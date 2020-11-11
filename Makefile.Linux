@@ -45,6 +45,7 @@ DESTDIR		=
 prefix		= 
 exec_prefix	= $(prefix)
 man_prefix	= /usr/share
+chroot_prefix	= /usr/local
 
 INSTALL		= /usr/bin/install
 INSTALL_BIN	= $(INSTALL) -m 755
@@ -66,19 +67,22 @@ INSTALL_CFG_OBJS = scripts/3proxy.cfg \
 INSTALL_CFG_OBJS2 = counters bandlimiters
 
 INSTALL_INITD_SCRIPT = scripts/init.d/3proxy.sh
+INSTALL_SYSTEMD_SCRIPT = scripts/3proxy.service
 
-CHROOTDIR	= $(DESTDIR)/usr/local/3proxy
+CHROOTDIR	= $(DESTDIR)$(chroot_prefix)/3proxy
+CHROOTREL	= ../..$(chroot_prefix)/3proxy
 MANDIR1		= $(DESTDIR)$(man_prefix)/man/man1
 MANDIR3		= $(DESTDIR)$(man_prefix)/man/man3
 MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
 BINDIR		= $(DESTDIR)$(exec_prefix)/bin
-ETCDIR		= $(DESTDIR)$(prefix)/etc/3proxy
-INITDDIR	= $(DESTDIR)$(prefix)/etc/init.d
-RUNBASE		= $(DESTDIR)$(prefix)/var/run
+ETCDIR		= $(DESTDIR)/etc/3proxy
+INITDDIR	= $(DESTDIR)/etc/init.d
+RUNBASE		= $(DESTDIR)/var/run
 RUNDIR		= $(RUNBASE)/3proxy
-LOGBASE		= $(DESTDIR)$(prefix)/var/log
+LOGBASE		= $(DESTDIR)/var/log
 LOGDIR		= $(LOGBASE)/3proxy
 INSTALL_CFG_DEST = $(ETCDIR)/conf
+SYSTEMDDIR	= $(DESTDIR)/usr/lib/systemd/system/
 
 install-bin:
 	$(INSTALL_BIN) -d $(BINDIR)
@@ -99,7 +103,7 @@ install-chroot-dir:
 
 install-etc-default-config:
 	if [ ! -d $(INSTALL_CFG_DEST) ]; then \
-	   ln -s $(CHROOTDIR)/conf $(INSTALL_CFG_DEST); \
+	   ln -s $(CHROOTREL)/conf $(INSTALL_CFG_DEST); \
 	   $(INSTALL_BIN) $(INSTALL_CFG) $(ETCDIR)/3proxy.cfg; \
 	   $(INSTALL_BIN) $(INSTALL_CFG_OBJS) $(INSTALL_CFG_DEST); \
 	fi
@@ -117,46 +121,21 @@ install-man:
 	$(INSTALL_DATA) man/*.8 $(MANDIR8)
 
 install-init:
-	if [ -d $(INITDIR) ]; then \
-	 $(INSTALL_BIN) $(INSTALL_INITD_SCRIPT) $(INITDDIR)/3proxy; \
-	fi
-	if [ -f /usr/sbin/update-rc.d ]; then \
-	 /usr/sbin/update-rc.d 3proxy defaults; \
-	 /usr/sbin/update-rc.d 3proxy enable; \
-	fi
+	$(INSTALL_BIN) -d $(INITDDIR)
+	$(INSTALL_BIN) $(INSTALL_INITD_SCRIPT) $(INITDDIR)/3proxy
+	$(INSTALL_BIN) -d $(SYSTEMDDIR)
+	$(INSTALL_DATA) $(INSTALL_SYSTEMD_SCRIPT) $(SYSTEMDDIR)
 
 install-run:
 	$(INSTALL_BIN) -d $(RUNDIR)
 
 install-log:
-	@if [ -d $(LOGBASE) ] && [ ! -d $(LOGDIR) ]; then \
-	 ln -s $(CHROOTDIR)/logs $(LOGDIR);\
+	$(INSTALL_BIN) -d $(LOGBASE)
+	@if [ ! -d $(LOGDIR) ]; then \
+	 ln -s $(CHROOTREL)/logs $(LOGDIR);\
 	fi
 
 install: install-chroot-dir install-bin install-etc install-log install-man install-run install-init
-	@getent passwd proxy || useradd -UMr -s /bin/false -c 3proxy proxy
-	@if [ ! -f $(INSTALL_CFG_DEST)/passwd ]; then \
-	touch $(INSTALL_CFG_DEST)/passwd;\
-	fi
-	@chown -R proxy:proxy $(CHROOTDIR)
-	@chmod 550  $(CHROOTDIR)/
-	@chmod 550  $(CHROOTDIR)/conf/
-	@chmod 440  $(CHROOTDIR)/conf/*
-	@echo ""
-	@echo 3proxy installed.
-	@echo use
-	@echo "  "service 3proxy start
-	@echo to start proxy
-	@echo "  "service 3proxy stop
-	@echo to stop proxy
-	@echo "  "$(INSTALL_CFG_DEST)/add3proxyuser.sh
-	@echo to add users
-	@echo ""
-	@echo Default config uses Google\'s DNS.
-	@echo It\'s recommended to use provider supplied DNS or install local recursor, e.g. pdns-recursor.
-	@echo Configure preferred DNS in $(INSTALL_CFG_DEST)/3proxy.cfg.
-	@echo run \'$(INSTALL_CFG_DEST)/add3proxyuser.sh admin password\' to configure \'admin\' user
-	@if [ -f /usr/sbin/service ]; then \
-	 /usr/sbin/service 3proxy stop ;\
-	 /usr/sbin/service 3proxy start ;\
+	@if [ "$(DESTDIR)" = "" ]; then \
+	 sh scripts/postinst; \
 	fi

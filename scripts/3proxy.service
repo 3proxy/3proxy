@@ -1,0 +1,16 @@
+[Unit]
+Description=3proxy tiny proxy server
+Documentation=man:3proxy(1)
+After=network.target
+
+[Service]
+Environment=CONFIGFILE=/etc/3proxy/3proxy.cfg
+ExecStart=/bin/3proxy ${CONFIGFILE} &
+ExecReload=/bin/kill -SIGUSR1 $MAINPID
+KillMode=process
+Restart=on-failure
+RestartSec=60s
+
+[Install]
+WantedBy=multi-user.target
+Alias=3proxy.service
