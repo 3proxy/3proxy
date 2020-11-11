@@ -34,3 +34,102 @@ include Makefile.inc
 
 allplugins:
 	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done
+
+DESTDIR		=
+prefix		= 
+exec_prefix	= $(prefix)
+man_prefix	= /usr/share
+chroot_prefix	= /usr/local
+
+INSTALL		= /usr/bin/install
+INSTALL_BIN	= $(INSTALL) -m 755
+INSTALL_DATA	= $(INSTALL) -m 644
+INSTALL_OBJS	= bin/3proxy \
+		  bin/ftppr \
+		  bin/mycrypt \
+		  bin/pop3p \
+		  bin/proxy \
+		  bin/socks \
+		  bin/tcppm \
+		  bin/udppm
+		  
+
+INSTALL_CFG	 = scripts/3proxy.cfg.chroot
+INSTALL_CFG_OBJS = scripts/3proxy.cfg \
+		   scripts/add3proxyuser.sh
+
+INSTALL_CFG_OBJS2 = counters bandlimiters
+
+INSTALL_INITD_SCRIPT = scripts/init.d/3proxy.sh
+INSTALL_SYSTEMD_SCRIPT = scripts/3proxy.service
+
+CHROOTDIR	= $(DESTDIR)$(chroot_prefix)/3proxy
+CHROOTREL	= ../..$(chroot_prefix)/3proxy
+MANDIR1		= $(DESTDIR)$(man_prefix)/man/man1
+MANDIR3		= $(DESTDIR)$(man_prefix)/man/man3
+MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
+BINDIR		= $(DESTDIR)$(exec_prefix)/bin
+ETCDIR		= $(DESTDIR)/etc/3proxy
+INITDDIR	= $(DESTDIR)/etc/init.d
+RUNBASE		= $(DESTDIR)/var/run
+RUNDIR		= $(RUNBASE)/3proxy
+LOGBASE		= $(DESTDIR)/var/log
+LOGDIR		= $(LOGBASE)/3proxy
+INSTALL_CFG_DEST = $(ETCDIR)/conf
+SYSTEMDDIR	= $(DESTDIR)/usr/lib/systemd/system/
+
+install-bin:
+	$(INSTALL_BIN) -d $(BINDIR)
+	$(INSTALL_BIN) -s $(INSTALL_OBJS) $(BINDIR)
+	$(INSTALL_BIN) -s bin/*.ld.so $(CHROOTDIR)/libexec
+	chmod -R a-w $(CHROOTDIR)/libexec
+
+install-etc-dir:
+	$(INSTALL_BIN) -d $(ETCDIR)
+
+install-chroot-dir:
+	$(INSTALL_BIN) -d $(CHROOTDIR)
+	$(INSTALL_BIN) -d $(CHROOTDIR)/conf
+	$(INSTALL_BIN) -d $(CHROOTDIR)/logs
+	$(INSTALL_BIN) -d $(CHROOTDIR)/count
+	$(INSTALL_BIN) -d $(CHROOTDIR)/libexec
+	chmod -R o-rwx $(CHROOTDIR)
+
+install-etc-default-config:
+	if [ ! -d $(INSTALL_CFG_DEST) ]; then \
+	   ln -s $(CHROOTREL)/conf $(INSTALL_CFG_DEST); \
+	   $(INSTALL_BIN) $(INSTALL_CFG) $(ETCDIR)/3proxy.cfg; \
+	   $(INSTALL_BIN) $(INSTALL_CFG_OBJS) $(INSTALL_CFG_DEST); \
+	fi
+
+install-etc: install-etc-dir install-etc-default-config
+	for file in $(INSTALL_CFG_OBJS2); \
+	do \
+	  touch $(INSTALL_CFG_DEST)/$$file; chmod 0600 $(INSTALL_CFG_DEST)/$$file; \
+	done;
+
+install-man:
+	$(INSTALL_BIN) -d $(MANDIR3)
+	$(INSTALL_BIN) -d $(MANDIR8)
+	$(INSTALL_DATA) man/*.3 $(MANDIR3)
+	$(INSTALL_DATA) man/*.8 $(MANDIR8)
+
+install-init:
+	$(INSTALL_BIN) -d $(INITDDIR)
+	$(INSTALL_BIN) $(INSTALL_INITD_SCRIPT) $(INITDDIR)/3proxy
+	$(INSTALL_BIN) -d $(SYSTEMDDIR)
+	$(INSTALL_DATA) $(INSTALL_SYSTEMD_SCRIPT) $(SYSTEMDDIR)
+
+install-run:
+	$(INSTALL_BIN) -d $(RUNDIR)
+
+install-log:
+	$(INSTALL_BIN) -d $(LOGBASE)
+	@if [ ! -d $(LOGDIR) ]; then \
+	 ln -s $(CHROOTREL)/logs $(LOGDIR);\
+	fi
+
+install: install-chroot-dir install-bin install-etc install-log install-man install-run install-init
+	@if [ "$(DESTDIR)" = "" ]; then \
+	 sh scripts/postinst; \
+	fi
