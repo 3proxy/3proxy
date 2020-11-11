@@ -1532,7 +1532,7 @@ struct commands commandhandlers[]={
 	{commandhandlers+20, "logformat", h_logformat, 2, 2},
 	{commandhandlers+21, "timeouts", h_timeouts, 2, 0},
 	{commandhandlers+22, "auth", h_auth, 2, 0},
-	{commandhandlers+23, "users", h_users, 2, 0},
+	{commandhandlers+23, "users", h_users, 1, 0},
 	{commandhandlers+24, "maxconn", h_maxconn, 2, 2},
 	{commandhandlers+25, "flush", h_flush, 1, 1},
 	{commandhandlers+26, "nserver", h_nserver, 2, 2},
