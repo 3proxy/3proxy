@@ -1,6 +1,3 @@
-if [ -x /usr/sbin/useradd ]; then \
- /usr/bin/getent passwd proxy >/dev/null || (/usr/sbin/useradd -UMr -s /bin/false -c 3proxy proxy || true); \
-fi
 if [ ! -f /usr/local/3proxy/conf/passwd ]; then \
  touch /usr/local/3proxy/conf/passwd;\
 fi

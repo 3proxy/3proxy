@@ -137,5 +137,6 @@ install-log:
 
 install: install-chroot-dir install-bin install-etc install-log install-man install-run install-init
 	@if [ "$(DESTDIR)" = "" ]; then \
-	 sh scripts/postinst; \
+	 sh scripts/debian/preinst; \
+	 sh scripts/debian/postinst; \
 	fi
