@@ -44,7 +44,6 @@ doc/html/man8/
 *.var
 verfile.sh
 Makefile
-Changelog
 copytgz.sh
 *~.nib
 local.properties
