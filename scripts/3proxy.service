@@ -10,6 +10,8 @@ ExecReload=/bin/kill -SIGUSR1 $MAINPID
 KillMode=process
 Restart=on-failure
 RestartSec=60s
+LimitNOFILE=65536
+LimitNPROC=32768
 
 [Install]
 WantedBy=multi-user.target
