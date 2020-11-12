@@ -1,19 +1,19 @@
 Name:           3proxy
-Version:        0.9.1
-Release:        0
+Version:        10
+Release:        %{devel_version}
 Summary:        3proxy tiny proxy server
 License:        GPL/LGPL/Apache/BSD
 URL:            https://3proxy.org/
 Vendor:         3proxy.org 3proxy@3proxy.org
 Prefix:         %{_prefix}
 Packager: 	z3APA3A
-Source:		https://github.com/%{packager}/%{name}/archive/%{version}.tar.gz
+Source:		https://github.com/%{packager}/%{name}/tarball/devel
 
 %description
 3proxy is lightweight yet powerful proxy server
 
 %prep
-%setup -q -n %{name}-%{version}
+%setup -q -n 3proxy-10-devel
 ln -s Makefile.Linux Makefile
 
 %build

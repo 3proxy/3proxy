@@ -24,6 +24,8 @@ tmp/
 res
 version.c
 version
+version.sh
+buildlinux.sh
 3proxy.res
 
 src/3proxy

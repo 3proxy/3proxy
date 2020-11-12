@@ -10,11 +10,3 @@ License: BSD-3-clause or Apache or GPL-2+ or LGPL-2+
 Files: src/libs/md*.*
 Copyright: 1990,1991,1992  RSA Data Security, Inc
 License: public-domain
-
-Files: src/libs/regex.*
-Copyright: Henry Spencer
-License: public-domain
-
-Files: src/libs/smbdes.c
-Copyright: Andrew Tridgell 1998
-License: GPL-2+
