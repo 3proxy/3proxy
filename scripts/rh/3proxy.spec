@@ -27,15 +27,49 @@ make clean
 
 
 %files
-/bin/*
+/bin/3proxy
+/bin/ftppr
+/bin/mycrypt
+/bin/pop3p
+/bin/proxy
+/bin/socks
+/bin/tcppm
+/bin/udppm
 %config(noreplace) /etc/3proxy/3proxy.cfg
-%config(noreplace) /etc/3proxy/conf
-%config(noreplace) /usr/local/3proxy/conf/*
+/etc/3proxy/conf
 /etc/init.d/3proxy
 /usr/lib/systemd/system/3proxy.service
-/usr/local/3proxy/libexec/*
-/usr/share/man/man3/*
-/usr/share/man/man8/*
+%config(noreplace) /usr/local/3proxy/conf/3proxy.cfg
+%config(noreplace) /usr/local/3proxy/conf/add3proxyuser.sh
+%config(noreplace) /usr/local/3proxy/conf/bandlimiters
+%config(noreplace) /usr/local/3proxy/conf/counters
+/usr/local/3proxy/libexec/PCREPlugin.ld.so
+/usr/local/3proxy/libexec/StringsPlugin.ld.so
+/usr/local/3proxy/libexec/TrafficPlugin.ld.so
+/usr/local/3proxy/libexec/TransparentPlugin.ld.so
+%if "%{_arch}" == "arm"
+/usr/share/man/man3/3proxy.cfg.3
+/usr/share/man/man8/3proxy.8
+/usr/share/man/man8/ftppr.8
+/usr/share/man/man8/icqpr.8
+/usr/share/man/man8/pop3p.8
+/usr/share/man/man8/proxy.8
+/usr/share/man/man8/smtpp.8
+/usr/share/man/man8/socks.8
+/usr/share/man/man8/tcppm.8
+/usr/share/man/man8/udppm.8
+%else
+/usr/share/man/man3/3proxy.cfg.3.gz
+/usr/share/man/man8/3proxy.8.gz
+/usr/share/man/man8/ftppr.8.gz
+/usr/share/man/man8/icqpr.8.gz
+/usr/share/man/man8/pop3p.8.gz
+/usr/share/man/man8/proxy.8.gz
+/usr/share/man/man8/smtpp.8.gz
+/usr/share/man/man8/socks.8.gz
+/usr/share/man/man8/tcppm.8.gz
+/usr/share/man/man8/udppm.8.gz
+%endif
 /var/log/3proxy
 
 %doc doc/*
