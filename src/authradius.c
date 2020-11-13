@@ -286,8 +286,6 @@ void random_vector(uint8_t *vector, struct clientparam *param)
 }
 
 
-static float timeout = 5;
-
 typedef struct radius_packet_t {
   uint8_t       code;
   uint8_t       id;
