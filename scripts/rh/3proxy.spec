@@ -20,7 +20,7 @@ ln -s Makefile.Linux Makefile
 make
 
 %install
-make DESTDIR=$RPM_BUILD_ROOT install
+make DESTDIR=%buildroot install
 
 %clean
 make clean
@@ -47,6 +47,18 @@ make clean
 /usr/local/3proxy/libexec/StringsPlugin.ld.so
 /usr/local/3proxy/libexec/TrafficPlugin.ld.so
 /usr/local/3proxy/libexec/TransparentPlugin.ld.so
+%if "%{cross}" == "yes"
+/usr/share/man/man3/3proxy.cfg.3
+/usr/share/man/man8/3proxy.8
+/usr/share/man/man8/ftppr.8
+/usr/share/man/man8/icqpr.8
+/usr/share/man/man8/pop3p.8
+/usr/share/man/man8/proxy.8
+/usr/share/man/man8/smtpp.8
+/usr/share/man/man8/socks.8
+/usr/share/man/man8/tcppm.8
+/usr/share/man/man8/udppm.8
+%else
 /usr/share/man/man3/3proxy.cfg.3.gz
 /usr/share/man/man8/3proxy.8.gz
 /usr/share/man/man8/ftppr.8.gz
@@ -57,6 +69,7 @@ make clean
 /usr/share/man/man8/socks.8.gz
 /usr/share/man/man8/tcppm.8.gz
 /usr/share/man/man8/udppm.8.gz
+%endif
 /var/log/3proxy
 
 %doc doc/*
