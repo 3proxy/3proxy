@@ -7,7 +7,6 @@ URL:            https://3proxy.org/
 Vendor:         3proxy.org 3proxy@3proxy.org
 Prefix:         %{_prefix}
 Packager: 	z3APA3A
-Target:		%{_target}
 Source:		https://github.com/%{packager}/%{name}/tarball/devel
 
 %description
