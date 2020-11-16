@@ -10,19 +10,20 @@
 int socksend(SOCKET sock, char * buf, int bufsize, int to){
  int sent = 0;
  int res;
- struct pollfd fds;
+ struct pollfd fds={0};
 
  fds.fd = sock;
- fds.events = POLLOUT;
  do {
-	if(conf.timetoexit) return 0;
-	res = so._poll(&fds, 1, to*1000);
-	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
-	if(res < 1) break;
 	res = so._send(sock, (char *)buf + sent, bufsize - sent, 0);
 	if(res < 0) {
 		if(errno == EAGAIN || errno == EINTR) continue;
 		break;
+		fds.events = POLLOUT;
+		if(conf.timetoexit) return sent;
+		res = so._poll(&fds, 1, to*1000);
+		if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
+		if(res < 1) break;
+		res = 0;
 	}
 	sent += res;
  } while (sent < bufsize);
@@ -33,19 +34,20 @@ int socksend(SOCKET sock, char * buf, int bufsize, int to){
 int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to){
  int sent = 0;
  int res;
- struct pollfd fds;
+ struct pollfd fds={0};
 
  fds.fd = sock;
  do {
 	if(conf.timetoexit) return 0;
-	fds.events = POLLOUT;
- 	res = so._poll(&fds, 1, to);
-	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
-	if(res < 1) break;
 	res = so._sendto(sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin));
 	if(res < 0) {
 		if(errno !=  EAGAIN && errno != EINTR) break;
-		continue;
+		fds.events = POLLOUT;
+		if(conf.timetoexit) return sent;
+ 		res = so._poll(&fds, 1, to);
+		if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
+		if(res < 1) break;
+		res = 0;
 	}
 	sent += res;
  } while (sent < bufsize);
@@ -53,18 +55,18 @@ int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int 
 }
 
 int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to){
-	struct pollfd fds;
+	struct pollfd fds={0};
 	SASIZETYPE sasize;
 	int res;
 
 	fds.fd = sock;
-	fds.events = POLLIN;
-	if(conf.timetoexit) return EOF;
-	if (so._poll(&fds, 1, to)<1) return 0;
-	sasize = SASIZE(sin);
 	do {
+		sasize = SASIZE(sin);
 		res = so._recvfrom(sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, &sasize);
-	} while (res < 0 && (errno == EAGAIN || errno == EINTR));
+		if ((res >= 0) || (errno != EAGAIN && errno != EINTR) || conf.timetoexit) break;
+		fds.events = POLLIN;
+		res = so._poll(&fds, 1, to);
+	} while (res == 1 || (res < 0 && (errno == EAGAIN || errno == EINTR)));
 	return res;
 }
 

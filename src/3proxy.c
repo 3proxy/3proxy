@@ -265,9 +265,7 @@ void cyclestep(void){
 	if(conf.timetoexit){
 		conf.paused++;
 		doschedule();
-		usleep(SLEEPTIME*999);
-		usleep(SLEEPTIME*999);
-		usleep(SLEEPTIME*999);
+		usleep(3*SLEEPTIME*999);
 		return;
 	}
 		

@@ -7,7 +7,6 @@
 */
 
 #include "proxy.h"
-
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
 char * commands[] = {"UNKNOWN", "CONNECT", "BIND", "UDPMAP"};
@@ -333,64 +332,61 @@ fflush(stderr);
 				if(!(buf = myalloc(LARGEBUFSIZE))) {RETURN(21);}
 				sin = param->sincr;
 
+				fds[2].events = fds[1].events = fds[0].events = 0;
+				fds[0].fd = param->remsock;
+				fds[1].fd = param->clisock;
+				fds[2].fd = param->ctrlsock;
 				for(;;){
-					fds[0].fd = param->remsock;
-					fds[1].fd = param->clisock;
-					fds[2].fd = param->ctrlsock;
-					fds[2].events = fds[1].events = fds[0].events = POLLIN;
 
-					res = so._poll(fds, 3, conf.timeouts[CONNECTION_L]*1000);
-					if(res <= 0) {
-						param->res = 463;
-						break;
-					}
-					if (fds[2].revents) {
-						param->res = 0;
-						break;
-					}
-					if (fds[1].revents) {
+					if(!fds[1].events || fds[1].revents){
 						sasize = sizeof(sin);
-						if((len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
-							param->res = 464;
-							break;
-						}
-						if(SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) || memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin))){
-							param->res = 465;
-							break;
-						}
-						if(buf[0] || buf[1] || buf[2]) {
-							param->res = 466;
-							break;
-						}
-						size = 4;
-						switch(buf[3]) {
-							case 4:
-								size = 16;
-							case 1:
-								i = 4+size;
-								memcpy(SAADDR(&param->sinsr), buf+4, size);
-								*SAFAMILY(&param->sinsr) = (size == 4)?AF_INET:AF_INET6;
-								break;
-							case 3:
-								size = buf[4];
-								for (i=4; size; i++, size--){
-									buf[i] = buf[i+1];
-								}
-								buf[i++] = 0;
-								if(!getip46(param->srv->family, buf+4, (struct sockaddr *) &param->sinsr)) RETURN(100);
-								break;
-							default:
-								RETURN(997);
-						 }
+						len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize);
+						if(len >= 0) {
+							fds[1].events = fds[1].revents = 0;
+							if(len < 10) continue;
 
-						memcpy(SAPORT(&param->sinsr), buf+i, 2);
-						i+=2;
+							sasize = sizeof(sin);
+							if((len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
+								param->res = 464;
+								break;
+							}
+							if(SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) || memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin))){
+								param->res = 465;
+								break;
+							}
+							if(buf[0] || buf[1] || buf[2]) {
+								param->res = 466;
+								break;
+							}
+							size = 4;
+							switch(buf[3]) {
+								case 4:
+									size = 16;
+								case 1:
+									i = 4+size;
+									memcpy(SAADDR(&param->sinsr), buf+4, size);
+									*SAFAMILY(&param->sinsr) = (size == 4)?AF_INET:AF_INET6;
+									break;
+								case 3:
+									size = buf[4];
+									for (i=4; size; i++, size--){
+										buf[i] = buf[i+1];
+									}
+									buf[i++] = 0;
+									if(!getip46(param->srv->family, buf+4, (struct sockaddr *) &param->sinsr)) RETURN(100);
+									break;
+								default:
+									RETURN(997);
+							 }
 
-						sasize = sizeof(param->sinsr);
-						if(len > (int)i){
-							socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000);
-							param->statscli64+=(len - i);
-							param->nwrites++;
+							memcpy(SAPORT(&param->sinsr), buf+i, 2);
+							i+=2;
+
+							sasize = sizeof(param->sinsr);
+							if(len > (int)i){
+								socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000);
+								param->statscli64+=(len - i);
+								param->nwrites++;
 #if SOCKSTRACE > 1
 fprintf(stderr, "UDP packet relayed from client to %s:%hu size %d, header %d\n",
 			inet_ntoa(param->sins.sin_addr),
@@ -404,23 +400,32 @@ fprintf(stderr, "client address is assumed to be %s:%hu\n",
 	);
 fflush(stderr);
 #endif
+							}
+							continue;
 						}
-
+						else if(len ==0 || (len <0 && errno != EINTR && errno != EAGAIN)){
+							param->res = 464;
+							break;
+						}
+						fds[1].events = POLLIN;
 					}
-					if (fds[0].revents) {
+					if (!fds[0].events || fds[0].revents) {
 						sasize = sizeof(param->sinsr);
 						buf[0]=buf[1]=buf[2]=0;
 						buf[3]=(*SAFAMILY(&param->sinsl) == AF_INET)?1:4;
-						if((len = so._recvfrom(param->remsock, (char *)buf+6+SAADDRLEN(&param->sinsl), 65535 - (6+SAADDRLEN(&param->sinsl)), 0, (struct sockaddr *)&param->sinsr, &sasize)) <= 0) {
+						len = so._recvfrom(param->remsock, (char *)buf+6+SAADDRLEN(&param->sinsl), 65535 - (6+SAADDRLEN(&param->sinsl)), 0, (struct sockaddr *)&param->sinsr, &sasize);
+						if(len == 0 || (len < 0 && errno != EAGAIN && errno !=EINTR)) {
 							param->res = 468;
 							break;
 						}
-						param->statssrv64+=len;
-						param->nreads++;
-						memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
-						memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
-						sasize = sizeof(sin);
-						socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 6 + SAADDRLEN(&param->sinsr), conf.timeouts[SINGLEBYTE_L]*1000);
+						else if(len > 0){
+							fds[0].events = fds[0].revents = 0;
+							param->statssrv64+=len;
+							param->nreads++;
+							memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
+							memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
+							sasize = sizeof(sin);
+							socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 6 + SAADDRLEN(&param->sinsr), conf.timeouts[SINGLEBYTE_L]*1000);
 #if SOCKSTRACE > 1
 fprintf(stderr, "UDP packet relayed to client from %hu size %d\n",
 			ntohs(*SAPORT(&param->sinsr)),
@@ -429,6 +434,22 @@ fprintf(stderr, "UDP packet relayed to client from %hu size %d\n",
 fflush(stderr);
 #endif
 
+							continue;
+						}
+						fds[0].events = POLLIN;
+					}
+	
+					if (fds[2].revents) {
+						param->res = 0;
+						break;
+					}
+
+					fds[0].revents = fds[1].revents = fds[2].revents = 0;
+					fds[2].events = POLLIN;
+					res = so._poll(fds, 3, conf.timeouts[CONNECTION_L]*1000);
+					if(res == 0 || (res < 0 && errno != EAGAIN && errno != EINTR)) {
+						param->res = 463;
+						break;
 					}
 				}
 				break;
