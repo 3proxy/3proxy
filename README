@@ -35,8 +35,22 @@ ln -s Makefile.Linux Makefile
 make
 sudo make install
 
-use /etc/3proxy/add3proxyuser.sh script to add users.
+Default configuration (for Linux/Unix):
+3proxy uses 2 configuration files:
+/etc/3proxy/3proxy.cfg (before-chroot). This configuration file is executed before chroot and should not be modified.
+/usr/local/3proxy/conf/3proxy.cfg symlinked from /etc/3proxy/conf/3proxy.cfg (after-chroot) is a main configuration file. Modify this file, if required.
+All paths in /usr/local/3proxy/conf/3proxy.cfg are relative to chroot directory (/usr/local/3proxy). For future versions it's planned to move
+3proxy chroot direcory to /var.
+Log files are created in /usr/local/3proxy/logs symlinked from /var/log/3proxy.
+By default, socks is started on 0.0.0.0:1080 and proxy on 0.0.0.0:3128 with basic auth, no users are added by default.
 
+use /etc/3proxy/conf/add3proxyuser.sh script to add users.
+
+usage: /etc/3proxy/conf/add3proxyuser.sh username password [day_limit] [bandwidth]
+        day_limit - traffic limit in MB per day
+        bandwidth - bandwith in bits per second 1048576 = 1Mbps
+
+or modify /etc/3proxy/conf/ files directly.
 
 Please read doc/html/index.html and man pages.
 
@@ -192,7 +206,6 @@ mycrypt    	Program to obtain crypted password fro cleartext. Supports
 		produces NT password
 			mycrypt salt password
 		produces MD5/crypt password with salt "salt".
-dighosts    	Utility for building networks list from web page.
 
 
 Run utility with --help option for command line reference.
