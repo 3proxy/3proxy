@@ -33,6 +33,7 @@ void * sockschild(struct clientparam* param) {
  struct sockaddr_in sin = {AF_INET};
 #endif
  int len;
+ int heur = 0;
 
 
  param->service = S_SOCKS;
@@ -123,6 +124,15 @@ void * sockschild(struct clientparam* param) {
 			RETURN(431);
 		}
 		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), buf, 64);
+		if(command == 3){
+			if(*SAFAMILY(&param->req) == *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&param->req),SAADDR(&param->sincr), SAADDRLEN(&param->req))){
+				heur = 1;
+			}
+			else if (!SAISNULL(&param->req)){
+				heur = 2;
+			}
+		}
+
 		break;
 	case 3:
 		if ((size = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
@@ -330,7 +340,7 @@ fflush(stderr);
 				param->sinsr = param->req;
 				myfree(buf);
 				if(!(buf = myalloc(LARGEBUFSIZE))) {RETURN(21);}
-				sin = param->sincr;
+				sin = (heur == 1)?param->req:param->sincr;
 
 				fds[2].events = fds[1].events = fds[0].events = 0;
 				fds[0].fd = param->remsock;
@@ -346,11 +356,20 @@ fflush(stderr);
 							if(len < 10) continue;
 
 							sasize = sizeof(sin);
-							if((len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
+							if(len <= 10) {
 								param->res = 464;
 								break;
 							}
-							if(SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) || memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin))){
+							if(SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) || memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin)) || (heur == 1 && *SAPORT(&param->sincr)!=*SAPORT(&sin))){
+								if(heur == 1){
+#if SOCKSTRACE > 0
+fprintf(stderr, "internal UDP packet ignored\n");
+fflush(stderr);
+#endif
+									sin = param->req;
+									continue;
+								}
+
 								param->res = 465;
 								break;
 							}
@@ -422,6 +441,13 @@ fflush(stderr);
 							fds[0].events = fds[0].revents = 0;
 							param->statssrv64+=len;
 							param->nreads++;
+							if(heur == 2 && (*SAFAMILY(&param->sinsr) != *SAFAMILY(&param->req) || memcmp(SAADDR(&param->sinsr),SAADDR(&param->req), SAADDRLEN(&param->req)))){
+#if SOCKSTRACE > 0
+fprintf(stderr, "external UDP packet ignored\n");
+fflush(stderr);
+#endif
+									continue;
+							}
 							memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
 							memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
 							sasize = sizeof(sin);
