@@ -577,7 +577,7 @@ static int WINAPI fp_sendto(SOCKET s, const void *msg, int len, int flags, const
 	case GOT_FTP_CLIDATA:
 	case GOT_FTP_SRVDATA:
 	case GOT_HTTP_CLIDATA:
-		if((!fps->what & FP_CLIDATA)) break;
+		if(!(fps->what & FP_CLIDATA)) break;
 #ifdef _WIN32
 		if(SetFilePointer(fps->fpd.h_cli, fps->clientwritten + fps->clihdrwritten, 0, FILE_BEGIN) != (fps->clientwritten + fps->clihdrwritten)){
 			return -1;

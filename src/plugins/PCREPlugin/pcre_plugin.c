@@ -351,7 +351,7 @@ static struct commands pcre_commandhandlers[] = {
 static struct symbol regexp_symbols[] = {
 	{regexp_symbols+1, "pcre_compile", (void*) pcre_compile},
 	{regexp_symbols+2, "pcre_exec", (void*) pcre_exec},
-	{NULL, "pcre_free", NULL},
+	{NULL, "pcre_config", (void *)pcre_config},
 };
 
 #ifdef WATCOM
@@ -371,8 +371,7 @@ PLUGINAPI int PLUGINCALL pcre_plugin (struct pluginlink * pluginlink,
 		pcre_free = pl->freefunc;
 		pcre_loaded = 1;
 		pthread_mutex_init(&pcre_mutex, NULL);
-		regexp_symbols[6].value = pl->freefunc;
-		regexp_symbols[6].next = pl->symbols.next;
+		regexp_symbols[2].next = pl->symbols.next;
 		pl->symbols.next = regexp_symbols;
 		pcre_commandhandlers[3].next = pl->commandhandlers->next;
 		pl->commandhandlers->next = pcre_commandhandlers;

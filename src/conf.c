@@ -1335,12 +1335,12 @@ static int h_radius(int argc, unsigned char **argv){
 	strcpy(radiussecret, argv[1]);
 	for( nradservers=0; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
 		char *s = 0;
-		if(strchr(argv[nradservers + 2], '/')){
+		if((s=strchr(argv[nradservers + 2], '/'))){
 			*s = 0;
 			s++;
 		}
 		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers].authaddr)) return 1;
-		if( s && !getip46(46, s, (struct sockaddr *)&radiuslist[nradservers].localaddr)) return 2;
+		if( s && !getip46(46, s+1, (struct sockaddr *)&radiuslist[nradservers].localaddr)) return 2;
 		if(!*SAPORT(&radiuslist[nradservers].authaddr))*SAPORT(&radiuslist[nradservers].authaddr) = htons(1812);
 		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
 		radiuslist[nradservers].logaddr = radiuslist[nradservers].authaddr;
