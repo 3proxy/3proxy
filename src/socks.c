@@ -441,7 +441,7 @@ fflush(stderr);
 							fds[0].events = fds[0].revents = 0;
 							param->statssrv64+=len;
 							param->nreads++;
-							if(heur == 2 && (*SAFAMILY(&param->sinsr) != *SAFAMILY(&param->req) || memcmp(SAADDR(&param->sinsr),SAADDR(&param->req), SAADDRLEN(&param->req)))){
+							if(!*SAPORT(&sin) || (heur == 2 && (*SAFAMILY(&param->sinsr) != *SAFAMILY(&param->req) || memcmp(SAADDR(&param->sinsr),SAADDR(&param->req), SAADDRLEN(&param->req))))){
 #if SOCKSTRACE > 0
 fprintf(stderr, "external UDP packet ignored\n");
 fflush(stderr);
