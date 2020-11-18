@@ -351,7 +351,7 @@ static struct commands pcre_commandhandlers[] = {
 static struct symbol regexp_symbols[] = {
 	{regexp_symbols+1, "pcre_compile", (void*) pcre_compile},
 	{regexp_symbols+2, "pcre_exec", (void*) pcre_exec},
-	{NULL, "pcre_config", (void *)pcre_config},
+	{NULL, "pcre_options", (void *)&pcre_options},
 };
 
 #ifdef WATCOM
