@@ -67,7 +67,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  int pipesrv[2] = {-1,-1};
  int pipecli[2] = {-1,-1};
 
- if(param->operation == UDPASSOC) usesplice = 0;
+ if(param->operation == UDPASSOC || (!param->nolongdatfilter && (param->ndatfilterscli > 0 || param->ndatfilterssrv))) usesplice = 0;
  if(usesplice){
 	TOCLIENTPIPE = FROMCLIENTPIPE = TOSERVERPIPE = FROMSERVERPIPE = 1;
 	TOCLIENTBUF = TOSERVERBUF = 0;

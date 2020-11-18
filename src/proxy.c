@@ -537,17 +537,28 @@ for(;;){
 	RETURN(0);
  }
  if(action != PASS) RETURN(517);
- if(param->ndatfilterscli > 0 && contentlength64 > 0){
+ param->nolongdatfilter = 0;
+
+ 
+ if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
+	param->nolongdatfilter = 1;
+ }
+ else if(param->ndatfilterscli > 0 && contentlength64 > 0){
   uint64_t newlen64;
   newlen64 = sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
   if(newlen64 == contentlength64) {
+	action = handlepredatflt(param);
+	if(action == HANDLED){
+		RETURN(0);
+	}
+	if(action != PASS) RETURN(19);
 	action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, 0, (int *)&param->cliinbuf);
 	if(action == HANDLED){
 		RETURN(0);
 	}
 	if(action != PASS) RETURN(517);
 	contentlength64 = param->cliinbuf;
-	param->ndatfilterscli = 0;
+	param->nolongdatfilter = 1;
   }
   sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
  }
@@ -882,7 +893,6 @@ for(;;){
 	sleeptime = param->bandlimfunc(param, 0, (int)strlen((char *)buf));
  }
  if(contentlength64 > 0){
-	 param->nolongdatfilter = 0;
 	 param->waitclient64 = contentlength64;
 	 res = mapsocket(param, conf.timeouts[CONNECTION_S]);
 	 param->waitclient64 = 0;
@@ -985,10 +995,15 @@ for(;;){
  if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
 	param->nolongdatfilter = 1;
  }
- else if(param->unsafefilter && param->ndatfilterssrv > 0 && contentlength64 > 0 && param->operation != HTTP_HEAD && res != 204 && res != 304){
+ else if(param->ndatfilterssrv > 0 && contentlength64 > 0 && param->operation != HTTP_HEAD && res != 204 && res != 304){
   uint64_t newlen;
   newlen = (uint64_t)sockfillbuffsrv(param, (unsigned long) contentlength64, CONNECTION_S);
   if(newlen == contentlength64) {
+	action = handlepredatflt(param);
+	if(action == HANDLED){
+		RETURN(0);
+	}
+	if(action != PASS) RETURN(19);
 	action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, 0, (int *)&param->srvinbuf);
 	param->nolongdatfilter = 1;
 	if(action == HANDLED){
