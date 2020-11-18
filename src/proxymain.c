@@ -339,7 +339,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 					fp = fopen(argv[i] + 2, "a");
 					if (fp) {
 						srv.stdlog = fp;
-						fseek(fp, 0L, SEEK_END);
 					}
 				}
 
