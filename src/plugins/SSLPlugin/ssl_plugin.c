@@ -56,6 +56,7 @@ struct SSLqueue {
 */
 static struct SSLqueue *searchSSL(SOCKET s){
 	struct SSLqueue *sslq = NULL;
+
 	pthread_mutex_lock(&ssl_mutex);
 	for(sslq = SSLq; sslq; sslq = sslq->next)
 		if(sslq->s == s) break;
@@ -65,19 +66,21 @@ static struct SSLqueue *searchSSL(SOCKET s){
 
 static void addSSL(SOCKET s, SSL_CERT cert, SSL_CONN conn, struct clientparam* param){
 	struct SSLqueue *sslq;
+
 	sslq = (struct SSLqueue *) malloc(sizeof(struct SSLqueue));
 	sslq->s = s;
 	sslq->cert = cert;
 	sslq->conn = conn;
+	sslq->param = param;
 	pthread_mutex_lock(&ssl_mutex);
 	sslq->next = SSLq;
-	sslq->param = param;
 	SSLq = sslq;
 	pthread_mutex_unlock(&ssl_mutex);
 }
 
 int delSSL(SOCKET s){
 	struct SSLqueue *sqi, *sqt = NULL;
+
 	if(!SSLq) return 0;
 	pthread_mutex_lock(&ssl_mutex);
 	if(SSLq){
@@ -113,13 +116,15 @@ static int ssl_send(SOCKET s, const void *msg, size_t len, int flags){
 	struct SSLqueue *sslq;
 
 	if ((sslq = searchSSL(s))){
-		int i=0, res, err;
-		do {
-			if((res = ssl_write(sslq->conn, (void *)msg, len)) < 0) {
-					err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-					usleep(10*SLEEPTIME);
+		int res, err;
+		if((res = ssl_write(sslq->conn, (void *)msg, len)) <= 0){
+			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
+			if (err == SSL_ERROR_WANT_WRITE){
+				_set_errno(EAGAIN);
+				return -1;
 			}
-		} while (res < 0 && (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) && ++i < 100); 
+			else _set_errno(err);
+		}
 		return res;
 	}
 
@@ -135,13 +140,15 @@ static int ssl_sendto(SOCKET s, const void *msg, size_t len, int flags, const st
 	struct SSLqueue *sslq;
 
 	if ((sslq = searchSSL(s))){
-		int i=0, res, err;
-		do {
-			if((res = ssl_write(sslq->conn, (void *)msg, len)) < 0) {
-					err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-					usleep(10*SLEEPTIME);
+		int res, err;
+		if((res = ssl_write(sslq->conn, (void *)msg, len)) <= 0) {
+			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
+			if (err == SSL_ERROR_WANT_WRITE){
+				_set_errno(EAGAIN);
+				return -1;
 			}
-		} while (res < 0 && (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) && ++i < 100); 
+			else _set_errno(err);
+		}
 		return res;
 	}
 
@@ -156,16 +163,17 @@ static int ssl_recvfrom(SOCKET s, void *msg, size_t len, int flags, struct socka
 	struct SSLqueue *sslq;
 
 	if ((sslq = searchSSL(s))){
-		int i=0, res, err;
-		do {
-			if((res = ssl_read(sslq->conn, (void *)msg, len)) < 0) {
-					err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-					usleep(10*SLEEPTIME);
+		int res, err;
+		if((res = ssl_read(sslq->conn, (void *)msg, len)) <= 0) {
+			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
+			if (err == SSL_ERROR_WANT_READ) {
+				_set_errno(EAGAIN);
+				return -1;
 			}
-		} while (res < 0 && (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) && ++i < 100); 
+			else _set_errno(err);
+		}
 		return res;
 	}
-
 	return sso._recvfrom(s, msg, len, flags, from, fromlen);
 }
 
@@ -177,13 +185,15 @@ static int WINAPI ssl_recv(SOCKET s, void *msg, size_t len, int flags){
 	struct SSLqueue *sslq;
 
 	if ((sslq = searchSSL(s))){
-		int i=0, res, err;
-		do {
-			if((res = ssl_read(sslq->conn, (void *)msg, len)) < 0) {
-					err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-					usleep(10*SLEEPTIME);
+		int res, err;
+		if((res = ssl_read(sslq->conn, (void *)msg, len)) <= 0) {
+			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
+			if (err == SSL_ERROR_WANT_READ) {
+				_set_errno(EAGAIN);
+				return -1;
 			}
-		} while (res < 0 && (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) && ++i < 100); 
+			else _set_errno(err);
+		}
 		return res;
 	}
 

@@ -52,14 +52,14 @@ static size_t bin2hex (const unsigned char* bin, size_t bin_length, char* str, s
 	char *p;
 	size_t i;
 	
-	if ( str_length < ( bin_length+1) ) 
+	if ( str_length < ( (bin_length*2)+1) ) 
 		return 0; 
 
 	p = str; 
 	for ( i=0; i < bin_length; ++i )  
 	{ 
-		*p++ = hexMap[*bin >> 4];  
-		*p++ = hexMap[*bin & 0xf]; 
+		*p++ = hexMap[(*(unsigned char *)bin) >> 4];  
+		*p++ = hexMap[(*(unsigned char *)bin) & 0xf]; 
 		++bin;
 	} 
 	
@@ -115,10 +115,18 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	unsigned char p2[] = "3proxy";
 	unsigned char p3[] = "3proxy CA";
 
-	char hash_name_sha1[sizeof(src_cert->sha1_hash)*2 + 1];
-	char cache_name[200];
+	int hash_size = 20;
+	char hash_sha1[20];
+	char hash_name_sha1[(20*2) + 1];
+	char cache_name[256];
 
-	bin2hex(src_cert->sha1_hash, sizeof(src_cert->sha1_hash), hash_name_sha1, sizeof(hash_name_sha1));
+	err = X509_digest(src_cert, EVP_sha1(), hash_sha1, NULL);
+	if(!err){
+		X509_free(dst_cert);
+		return NULL;
+	}
+
+	bin2hex(hash_sha1, 20, hash_name_sha1, sizeof(hash_name_sha1));
 	sprintf(cache_name, "%s%s.pem", cert_path, hash_name_sha1);
 	/* check if certificate is already cached */
 	fcache = fopen(cache_name, "rb");
@@ -153,15 +161,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	}
 
 
-	/* Its self signed so set the issuer name to be the same as the
- 	 * subject.
-	 */
 	err = X509_set_issuer_name(dst_cert, name);
-	if(!err){
-		X509_free(dst_cert);
-		return NULL;
-	}
-	err = X509_digest(dst_cert, EVP_sha1(), dst_cert->sha1_hash, NULL);
 	if(!err){
 		X509_free(dst_cert);
 		return NULL;
