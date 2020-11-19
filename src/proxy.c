@@ -762,12 +762,16 @@ for(;;){
  if(isconnect && param->redirtype != R_HTTP) {
 	socksend(param->clisock, (char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 	if(param->redirectfunc) {
-		 if(req)myfree(req);
-		 if(buf)myfree(buf);
-
+		if(req)myfree(req);
+		if(buf)myfree(buf);
 		return (*param->redirectfunc)(param);
 	}
 	param->res =  mapsocket(param, conf.timeouts[CONNECTION_L]);
+	if(param->redirectfunc) {
+		if(req)myfree(req);
+		if(buf)myfree(buf);
+		return (*param->redirectfunc)(param);
+	}
 	RETURN(param->res);
  }
 
