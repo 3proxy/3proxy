@@ -12,7 +12,7 @@ CC = gcc
 
 CFLAGS = -g  -fPIC -O2 -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
 COUT = -o 
-LN = gcc
+LN = $(CC)
 DCFLAGS = 
 LDFLAGS = -fPIE -O2 -fno-strict-aliasing -pthread
 DLFLAGS = -shared
