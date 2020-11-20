@@ -25,6 +25,7 @@ OBJSUFFICS = .o
 DEFINEOPTION = -D
 COMPFILES = *.tmp
 REMOVECOMMAND = rm -f
+AFTERCLEAN = find src/ -type f -name "*.o" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.win
