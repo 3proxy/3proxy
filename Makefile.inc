@@ -8,8 +8,9 @@ all:
 
 clean:
 	@$(REMOVECOMMAND) *$(OBJSUFFICS) $(COMPFILES)
-	@cd src && $(MAKE) clean
-	cd ..
+	@cd src
+	$(MAKE) clean
+	@cd ..
 	@$(AFTERCLEAN)
 	
 
