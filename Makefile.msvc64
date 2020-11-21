@@ -27,20 +27,14 @@ COMPFILES = *.pch *.idb
 REMOVECOMMAND = del 2>NUL >NUL
 TYPECOMMAND = type
 COMPATLIBS =
-MAKEFILE = Makefile.msvc64
+VERFILE = 3proxy.res $(VERFILE)
+VERSIONDEP = 3proxy.res $(VERSIONDEP)
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin SSLPlugin
-VERFILE = $(VERFILE)
-
-#../3proxy.res:
-#	rc /fo../3proxy.res ../3proxy.rc
-
-#3proxyres.obj: ../3proxy.res
-#	cvtres /out:3proxyres.obj /MACHINE:X64 ../3proxy.res
 
 include Makefile.inc
 
-../3proxy.res:
-	rc /fo../3proxy.res ../3proxy.rc $(VERSION) $(BUILDDATE)
+3proxy.res:
+	rc 3proxy.rc
 
 3proxyres.obj: ../3proxy.res
 	cvtres /out:3proxyres.obj /machine:x64 ../3proxy.res
