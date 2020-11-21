@@ -33,7 +33,7 @@ VERFILE = 3proxy.res $(VERFILE)
 VERSION = $(VERSION)
 VERSIONDEP = 3proxy.res $(VERSIONDEP)
 BUILDDATE = $(BUILDDATE)
-AFTERCLEAN = del src/*.res
+AFTERCLEAN = if exist src\*.res del src\*.res
 
 include Makefile.inc
 
