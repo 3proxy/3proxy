@@ -31,12 +31,8 @@ MAKEFILE = Makefile.msvcARM64
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin
 VERFILE = 3proxy.res $(VERFILE)
 VERSIONDEP = 3proxy.res $(VERSIONDEP)
+AFTERCLEAN = del src/*.res
 
-#../3proxy.res:
-#	rc /fo../3proxy.res ../3proxy.rc
-
-#3proxyres.obj: ../3proxy.res
-#	cvtres /out:3proxyres.obj /MACHINE:X64 ../3proxy.res
 
 include Makefile.inc
 
