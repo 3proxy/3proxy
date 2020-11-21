@@ -30,6 +30,7 @@ COMPATLIBS =
 VERFILE = 3proxy.res $(VERFILE)
 VERSIONDEP = 3proxy.res $(VERSIONDEP)
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin FilePlugin SSLPlugin
+AFTERCLEAN = del src/*.res
 
 include Makefile.inc
 
