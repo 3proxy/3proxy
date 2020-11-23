@@ -35,6 +35,14 @@ void * threadfunc (void *p) {
 			dolog(param, (char *)"Connect back accept() failed");
 			continue;
 		}
+		{
+#ifdef _WIN32
+			unsigned long ul=1;
+			ioctlsocket(param->remsock, FIONBIO, &ul);
+#else
+			fcntl(param->remsock,F_SETFL,O_NONBLOCK | fcntl(param->remsock,F_GETFL));
+#endif
+		}
 #ifndef WITHMAIN
 		param->req = param->sinsr;
 		if(param->srv->preacl) param->res = checkpreACL(param);
@@ -45,7 +53,7 @@ void * threadfunc (void *p) {
 			continue;
 		}
 #endif
-		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, (char *)"C", 1, CONNBACK_TO) != 1){
+		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, "C", 1, CONNBACK_TO*1000) != 1){
 			dolog(param, (char *)"Connect back sending command failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
@@ -688,7 +696,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 					usleep(SLEEPTIME);
 					continue;
 				}
-				if(sockrecvfrom(new_sock,(struct sockaddr*)&defparam.sincr,buf,1,60) != 1 || *buf!='C') {
+
+				if(sockrecvfrom(new_sock,(struct sockaddr*)&defparam.sincr,buf,1,60*1000) != 1 || *buf!='C') {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);
@@ -746,8 +755,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 				}
 				continue;
 			}
+			setopts(new_sock, srv->clisockopts);
 		}
-		setopts(new_sock, srv->clisockopts);
 		size = sizeof(defparam.sincl);
 		if(so._getsockname(new_sock, (struct sockaddr *)&defparam.sincl, &size)){
 			sprintf((char *)buf, "getsockname(): %s", strerror(errno));
