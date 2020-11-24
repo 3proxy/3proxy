@@ -3,14 +3,11 @@
 #
 
 all:
-	$(TYPECOMMAND) $(MAKEFILE) > src/Makefile.var
+	@$(TYPECOMMAND) $(MAKEFILE) > src/Makefile.var
 	@cd src && $(MAKE)
 
 clean:
-	@$(REMOVECOMMAND) *$(OBJSUFFICS) $(COMPFILES)
-	@cd src
-	$(MAKE) clean
-	@cd ..
+	@cd src && $(REMOVECOMMAND) *$(OBJSUFFICS) $(COMPFILES) && cd ..
 	@$(AFTERCLEAN)
 	
 

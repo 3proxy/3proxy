@@ -30,14 +30,43 @@ COMPATLIBS =
 MAKEFILE = Makefile.watcom
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
 VERFILE = $(VERFILE)
+VERSION = $(VERSION)
+VERSIONDEP = 3proxy.res $(VERSIONDEP)
+BUILDDATE = $(BUILDDATE)
 
 include Makefile.inc
 
-../3proxy.res:
-	rc /fo../3proxy.res ../3proxy.rc $(VERSION) $(BUILDDATE)
-
-3proxyres.obj: ../3proxy.res
-	cvtres /out:3proxyres.obj ../3proxy.res
+3proxy.res:
+	rc 3proxy.rc
 
 allplugins:
-	call ../makeplugins.bat	
+	copy Makefile plugins\utf8tocp1251
+	copy Makefile.var plugins\utf8tocp1251
+	cd plugins\utf8tocp1251
+	nmake
+	del *.obj *.idb
+	cd ../../
+	copy Makefile plugins\WindowsAuthentication
+	copy Makefile.var plugins\WindowsAuthentication
+	cd plugins\WindowsAuthentication
+	nmake
+	del *.obj *.idb
+	cd ../../
+	copy Makefile plugins\TrafficPlugin
+	copy Makefile.var plugins\TrafficPlugin
+	cd plugins\TrafficPlugin
+	nmake
+	del *.obj *.idb
+	cd ../../
+	copy Makefile plugins\StringsPlugin
+	copy Makefile.var plugins\StringsPlugin
+	cd plugins\StringsPlugin
+	nmake
+	del *.obj *.idb
+	cd ../../
+	copy Makefile plugins\PCREPlugin
+	copy Makefile.var plugins\PCREPlugin
+	cd plugins\PCREPlugin
+	nmake
+	del *.obj *.idb
+	cd ../../

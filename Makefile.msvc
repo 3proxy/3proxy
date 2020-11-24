@@ -24,7 +24,7 @@ EXESUFFICS = .exe
 OBJSUFFICS = .obj
 DEFINEOPTION = /D 
 COMPFILES = *.pch *.idb
-REMOVECOMMAND = del 2>NUL >NUL
+REMOVECOMMAND = del
 TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.msvc
@@ -33,7 +33,7 @@ VERFILE = 3proxy.res $(VERFILE)
 VERSION = $(VERSION)
 VERSIONDEP = 3proxy.res $(VERSIONDEP)
 BUILDDATE = $(BUILDDATE)
-AFTERCLEAN = if exist src\*.res del src\*.res
+AFTERCLEAN = if exist src\*.res (del src\*.res) && if exist src\*.err (del src\*.err)
 
 include Makefile.inc
 
