@@ -77,7 +77,7 @@ make clean
 %pre
 if [ -x /usr/sbin/useradd ]; then \
  /usr/bin/getent group proxy >/dev/null || (/usr/sbin/groupadd -f -r proxy || true); \
- /usr/bin/getent passwd proxy >/dev/null || (/usr/sbin/useradd -UMr -s /bin/false -c 3proxy proxy || true); \
+ /usr/bin/getent passwd proxy >/dev/null || (/usr/sbin/useradd -Mr -s /bin/false -g proxy -c 3proxy proxy || true); \
 fi
 
 %post
