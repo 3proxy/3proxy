@@ -1,0 +1,43 @@
+# dockerfile for "interactive" minimal 3proxy execution, no configuration mounting is required, configuration
+# is accepted from stdin. Use "end" command to indicate the end of configuration. Use "log" for stdout logging.
+# nserver is required for DNS resolutions (system resolver will not work).
+#
+# This is "scratch" docker with only 3proxy static executable and empty non-writable "run" directory.
+#
+# "plugin" and "system" are not supported
+#
+# Build:
+#
+# docker build -f Dockerfile.minimal -t 3proxy.minimal .
+#
+# Run example:
+#
+# docker run -i -p 3129:3129 --name 3proxy 3proxy.minimal  
+#or
+# docker start -i 3proxy
+#<chroot run 65535 65535
+#<nserver 8.8.8.8
+#<nscache 65535
+#<log
+#<proxy -p3129
+#<end
+#
+# use "chroot run 65536 65536" in config for safe chroot environment
+
+
+FROM gcc AS buildenv
+COPY . /3proxy
+RUN cd /3proxy &&\
+ echo "">>Makefile.Linux&&\
+ echo LDFLAGS = -fPIE -static -O2 -fno-strict-aliasing -pthread >>Makefile.Linux&&\
+ echo PLUGINS = >>Makefile.Linux&&\
+ make -f Makefile.Linux&&\
+ cp bin/3proxy .&&\
+ strip 3proxy&&\
+ mkdir run&&\
+ chmod 555 run
+
+FROM scratch
+COPY --from=buildenv 3proxy .
+COPY --from=buildenv run .
+CMD ["./3proxy"]
