@@ -682,14 +682,16 @@ connections. These 2 proxies form 1 group (summarized weight is 1000).
 .br
  creates chain of 3 proxies: 192.168.10.1, 192.168.20.1 and third
 is (192.168.30.1 with probability of 0.3 or 192.168.40.1
-with probability of 0.7) for outgoing web connections.
+with probability of 0.7) for outgoing web connections. Chains are only applied to new connections, pipelined (keep-alive) requests in the same connection use the same chain.
 
 .br
  type is one of:
 .br
+ extip does not actully redirect request, it sets external address for this request to <ip>. It can be chained with another parent types. It's usefaul to set external IP based on ACL or make it random.
+.br
  tcp simply redirect connection. TCP is always last in chain. This type of proxy is a simple TCP redirection, it does not support parent authentication.
 .br
- http redirect to HTTP proxy. HTTP is always last chain. It should only be used with http (proxy) service,
+ http redirect to HTTP proxy. HTTP is always the last chain. It should only be used with http (proxy) service,
 if used with different service, it works as tcp redirection.
 .br
  pop3 redirect to POP3 proxy (only local redirection is supported, can only be used as a first hop in chaining)
