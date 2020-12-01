@@ -1,6 +1,6 @@
 Name:           3proxy
 Version:        0.9.2
-Release:        0
+Release:        1
 Summary:        3proxy tiny proxy server
 License:        GPL/LGPL/Apache/BSD
 URL:            https://3proxy.org/
