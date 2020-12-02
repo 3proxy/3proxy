@@ -353,13 +353,8 @@ fflush(stderr);
 						len = so._recvfrom(param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize);
 						if(len >= 0) {
 							fds[1].events = fds[1].revents = 0;
-							if(len < 10) continue;
+							if(len <= 10) continue;
 
-							sasize = sizeof(sin);
-							if(len <= 10) {
-								param->res = 464;
-								break;
-							}
 							if(SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) || memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin)) || (heur == 1 && *SAPORT(&param->sincr)!=*SAPORT(&sin))){
 								if(heur == 1){
 #if SOCKSTRACE > 0
