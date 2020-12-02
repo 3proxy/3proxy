@@ -606,17 +606,18 @@ void trafcountfunc(struct clientparam *param){
 	for(tc = conf.trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
 			time_t t;
-			if(tc->ace->action == NOCOUNTIN || tc->ace->action == NOCOUNTALL) {
+
+			if(tc->ace->action == NOCOUNTIN) {
 				countout = 1;
 				break;
 			}
-			if(tc->ace->action != COUNTIN) {
+			if(tc->ace->action == NOCOUNTALL) break;
+			if(tc->ace->action != COUNTIN && tc->ace->action != COUNTALL) {
 				countout = 1;
-				if(tc->ace->action != COUNTALL)continue;
+				continue;
 			}
 			tc->traf64 += param->statssrv64;
-			time(&t);
-			tc->updated = t;
+			tc->updated = conf.time;
 		}
 	}
 	if(countout) for(tc = conf.trafcounter; tc; tc = tc->next) {
@@ -627,8 +628,7 @@ void trafcountfunc(struct clientparam *param){
 				continue;
 			}
 			tc->traf64 += param->statscli64;
-			time(&t);
-			tc->updated = t;
+			tc->updated = conf.time;
 		}
 	}
 
@@ -655,10 +655,14 @@ int alwaysauth(struct clientparam * param){
 			for(tc = conf.trafcounter; tc; tc = tc->next) {
 				if(tc->disabled) continue;
 				if(ACLmatches(tc->ace, param)){
-					if(tc->ace->action == NOCOUNTIN) break;
+					if(tc->ace->action == NOCOUNTIN) {
+						countout = 1;
+						break;
+					}
+					if(tc->ace->action == NOCOUNTALL) break;
 					if(tc->ace->action != COUNTIN) {
 						countout = 1;
-						continue;
+						if(tc->ace->action != COUNTALL) continue;
 					}
 					if(tc->traflim64 <= tc->traf64) return 10;
 					param->trafcountfunc = conf.trafcountfunc;
@@ -668,8 +672,8 @@ int alwaysauth(struct clientparam * param){
 			if(countout)for(tc = conf.trafcounter; tc; tc = tc->next) {
 				if(tc->disabled) continue;
 				if(ACLmatches(tc->ace, param)){
-					if(tc->ace->action == NOCOUNTOUT) break;
-					if(tc->ace->action != COUNTOUT) {
+					if(tc->ace->action == NOCOUNTOUT || tc->ace->action == NOCOUNTALL) break;
+					if(tc->ace->action != COUNTOUT && tc->ace->action !=  COUNTALL) {
 						continue;
 					}
 					if(tc->traflim64 <= tc->traf64) return 10;
