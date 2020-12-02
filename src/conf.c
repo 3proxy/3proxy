@@ -404,7 +404,6 @@ static int h_archiver(int argc, unsigned char **argv){
 static int h_counter(int argc, unsigned char **argv){
 	struct counter_header ch1;
 	if(conf.counterd >=0)close(conf.counterd);
-	if(!conf.trafcountfunc) conf.trafcountfunc = trafcountfunc;
 	conf.counterd = open((char *)argv[1], O_BINARY|O_RDWR|O_CREAT, 0660);
 	if(conf.counterd<0){
 		fprintf(stderr, "Unable to open counter file %s, line %d\n", argv[1], linenum);
@@ -1239,6 +1238,7 @@ static int h_ace(int argc, unsigned char **argv){
 	case NOCOUNTOUT:
 	case COUNTALL:
 	case NOCOUNTALL:
+		if(!conf.trafcountfunc) conf.trafcountfunc = trafcountfunc;
 		tl = myalloc(sizeof(struct trafcount));
 		if(!tl) {
 			return(21);

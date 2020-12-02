@@ -16,11 +16,42 @@ extern FILE *writable;
 FILE * confopen();
 extern void decodeurl(unsigned char *s, int filter);
 
+
+
 struct printparam {
 	char buf[1024];
 	int inbuf;
 	struct clientparam *cp;
 };
+
+char * aceaction (int action){
+	switch (action) {
+		case ALLOW:
+		case REDIRECT:
+			return "allow";
+		case DENY:
+			return "deny";
+		case BANDLIM:
+			return "bandlim";
+		case NOBANDLIM:
+			return "nobandlim";
+		case COUNTIN:
+			return "countin";
+		case NOCOUNTIN:
+			return "nocountin";
+		case COUNTOUT:
+			return "countout";
+		case NOCOUNTOUT:
+			return "nocountout";
+		case COUNTALL:
+			return "countall";
+		case NOCOUNTALL:
+			return "nocountall";
+		default:
+			return "unknown";
+	}
+}
+
 
 static void stdpr(struct printparam* pp, char *buf, int inbuf){
 	if((pp->inbuf + inbuf > 1024) || !buf) {
@@ -260,11 +291,11 @@ char * admin_stringtable[]={
 
 	"<h3>Counters</h3>\r\n"
 	"<table border = \'1\'>\r\n"
-	"<tr align=\'center\'><td>Description</td><td>Active</td>"
+	"<tr align=\'center\'><td>Action</td><td>#/Desc</td><td>Active</td>"
 	"<td>Users</td><td>Source Address</td><td>Destination Address</td>"
 	"<td>Port</td>"
 	"<td>Limit</td><td>Units</td><td>Value</td>"
-	"<td>Reset</td><td>Updated</td><td>Num</td></tr>\r\n",
+	"<td>Reset</td><td>Updated</td><td>Position</td></tr>\r\n",
 
 	"</table>\r\n",
 
@@ -433,9 +464,14 @@ void * adminchild(struct clientparam* param) {
 			 }
 			 if(req[1] == 'S' && atoi(req+2) == num) cp->disabled=0;
 			 if(req[1] == 'D' && atoi(req+2) == num) cp->disabled=1;
-			 inbuf += sprintf(buf,	"<tr>"
-						"<td>%s</td><td><A HREF=\'/C%c%d\'>%s</A></td><td>",
-						(cp->comment)?cp->comment:"&nbsp;",
+			 inbuf += sprintf(buf,	"<tr><td>%s</td><td>", cp->ace?aceaction(cp->ace->action):"-");
+			 if(cp->number || cp->comment)
+				inbuf += sprintf(buf+inbuf, "%d/%s</td>" , cp->number,
+						(cp->comment)?cp->comment:"&nbsp;");
+			else
+				inbuf += sprintf(buf+inbuf, " - </td>");
+
+			inbuf += sprintf(buf+inbuf, "<td><A HREF=\'/C%c%d\'>%s</A></td><td>",
 						(cp->disabled)?'S':'D',
 						num,
 						(cp->disabled)?"NO":"YES"
@@ -467,7 +503,7 @@ void * adminchild(struct clientparam* param) {
 			 else {
 				inbuf += printportlist(buf+inbuf, LINESIZE-128, cp->ace->ports, ",<br />\r\n");
 			 }
-			 if(cp->type == NONE) {
+			 if(cp->ace && (cp->ace->action == NOCOUNTIN || cp->ace->action == NOCOUNTOUT || cp->ace->action == NOCOUNTALL)) {
 			  inbuf += sprintf(buf+inbuf,	
 					"</td><td colspan=\'6\' align=\'center\'>exclude from limitation</td></tr>\r\n"
 				 );
@@ -543,7 +579,7 @@ void * adminchild(struct clientparam* param) {
 				error = 1;
 			}
 			while(l < contentlen && (i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, (contentlen - l) > LINESIZE - 1?LINESIZE - 1:contentlen - l, '+', conf.timeouts[STRING_S])) > 0){
-				if(i > (contentlen - l)) i = (contentlen - l);
+				if((unsigned)i > (contentlen - l)) i = (contentlen - l);
 				if(!l){
 					if(i<9 || strncasecmp(buf, "conffile=", 9)) error = 1;
 				}
