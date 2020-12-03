@@ -15,15 +15,14 @@ int socksend(SOCKET sock, char * buf, int bufsize, int to){
  fds.fd = sock;
  do {
 	res = so._send(sock, (char *)buf + sent, bufsize - sent, 0);
-	if(res < 0) {
-		if(errno == EAGAIN || errno == EINTR) continue;
-		break;
+	if(res <= 0) {
+		if(errno != EAGAIN && errno != EINTR) break;
 		fds.events = POLLOUT;
+		fds.fd = sock;
 		if(conf.timetoexit) return sent;
 		res = so._poll(&fds, 1, to*1000);
-		if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
-		if(res < 1) break;
-		res = 0;
+		if(res < 1 && errno != EAGAIN && errno != EINTR) break;
+		continue;
 	}
 	sent += res;
  } while (sent < bufsize);
