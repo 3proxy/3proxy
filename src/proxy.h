@@ -153,9 +153,9 @@ extern int timetoexit;
 extern struct extparam conf;
 
 int sockmap(struct clientparam * param, int timeo, int usesplice);
-int socksend(SOCKET sock, char * buf, int bufsize, int to);
-int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
-int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
+int socksend(SOCKET sock, char * buf, int bufsize, int tosec);
+int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int tomsec);
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int tomsec);
 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);
@@ -304,7 +304,7 @@ extern struct datatype datatypes[64];
 extern struct commands commandhandlers[];
 
 #ifdef WITHSPLICE
-#define mapsocket(a,b) ((a->srv->usesplice && !a->ndatfilterssrv && !a->ndatfilterscli)?sockmap(a,b,1):sockmap(a,b,0))
+#define mapsocket(a,b) ((a->srv->usesplice)?sockmap(a,b,1):sockmap(a,b,0))
 #else
 #define mapsocket(a,b) sockmap(a,b, 0)
 #endif

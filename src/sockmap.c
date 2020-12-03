@@ -52,7 +52,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  int HASERROR=0;
  int CLIENTTERM = 0, SERVERTERM = 0;
  int after = 0;
- struct pollfd fds[6];
+ struct pollfd fds[7];
  struct pollfd *fdsp = fds;
  int fdsc = 0;
  int sleeptime = 0;
@@ -167,7 +167,11 @@ log(logbuf);
 		memset(fds, 0, sizeof(fds));
 		fds[0].fd = param->clisock;
 		fds[1].fd = param->remsock;
-		so._poll(fds, 2, sleeptime);
+		fds[2].fd = param->monitorsock;
+		fds[2].events = POLLIN;
+		if(param->monitorsock != INVALID_SOCKET)
+		so._poll(fds, param->monitorsock != INVALID_SOCKET? 3:2, sleeptime);
+		if(fds[2].revents)RETURN (93);
 		sleeptime = 0;
 	}
 	if((param->srv->logdumpsrv && (param->statssrv64 > param->srv->logdumpsrv)) ||
@@ -431,10 +435,18 @@ log("done read from server to buf");
 			}
 		}
 	}
-	for(after = 0; after < 2; after ++){
+	for(after = 0; after <= 1; after ++){
 		fdsc = 0;
 		if(!after){
 			memset(fds, 0, sizeof(fds));
+		}
+		if(param->monitorsock != INVALID_SOCKET){
+			if(!after){
+				fds[fdsc].fd = param->monitorsock;
+				fds[fdsc].events = POLLIN;
+				fdsc++;
+			}
+			else if(fds[fdsc].revents) RETURN(90);
 		}
 		if(!CLIENTTERM){
 			if(!after){

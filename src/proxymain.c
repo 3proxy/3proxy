@@ -53,7 +53,7 @@ void * threadfunc (void *p) {
 			continue;
 		}
 #endif
-		if(socksendto(param->remsock, (struct sockaddr*)&param->sinsr, "C", 1, CONNBACK_TO*1000) != 1){
+		if(socksend(param->remsock, "C", 1, CONNBACK_TO) != 1){
 			dolog(param, (char *)"Connect back sending command failed");
 			so._closesocket(param->remsock);
 			param->remsock = INVALID_SOCKET;
@@ -891,7 +891,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->srv = srv;
  param->version = srv->version;
  param->paused = srv->paused;
- param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
+ param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = param->monitorsock = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
  srv->intsa = conf.intsa;

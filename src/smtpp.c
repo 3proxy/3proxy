@@ -82,7 +82,7 @@ int readdata (struct clientparam* param) {
 		return -1;
 	}
 #endif
-	socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf, i, conf.timeouts[STRING_S]);	
+	socksend(param->remsock, buf, i, conf.timeouts[STRING_S]);	
  } 
  if(i < 1) {
 	myfree(buf);

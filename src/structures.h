@@ -520,18 +520,19 @@ struct clientparam {
 			**hdrfilterscli, **hdrfilterssrv,
 			**predatfilters, **datfilterscli, **datfilterssrv;
 
-	PROXYSERVICE service;
-
-	SOCKET	clisock,
-		remsock,
-		ctrlsock,
-		ctrlsocksrv;
-
-	REDIRTYPE redirtype;
 
 	uint64_t	waitclient64,
 			waitserver64,
 			cycles;
+
+	SOCKET	clisock,
+		remsock,
+		ctrlsock,
+		ctrlsocksrv, monitorsock;
+
+	PROXYSERVICE service;
+	REDIRTYPE redirtype;
+
 
 	int	redirected,
 		operation,
