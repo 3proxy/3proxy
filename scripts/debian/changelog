@@ -1,4 +1,4 @@
-3proxy (10.0.0-0) buster; urgency=medium
+3proxy (10-devel-0) buster; urgency=medium
 
   *Initial deb devel release
 
