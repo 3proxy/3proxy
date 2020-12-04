@@ -7,45 +7,32 @@
 
 #include "proxy.h"
 
-int socksend(SOCKET sock, char * buf, int bufsize, int to){
+int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to, SOCKET *monitorsock, int monaction){
  int sent = 0;
  int res;
- struct pollfd fds={0};
+ struct pollfd fds[2]={{0},{0}};
 
- fds.fd = sock;
- do {
-	res = so._send(sock, (char *)buf + sent, bufsize - sent, 0);
-	if(res <= 0) {
-		if(errno != EAGAIN && errno != EINTR) break;
-		fds.events = POLLOUT;
-		fds.fd = sock;
-		if(conf.timetoexit) return sent;
-		res = so._poll(&fds, 1, to*1000);
-		if(res < 1 && errno != EAGAIN && errno != EINTR) break;
-		continue;
-	}
-	sent += res;
- } while (sent < bufsize);
- return sent;
-}
-
-
-int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to){
- int sent = 0;
- int res;
- struct pollfd fds={0};
-
- fds.fd = sock;
+ fds[0].fd = sock;
+ if(monitorsock)fds[1].fd = *monitorsock;
  do {
 	if(conf.timetoexit) return 0;
-	res = so._sendto(sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin));
+	res = sin?so._sendto(sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin)):so._send(sock, (char *)buf + sent, bufsize - sent, 0);
 	if(res < 0) {
 		if(errno !=  EAGAIN && errno != EINTR) break;
-		fds.events = POLLOUT;
+		fds[0].events = POLLOUT;
+		fds[1].events = POLLIN;
 		if(conf.timetoexit) return sent;
- 		res = so._poll(&fds, 1, to);
+ 		res = so._poll(fds, monitorsock?2:1, to);
 		if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 		if(res < 1) break;
+		if(monitorsock && fds[1].revents){
+			if(monaction == INVALID_SOCKET){
+				so._closesocket(*monitorsock);
+				*monitorsock = INVALID_SOCKET;
+				monitorsock = NULL;
+			}
+			else return monaction;
+		}
 		res = 0;
 	}
 	sent += res;
@@ -53,20 +40,34 @@ int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int 
  return sent;
 }
 
-int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to){
-	struct pollfd fds={0};
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to, SOCKET *monitorsock, int monaction){
+	struct pollfd fds[2]={{0},{0}};
 	SASIZETYPE sasize;
 	int res;
 
-	fds.fd = sock;
+	fds[0].fd = sock;
+	if(monitorsock)fds[1].fd = *monitorsock;
 	do {
+		if(monitorsock && fds[1].revents){
+			if(monaction == INVALID_SOCKET){
+				so._closesocket(*monitorsock);
+				*monitorsock = INVALID_SOCKET;
+				monitorsock = NULL;
+			}
+			else return monaction;
+		}
 		sasize = SASIZE(sin);
 		res = so._recvfrom(sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, &sasize);
 		if ((res >= 0) || (errno != EAGAIN && errno != EINTR) || conf.timetoexit) break;
-		fds.events = POLLIN;
-		res = so._poll(&fds, 1, to);
+		fds[0].events = POLLIN;
+		fds[0].events = POLLIN;
+ 		res = so._poll(fds, monitorsock?2:1, to);
 	} while (res == 1 || (res < 0 && (errno == EAGAIN || errno == EINTR)));
 	return res;
+}
+
+int socksend(SOCKET sock, char * buf, int bufsize, int to){
+ return socksendto(sock, NULL, buf, bufsize, to*1000, NULL, 0);
 }
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
@@ -81,7 +82,7 @@ int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
 		return (int)param->clibuf[param->clioffset++];
 	}
 	param->clioffset = param->cliinbuf = 0;
-	if ((len = sockrecvfrom(param->clisock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, timeosec*1000 + timeousec))<=0) return EOF;
+	if ((len = sockrecvfrom(param->clisock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, timeosec*1000 + timeousec, param->monitorsock, param->monaction))<=0) return EOF;
 	param->cliinbuf = len;
 	param->clioffset = 1;
 	return (int)*param->clibuf;
@@ -101,7 +102,7 @@ int sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec
 	}
 	if(size <= param->cliinbuf) return size;
 	size -= param->cliinbuf;
-	if((len = sockrecvfrom(param->clisock, (struct sockaddr *)&param->sincr, param->clibuf + param->cliinbuf, (param->clibufsize - param->cliinbuf) < size? param->clibufsize - param->cliinbuf:size, timeosec*1000)) > 0){
+	if((len = sockrecvfrom(param->clisock, (struct sockaddr *)&param->sincr, param->clibuf + param->cliinbuf, (param->clibufsize - param->cliinbuf) < size? param->clibufsize - param->cliinbuf:size, timeosec*1000, param->monitorsock, param->monaction)) > 0){
 		param->cliinbuf += len;
 	}
 	return param->cliinbuf;
@@ -121,7 +122,7 @@ int sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec
 	}
 	if(size <= param->srvinbuf) return size;
 	size -= param->srvinbuf;
-	if((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf + param->srvinbuf, (param->srvbufsize - param->srvinbuf) < size? param->srvbufsize - param->srvinbuf:size, timeosec*1000)) > 0){
+	if((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf + param->srvinbuf, (param->srvbufsize - param->srvinbuf) < size? param->srvbufsize - param->srvinbuf:size, timeosec*1000, param->monitorsock, param->monaction)) > 0){
 		param->srvinbuf += len;
 		param->nreads++;
 		param->statssrv64 += len;
@@ -146,7 +147,7 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec){
 		return (int)param->srvbuf[param->srvoffset++];
 	}
 	param->srvoffset = param->srvinbuf = 0;
-	if ((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf, param->srvbufsize, timeosec*1000 + timeousec))<=0) return EOF;
+	if ((len = sockrecvfrom(param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf, param->srvbufsize, timeosec*1000 + timeousec, param->monitorsock, param->monaction))<=0) return EOF;
 	param->srvinbuf = len;
 	param->srvoffset = 1;
 	param->nreads++;

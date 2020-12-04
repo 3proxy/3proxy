@@ -398,7 +398,7 @@ fflush(stderr);
 
 							sasize = sizeof(param->sinsr);
 							if(len > (int)i){
-								socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000);
+								socksendto(param->remsock, (struct sockaddr *)&param->sinsr, buf+i, len - i, conf.timeouts[SINGLEBYTE_L]*1000, &param->ctrlsock, INVALID_SOCKET);
 								param->statscli64+=(len - i);
 								param->nwrites++;
 #if SOCKSTRACE > 1
@@ -415,6 +415,7 @@ fprintf(stderr, "client address is assumed to be %s:%hu\n",
 fflush(stderr);
 #endif
 							}
+							if(param->ctrlsock == INVALID_SOCKET) break;
 							continue;
 						}
 						else if(len ==0 || (len <0 && errno != EINTR && errno != EAGAIN)){
@@ -446,7 +447,7 @@ fflush(stderr);
 							memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
 							memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
 							sasize = sizeof(sin);
-							socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 6 + SAADDRLEN(&param->sinsr), conf.timeouts[SINGLEBYTE_L]*1000);
+							socksendto(param->clisock, (struct sockaddr *)&sin, buf, len + 6 + SAADDRLEN(&param->sinsr), conf.timeouts[SINGLEBYTE_L]*1000, &param->ctrlsock, INVALID_SOCKET);
 #if SOCKSTRACE > 1
 fprintf(stderr, "UDP packet relayed to client from %hu size %d\n",
 			ntohs(*SAPORT(&param->sinsr)),
@@ -455,6 +456,7 @@ fprintf(stderr, "UDP packet relayed to client from %hu size %d\n",
 fflush(stderr);
 #endif
 
+							if(param->ctrlsock == INVALID_SOCKET) break;
 							continue;
 						}
 						fds[0].events = POLLIN;

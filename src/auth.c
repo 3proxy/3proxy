@@ -1266,13 +1266,13 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 			len+=2;
 		}
 
-		if(socksendto(sock, (struct sockaddr *)sinsr, (char *)buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(sock, (struct sockaddr *)sinsr, (char *)buf, len, conf.timeouts[SINGLEBYTE_L]*1000, param?param->monitorsock:NULL, param?param->monaction:0) != len){
 			so._shutdown(sock, SHUT_RDWR);
 			so._closesocket(sock);
 			continue;
 		}
 		if(param) param->statscli64 += len;
-		len = sockrecvfrom(sock, (struct sockaddr *)sinsr, (char *)buf, 4096, conf.timeouts[DNS_TO]*1000);
+		len = sockrecvfrom(sock, (struct sockaddr *)sinsr, (char *)buf, 4096, conf.timeouts[DNS_TO]*1000, param?param->monitorsock:NULL, param?param->monaction:0);
 		so._shutdown(sock, SHUT_RDWR);
 		so._closesocket(sock);
 		if(len <= 13) {
@@ -1284,7 +1284,7 @@ unsigned long udpresolve(int af, char * name, char * value, unsigned *retttl, st
 			us = ntohs(*(unsigned short*)buf);
 			len-=2;
 			buf+=2;
-			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, (struct sockaddr *)sinsr, (char *)buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
+			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, (struct sockaddr *)sinsr, (char *)buf+len, us-len, conf.timeouts[DNS_TO]*1000, param?param->monitorsock:NULL, param?param->monaction:0) != us-len)) {
 				continue;
 			}
 		}

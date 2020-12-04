@@ -48,7 +48,7 @@ void * udppmchild(struct clientparam* param) {
 	RETURN (21);
  }
  param->cliinbuf = param->clioffset = 0;
- i = sockrecvfrom(param->srv->srvsock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, 0);
+ i = sockrecvfrom(param->srv->srvsock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, 0, NULL, 0);
  if(i<=0){
 	param->srv->fds.events = POLLIN;
 	RETURN (214);

@@ -154,8 +154,8 @@ extern struct extparam conf;
 
 int sockmap(struct clientparam * param, int timeo, int usesplice);
 int socksend(SOCKET sock, char * buf, int bufsize, int tosec);
-int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int tomsec);
-int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int tomsec);
+int socksendto(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int tomsec, SOCKET* monsock, int monaction);
+int sockrecvfrom(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int tomsec, SOCKET* monsock, int monaction);
 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);

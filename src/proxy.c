@@ -225,6 +225,7 @@ void * proxychild(struct clientparam* param) {
  SOCKET ftps;
  char ftpbuf[FTPBUFSIZE];
  int inftpbuf = 0;
+ int haveconnection = 0;
 #ifndef WITHMAIN
  FILTER_ACTION action;
 #endif
@@ -232,6 +233,7 @@ void * proxychild(struct clientparam* param) {
 
 
  
+ if(param->remsock != INVALID_SOCKET) haveconnection = 1;
  if(!(buf = myalloc(BUFSIZE))) {RETURN(21);}
  bufsize = BUFSIZE;
  anonymous = param->srv->anonymous;
@@ -240,34 +242,13 @@ for(;;){
  inbuf = 0;
 
 
- if(keepalive && (param->cliinbuf == param->clioffset) && (param->remsock != INVALID_SOCKET)){
-	memset(fds, 0, sizeof(fds));
-	fds[0].fd = param->clisock;
-	fds[0].events = POLLIN;
-	fds[1].fd = param->remsock;
-	fds[1].events = POLLIN;
-	res = so._poll(fds, 2, conf.timeouts[STRING_S]*1000);
-	if(res<=0) {
-		RETURN(555);
-	}
-	if((fds[1].revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL))) {
-		if(param->transparent || (!param->redirected && param->redirtype == R_HTTP)) RETURN(555);
-		ckeepalive = 0;
-		so._shutdown(param->remsock, SHUT_RDWR);
-		so._closesocket(param->remsock);
-		param->remsock = INVALID_SOCKET;
-		param->redirected = 0;
-		param->redirtype = 0;
-		memset(&param->sinsl, 0, sizeof(param->sinsl));
-		memset(&param->sinsr, 0, sizeof(param->sinsr));
-		memset(&param->req, 0, sizeof(param->req));
-	}
- }
-
+ if(param->remsock != INVALID_SOCKET)param->monitorsock = &param->remsock;
+ param->monaction = haveconnection? 0 : INVALID_SOCKET;
  i = sockgetlinebuf(param, CLIENT, buf, LINESIZE - 1, '\n', conf.timeouts[STRING_L]);
  if(i<=0) {
 	RETURN((keepalive)?555:(i)?507:508);
  }
+ param->monaction = INVALID_SOCKET;
  if (i==2 && buf[0]=='\r' && buf[1]=='\n') continue;
  buf[i] = 0;
  
@@ -279,11 +260,6 @@ for(;;){
 			so._closesocket(param->remsock);
 		}
 		param->remsock = INVALID_SOCKET;
-		param->redirected = 0;
-		param->redirtype = 0;
-		memset(&param->sinsl, 0, sizeof(param->sinsl));
-		memset(&param->sinsr, 0, sizeof(param->sinsr));
-		memset(&param->req, 0, sizeof(param->req));
 	}
 	myfree(req);
  }
@@ -349,6 +325,7 @@ for(;;){
  else param->operation = HTTP_OTHER;
  do {
 	buf[inbuf+i]=0;
+
 /*printf("Got: %s\n", buf+inbuf);*/
 #ifndef WITHMAIN
 	if(i > 25 && !param->srv->transparent && (!strncasecmp((char *)(buf+inbuf), "proxy-authorization", 19))){
@@ -471,6 +448,8 @@ for(;;){
  reqsize = (int)strlen((char *)req);
  reqbufsize = reqsize + 1;
 
+
+
 #ifndef WITHMAIN
 
  action = handlereqfilters(param, &req, &reqbufsize, 0, &reqsize);
@@ -510,6 +489,18 @@ for(;;){
  }
 
 #endif
+
+
+ param->monitorsock = NULL;
+ if(param->remsock == INVALID_SOCKET){
+	if(haveconnection) RETURN(555);
+	param->redirected = 0;
+	param->redirtype = 0;
+	memset(&param->sinsl, 0, sizeof(param->sinsl));
+	memset(&param->sinsr, 0, sizeof(param->sinsr));
+	memset(&param->req, 0, sizeof(param->req));
+ }
+
 
  if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
  if((res = (*param->srv->authfunc)(param))) {RETURN(res);}

@@ -697,7 +697,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 					continue;
 				}
 
-				if(sockrecvfrom(new_sock,(struct sockaddr*)&defparam.sincr,buf,1,60*1000) != 1 || *buf!='C') {
+				if(sockrecvfrom(new_sock,(struct sockaddr*)&defparam.sincr,buf,1,60*1000,NULL,0) != 1 || *buf!='C') {
 					so._closesocket(new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);
@@ -891,7 +891,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->srv = srv;
  param->version = srv->version;
  param->paused = srv->paused;
- param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = param->monitorsock = INVALID_SOCKET;
+ param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  pthread_mutex_init(&srv->counter_mutex, NULL);
  srv->intsa = conf.intsa;

@@ -528,8 +528,11 @@ struct clientparam {
 	SOCKET	clisock,
 		remsock,
 		ctrlsock,
-		ctrlsocksrv, monitorsock;
+		ctrlsocksrv;
 
+	SOCKET * monitorsock;
+
+	int monaction;
 	PROXYSERVICE service;
 	REDIRTYPE redirtype;
 
@@ -765,8 +768,8 @@ struct pluginlink {
 	struct commands * commandhandlers;
 	void * (*findbyname)(const char *name);
 	int (*socksend)(SOCKET sock, char * buf, int bufsize, int to);
-	int (*socksendto)(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
-	int (*sockrecvfrom)(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to);
+	int (*socksendto)(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to, SOCKET monsock, int monaction);
+	int (*sockrecvfrom)(SOCKET sock, struct sockaddr * sin, char * buf, int bufsize, int to, SOCKET monsock, int monaction);
 	int (*sockgetcharcli)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetcharsrv)(struct clientparam * param, int timeosec, int timeousec);
 	int (*sockgetlinebuf)(struct clientparam * param, DIRECTION which, char * buf, int bufsize, int delim, int to);

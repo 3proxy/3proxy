@@ -167,11 +167,12 @@ log(logbuf);
 		memset(fds, 0, sizeof(fds));
 		fds[0].fd = param->clisock;
 		fds[1].fd = param->remsock;
-		fds[2].fd = param->monitorsock;
+		if(param->monitorsock)fds[2].fd = *param->monitorsock;
 		fds[2].events = POLLIN;
-		if(param->monitorsock != INVALID_SOCKET)
-		so._poll(fds, param->monitorsock != INVALID_SOCKET? 3:2, sleeptime);
-		if(fds[2].revents)RETURN (93);
+		so._poll(fds, param->monitorsock? 3:2, sleeptime);
+		if(fds[2].revents){
+			RETURN (93);
+		}
 		sleeptime = 0;
 	}
 	if((param->srv->logdumpsrv && (param->statssrv64 > param->srv->logdumpsrv)) ||
@@ -440,13 +441,20 @@ log("done read from server to buf");
 		if(!after){
 			memset(fds, 0, sizeof(fds));
 		}
-		if(param->monitorsock != INVALID_SOCKET){
+		if(param->monitorsock){
 			if(!after){
-				fds[fdsc].fd = param->monitorsock;
+				fds[fdsc].fd = *param->monitorsock;
 				fds[fdsc].events = POLLIN;
 				fdsc++;
 			}
-			else if(fds[fdsc].revents) RETURN(90);
+			else if(fds[fdsc].revents) {
+				if(param->monaction == INVALID_SOCKET){
+					so._closesocket(*param->monitorsock);
+					*param->monitorsock = INVALID_SOCKET;
+					param->monitorsock = NULL;
+				}
+				else RETURN(param->monaction);
+			}
 		}
 		if(!CLIENTTERM){
 			if(!after){
