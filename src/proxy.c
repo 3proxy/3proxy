@@ -263,6 +263,9 @@ for(;;){
 	}
 	myfree(req);
  }
+ if(param->remsock == INVALID_SOCKET) {
+	memset(&param->req, 0, sizeof(param->req));
+ }
  req = (char *)mystrdup((char *)buf);
  if(!req){RETURN(510);}
  if(i<10) {
@@ -315,6 +318,7 @@ for(;;){
 		*se = '/';
 		memmove(ss, se, i - (se - sb) + 1);
 	}
+	else *se = ' ';
  }
  reqlen = i = (int)strlen((char *)buf);
  if(!strncasecmp((char *)buf, "CONNECT", 7))param->operation = HTTP_CONNECT;
@@ -326,7 +330,6 @@ for(;;){
  do {
 	buf[inbuf+i]=0;
 
-/*printf("Got: %s\n", buf+inbuf);*/
 #ifndef WITHMAIN
 	if(i > 25 && !param->srv->transparent && (!strncasecmp((char *)(buf+inbuf), "proxy-authorization", 19))){
 		sb = (char *)strchr((char *)(buf+inbuf), ':');
@@ -444,7 +447,6 @@ for(;;){
 
 
  buf[inbuf] = 0;
-
  reqsize = (int)strlen((char *)req);
  reqbufsize = reqsize + 1;
 
@@ -498,7 +500,6 @@ for(;;){
 	param->redirtype = 0;
 	memset(&param->sinsl, 0, sizeof(param->sinsl));
 	memset(&param->sinsr, 0, sizeof(param->sinsr));
-	memset(&param->req, 0, sizeof(param->req));
  }
 
 
