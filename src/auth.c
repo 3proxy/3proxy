@@ -605,7 +605,6 @@ void trafcountfunc(struct clientparam *param){
 	pthread_mutex_lock(&tc_mutex);
 	for(tc = conf.trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
-			time_t t;
 
 			if(tc->ace->action == NOCOUNTIN) {
 				countout = 1;
@@ -622,7 +621,6 @@ void trafcountfunc(struct clientparam *param){
 	}
 	if(countout) for(tc = conf.trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
-			time_t t;
 			if(tc->ace->action == NOCOUNTOUT || tc->ace->action == NOCOUNTALL) break;
 			if(tc->ace->action != COUNTOUT && tc->ace->action != COUNTALL ) {
 				continue;
@@ -699,6 +697,7 @@ int checkACL(struct clientparam * param){
 			param->weight = acentry->weight;
 			if(acentry->action == 2) {
 				struct ace dup;
+				int res=60,i=0;
 
 				if(param->operation < 256 && !(param->operation & CONNECT)){
 					continue;
@@ -706,8 +705,17 @@ int checkACL(struct clientparam * param){
 				if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
 					continue;
 				}
-				dup = *acentry;
-				return handleredirect(param, &dup);
+				if(param->remsock != INVALID_SOCKET) {
+					return 0;
+				}
+				for(; i < conf.parentretries; i++){
+					dup = *acentry;
+					res = handleredirect(param, &dup);
+					if(!res) break;
+					if(param->remsock != INVALID_SOCKET) closesocket(param->remsock);
+					param->remsock = INVALID_SOCKET;
+				}
+				return res;
 			}
 			return acentry->action;
 		}

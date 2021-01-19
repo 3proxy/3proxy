@@ -624,6 +624,15 @@ static int h_nscache(int argc, unsigned char **argv){
 	}
 	return 0;
 }
+
+static int h_parentretries(int argc, unsigned char **argv){
+  int res;
+
+	res = atoi((char *)argv[1]);
+	if(res > 0) conf.parentretries = res;
+	return 0;
+}
+
 static int h_nscache6(int argc, unsigned char **argv){
   int res;
 
@@ -1572,8 +1581,9 @@ struct commands commandhandlers[]={
 	{commandhandlers+60, "stacksize", h_stacksize, 2, 2},
 	{commandhandlers+61, "force", h_force, 1, 1},
 	{commandhandlers+62, "noforce", h_noforce, 1, 1},
+	{commandhandlers+63, "parentretries", h_parentretries, 2, 2},
 #ifndef NORADIUS
-	{commandhandlers+63, "radius", h_radius, 3, 0},
+	{commandhandlers+64, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };

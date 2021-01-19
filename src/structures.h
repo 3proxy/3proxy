@@ -572,7 +572,7 @@ struct extparam {
 	struct srvparam *services;
 	int stacksize,
 		threadinit, counterd, haveerror, rotate, paused, archiverc,
-		demon, maxchild, needreload, timetoexit, version, noforce, bandlimver;
+		demon, maxchild, needreload, timetoexit, version, noforce, bandlimver, parentretries;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
 	unsigned char *logname, **archiver;
