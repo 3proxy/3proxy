@@ -712,7 +712,7 @@ int checkACL(struct clientparam * param){
 					dup = *acentry;
 					res = handleredirect(param, &dup);
 					if(!res) break;
-					if(param->remsock != INVALID_SOCKET) closesocket(param->remsock);
+					if(param->remsock != INVALID_SOCKET) so._closesocket(param->remsock);
 					param->remsock = INVALID_SOCKET;
 				}
 				return res;
