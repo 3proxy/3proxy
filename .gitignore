@@ -11,6 +11,16 @@
 *.lib
 *.key
 *.pem
+*.so
+bin/3proxy
+bin/proxy
+bin/socks
+bin/tcppm
+bin/udppm
+bin/pop3p
+bin/smtpp
+bin/ftppr
+bin/mycrypt
 bin64/
 dll/
 tmp/
