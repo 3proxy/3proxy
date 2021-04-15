@@ -691,12 +691,19 @@ int scanipl(char *arg, struct iplist *dst){
 #endif
         char * slash, *dash;
 	int masklen, addrlen;
+	int res;
 
 	if((slash = strchr((char *)arg, '/'))) *slash = 0;
 	if((dash = strchr((char *)arg,'-'))) *dash = 0;
 	
-	if(afdetect(arg) == -1) return 1;
-	if(!getip46(46, arg, (struct sockaddr *)&sa)) return 1;
+	if(afdetect(arg) == -1) {
+		if(slash)*slash = '/';
+		if(dash)*dash = '-';
+		return 1;
+	}
+	res = getip46(46, arg, (struct sockaddr *)&sa);
+	if(dash)*dash = '-';
+	if(!res) return 1;
 	memcpy(&dst->ip_from, SAADDR(&sa), SAADDRLEN(&sa));
 	dst->family = *SAFAMILY(&sa);
 	if(dash){
@@ -708,6 +715,7 @@ int scanipl(char *arg, struct iplist *dst){
 	}
 	memcpy(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa));
 	if(slash){
+		*slash = '/';
 		addrlen = SAADDRLEN(&sa);
 		masklen = atoi(slash+1);
 		if(masklen < 0 || masklen > (addrlen*8)) return 4;
@@ -1052,6 +1060,7 @@ static int h_ace(int argc, char **argv){
 	case REDIRECT:
 		acl->chains = myalloc(sizeof(struct chain));
 		if(!acl->chains) {
+			freeacl(acl);
 			return(21);
 		}
 		memset(acl->chains, 0, sizeof(struct chain)); 
@@ -1075,6 +1084,7 @@ static int h_ace(int argc, char **argv){
 	case NOCONNLIM:
 		ncl = myalloc(sizeof(struct connlim));
 		if(!ncl) {
+			freeacl(acl);
 			return(21);
 		}
 		memset(ncl, 0, sizeof(struct connlim));
@@ -1101,6 +1111,7 @@ static int h_ace(int argc, char **argv){
 
 		nbl = myalloc(sizeof(struct bandlim));
 		if(!nbl) {
+			freeacl(acl);
 			return(21);
 		}
 		memset(nbl, 0, sizeof(struct bandlim));
@@ -1108,6 +1119,8 @@ static int h_ace(int argc, char **argv){
 		if(acl->action == BANDLIM) {
 			sscanf((char *)argv[1], "%u", &nbl->rate);
 			if(nbl->rate < 300) {
+				myfree(nbl);
+				freeacl(acl);
 				fprintf(stderr, "Wrong bandwidth specified, line %d\n", linenum);
 				return(4);
 			}
@@ -1148,6 +1161,7 @@ static int h_ace(int argc, char **argv){
 		if(!conf.trafcountfunc) conf.trafcountfunc = trafcountfunc;
 		tl = myalloc(sizeof(struct trafcount));
 		if(!tl) {
+			freeacl(acl);
 			return(21);
 		}
 		memset(tl, 0, sizeof(struct trafcount));
@@ -1166,6 +1180,8 @@ static int h_ace(int argc, char **argv){
 			tl->type = getrotate(*argv[2]);
 			tl->traflim64 =  ((uint64_t)lim)*(1024*1024);
 			if(!tl->traflim64) {
+				myfree(tl);
+				freeacl(acl);
 				fprintf(stderr, "Wrong traffic limit specified, line %d\n", linenum);
 				return(6);
 			}
@@ -1686,6 +1702,7 @@ void freeconf(struct extparam *confp){
  confp->bandlimiter = NULL;
  confp->bandlimiterout = NULL;
  confp->bandlimfunc = NULL;
+ confp->bandlimver++;
  pthread_mutex_unlock(&bandlim_mutex);
  pthread_mutex_lock(&connlim_mutex);
  cl = confp->connlimiter;
