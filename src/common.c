@@ -137,13 +137,13 @@ char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 int myrand(void * entropy, int len){
 	int i;
-	unsigned short init;
+	uint16_t init;
 
 	init = randomizer;
 	for(i=0; i < len/2; i++){
-		init ^= ((unsigned short *)entropy)[i];
+		init ^= ((uint16_t *)entropy)[i];
 	}
-	srand(init);
+	srand(rand()+init);
 	randomizer = rand();
 	return rand();
 	

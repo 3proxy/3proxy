@@ -710,6 +710,7 @@ static int h_monitor(int argc, unsigned char **argv){
 static int h_parent(int argc, unsigned char **argv){
   struct ace *acl = NULL;
   struct chain *chains;
+  char * cidr;
 
 	acl = conf.acl;
 	while(acl && acl->next) acl = acl->next;
@@ -748,13 +749,15 @@ static int h_parent(int argc, unsigned char **argv){
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
 		return(4);
 	}
-#ifndef NOIPV6
-	if(!getip46(46, argv[3], (struct sockaddr *)&chains->addr)) return 5;
-#else
+	cidr = strchr(argv[3], '/');
+	if(cidr) *cidr = 0;
 	getip46(46, argv[3], (struct sockaddr *)&chains->addr);
-#endif
 	chains->exthost = (unsigned char *)mystrdup((char *)argv[3]);
 	if(!chains->exthost) return 21;
+	if(cidr){
+		*cidr = '/';
+		chains->cidr = atoi(cidr + 1);
+	}
 	*SAPORT(&chains->addr) = htons((unsigned short)atoi((char *)argv[4]));
 	if(argc > 5) chains->extuser = (unsigned char *)mystrdup((char *)argv[5]);
 	if(argc > 6) chains->extpass = (unsigned char *)mystrdup((char *)argv[6]);

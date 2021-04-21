@@ -286,10 +286,11 @@ struct chain {
 #else
 	struct sockaddr_in addr;
 #endif
-	unsigned short weight;
 	unsigned char * exthost;
 	unsigned char * extuser;
 	unsigned char * extpass;
+	unsigned short weight;
+	unsigned short cidr;
 };
 
 struct period {

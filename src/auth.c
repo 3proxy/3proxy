@@ -253,6 +253,24 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			if(cur->type == R_EXTIP){
 				param->sinsl = cur->addr;
 				if(SAISNULL(&param->sinsl))param->sinsl = param->sincr;
+#ifndef NOIPV6
+				else if(cur->cidr && *SAFAMILY(&param->sinsl) == AF_INET6){
+					char c;
+					int i;
+
+					for(i = 0; i < 16; i++){
+						if(i%8)myrand(&param->sincr, sizeof(param->sincr));
+						else if(i%4) myrand(&param->req, sizeof(param->req));
+
+						if(i*8 >= cur->cidr) ((char *)SAADDR(&param->sinsl))[i] = rand();
+						else if ((i+1)*8 >  cur->cidr){
+							c = rand();
+							c >>= (cur->cidr - (i*8));
+							((char *)SAADDR(&param->sinsl))[i] |= c;
+						}
+					}
+				}
+#endif
 				if(cur->next)continue;
 				return 0;
 			}
