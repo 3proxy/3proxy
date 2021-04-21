@@ -398,7 +398,7 @@ int doconnect(struct clientparam * param){
 	return 0;
  if (param->remsock != INVALID_SOCKET){
 	size = sizeof(param->sinsr);
-	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (15);}
+	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (14);}
  }
  else {
 	struct linger lg = {1,conf.timeouts[SINGLEBYTE_S]};
