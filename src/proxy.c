@@ -231,13 +231,14 @@ void * proxychild(struct clientparam* param) {
  SOCKET ftps;
  char ftpbuf[FTPBUFSIZE];
  int inftpbuf = 0;
+ int haveconnection = 0;
 #ifndef WITHMAIN
  FILTER_ACTION action;
 #endif
 
 
 
- 
+ if(param->remsock != INVALID_SOCKET) haveconnection = 1; 
  if(!(buf = myalloc(BUFSIZE))) {RETURN(21);}
  bufsize = BUFSIZE;
  anonymous = param->srv->anonymous;
@@ -566,7 +567,16 @@ for(;;){
 #endif
 
  if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
- if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
+ if((res = (*param->srv->authfunc)(param))) {
+	if (res <= 10 || haveconnection || param->transparent) RETURN(res);
+	so._closesocket(param->remsock);
+	param->remsock = INVALID_SOCKET;
+	param->redirected = 0;
+	param->redirtype = 0;
+	memset(&param->sinsl, 0, sizeof(param->sinsl));
+	memset(&param->sinsr, 0, sizeof(param->sinsr));
+	if((res = (*param->srv->authfunc)(param))) RETURN(res);
+ }
 
  if(ftp && param->redirtype != R_HTTP){
 	SOCKET s;
