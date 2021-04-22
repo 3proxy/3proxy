@@ -255,18 +255,19 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				if(SAISNULL(&param->sinsl))param->sinsl = param->sincr;
 #ifndef NOIPV6
 				else if(cur->cidr && *SAFAMILY(&param->sinsl) == AF_INET6){
-					char c;
+					uint16_t c;
 					int i;
 
-					for(i = 0; i < 16; i++){
-						if(i%8)myrand(&param->sincr, sizeof(param->sincr));
-						else if(i%4) myrand(&param->req, sizeof(param->req));
+					for(i = 0; i < 8; i++){
+						if(i==4)myrand(&param->sincr, sizeof(param->sincr));
+						else if(i==6) myrand(&param->req, sizeof(param->req));
 
-						if(i*8 >= cur->cidr) ((char *)SAADDR(&param->sinsl))[i] = rand();
-						else if ((i+1)*8 >  cur->cidr){
+						if(i*16 >= cur->cidr) ((uint16_t *)SAADDR(&param->sinsl))[i] |= rand();
+						else if ((i+1)*16 >  cur->cidr){
 							c = rand();
-							c >>= (cur->cidr - (i*8));
-							((char *)SAADDR(&param->sinsl))[i] |= c;
+							c >>= (cur->cidr - (i*16));
+							c |= ntohs(((uint16_t *)SAADDR(&param->sinsl))[i]);
+							((uint16_t *)SAADDR(&param->sinsl))[i] = htons(c);
 						}
 					}
 				}
