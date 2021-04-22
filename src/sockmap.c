@@ -469,9 +469,6 @@ log("wait writing to client");
 					CLIENTTERM = 1;
 					HASERROR |= 1;
 				}
-				else if(fds[fdsc].revents &  (POLLHUP)) {
-					CLIENTTERM = 1;
-				}
 				else {
 					if(fds[fdsc].revents & POLLIN) {
 #ifdef WITHLOG
@@ -484,6 +481,9 @@ log("ready to read from client");
 log("ready to write to client");
 #endif
 						TOCLIENT = 1;
+					}
+					if(fds[fdsc].revents &  (POLLHUP)) {
+						if(!FROMCLIENT) CLIENTTERM = 1;
 					}
 				}
 			}
@@ -526,12 +526,6 @@ log("poll from server failed");
 					SERVERTERM = 1;
 					HASERROR |=2;
 				}
-				if(fds[fdsc].revents &  (POLLHUP)) {
-#ifdef WITHLOG
-log("server terminated connection");
-#endif
-					SERVERTERM = 1;
-				}
 				else {
 					if(fds[fdsc].revents & POLLIN) {
 #ifdef WITHLOG
@@ -544,6 +538,12 @@ log("ready to read from server");
 log("ready to write to server");
 #endif
 						TOSERVER = 1;
+					}
+					if(fds[fdsc].revents &  (POLLHUP)) {
+#ifdef WITHLOG
+log("server terminated connection");
+#endif
+						if(!FROMSERVER) SERVERTERM = 1;
 					}
 				}
 			}
@@ -581,13 +581,13 @@ log("wait reading from client pipe");
 					fds[fdsc].events |= (POLLIN);
 				}
 				else {
-					if(fds[fdsc].revents &  (POLLHUP|POLLERR|POLLNVAL)){
+					if(fds[fdsc].revents &  (POLLERR|POLLNVAL)){
 						RETURN(90);
 					}
 #ifdef WITHLOG
 log("ready reading from client pipe");
 #endif
-					if(fds[fdsc].revents & POLLIN) FROMCLIENTPIPE = 1;
+					if(fds[fdsc].revents & (POLLHUP|POLLIN)) FROMCLIENTPIPE = 1;
 				}
 				fdsc++;
 			}
@@ -619,13 +619,13 @@ log("wait reading from server pipe");
 					fds[fdsc].events |= (POLLIN);
 				}
 				else {
-					if(fds[fdsc].revents &  (POLLHUP|POLLERR|POLLNVAL)){
+					if(fds[fdsc].revents &  (POLLERR|POLLNVAL)){
 						RETURN(90);
 					}
 #ifdef WITHLOG
 log("ready reading from server pipe");
 #endif
-					if(fds[fdsc].revents & POLLIN) FROMSERVERPIPE = 1;
+					if(fds[fdsc].revents & (POLLHUP|POLLIN)) FROMSERVERPIPE = 1;
 				}
 				fdsc++;
 			}
