@@ -116,6 +116,9 @@ void daemonize(void);
 #ifdef _WIN32
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
+#define seterrno3(x) _set_errno(x)
+#else
+#define seterrno3(x) (errno = x) 
 #endif
 
 #ifndef SOCKET_ERROR

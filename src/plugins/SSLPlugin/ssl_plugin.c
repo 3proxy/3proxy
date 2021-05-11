@@ -120,10 +120,10 @@ static int ssl_send(SOCKET s, const void *msg, size_t len, int flags){
 		if((res = ssl_write(sslq->conn, (void *)msg, len)) <= 0){
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_WRITE){
-				_set_errno(EAGAIN);
+				seterrno3(EAGAIN);
 				return -1;
 			}
-			else _set_errno(err);
+			else seterrno3(err);
 		}
 		return res;
 	}
@@ -144,10 +144,10 @@ static int ssl_sendto(SOCKET s, const void *msg, size_t len, int flags, const st
 		if((res = ssl_write(sslq->conn, (void *)msg, len)) <= 0) {
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_WRITE){
-				_set_errno(EAGAIN);
+				seterrno3(EAGAIN);
 				return -1;
 			}
-			else _set_errno(err);
+			else seterrno3(err);
 		}
 		return res;
 	}
@@ -167,10 +167,10 @@ static int ssl_recvfrom(SOCKET s, void *msg, size_t len, int flags, struct socka
 		if((res = ssl_read(sslq->conn, (void *)msg, len)) <= 0) {
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_READ) {
-				_set_errno(EAGAIN);
+				seterrno3(EAGAIN);
 				return -1;
 			}
-			else _set_errno(err);
+			else seterrno3(err);
 		}
 		return res;
 	}
@@ -189,10 +189,10 @@ static int WINAPI ssl_recv(SOCKET s, void *msg, size_t len, int flags){
 		if((res = ssl_read(sslq->conn, (void *)msg, len)) <= 0) {
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_READ) {
-				_set_errno(EAGAIN);
+				seterrno3(EAGAIN);
 				return -1;
 			}
-			else _set_errno(err);
+			else seterrno3(err);
 		}
 		return res;
 	}
