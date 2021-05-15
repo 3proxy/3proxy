@@ -202,7 +202,13 @@ log("send to server from buf");
 		}
 		sasize = sizeof(param->sinsr);
 		res = so._sendto(param->remsock, (char *)param->clibuf + param->clioffset, (int)MIN(inclientbuf, fromclient), 0, (struct sockaddr*)&param->sinsr, sasize);
-		if(res <= 0) TOSERVER = 0;
+		if(res <= 0) {
+			TOSERVER = 0;
+			if(errno && errno != EAGAIN && errno != EINTR){
+				SERVERTERM = 1;
+				HASERROR |= 2;
+			}
+		}
 		else {
 #ifdef WITHLOG
 log("done send to server from buf");
@@ -241,7 +247,14 @@ log("send to client from buf");
 		}
 		sasize = sizeof(param->sincr);
 		res = so._sendto(param->clisock, (char *)param->srvbuf + param->srvoffset, (int)MIN(inserverbuf,fromserver), 0, (struct sockaddr*)&param->sincr, sasize);
-		if(res <= 0) TOCLIENT = 0;
+		if(res <= 0) {
+			TOCLIENT = 0;
+			if(errno && errno != EAGAIN && errno != EINTR){
+				CLIENTTERM = 1;
+				HASERROR |= 1;
+			}
+
+		}
 		else {
 #ifdef WITHLOG
 log("done send to client from buf");
@@ -378,7 +391,7 @@ log("read from client to buf");
 			res = so._recvfrom(param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)param->clibufsize - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
 			if(res <= 0) {
 				FROMCLIENT = 0;
-				if(res == 0){
+				if(res == 0 || (errno && errno != EINTR && errno !=EAGAIN)){
 					CLIENTTERM = 1;
 					continue;
 				}
@@ -403,7 +416,7 @@ log("read from server to buf");
 			res = so._recvfrom(param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)param->srvbufsize - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
 			if(res <= 0) {
 				FROMSERVER = 0;
-				if(res == 0) {
+				if(res == 0 || (errno && errno != EINTR && errno !=EAGAIN)) {
 					SERVERTERM = 1;
 					continue;
 				}
@@ -483,7 +496,8 @@ log("ready to write to client");
 						TOCLIENT = 1;
 					}
 					if(fds[fdsc].revents &  (POLLHUP)) {
-						if(!FROMCLIENT) CLIENTTERM = 1;
+						if(fds[fdsc].events & POLLIN) FROMCLIENT = 1;
+						if(fds[fdsc].events & POLLOUT) CLIENTTERM = 1;
 					}
 				}
 			}
@@ -543,7 +557,8 @@ log("ready to write to server");
 #ifdef WITHLOG
 log("server terminated connection");
 #endif
-						if(!FROMSERVER) SERVERTERM = 1;
+						if(fds[fdsc].events & POLLIN) FROMSERVER = 1;
+						if(fds[fdsc].events & POLLOUT) SERVERTERM = 1;
 					}
 				}
 			}
@@ -581,13 +596,13 @@ log("wait reading from client pipe");
 					fds[fdsc].events |= (POLLIN);
 				}
 				else {
-					if(fds[fdsc].revents &  (POLLERR|POLLNVAL)){
+					if(fds[fdsc].revents &  (POLLHUP|POLLERR|POLLNVAL)){
 						RETURN(90);
 					}
 #ifdef WITHLOG
 log("ready reading from client pipe");
 #endif
-					if(fds[fdsc].revents & (POLLHUP|POLLIN)) FROMCLIENTPIPE = 1;
+					if(fds[fdsc].revents & (POLLIN)) FROMCLIENTPIPE = 1;
 				}
 				fdsc++;
 			}
@@ -619,13 +634,13 @@ log("wait reading from server pipe");
 					fds[fdsc].events |= (POLLIN);
 				}
 				else {
-					if(fds[fdsc].revents &  (POLLERR|POLLNVAL)){
+					if(fds[fdsc].revents &  (POLLHUP|POLLERR|POLLNVAL)){
 						RETURN(90);
 					}
 #ifdef WITHLOG
 log("ready reading from server pipe");
 #endif
-					if(fds[fdsc].revents & (POLLHUP|POLLIN)) FROMSERVERPIPE = 1;
+					if(fds[fdsc].revents & (POLLIN)) FROMSERVERPIPE = 1;
 				}
 				fdsc++;
 			}
@@ -665,11 +680,11 @@ log("timeout");
  res = 0;
  if(!fromserver && param->waitserver64) res = 98;
  else if(!fromclient && param->waitclient64) res = 99;
+ else if(HASERROR) res = 94+HASERROR;
  else if((inclientbuf || inserverbuf)) res = 94;
 #ifdef WITHSPLICE
  else if(inclientpipe || inserverpipe) res = 94;
 #endif
- else if(HASERROR) res = 94+HASERROR;
 
 CLEANRET:
 
