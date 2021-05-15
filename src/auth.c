@@ -317,7 +317,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 
 			if((res = alwaysauth(param))){
-				return (res == 10)? res : 60+res;
+				return (res >= 10)? res : 60+res;
 			}
 		}
 		else {
