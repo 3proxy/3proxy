@@ -277,7 +277,13 @@ log("send to server from pipe");
 			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			if(res >0) {
 #ifdef WITHLOG
-log("done send to server from pipe");
+log("server from pipe splice finished\n");
+#if WITHLOG > 1
+#ifdef WITHSPLICE
+sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
+log(logbuf);
+#endif
+#endif
 #endif
 			    	param->nwrites++;
 				param->statscli64 += res;
@@ -302,7 +308,13 @@ log("send to client from pipe");
 			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			if(res > 0) {
 #ifdef WITHLOG
-log("done send to client from pipe");
+log("client from pipe splice finished\n");
+#if WITHLOG > 1
+#ifdef WITHSPLICE
+sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
+log(logbuf);
+#endif
+#endif
 #endif
 				inserverpipe -= res;
 				fromserver -= res;
@@ -321,10 +333,16 @@ log("done send to client from pipe");
 log("read from client to pipe");
 #endif
 			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)MAXSPLICE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
-			if(res <= 0) {
 #ifdef WITHLOG
-log("read failed");
+log("client to pipe splice finished\n");
+#if WITHLOG > 1
+#ifdef WITHSPLICE
+sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
+log(logbuf);
 #endif
+#endif
+#endif
+			if(res <= 0) {
 				FROMCLIENT = TOCLIENTPIPE = 0;
 				if(res == 0) {
 					CLIENTTERM = 1;
@@ -349,7 +367,13 @@ log("read from server to pipe\n");
 #endif
 			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(MAXSPLICE - inclientpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
-log("splice finished\n");
+log("server to pipe splice finished\n");
+#if WITHLOG > 1
+#ifdef WITHSPLICE
+sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
+log(logbuf);
+#endif
+#endif
 #endif
 			if(res <= 0) {
 				FROMSERVER = TOSERVERPIPE = 0;
