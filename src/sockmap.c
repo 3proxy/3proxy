@@ -275,7 +275,6 @@ log("done send to client from buf");
 log("send to server from pipe");
 #endif
 			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
-			if(res >0) {
 #ifdef WITHLOG
 log("server from pipe splice finished\n");
 #if WITHLOG > 1
@@ -285,6 +284,7 @@ log(logbuf);
 #endif
 #endif
 #endif
+			if(res >0) {
 			    	param->nwrites++;
 				param->statscli64 += res;
 				inclientpipe -= res;
@@ -306,7 +306,6 @@ log(logbuf);
 log("send to client from pipe");
 #endif
 			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
-			if(res > 0) {
 #ifdef WITHLOG
 log("client from pipe splice finished\n");
 #if WITHLOG > 1
@@ -316,6 +315,7 @@ log(logbuf);
 #endif
 #endif
 #endif
+			if(res > 0) {
 				inserverpipe -= res;
 				fromserver -= res;
 				if(fromserver)TOSERVERPIPE = 1;
@@ -332,6 +332,7 @@ log(logbuf);
 #ifdef WITHLOG
 log("read from client to pipe");
 #endif
+			errno = 0;
 			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)MAXSPLICE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
 log("client to pipe splice finished\n");
@@ -344,7 +345,7 @@ log(logbuf);
 #endif
 			if(res <= 0) {
 				FROMCLIENT = TOCLIENTPIPE = 0;
-				if(res == 0) {
+				if(res == 0 && !errno) {
 					CLIENTTERM = 1;
 					continue;
 				}
@@ -362,6 +363,7 @@ log("done read from client to pipe");
 		if(fromserver > inserverpipe && FROMSERVER && TOSERVERPIPE){
 			int error; 
 			socklen_t len=sizeof(error);
+			errno = 0;
 #ifdef WITHLOG
 log("read from server to pipe\n");
 #endif
@@ -377,7 +379,7 @@ log(logbuf);
 #endif
 			if(res <= 0) {
 				FROMSERVER = TOSERVERPIPE = 0;
-				if(res == 0 || !errno) {
+				if(res == 0 && !errno) {
 					SERVERTERM = 1;
 					continue;
 				}
