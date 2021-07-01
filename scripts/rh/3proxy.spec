@@ -51,7 +51,6 @@ make clean
 /usr/share/man/man3/3proxy.cfg.3
 /usr/share/man/man8/3proxy.8
 /usr/share/man/man8/ftppr.8
-/usr/share/man/man8/icqpr.8
 /usr/share/man/man8/pop3p.8
 /usr/share/man/man8/proxy.8
 /usr/share/man/man8/smtpp.8
@@ -62,7 +61,6 @@ make clean
 /usr/share/man/man3/3proxy.cfg.3.gz
 /usr/share/man/man8/3proxy.8.gz
 /usr/share/man/man8/ftppr.8.gz
-/usr/share/man/man8/icqpr.8.gz
 /usr/share/man/man8/pop3p.8.gz
 /usr/share/man/man8/proxy.8.gz
 /usr/share/man/man8/smtpp.8.gz
