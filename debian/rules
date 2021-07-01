@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	ln -s Makefile.Linux Makefile || true
+	dh_auto_build
+
+override_dh_auto_clean:
+	find src/ -type f -name "*.o" -delete
+	find src/ -type f -name "Makefile.var" -delete
+	find bin/ -type f -executable -delete
+	rm -f Makefile
+
+override_dh_usrlocal:
