@@ -8,13 +8,13 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC" /D "WITH_STD_MALLOC" /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c $(VERSION) $(BUILDDATE)
+CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC" /D "WITH_STD_MALLOC" /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c $(VERSION) $(BUILDDATE)
 COUT = /Fo
 LN = link
 LDFLAGS =  /nologo /subsystem:console /incremental:no /machine:I386
 DLFLAGS = /DLL
 DLSUFFICS = .dll
-LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib libeay32.lib ssleay32.lib
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib libcrypto_static.lib libssl_static.lib
 LIBSOLD = libeay32MT.lib ssleay32MT.lib
 LIBSPREFIX = 
 LIBSSUFFIX = .lib

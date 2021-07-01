@@ -12,6 +12,11 @@
 #ifndef NOPLUGINS
 #include <dlfcn.h>
 #endif
+#else
+#ifdef WITH_SSL
+#include <openssl/applink.c>
+#endif
+
 #endif
 
 #ifndef DEFAULTCONFIG
