@@ -655,8 +655,11 @@ CLEANRET:
 }
 
 int radauth(struct clientparam * param){
+	int res;
 	/*radsend(param, 0, 0);*/
-	return radsend(param, 1, 0);
+	res = radsend(param, 1, 0);
+	if(!res && param->srv->logfunc == logradius)radsend(param, 0, 0);
+	return res;
 }
 
 void logradius(struct clientparam * param, const unsigned char *s) {
