@@ -1,3 +1,9 @@
+/*
+   (c) 2002-2021 by Vladimir Dubrovin <3proxy@3proxy.org>
+
+   please read License Agreement
+
+*/
 
 #define _CRT_SECURE_NO_WARNINGS
 

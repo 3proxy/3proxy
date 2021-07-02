@@ -10,7 +10,7 @@ BEGIN
     BEGIN
         BLOCK "040904E4"
         BEGIN
-            VALUE "Comments", "3proxy - tiny proxy server, http://3proxy.org/\0"
+            VALUE "Comments", "3proxy - tiny proxy server, https://3proxy.org/\0"
             VALUE "CompanyName", "Vladimir Dubrovin\0"
             VALUE "FileDescription", "3proxy - tiny proxy server\0"
             VALUE "FileVersion", RELEASE3PROXY

@@ -1,13 +1,13 @@
 /*
    3APA3A simpliest proxy server
-   (c) 2002-2016 by Vladimir Dubrovin <3proxy@3proxy.ru>
+   (c) 2002-2021 by Vladimir Dubrovin <3proxy@3proxy.org>
 
    please read License Agreement
 
 */
 
-#define COPYRIGHT "(c)3APA3A, Vladimir Dubrovin & 3proxy.ru\n"\
-		 "Documentation and sources: http://3proxy.ru/\n"\
+#define COPYRIGHT "(c)3APA3A, Vladimir Dubrovin & 3proxy.org\n"\
+		 "Documentation and sources: https://3proxy.org/\n"\
 		 "Please read license agreement in \'copying\' file.\n"\
 		 "You may not use this program without accepting license agreement"
 
