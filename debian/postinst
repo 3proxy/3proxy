@@ -1,0 +1,43 @@
+if [ ! -f /usr/local/3proxy/conf/passwd ]; then \
+ touch /usr/local/3proxy/conf/passwd;\
+fi
+chown -R proxy:proxy /usr/local/3proxy
+chmod 550  /usr/local/3proxy/
+chmod 550  /usr/local/3proxy/conf/
+chmod 440  /usr/local/3proxy/conf/*
+if /bin/systemctl >/dev/null 2>&1; then \
+ /usr/sbin/update-rc.d 3proxy disable || true; \
+ /usr/sbin/chkconfig 3proxy off || true; \
+ /bin/systemctl enable 3proxy.service; \
+elif [ -x /usr/sbin/update-rc.d ]; then \
+ /usr/sbin/update-rc.d 3proxy defaults; \
+ /usr/sbin/update-rc.d 3proxy enable; \
+elif [ -x /usr/sbin/chkconfig ]; then \
+ /usr/sbin/chkconfig 3proxy on; \
+fi
+
+echo ""
+echo 3proxy installed.
+if /bin/systemctl >/dev/null 2>&1; then \
+ /bin/systemctl stop 3proxy.service \
+ /bin/systemctl start 3proxy.service \
+ echo use ;\
+ echo "  "systemctl start 3proxy.service ;\
+ echo to start proxy ;\
+ echo "  "systemctl stop 3proxy.service ;\
+ echo to stop proxy ;\
+elif [ -x /usr/sbin/service ]; then \
+ /usr/sbin/service 3proxy stop  || true;\
+ /usr/sbin/service 3proxy start  || true;\
+ echo "  "service 3proxy start ;\
+ echo to start proxy ;\
+ echo "  "service 3proxy stop ;\
+ echo to stop proxy ;\
+fi
+echo "  "/usr/local/3proxy/conf/add3proxyuser.sh
+echo to add users
+echo ""
+echo Default config uses Google\'s DNS.
+echo It\'s recommended to use provider supplied DNS or install local recursor, e.g. pdns-recursor.
+echo Configure preferred DNS in /usr/local/3proxy/conf/3proxy.cfg.
+echo run \'/usr/local/3proxy/conf/add3proxyuser.sh admin password\' to configure \'admin\' user

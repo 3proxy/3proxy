@@ -1,6 +1,5 @@
 /*
-   3APA3A simpliest proxy server
-   (c) 2007-2008 by ZARAZA <3APA3A@security.nnov.ru>
+   (c) 2007-2021 by Vladimir Dubrovin <3proxy@3proxy.org>
 
    please read License Agreement
 

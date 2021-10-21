@@ -1,3 +1,9 @@
+/*
+   (c) 2002-2021 by Vladimir Dubrovin <3proxy@3proxy.org>
+
+   please read License Agreement
+
+*/
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -14,9 +20,6 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#ifdef WIN32
-#include <openssl/applink.c>
-#endif
 
 #include "../../proxy.h"
 #include "my_ssl.h"
@@ -104,7 +107,7 @@ void del_ext(X509 *dst_cert, int nid, int where){
 SSL_CERT ssl_copy_cert(SSL_CERT cert)
 {
 	int err = -1;
-	FILE *fcache;
+	BIO *fcache;
 	X509 *src_cert = (X509 *) cert;
 	X509 *dst_cert = NULL;
 
@@ -129,16 +132,16 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	bin2hex(hash_sha1, 20, hash_name_sha1, sizeof(hash_name_sha1));
 	sprintf(cache_name, "%s%s.pem", cert_path, hash_name_sha1);
 	/* check if certificate is already cached */
-	fcache = fopen(cache_name, "rb");
+	fcache = BIO_new_file(cache_name, "rb");
 	if ( fcache != NULL ) {
 #ifndef _WIN32
-		flock(fileno(fcache), LOCK_SH);
+		flock(BIO_get_fd(fcache, NULL), LOCK_SH);
 #endif
-		dst_cert = PEM_read_X509(fcache, &dst_cert, NULL, NULL);
+		dst_cert = PEM_read_bio_X509(fcache, &dst_cert, NULL, NULL);
 #ifndef _WIN32
-		flock(fileno(fcache), LOCK_UN);
+		flock(BIO_get_fd(fcache, NULL), LOCK_UN);
 #endif
-		fclose(fcache);
+		BIO_free(fcache);
 		if ( dst_cert != NULL ){
 			return dst_cert;
 		}
@@ -174,16 +177,16 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 
 	/* write to cache */
 
-	fcache = fopen(cache_name, "wb");
+	fcache = BIO_new_file(cache_name, "wb");
 	if ( fcache != NULL ) {
 #ifndef _WIN32
-		flock(fileno(fcache), LOCK_EX);
+		flock(BIO_get_fd(fcache, NULL), LOCK_EX);
 #endif
-		PEM_write_X509(fcache, dst_cert);
+		PEM_write_bio_X509(fcache, dst_cert);
 #ifndef _WIN32
-		flock(fileno(fcache), LOCK_UN);
+		flock(BIO_get_fd(fcache, NULL), LOCK_UN);
 #endif
-		fclose(fcache);
+		BIO_free(fcache);
 	}
 	return dst_cert;
 }
@@ -414,49 +417,63 @@ int ssl_file_init = 0;
 
 void ssl_init(void)
 {
-	FILE *f;
+	BIO *f;
 	static char fname[200];
 
 	if(!ssl_file_init++)pthread_mutex_init(&ssl_file_mutex, NULL);
 
 	pthread_mutex_lock(&ssl_file_mutex);
 	thread_setup();
-
 	SSLeay_add_ssl_algorithms();
 	SSL_load_error_strings();
 
 	sprintf(fname, "%.128s3proxy.pem", cert_path);
-	f = fopen(fname, "r");
+	f = BIO_new_file(fname, "r");
 	if ( f != NULL ) {
-		PEM_read_X509(f, &CA_cert, NULL, NULL);
-		fclose(f);
+		if(!(CA_cert=PEM_read_bio_X509(f, NULL, NULL, NULL))){
+			unsigned long err;
+			err=ERR_get_error();
+			fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
+			return;
+		}
+		BIO_free(f);
 	}
 	else {
 		fprintf(stderr, "failed to open: %s\n", fname);
+		return;
 	}
 	name = X509_get_subject_name(CA_cert);
-
 	sprintf(fname, "%.128s3proxy.key", cert_path);
-	f = fopen(fname, "rb");
+	f = BIO_new_file(fname, "rb");
 	if ( f != NULL ) {                                             
-		CA_key = PEM_read_PrivateKey(f, &CA_key, NULL, NULL);
-		fclose(f);
+		CA_key = PEM_read_bio_PrivateKey(f, NULL, NULL, NULL);
+		if(!CA_key){
+			unsigned long err;
+			err=ERR_get_error();
+			fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
+			return;
+		}		
+		BIO_free(f);
 	}
 	else {
 		fprintf(stderr, "failed to open: %s\n", fname);
+		return;
 	}
 
 	sprintf(fname, "%.128sserver.key", cert_path);
-	f = fopen(fname, "rb");
+	f = BIO_new_file(fname, "rb");
 	if ( f != NULL ) {
-		server_key = PEM_read_PrivateKey(f, &server_key, NULL, NULL);
-		fclose(f);
+		server_key = PEM_read_bio_PrivateKey(f, &server_key, NULL, NULL);
+		if(!server_key){
+			unsigned long err;
+			err=ERR_get_error();
+			fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
+			return;
+		}		
+		BIO_free(f);
 	}
 	else {
 		fprintf(stderr, "failed to open: %s\n", fname);
-	}
-	if(!CA_cert || !CA_key || !server_key){
-		fprintf(stderr, "failed to init SSL certificate / keys\n");
 	}
 
 	bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
