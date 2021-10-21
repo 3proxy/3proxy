@@ -384,7 +384,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 		}
 	 if(!ipentry) return 0;
 	}
-	if((acentry->dst && !SAISNULL(&param->req)) || (acentry->dstnames && param->hostname)) {
+	if((acentry->dst && (!SAISNULL(&param->req) || param->operation == UDPASSOC || param->operation==BIND)) || (acentry->dstnames && param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
 		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
@@ -432,7 +432,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	 }
 	 if(!ipentry && !hstentry) return 0;
 	}
-	if(acentry->ports && *SAPORT(&param->req)) {
+	if(acentry->ports && (*SAPORT(&param->req) || param->operation == UDPASSOC || param->operation == BIND)) {
 	 for (portentry = acentry->ports; portentry; portentry = portentry->next)
 		if(ntohs(*SAPORT(&param->req)) >= portentry->startport &&
 			   ntohs(*SAPORT(&param->req)) <= portentry->endport) {
