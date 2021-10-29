@@ -55,7 +55,7 @@ doc/html/man3/
 doc/html/man8/
 *.var
 verfile.sh
-Makefile
+/Makefile
 copytgz.sh
 *~.nib
 local.properties
