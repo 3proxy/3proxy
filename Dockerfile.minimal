@@ -25,18 +25,17 @@
 
 
 FROM gcc AS buildenv
-COPY . /3proxy
-RUN cd /3proxy &&\
- echo "">>Makefile.Linux&&\
- echo LDFLAGS = -fPIE -O2 -fno-strict-aliasing -pthread >>Makefile.Linux&&\
- echo PLUGINS = >>Makefile.Linux&&\
- echo LIBS = >>Makefile.Linux&&\
- echo CFLAGS = -g  -fPIC -O2 -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER -DNOPLUGINS >>Makefile.Linux&&\
- make -f Makefile.Linux&&\
+COPY . 3proxy
+RUN cd 3proxy &&\
+ echo "">>Makefile.Linux &&\
+ echo LDFLAGS = -fPIE -O2 -fno-strict-aliasing -pthread >>Makefile.Linux &&\
+ echo PLUGINS = >>Makefile.Linux &&\
+ echo LIBS = >>Makefile.Linux &&\
+ echo CFLAGS = -g  -fPIC -O2 -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER -DNOPLUGINS >>Makefile.Linux &&\
+ make -f Makefile.Linux &&\
  strip bin/3proxy
  
-
 FROM busybox:glibc
-COPY --from=buildenv /3proxy/bin/3proxy /bin/3proxy
+COPY --from=buildenv 3proxy/bin/3proxy /bin/3proxy
 RUN mkdir /run && chmod 555 /run
 CMD ["/bin/3proxy"]
