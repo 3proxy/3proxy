@@ -308,8 +308,8 @@ static int h_log(int argc, unsigned char ** argv){
 		}
 #ifndef NOODBC
 		else if(*argv[1]=='&'){
-			if(notchanged) return 0;
 			conf.logfunc = logsql;
+			if(notchanged) return 0;
 			pthread_mutex_lock(&log_mutex);
 			close_sql();
 			init_sql((char *)argv[1]+1);
