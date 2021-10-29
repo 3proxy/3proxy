@@ -33,10 +33,12 @@ RUN cd 3proxy &&\
  strip bin/TrafficPlugin.ld.so &&\
  strip bin/PCREPlugin.ld.so &&\
  strip bin/TransparentPlugin.ld.so &&\
- strip bin/SSLPlugin.ld.so
+ strip bin/SSLPlugin.ld.so &&\
+ mkdir /usr/local/lib/3proxy &&\
+ cp "/lib/`gcc -dumpmachine`"/libdl.so.* /usr/local/lib/3proxy/
 
 FROM busybox:glibc
-COPY --from=buildenv /lib/x86_64-linux-gnu/libdl.so.* /lib/
+COPY --from=buildenv /usr/local/lib/3proxy/libdl.so.* /lib/
 COPY --from=buildenv 3proxy/bin/3proxy /bin/
 COPY --from=buildenv 3proxy/bin/*.ld.so /usr/local/3proxy/libexec/
 RUN mkdir /usr/local/3proxy/logs &&\
@@ -50,6 +52,4 @@ RUN mkdir /usr/local/3proxy/logs &&\
  echo chroot /usr/local/3proxy 65535 65535 >/etc/3proxy/3proxy.cfg &&\
  echo include /conf/3proxy.cfg >>/etc/3proxy/3proxy.cfg &&\
  chmod 440  /etc/3proxy/3proxy.cfg
-
-
 CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]
