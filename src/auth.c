@@ -1334,7 +1334,8 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 				}
 				ttl = ntohl(*(unsigned long *)(buf + k + 6));
 				memcpy(value, buf + k + 12, af == AF_INET6? 16:4);
-				if(ttl < 60 || ttl > (3600*12)) ttl = 300;
+				if(ttl < 0 || ttl > (3600*12)) ttl = 3600*12;
+				if(!ttl) ttl = 1;
 				hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, conf.time+ttl);
 				if(retttl) *retttl = ttl;
 				return 1;
