@@ -658,7 +658,7 @@ int alwaysauth(struct clientparam * param){
 	int countout = 0;
 
 
-	if(conf.connlimiter && param->remsock == INVALID_SOCKET && startconnlims(param)) return 95;
+	if(conf.connlimiter && param->remsock == INVALID_SOCKET && startconnlims(param)) return 10;
 	res = doconnect(param);
 	if(!res){
 		if(conf.bandlimfunc && (conf.bandlimiter||conf.bandlimiterout)){
