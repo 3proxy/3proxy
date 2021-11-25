@@ -196,7 +196,8 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			    return 59;
 			case 3:
 			    if (sockgetlinebuf(param, SERVER, buf, 1, EOF, conf.timeouts[CHAIN_TO]) != 1) return 59;
-			    if (sockgetlinebuf(param, SERVER, buf, (unsigned)(buf[0]+2), EOF, conf.timeouts[CHAIN_TO]) != (unsigned)(buf[0]+2)) return 59;
+			    len = (unsigned char)buf[0];
+			    if (sockgetlinebuf(param, SERVER, buf, len, EOF, conf.timeouts[CHAIN_TO]) != len) return 59;
 			    break;
 			case 4:
 			    if (sockgetlinebuf(param, SERVER, buf, 18, EOF, conf.timeouts[CHAIN_TO]) == 18)
