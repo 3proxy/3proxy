@@ -199,6 +199,8 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 
  unsigned char tmpbuf[8192];
  struct trafcount *tl;
+ ssize_t len;
+
  if(counterd >= 0 && tlin) {
 
 	conf.time = time(0);
@@ -218,7 +220,8 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 
 	cheader.updated = conf.time;
 	lseek(counterd, 0, SEEK_SET);
-	write(counterd, &cheader, sizeof(struct counter_header));			
+	len = write(counterd, &cheader, sizeof(struct counter_header));
+	if (len != sizeof(struct counter_header)) fprintf(stderr, "%s error: written %ld bytes\n", __func__, len);
 	for(tl=tlin; tl; tl = tl->next){
 		if(tl->number){
 			lseek(counterd, 
@@ -227,7 +230,8 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 			crecord.traf64 = tl->traf64;
 			crecord.cleared = tl->cleared;
 			crecord.updated = tl->updated;
-			write(counterd, &crecord, sizeof(struct counter_record));
+			len = write(counterd, &crecord, sizeof(struct counter_record));
+			if (len != sizeof(struct counter_header)) fprintf(stderr, "%s error: written %ld bytes\n", __func__, len);
 		}
 		if(tl->type!=NEVER && timechanged(tl->cleared, conf.time, tl->type)){
 			tl->cleared = conf.time;
@@ -318,7 +322,7 @@ void cyclestep(void){
 						else
 							strcat((char *)tmpbuf, (char *)conf.archiver[i]);
 					}
-					system((char *)tmpbuf+1);
+					if (system((char *)tmpbuf+1)==-1) fprintf(stderr, "%s: some error in system() call\n", __func__);
 				}
 			}
 		}

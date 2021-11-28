@@ -32,7 +32,7 @@ char **load_string(FILE *f,int max_count_str, int *countloadstr,
  /*find start service section*/
  while(!feof(f))
    {
-     fgets(tmpbuf1, 1023,f);  
+     if (!fgets(tmpbuf1, 1023,f)) break;
      if ((strstr(tmpbuf1,start))!=NULL)  { i++; break; }
      tmpbuf1[0]='\0';
    }
@@ -51,7 +51,7 @@ char **load_string(FILE *f,int max_count_str, int *countloadstr,
   i=0;
  while ( !feof(f) || i< max_count_str)
    {
-     fgets(tmpbuf1, 1023,f);  
+     if (!fgets(tmpbuf1, 1023,f)) break;
  
      if ((strstr(tmpbuf1,stop))!=NULL)  { break; }
 

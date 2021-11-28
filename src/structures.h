@@ -16,7 +16,11 @@
 #include <sys/stat.h>
 #include <stdint.h>
 #ifndef PRINTF_INT64_MODIFIER
+#if __WORDSIZE == 64
+#define PRINTF_INT64_MODIFIER "l"
+#else
 #define PRINTF_INT64_MODIFIER "ll"
+#endif
 #endif
 #ifdef  __cplusplus
 extern "C" {
@@ -711,7 +715,7 @@ struct sockfuncs {
 	int (*_getsockname)(SOCKET s, struct sockaddr * name, socklen_t * namelen);
    	int (*_getsockopt)(SOCKET s, int level, int optname, void * optval, socklen_t * optlen);
 	int (*_setsockopt)(int s, int level, int optname, const void *optval, socklen_t optlen);
-	int (*_poll)(struct pollfd *fds, unsigned int nfds, int timeout);
+	int (*_poll)(struct pollfd *fds, nfds_t, int timeout);
 	size_t (*_send)(SOCKET s, const void *msg, size_t len, int flags);
 	size_t (*_sendto)(SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen);
 	size_t (*_recv)(SOCKET s, void *buf, size_t len, int flags);

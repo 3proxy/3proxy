@@ -1274,6 +1274,7 @@ static int h_ace(int argc, unsigned char **argv){
 	
 		if((acl->action == COUNTIN)||(acl->action == COUNTOUT)||(acl->action == COUNTALL)) {
 			unsigned long lim;
+			ssize_t len;
 
 			tl->comment = ( char *)argv[1];
 			while(isdigit(*tl->comment))tl->comment++;
@@ -1295,7 +1296,8 @@ static int h_ace(int argc, unsigned char **argv){
 					sizeof(struct counter_header) + (tl->number - 1) * sizeof(struct counter_record),
 					SEEK_SET);
 				memset(&crecord, 0, sizeof(struct counter_record));
-				read(conf.counterd, &crecord, sizeof(struct counter_record));
+				len = read(conf.counterd, &crecord, sizeof(struct counter_record));
+				if (len<sizeof(struct counter_record)) fprintf(stderr, "Error: read %ld bytes insread of %lu\n", len, sizeof(struct counter_record));
 				tl->traf64 = crecord.traf64;
 				tl->cleared = crecord.cleared;
 				tl->updated = crecord.updated;
@@ -1522,7 +1524,10 @@ static int h_chroot(int argc, unsigned char **argv){
 		fprintf(stderr, "Unable to set uid %d", (int)uid);
 		return(5);
 	}
-	chdir("/");
+    if (chdir("/")!=0) {
+        fprintf(stderr, "Unable to chdir /");
+        return(6);
+	}
 	return 0;
 }
 #endif
