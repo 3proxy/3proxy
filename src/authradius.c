@@ -424,20 +424,18 @@ int radsend(struct clientparam * param, int auth, int stop){
 	}
 
 	/* Login-Service */
-	op = param->operation;
-	for(len=0; op; len++)op>>=1;
 	*ptr++ =  PW_LOGIN_SERVICE;
-	*ptr++ = 4;
-	(*(uint16_t *)ptr)=htons((uint16_t)(len + 1000));
-	ptr+=2;
-	total_length+=4;
+	*ptr++ = 6;
+	(*(uint32_t *)ptr)=htonl(param->operation<<8);
+	ptr+=4;
+	total_length+=6;
 
 	/* Login-TCP-Port */
 	*ptr++ =  PW_LOGIN_TCP_PORT;
-	*ptr++ = 4;
-	(*(uint16_t *)ptr)=*SAPORT(&param->req);
-	ptr+=2;
-	total_length+=4;
+	*ptr++ = 6;
+	(*(uint32_t *)ptr)=htonl((uint32_t)ntohs((*SAPORT(&param->req))));
+	ptr+=4;
+	total_length+=6;
 
 
 	if(*SAFAMILY(&param->req) == AF_INET6){
