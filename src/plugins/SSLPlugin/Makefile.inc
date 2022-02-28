@@ -10,5 +10,5 @@ my_ssl$(OBJSUFFICS): my_ssl.c
 
 
 $(BUILDDIR)SSLPlugin$(DLSUFFICS): ssl_plugin$(OBJSUFFICS) my_ssl$(OBJSUFFICS)
-	$(LN) $(LNOUT)../../$(BUILDDIR)SSLPlugin$(DLSUFFICS) $(LDFLAGS) $(DLFLAGS) ssl_plugin$(OBJSUFFICS) my_ssl$(OBJSUFFICS) $(LIBS) 
+	$(LN) $(LNOUT)../../$(BUILDDIR)SSLPlugin$(DLSUFFICS) $(LDFLAGS) $(DLFLAGS) ssl_plugin$(OBJSUFFICS) my_ssl$(OBJSUFFICS) $(LIBS) -lcrypto -lssl
 	
