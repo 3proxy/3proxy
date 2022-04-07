@@ -377,10 +377,11 @@ int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 		if(so._connect(sock,sa,size)) {
 			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
 		}
+		if(!errno) return 0;
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sock;
-	        fds[0].events = POLLOUT;
-		if(so._poll(fds, 1, to*1000) <= 0) {
+	        fds[0].events = POLLOUT|POLLIN;
+		if(so._poll(fds, 1, to*1000) <= 0 || !(fds[0].revents & POLLOUT)) {
 			return (13);
 		}
 		return 0;
