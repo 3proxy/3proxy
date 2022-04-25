@@ -305,6 +305,15 @@ fflush(stderr);
 					param->res = 470;
 					break;
 				}
+				{
+#ifdef _WIN32
+                    		    unsigned long ul=1;
+                    		    ioctlsocket(param->remsock, FIONBIO, &ul);
+#else
+                    		    fcntl(param->remsock,F_SETFL,O_NONBLOCK | fcntl(param->remsock,F_GETFL));
+#endif
+            			}
+
 #if SOCKSTRACE > 0
 fprintf(stderr, "Sending incoming connection to client with code %d for %s with %hu\n",
 			param->res,
