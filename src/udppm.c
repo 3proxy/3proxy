@@ -60,6 +60,7 @@ void * udppmchild(struct clientparam* param) {
 		RETURN(818);
 	}
 	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (char *)&ul, sizeof(int))) {RETURN(820);};
+	ul = 1;
 	ioctlsocket(param->clisock, FIONBIO, &ul);
 	size = sizeof(param->sinsl);
 	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};
@@ -79,6 +80,7 @@ void * udppmchild(struct clientparam* param) {
  if ((param->remsock=so._socket(SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
  if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {RETURN (12);}
 #ifdef _WIN32
+	ul = 1;
 	ioctlsocket(param->remsock, FIONBIO, &ul);
 #else
 	fcntl(param->remsock,F_SETFL,O_NONBLOCK | fcntl(param->remsock,F_GETFL));
