@@ -313,7 +313,7 @@ static FILTER_ACTION ssl_filter_predata(void *fo, struct clientparam * param){
 		return REJECT;
 	}
 	param->redirectfunc = proxyfunc;
-	return HANDLED;
+	return PASS;
 }
 
 

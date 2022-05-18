@@ -540,6 +540,13 @@ for(;;){
  if(action != PASS) RETURN(517);
  param->nolongdatfilter = 0;
 
+ if (param->npredatfilters){
+	action = handlepredatflt(param);
+	if(action == HANDLED){
+		RETURN(0);
+	}
+	if(action != PASS) RETURN(19);
+ }
  
  if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
 	param->nolongdatfilter = 1;
@@ -548,11 +555,6 @@ for(;;){
   uint64_t newlen64;
   newlen64 = sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
   if(newlen64 == contentlength64) {
-	action = handlepredatflt(param);
-	if(action == HANDLED){
-		RETURN(0);
-	}
-	if(action != PASS) RETURN(19);
 	action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, 0, (int *)&param->cliinbuf);
 	if(action == HANDLED){
 		RETURN(0);
