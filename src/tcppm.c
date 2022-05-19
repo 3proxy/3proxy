@@ -20,7 +20,15 @@ void * tcppmchild(struct clientparam* param) {
  param->operation = CONNECT;
  res = (*param->srv->authfunc)(param);
  if(res) {RETURN(res);}
- RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
+ if (param->npredatfilters){
+	int action;
+        action = handlepredatflt(param);
+        if(action == HANDLED){
+                RETURN(0);
+        }
+        if(action != PASS) RETURN(19);
+ }
+ RETURN (param->redirectfunc?param->redirectfunc(param):mapsocket(param, conf.timeouts[CONNECTION_L]));
 CLEANRET:
  
  dolog(param, param->hostname);
