@@ -310,11 +310,11 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 }
 
 static FILTER_ACTION ssl_filter_predata(void *fo, struct clientparam * param){
-	if(param->operation != HTTP_CONNECT) return PASS;
+	if(param->operation != HTTP_CONNECT && param->operation != CONNECT) return PASS;
 	if(dossl(param, NULL, NULL)) {
 		return REJECT;
 	}
-	param->redirectfunc = proxyfunc;
+	if(!param->redirectfunc) param->redirectfunc = proxyfunc;
 	return CONTINUE;
 }
 

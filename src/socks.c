@@ -203,6 +203,8 @@ void * sockschild(struct clientparam* param) {
 	RETURN(res);
  }
 
+
+
  if(command > 1) {
 	if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		*SAPORT(&param->sinsl) = 0;
@@ -272,6 +274,17 @@ fflush(stderr);
 		socksend(param->clisock, buf, 8, conf.timeouts[STRING_S]);
 	}
 
+	if (param->npredatfilters){
+	    int action;
+	    
+	    action = handlepredatflt(param);
+	    if(action == HANDLED){
+    		param->res = 0;	    
+	    }
+	    if(action != PASS){
+		param->res = 19;
+	    }
+	}
 	if (param->res == 0) {
 		switch(command) {
 			case 1:
