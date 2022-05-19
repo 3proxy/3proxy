@@ -526,6 +526,20 @@ for(;;){
  reqsize = (int)strlen((char *)req);
  reqbufsize = reqsize + 1;
 
+
+ if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
+ if((res = (*param->srv->authfunc)(param))) {
+	if (res <= 10 || haveconnection || param->transparent) RETURN(res);
+	so._closesocket(param->remsock);
+	param->remsock = INVALID_SOCKET;
+	param->redirected = 0;
+	param->redirtype = 0;
+	memset(&param->sinsl, 0, sizeof(param->sinsl));
+	memset(&param->sinsr, 0, sizeof(param->sinsr));
+	if((res = (*param->srv->authfunc)(param))) RETURN(res);
+ }
+
+
 #ifndef WITHMAIN
 
  action = handlereqfilters(param, &req, &reqbufsize, 0, &reqsize);
@@ -539,6 +553,10 @@ for(;;){
  }
  if(action != PASS) RETURN(517);
  param->nolongdatfilter = 0;
+
+ if(isconnect && param->redirtype != R_HTTP) {
+	socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
+ }
 
  if (param->npredatfilters){
 	action = handlepredatflt(param);
@@ -568,17 +586,6 @@ for(;;){
 
 #endif
 
- if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
- if((res = (*param->srv->authfunc)(param))) {
-	if (res <= 10 || haveconnection || param->transparent) RETURN(res);
-	so._closesocket(param->remsock);
-	param->remsock = INVALID_SOCKET;
-	param->redirected = 0;
-	param->redirtype = 0;
-	memset(&param->sinsl, 0, sizeof(param->sinsl));
-	memset(&param->sinsr, 0, sizeof(param->sinsr));
-	if((res = (*param->srv->authfunc)(param))) RETURN(res);
- }
 
  if(ftp && param->redirtype != R_HTTP){
 	SOCKET s;
@@ -826,7 +833,6 @@ for(;;){
  }
 
  if(isconnect && param->redirtype != R_HTTP) {
-	socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 	if(param->redirectfunc) {
 		if(req)myfree(req);
 		if(buf)myfree(buf);

@@ -261,7 +261,9 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
 	ssl_conn_free(ServerConn);
 	return 2;
  }
+
  ClientConn = ssl_handshake_to_client(param->clisock, FakeCert, &errSSL);
+ 
  if ( ClientConn == NULL ) {
 	param->res = 8012;
 	param->srv->logfunc(param, (unsigned char *)"Handshake to client failed");
@@ -313,7 +315,7 @@ static FILTER_ACTION ssl_filter_predata(void *fo, struct clientparam * param){
 		return REJECT;
 	}
 	param->redirectfunc = proxyfunc;
-	return PASS;
+	return CONTINUE;
 }
 
 
