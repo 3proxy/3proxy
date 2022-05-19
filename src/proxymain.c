@@ -223,6 +223,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef WITHSLICE
 	" -s Use slice() - faster proxing, but no filtering for data\n"
 #endif
+	"-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY) - delay GRACE_DELAY milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second to minimize polling\n"
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
 	" -lFILENAME log to FILENAME\n"
@@ -427,6 +428,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		case 'a':
 			srv.anonymous = 1 + atoi(argv[i]+2);
+			break;
+		case 'g':
+			sscanf(argv[i]+2, "%d,%d,%d", &srv.gracetraf, &srv.gracenum, &srv.gracedelay);
 			break;
 		case 's':
 #ifdef WITHSPLICE

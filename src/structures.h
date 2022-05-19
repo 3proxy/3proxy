@@ -437,6 +437,7 @@ struct srvparam {
 	int noforce;
 	int anonymous;
 	int clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;
+	int gracetraf, gracenum, gracedelay;
 #ifdef WITHSPLICE
 	int usesplice;
 #endif
@@ -576,6 +577,7 @@ struct extparam {
 		demon, maxchild, needreload, timetoexit, version, noforce, bandlimver, parentretries;
 	int authcachetype, authcachetime;
 	int filtermaxsize;
+	int gracetraf, gracenum, gracedelay;
 	unsigned char *logname, **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;

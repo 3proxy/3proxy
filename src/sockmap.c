@@ -60,6 +60,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  int res;
  SASIZETYPE sasize;
  int needaction = 0;
+ int graceclinum=0, gracesrvnum=0, graceclitraf=0, gracesrvtraf=0, gracetime=0;
 
 #ifdef WITHSPLICE
  uint64_t inclientpipe = 0, inserverpipe = 0;
@@ -158,6 +159,18 @@ sprintf(logbuf, "int FROMCLIENT = %d, TOCLIENTBUF = %d, FROMCLIENTBUF = %d, TOSE
 log(logbuf);
 #endif
 
+	if(needaction && param->srv->gracedelay && !sleeptime){
+		if(gracetime != conf.time){
+		    gracetime = conf.time;
+		    graceclinum=gracesrvnum=graceclitraf=gracesrvtraf=0;
+		}
+		else {
+		    if( (graceclinum && graceclitraf && graceclinum>=param->srv->gracenum && (!param->srv->gracetraf || graceclitraf/graceclinum <= param->srv->gracetraf)) ||
+			(gracesrvnum && gracesrvtraf && gracesrvnum>=param->srv->gracenum && (!param->srv->gracetraf || gracesrvtraf/gracesrvnum <= param->srv->gracetraf))) {
+			    sleeptime = param->srv->gracedelay;
+			}
+		}
+	}
 	if(needaction > 2 && !sleeptime){
 		if(needaction > (MAXFAILATTEMPT+1)){RETURN (93);}
 		sleeptime = (1<<(needaction-2));
@@ -354,6 +367,9 @@ log(logbuf);
 #ifdef WITHLOG
 log("done read from client to pipe");
 #endif
+				graceclinum++;
+				graceclitraf += res;
+				gracesrvnum = gracesrvtraf = 0;
 				inclientpipe += res;
 				if(inclientpipe >= MAXSPLICE) TOCLIENTPIPE = 0;
 				needaction = 0;
@@ -388,6 +404,9 @@ log(logbuf);
 #ifdef WITHLOG
 log("done read from server to pipe\n");
 #endif
+				gracesrvnum++;
+				gracesrvtraf += res;
+				graceclinum = graceclitraf = 0;
 			    	param->nreads++;
 				param->statssrv64 += res;
 				inserverpipe += res;
@@ -426,6 +445,9 @@ log("read from client to buf");
 #ifdef WITHLOG
 log("done read from client to buf");
 #endif
+				graceclinum++;
+				graceclitraf += res;
+				gracesrvnum = gracesrvtraf = 0;
 				inclientbuf += res;
 				param->cliinbuf += res;
 				if(param->clibufsize == param->cliinbuf) TOCLIENTBUF = 0;
@@ -451,6 +473,9 @@ log("read from server to buf");
 #ifdef WITHLOG
 log("done read from server to buf");
 #endif
+				gracesrvnum++;
+				gracesrvtraf += res;
+				graceclinum = graceclitraf = 0;
 			    	param->nreads++;
 				param->statssrv64 += res;
 				inserverbuf += res;

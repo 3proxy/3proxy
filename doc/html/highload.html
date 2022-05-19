@@ -285,3 +285,16 @@ requirements.
 system bus are bottlenecks.
 <p>TCP_NODELAY and splice are not contrary to each over and should be combined on
 high-speed connections.
+
+<h4>Add grace delay to reduce system calls<h4>
+
+<pre>proxy -g8000,3,10</pre>
+First parameter is average read size we want to keep, second parameter is
+minimal number of packets in the same direction to apply algorythm,
+last value is delay added after polling and prior to reading data.
+An example above adds 10 millisecond delay before reading data if average
+polling size is below 8000 bytes and 3 read operations are made in the same
+direction. It's specially usefule with splice. <pre>logdump 1 1</pre> is useful
+to see how grace delays work, choose delay value to avoid filling the read
+pipe/buffer (typically 64K) but keep the request sizes close to chosen average
+on large file upload/download.

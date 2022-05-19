@@ -110,6 +110,8 @@ disable NTLM authentication (required if passwords are stored in Unix crypt form
 .B -n1
 enable NTLMv1 authentication.
 .br
+.B -g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY)
+delay GRACE_DELAY  milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second. Useful to minimize polling
 .B -s
  (for admin) secure, allow only secure operations, currently only traffic counters
 view without ability to reset.
