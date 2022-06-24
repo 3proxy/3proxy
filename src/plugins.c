@@ -74,6 +74,7 @@ struct symbol symbols[] = {
 	{symbols+47, "parsestr", (void *) parsestr},
 	{symbols+48, "make_ace", (void *) make_ace},
 	{symbols+49, "freeacl", (void *) freeacl},
+	{symbols+50, "handleredirect", (void *) handleredirect},
 	{NULL, "", NULL}
 };
 

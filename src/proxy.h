@@ -191,7 +191,7 @@ int doauth(struct clientparam * param);
 int strongauth(struct clientparam * param);
 void trafcountfunc(struct clientparam *param);
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout);
-
+int handleredirect(struct clientparam * param, struct ace * acentry);
 
 int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
