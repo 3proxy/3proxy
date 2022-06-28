@@ -216,7 +216,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -u never ask for username\n"
 	" -u2 always ask for username\n"
 #endif
-#ifdef SO_BINDTODEVICE
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
 	" -Di(DEVICENAME) bind internal interface to device, e.g. eth1\n"
 	" -De(DEVICENAME) bind external interface to device, e.g. eth1\n"
 #endif
@@ -323,7 +323,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			if(!conf.demon)daemonize();
 			conf.demon = 1;
 			break;
-#ifdef SO_BINDTODEVICE
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
 		 case 'D':
 			if(argv[i][2] == 'i') srv.ibindtodevice = mystrdup(argv[i] + 3);
 			else srv.obindtodevice = mystrdup(argv[i] + 3);
@@ -611,7 +611,25 @@ int MODULEMAINFUNC (int argc, char** argv){
 		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 #ifdef SO_BINDTODEVICE
-		if(srv.ibindtodevice) so._setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1);
+		if(srv.ibindtodevice && so._setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
+		    dolog(&defparam, "failed to bind device");
+		    return -12;
+		}
+#elseif IP_BOUND_IF
+		if(srv.ibindtodevice){
+		    int idx;
+		    idx = if_nametoindex(srv.ibindtodevice);
+		    if(!idx || setsockopt(sockfd, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))) {
+			dolog(&defparam, "failed to bind device");
+			return -12;
+		    }
+#ifndef NOIPV6
+	            if(so._setsockopt(param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) {
+			dolog(&defparam, "failed to bind device");
+	        	return -12;
+	    	    }
+#endif
+		}
 #endif
 	}
 	size = sizeof(srv.intsa);
@@ -974,7 +992,7 @@ void srvfree(struct srvparam * srv){
  if(srv->logtarget) myfree(srv->logtarget);
  if(srv->logformat) myfree(srv->logformat);
  if(srv->nonprintable) myfree(srv->nonprintable);
-#ifdef SO_BINDTODEVICE
+#if defined  SO_BINDTODEVICE || defined IP_BOUND_IF
  if(srv->ibindtodevice) myfree(srv->ibindtodevice);
  if(srv->obindtodevice) myfree(srv->obindtodevice);
 #endif

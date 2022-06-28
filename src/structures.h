@@ -457,7 +457,7 @@ struct srvparam {
 	struct pollfd fds;
 	FILE *stdlog;
 	unsigned char * target;
-#ifdef SO_BINDTODEVICE
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
 	char * ibindtodevice;
 	char * obindtodevice;
 #endif
