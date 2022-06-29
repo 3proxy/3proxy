@@ -619,12 +619,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(srv.ibindtodevice){
 		    int idx;
 		    idx = if_nametoindex(srv.ibindtodevice);
-		    if(!idx || setsockopt(sock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))) {
+		    if(!idx || (*SAFAMILY(&srv.intsa) == AF_INET && setsockopt(sock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)))) {
 			dolog(&defparam, (unsigned char *)"failed to bind device");
 			return -12;
 		    }
 #ifndef NOIPV6
-	            if(so._setsockopt(sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) {
+	            if((*SAFAMILY(&srv.intsa) == AF_INET6 && so._setsockopt(sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx)))) {
 			dolog(&defparam, (unsigned char *)"failed to bind device");
 	        	return -12;
 	    	    }

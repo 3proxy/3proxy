@@ -414,6 +414,14 @@ int doconnect(struct clientparam * param){
 	}
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
 	if ((param->remsock=so._socket(SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
+	if(SAISNULL(&param->sinsl)){
+#ifndef NOIPV6
+		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
+		else
+#endif
+			param->sinsl = param->srv->extsa;
+	}
+	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, param->srv->srvsockopts);
 
 	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
@@ -440,21 +448,13 @@ int doconnect(struct clientparam * param){
 	if(param->srv->obindtodevice) {
 	    int idx;
 	    idx = if_nametoindex(param->srv->obindtodevice);
-	    if(!idx || so._setsockopt(param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)))
+	    if(!idx || (*SAFAMILY(&param->sinsl) == AF_INET && so._setsockopt(param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
 			return 12;
 #ifndef NOIPV6
-	    if(param->srv->family != 4 && so._setsockopt(param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
+	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && so._setsockopt(param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
 #endif
 	}
 #endif
-	if(SAISNULL(&param->sinsl)){
-#ifndef NOIPV6
-		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
-		else
-#endif
-			param->sinsl = param->srv->extsa;
-	}
-	*SAPORT(&param->sinsl) = 0;
 	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;
 	}
