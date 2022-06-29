@@ -431,15 +431,15 @@ int doconnect(struct clientparam * param){
 #endif
 	}
 #endif
-#ifdef SO_BINDTODEVICE
+#if defined SO_BINDTODEVICE
 	if(param->srv->obindtodevice) {
 		if(so._setsockopt(param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))
 			return 12;
 	}
-#elseif IP_BOUND_IF
+#elif defined IP_BOUND_IF
 	if(param->srv->obindtodevice) {
 	    int idx;
-	    idx = if_nametoindex(param->srv->obindtodevice)
+	    idx = if_nametoindex(param->srv->obindtodevice);
 	    if(!idx || so._setsockopt(param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)))
 			return 12;
 #ifndef NOIPV6

@@ -28,7 +28,11 @@ void * tcppmchild(struct clientparam* param) {
         }
         if(action != PASS) RETURN(19);
  }
- RETURN (param->redirectfunc?param->redirectfunc(param):mapsocket(param, conf.timeouts[CONNECTION_L]));
+ if(param->redirectfunc){
+    return (*param->redirectfunc)(param);
+ }
+
+ RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
 CLEANRET:
  
  dolog(param, param->hostname);

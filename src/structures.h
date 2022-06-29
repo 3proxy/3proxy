@@ -31,6 +31,9 @@ extern "C" {
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
+#ifdef IP_BOUND_IF
+#include <net/if.h>
+#endif
 #define SASIZETYPE socklen_t
 #define SOCKET int
 #define INVALID_SOCKET  (-1)

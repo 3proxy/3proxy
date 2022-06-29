@@ -610,22 +610,22 @@ int MODULEMAINFUNC (int argc, char** argv){
 		opt = 1;
 		so._setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
-#ifdef SO_BINDTODEVICE
+#if defined SO_BINDTODEVICE
 		if(srv.ibindtodevice && so._setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
 		    dolog(&defparam, "failed to bind device");
 		    return -12;
 		}
-#elseif IP_BOUND_IF
+#elif defined IP_BOUND_IF
 		if(srv.ibindtodevice){
 		    int idx;
 		    idx = if_nametoindex(srv.ibindtodevice);
-		    if(!idx || setsockopt(sockfd, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))) {
-			dolog(&defparam, "failed to bind device");
+		    if(!idx || setsockopt(sock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))) {
+			dolog(&defparam, (unsigned char *)"failed to bind device");
 			return -12;
 		    }
 #ifndef NOIPV6
-	            if(so._setsockopt(param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) {
-			dolog(&defparam, "failed to bind device");
+	            if(so._setsockopt(sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) {
+			dolog(&defparam, (unsigned char *)"failed to bind device");
 	        	return -12;
 	    	    }
 #endif
