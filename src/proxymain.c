@@ -876,9 +876,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(isudp) while(!srv.fds.events)usleep(SLEEPTIME);
  }
 
- if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
-
- srvfree(&srv);
 
 #ifndef STDMAIN
  pthread_mutex_lock(&config_mutex);
@@ -887,6 +884,9 @@ int MODULEMAINFUNC (int argc, char** argv){
  else conf.services = srv.next;
  pthread_mutex_unlock(&config_mutex);
 #endif
+
+ if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
+ srvfree(&srv);
 
 #ifndef _WIN32
  pthread_attr_destroy(&pa);
