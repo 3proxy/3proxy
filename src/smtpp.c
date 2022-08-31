@@ -61,10 +61,10 @@ int readcommand (struct clientparam* param) {
  }
 #endif
  socksend(param->remsock, buf, i, conf.timeouts[STRING_S]);	
- myfree(buf);
  if(!strncasecmp((char *)buf, "STARTTLS", 8) || !strncasecmp((char *)buf, "TURN", 4)){
 	ret = 22;
  }
+ myfree(buf);
  return ret;
 }
 
