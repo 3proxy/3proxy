@@ -224,6 +224,13 @@ static int h_proxy(int argc, unsigned char ** argv){
 		}
 #endif
 	}
+	else if(!strcmp((char *)argv[0], "auto")) {
+		childdef.pf = autochild;
+		childdef.port = 8080;
+		childdef.isudp = 0;
+		childdef.service = S_AUTO;
+		childdef.helpmessage = "";
+	}
 	else if(!strcmp((char *)argv[0], "tcppm")) {
 		childdef.pf = tcppmchild;
 		childdef.port = 0;
@@ -1601,8 +1608,9 @@ struct commands commandhandlers[]={
 	{commandhandlers+61, "force", h_force, 1, 1},
 	{commandhandlers+62, "noforce", h_noforce, 1, 1},
 	{commandhandlers+63, "parentretries", h_parentretries, 2, 2},
+	{commandhandlers+64,  "auto", h_proxy, 1, 0},
 #ifndef NORADIUS
-	{commandhandlers+64, "radius", h_radius, 3, 0},
+	{commandhandlers+65, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
@@ -1899,6 +1907,7 @@ int reload (void){
 	FILE *fp;
 	int error = -2;
 
+	pthread_mutex_lock(&config_mutex);
 	conf.paused++;
 	freeconf(&conf);
 	conf.paused++;
@@ -1912,5 +1921,6 @@ int reload (void){
 		}
 		if(!writable)fclose(fp);
 	}
+	pthread_mutex_unlock(&config_mutex);
 	return error;
 }

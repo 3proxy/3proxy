@@ -183,7 +183,8 @@ typedef enum {
 	S_SMTPP,
 	S_REVLI,
 	S_REVCO,
-	S_ZOMBIE
+	S_ZOMBIE,
+	S_AUTO
 }PROXYSERVICE;
 
 struct clientparam;
