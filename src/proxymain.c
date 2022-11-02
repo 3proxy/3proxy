@@ -125,6 +125,12 @@ struct socketoptions sockopts[] = {
 #ifdef IP_TRANSPARENT
 	{IP_TRANSPARENT, "IP_TRANSPARENT"},
 #endif
+#ifdef TCP_FASTOPEN
+	{TCP_FASTOPEN, "TCP_FASTOPEN"},
+#endif
+#ifdef TCP_FASTOPEN_CONNECT
+	{TCP_FASTOPEN_CONNECT, "TCP_FASTOPEN_CONNECT"},
+#endif
 	{0, NULL}
 };
 
