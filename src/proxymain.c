@@ -649,7 +649,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 	}
  	if(!isudp){
- 		if(so._listen (sock, 1 + (srv.maxchild>>4))==-1) {
+		if(so._listen (sock, srv.maxchild)==-1) {
 			sprintf((char *)buf, "listen(): %s", strerror(errno));
 			if(!srv.silent)dolog(&defparam, buf);
 			return -4;
