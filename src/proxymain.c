@@ -649,7 +649,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 	}
  	if(!isudp){
-		if(so._listen (sock, srv.maxchild)==-1) {
+		if(so._listen (sock, srv.backlog)==-1) {
 			sprintf((char *)buf, "listen(): %s", strerror(errno));
 			if(!srv.silent)dolog(&defparam, buf);
 			return -4;
@@ -917,6 +917,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->authfunc = conf.authfunc;
  srv->usentlm = 0;
  srv->maxchild = conf.maxchild;
+ srv->backlog = conf.backlog;
  srv->stacksize = conf.stacksize;
  srv->time_start = time(NULL);
  if(havelog && conf.logtarget){

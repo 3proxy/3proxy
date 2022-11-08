@@ -490,6 +490,12 @@ new connections, while connlim will report back to the client that
 the connection limit has been reached.
 
 .br
+.B backlog
+.br
+ sets the listening socket backlog of new connections. Default is
+1+(maxconn>>3). Maximum value is capped by kernel tunable somaxconn.
+
+.br
 .B service
 .br
  (depricated). Indicates 3proxy to behave as Windows 95/98/NT/2000/XP

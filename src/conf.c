@@ -550,6 +550,7 @@ static int h_maxconn(int argc, unsigned char **argv){
 	if(!conf.maxchild) {
 		return(1);
 	}
+	conf.backlog = 1 + (conf.maxchild>>3);
 #ifndef _WIN32
 	{
 		struct rlimit rl;
@@ -562,6 +563,14 @@ static int h_maxconn(int argc, unsigned char **argv){
 		}
 	}
 #endif
+	return 0;
+}
+
+static int h_backlog(int argc, unsigned char **argv){
+	conf.backlog = atoi((char *)argv[1]);
+	if(!conf.backlog) {
+		return(1);
+	}
 	return 0;
 }
 
@@ -1612,6 +1621,7 @@ struct commands commandhandlers[]={
 #ifndef NORADIUS
 	{commandhandlers+65, "radius", h_radius, 3, 0},
 #endif
+	{commandhandlers+66, "backlog", h_backlog, 2, 2},
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
 
@@ -1855,6 +1865,7 @@ void freeconf(struct extparam *confp){
  *SAFAMILY(&confp->intsa) = AF_INET;
  *SAFAMILY(&confp->extsa) = AF_INET;
  confp->maxchild = 100;
+ confp->backlog = 13;
  resolvfunc = NULL;
  numservers = 0;
  acl = confp->acl;
