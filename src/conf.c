@@ -565,6 +565,14 @@ static int h_maxconn(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_backlog(int argc, unsigned char **argv){
+	conf.backlog = atoi((char *)argv[1]);
+	if(conf.maxchild < 0) {
+		return(1);
+	}
+	return 0;
+}
+
 static int h_flush(int argc, unsigned char **argv){
 	freeacl(conf.acl);
 	conf.acl = NULL;
@@ -1609,8 +1617,9 @@ struct commands commandhandlers[]={
 	{commandhandlers+62, "noforce", h_noforce, 1, 1},
 	{commandhandlers+63, "parentretries", h_parentretries, 2, 2},
 	{commandhandlers+64,  "auto", h_proxy, 1, 0},
+	{commandhandlers+65, "backlog", h_backlog, 2, 2},
 #ifndef NORADIUS
-	{commandhandlers+65, "radius", h_radius, 3, 0},
+	{commandhandlers+66, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
@@ -1855,6 +1864,7 @@ void freeconf(struct extparam *confp){
  *SAFAMILY(&confp->intsa) = AF_INET;
  *SAFAMILY(&confp->extsa) = AF_INET;
  confp->maxchild = 100;
+ confp->backlog = 0;
  resolvfunc = NULL;
  numservers = 0;
  acl = confp->acl;
