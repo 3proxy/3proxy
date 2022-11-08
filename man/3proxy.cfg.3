@@ -482,8 +482,12 @@ External or -e can be given twice: once with IPv4 and once with IPv6 address.
 .B maxconn
 <number>
 .br
- sets maximum number of simulationeous connections to each services
-started after this command. Default is 100.
+ sets maximum number of simulationeous connections to each service
+started after this command on network level. Default is 100.
+.br
+ To limit clients, use connlim instead. maxconn will silently ignore
+new connections, while connlim will report back to the client that
+the connection limit has been reached.
 
 .br
 .B service
