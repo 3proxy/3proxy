@@ -493,7 +493,7 @@ the connection limit has been reached.
 .B backlog
 .br
  sets the listening socket backlog of new connections. Default is
-1+(maxconn>>3). Maximum value is capped by kernel tunable somaxconn.
+1 + maxconn/8. Maximum value is capped by kernel tunable somaxconn.
 
 .br
 .B service
