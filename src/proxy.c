@@ -393,7 +393,7 @@ for(;;){
 				while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
 					if(i> 15 && (!strncasecmp((char *)(buf), "content-length", 14))){
 						buf[i]=0;
-						sscanf((char *)buf + 15, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
+						sscanf((char *)buf + 15, "%"PRIu64"u", &contentlength64);
 					}
 				}
 				while( contentlength64 > 0 && (i = sockgetlinebuf(param, CLIENT, buf, (BUFSIZE < contentlength64)? BUFSIZE - 1:(int)contentlength64, '\n', conf.timeouts[STRING_S])) > 0){
@@ -503,7 +503,7 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf((char *)sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
+		sscanf((char *)sb, "%"PRIu64"u",&contentlength64);
 		if(param->maxtrafout64 && (param->maxtrafout64 < param->statscli64 || contentlength64 > param->maxtrafout64 - param->statscli64)){
 			RETURN(10);
 		}
@@ -581,7 +581,7 @@ for(;;){
 	contentlength64 = param->cliinbuf;
 	param->nolongdatfilter = 1;
   }
-  sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
+  sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"u\r\n", contentlength64);
  }
 
 #endif
@@ -955,7 +955,7 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf((char *)sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
+		sscanf((char *)sb, "%"PRIu64"u", &contentlength64);
 		hascontent = 1;
 		if(param->unsafefilter && param->ndatfilterssrv > 0) {
 			hascontent = 2;
@@ -1033,7 +1033,7 @@ for(;;){
 	}
 	if(action != PASS) RETURN(517);
 	contentlength64 = param->srvinbuf;
-	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
+	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"u\r\n", contentlength64);
 	hascontent = 1;
   }
  }
@@ -1080,7 +1080,7 @@ for(;;){
 			}
 			smallbuf[i] = 0;
 			contentlength64 = 0;
-			sscanf((char *)smallbuf, "%"PRINTF_INT64_MODIFIER"x", &contentlength64);
+			sscanf((char *)smallbuf, "%"PRIu64"x", &contentlength64);
 			if(contentlength64 == 0) {
 				param->chunked = 2;
 			}

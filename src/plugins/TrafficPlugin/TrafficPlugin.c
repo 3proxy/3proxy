@@ -240,7 +240,7 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 				}
 				if (DBGLEVEL == 1) {
 #ifndef NOPSTDINT
-					fprintf(stdout, "Port=%hd; Before: srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; After:  srv=%"PRINTF_INT64_MODIFIER"d, cli=%"PRINTF_INT64_MODIFIER"d; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(*SAPORT(&param->sinsr)), statssrv_before, statscli_before, param->statssrv64, param->statscli64,param->nreads,param->nwrites,rule);
+					fprintf(stdout, "Port=%hd; Before: srv=%"PRIu64"d, cli=%"PRIu64"d; After:  srv=%"PRIu64"d, cli=%"PRIu64"d; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(*SAPORT(&param->sinsr)), statssrv_before, statscli_before, param->statssrv64, param->statscli64,param->nreads,param->nwrites,rule);
 #else
 					fprintf(stdout, "Port=%hd; Before: srv=%lu, cli=%lu; After:  srv=%lu, cli=%lu; nreads=%ld; nwrites=%ld; Rule=%d\n",myhtons(param->sins.sin_port), statssrv_before, statscli_before, param->statssrv, param->statscli,param->nreads,param->nwrites,rule);
 #endif
