@@ -115,7 +115,6 @@ struct extparam conf = {
 	{AF_INET},{AF_INET}, 
 #endif
 	NULL,
-	NULL,
 	doconnect,
 	lognone,
 	NULL,

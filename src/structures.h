@@ -596,7 +596,6 @@ struct extparam {
 	struct sockaddr_in extsa;
 #endif
 	struct passwords *pwl;
-	struct auth * authenticate;
 	AUTHFUNC authfunc;
 	LOGFUNC logfunc;
 	BANDLIMFUNC bandlimfunc;
