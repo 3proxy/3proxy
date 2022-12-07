@@ -391,7 +391,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	/* NAS-Identifier */
 	if(conf.stringtable){
 		*ptr++ = PW_NAS_IDENTIFIER;
-		len = strlen(conf.stringtable[SERVICES+param->service]);
+		len = strlen((char *)conf.stringtable[SERVICES+param->service]);
 		*ptr++ = (2 + len);
 		memcpy(ptr, conf.stringtable[SERVICES+param->service], len);
 		ptr += len;
@@ -416,7 +416,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	/* Called-Station-ID */
 	if(param->hostname){
 		*ptr++ = PW_CALLED_STATION_ID;
-		len = strlen(param->hostname);
+		len = strlen((char *)param->hostname);
 		*ptr++ = (2 + len);
 		memcpy(ptr, param->hostname, len);
 		ptr += len;
@@ -456,7 +456,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 
 	/* Username */
 	if(param->username){
-	    len = strlen(param->username);
+	    len = strlen((char *)param->username);
 	    if(len>128)len=128;
 	    *ptr++ = PW_USER_NAME;
 	    *ptr++ = len + 2;
@@ -499,12 +499,12 @@ int radsend(struct clientparam * param, int auth, int stop){
 	}
 	
 	if(auth && param->password){
-    	    len = strlen(param->password);
+	    len = strlen((char *)param->password);
 	    if(len > 128) len = 128;
 	    *ptr++ = PW_PASSWORD;
 	    ptr++;
 	    memcpy(ptr, param->password, len);
-	    rad_pwencode(ptr,
+	    rad_pwencode((char *)ptr,
 		     &len,
 		     radiussecret, 
 		     (char *)packet.vector);
@@ -582,7 +582,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 			continue;
 		}
 
-		if (calc_replydigest((char *)&rpacket, packet.vector, radiussecret,
+		if (calc_replydigest((char *)&rpacket, (char *)packet.vector, radiussecret,
 			data_len) ){
 			continue;
 		}

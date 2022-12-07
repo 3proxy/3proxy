@@ -618,7 +618,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 #if defined SO_BINDTODEVICE
 		if(srv.ibindtodevice && so._setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
-		    dolog(&defparam, "failed to bind device");
+		    dolog(&defparam, (unsigned char *)"failed to bind device");
 		    return -12;
 		}
 #elif defined IP_BOUND_IF
