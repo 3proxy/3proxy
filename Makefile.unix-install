@@ -21,7 +21,6 @@ INSTALL_CFG_DEST = config
 
 INSTALL_CFG_OBJS2 = passwd counters bandlimiters
 
-MANDIR1		= $(DESTDIR)$(man_prefix)/man/man1
 MANDIR3		= $(DESTDIR)$(man_prefix)/man/man3
 MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
 BINDIR		= $(DESTDIR)$(exec_prefix)/bin
@@ -48,10 +47,8 @@ install-etc: install-etc-dir
 	done;
 
 install-man:
-	$(INSTALL_BIN) -d $(MANDIR1)
 	$(INSTALL_BIN) -d $(MANDIR3)
 	$(INSTALL_BIN) -d $(MANDIR8)
-	$(INSTALL_DATA) man/*.1 $(MANDIR1)
 	$(INSTALL_DATA) man/*.3 $(MANDIR3)
 	$(INSTALL_DATA) man/*.8 $(MANDIR8)
 
