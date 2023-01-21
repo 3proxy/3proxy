@@ -37,7 +37,7 @@ install-etc-default-config:
 	if [ -f $(ETCDIR)/$(INSTALL_CFG_DEST) ]; then \
 	   : ; \
 	else \
-	   $(INSTALL_DATA) $(INSTALL_CFG_OBJS) $(ETCDIR)/$(INSTALL_CFG_DEST) \
+	   $(INSTALL_DATA) $(INSTALL_CFG_OBJS) $(ETCDIR)/$(INSTALL_CFG_DEST) ; \
 	fi
 
 install-etc: install-etc-dir
