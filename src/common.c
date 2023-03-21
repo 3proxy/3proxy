@@ -157,7 +157,7 @@ int
  WINAPI
 #endif
 
-    mypoll(struct mypollfd *fds, unsigned int nfds, int timeout){
+    mypoll(struct mypollfd *fds, nfds_t nfds, int timeout){
 	fd_set readfd;
 	fd_set writefd;
 	fd_set oobfd;
