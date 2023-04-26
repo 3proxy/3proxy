@@ -72,7 +72,6 @@ INSTALL_SYSTEMD_SCRIPT = scripts/3proxy.service
 
 CHROOTDIR	= $(DESTDIR)$(chroot_prefix)/3proxy
 CHROOTREL	= ../..$(chroot_prefix)/3proxy
-MANDIR1		= $(DESTDIR)$(man_prefix)/man/man1
 MANDIR3		= $(DESTDIR)$(man_prefix)/man/man3
 MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
 BINDIR		= $(DESTDIR)$(exec_prefix)/bin

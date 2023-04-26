@@ -66,7 +66,6 @@ INSTALL_CFG_DEST = config
 
 INSTALL_CFG_OBJS2 = passwd counters bandlimiters
 
-MANDIR1		= $(DESTDIR)$(man_prefix)/man/man1
 MANDIR3		= $(DESTDIR)$(man_prefix)/man/man3
 MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
 BINDIR		= $(DESTDIR)$(exec_prefix)/bin
