@@ -766,7 +766,7 @@ static int h_parent(int argc, unsigned char **argv){
 	}
 	cidr = strchr(argv[3], '/');
 	if(cidr) *cidr = 0;
-	getip46(46, argv[3], (struct sockaddr *)&chains->addr);
+	if(!getip46(46, argv[3], (struct sockaddr *)&chains->addr)) return (5);
 	chains->exthost = (unsigned char *)mystrdup((char *)argv[3]);
 	if(!chains->exthost) return 21;
 	if(cidr){
