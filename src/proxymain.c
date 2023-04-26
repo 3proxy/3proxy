@@ -1025,7 +1025,7 @@ void freeparam(struct clientparam * param) {
 		}
 		myfree(param->filters);
 	}
-	if(conf.connlimiter && (param->res != 10 || param->remsock != INVALID_SOCKET)) stopconnlims(param);
+	if(param->connlim) stopconnlims(param);
 #endif
 	if(param->clibuf) myfree(param->clibuf);
 	if(param->srvbuf) myfree(param->srvbuf);

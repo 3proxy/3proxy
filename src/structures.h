@@ -523,7 +523,8 @@ struct clientparam {
 		transparent,
 		chunked,
 		paused,
-		version;
+		version,
+		connlim;
 
 	unsigned char 	*hostname,
 			*username,
