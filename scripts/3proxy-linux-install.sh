@@ -83,7 +83,7 @@ GetLasestVersionInfo()
 	local Githublink
 	local msg
 	
-	Githublink=`wget https://github.com/z3APA3A/3proxy/releases/latest -O /dev/stdout |
+	Githublink=`wget https://github.com/3proxy/3proxy/releases/latest -O /dev/stdout |
 	awk '/<a.+href=.+\.tar\.gz/ { gsub("\"", "\n"); print; exit }' |
 	grep -e ".tar.gz"`
 	if [ $? != 0 ]
