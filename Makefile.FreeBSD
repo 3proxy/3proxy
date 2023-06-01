@@ -42,6 +42,7 @@ install: all
 	echo /usr/local/3proxy/3proxy.cfg already exists
 	else
 	install scripts/3proxy.cfg /usr/local/etc/3proxy/
+	fi
 	if [ ! -d /var/log/3proxy/ ]; then
 	mkdir /var/log/3proxy/
 	fi
