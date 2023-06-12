@@ -8,7 +8,7 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /Ox /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "NORADIUS" /D"WATCOM" /D "MSVC" /D "WITH_STD_MALLOC" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /c $(VERSION) $(BUILDDATE)
+CFLAGS = /nologo /Ox /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "NORADIUS" /D"WATCOM" /D "MSVC" /D "WITH_STD_MALLOC" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRIu64=\"I64\"" /c $(VERSION) $(BUILDDATE)
 COUT = /Fo
 LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no 

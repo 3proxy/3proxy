@@ -169,7 +169,7 @@ int timechanged (time_t oldtime, time_t newtime, ROTATION lt){
 				)return 1;
 			break;
 		default:
-			break;	
+			break;
 	}
 	return 0;
 }
@@ -204,12 +204,12 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 	conf.time = time(0);
 	if(cheader.updated && conf.countertype && timechanged(cheader.updated, conf.time, conf.countertype)){
 		FILE * cfp;
-				
+
 		cfp = fopen((char *)dologname(tmpbuf, (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
 				if(tl->type >= conf.countertype)
-					fprintf(cfp, "%05d %020"PRINTF_INT64_MODIFIER"u%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
+					fprintf(cfp, "%05d %020"PRIu64"u%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
 			}
 			fclose(cfp);
 		}
@@ -218,10 +218,10 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 
 	cheader.updated = conf.time;
 	lseek(counterd, 0, SEEK_SET);
-	write(counterd, &cheader, sizeof(struct counter_header));			
+	write(counterd, &cheader, sizeof(struct counter_header));
 	for(tl=tlin; tl; tl = tl->next){
 		if(tl->number){
-			lseek(counterd, 
+			lseek(counterd,
 				sizeof(struct counter_header) + (tl->number - 1) * sizeof(struct counter_record),
 				SEEK_SET);
 			crecord.traf64 = tl->traf64;
@@ -245,7 +245,7 @@ void cyclestep(void){
  minutecounter = time(0);
  for(;;){
 	usleep(SLEEPTIME*999);
-	
+
 	conf.time = time(0);
 	if(conf.needreload) {
 		doschedule();
@@ -266,7 +266,7 @@ void cyclestep(void){
 				}
 			}
 		}
-		
+
 	}
 	if(timechanged(basetime, conf.time, DAILY)) {
 		tm = localtime(&conf.time);
@@ -336,7 +336,7 @@ void cyclestep(void){
 		usleep(SLEEPTIME*999);
 		return;
 	}
-		
+
  }
 }
 
@@ -392,11 +392,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
 	sprintf((char *)tmpbuf, "%s will be installed and started.\n"
 			"By clicking Yes you confirm you read and accepted License Agreement.\n"
-			"You can use Administration/Services to control %s service.", 
+			"You can use Administration/Services to control %s service.",
 			conf.stringtable[1], conf.stringtable[2]);
 	if(MessageBox(NULL, (LPCSTR)tmpbuf, (LPCSTR)conf.stringtable[2], MB_YESNO|MB_ICONASTERISK) != IDYES) return 1;
 
-	
+
 	*tmpbuf = '\"';
 	if (!(res = SearchPath(NULL, argv[0], ".exe", 256, (char *)tmpbuf+1, (LPTSTR*)&arg))) {
 		perror("Failed to find executable filename");
@@ -427,7 +427,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	else {
 		HKEY runsrv;
 
-		if(RegOpenKeyEx( HKEY_LOCAL_MACHINE, 
+		if(RegOpenKeyEx( HKEY_LOCAL_MACHINE,
 				"Software\\Microsoft\\Windows\\CurrentVersion\\RunServices",
 				0,
 				KEY_ALL_ACCESS,
@@ -468,7 +468,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	}
 	else {
 		HKEY runsrv;
-		if(RegOpenKeyEx( HKEY_LOCAL_MACHINE, 
+		if(RegOpenKeyEx( HKEY_LOCAL_MACHINE,
 				"Software\\Microsoft\\Windows\\CurrentVersion\\RunServices",
 				0,
 				KEY_ALL_ACCESS,
@@ -530,22 +530,22 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   if(!writable)fclose(fp);
 
 #ifdef _WIN32
-  
+
 #ifndef _WINCE
   if(service){
-	SERVICE_TABLE_ENTRY ste[] = 
+	SERVICE_TABLE_ENTRY ste[] =
 	{
-        	{ (LPSTR)conf.stringtable[1], (LPSERVICE_MAIN_FUNCTION)ServiceMain},
-	        { NULL, NULL }
-	};	
- 	if(!StartServiceCtrlDispatcher( ste ))cyclestep();
+			{ (LPSTR)conf.stringtable[1], (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+			{ NULL, NULL }
+	};
+	if(!StartServiceCtrlDispatcher( ste ))cyclestep();
   }
-  else 
+  else
 #endif
   {
 	cyclestep();
   }
-  
+
 
 #else
 	 signal(SIGCONT, mysigpause);
@@ -558,6 +558,12 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
 CLEARRETURN:
 
+	 freeconf(&conf);
+	 myfree(conf.conffile);
+	 freeauth(conf.authfuncs);
+	 destroyhashtable(&dns_table);
+	 destroyhashtable(&dns6_table);
+	 fprintf(stderr, "hi\n");
  return 0;
 
 }

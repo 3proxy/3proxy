@@ -9,7 +9,7 @@
 
 static void pr_unsigned64(struct node *node, CBFUNC cbf, void*cb){
 	char buf[32];
-	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%"PRINTF_INT64_MODIFIER"u", *(uint64_t *)node->value));
+	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%"PRIu64"u", *(uint64_t *)node->value));
 }
 
 static void pr_integer(struct node *node, CBFUNC cbf, void*cb){

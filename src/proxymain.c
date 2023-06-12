@@ -505,7 +505,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 			""
 #endif
 		);
-
+		srvfree(&srv);
+		if(cbc_string)myfree(cbc_string);
+		if(cbl_string)myfree(cbl_string);
+		if(fp) fclose(fp);
 		return (1);
 	}
 #endif
@@ -538,6 +541,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 			""
 #endif
 		);
+		srvfree(&srv);
+		if(cbc_string)myfree(cbc_string);
+		if(cbl_string)myfree(cbl_string);
+		if(fp) fclose(fp);
 		return (1);
 	}
 	srv.target = (unsigned char *)mystrdup(argv[i+1]);
@@ -558,6 +565,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 	defparam.clisock = 0;
 	if(! (newparam = myalloc (sizeof(defparam)))){
+		srvfree(&srv);
+		if(cbc_string)myfree(cbc_string);
+		if(cbl_string)myfree(cbl_string);
+		if(fp) fclose(fp);
 		return 2;
 	};
 	*newparam = defparam;
@@ -601,6 +612,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 		if( sock == INVALID_SOCKET) {
 			perror("socket()");
+			srvfree(&srv);
+			if(cbl_string)myfree(cbl_string);
+			if(fp) fclose(fp);
 			return -2;
 		}
 		setopts(sock, srv.lissockopts);
@@ -618,7 +632,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 #if defined SO_BINDTODEVICE
 		if(srv.ibindtodevice && so._setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
-		    dolog(&defparam, "failed to bind device");
+		    dolog(&defparam, (unsigned char *)"failed to bind device");
+		    srvfree(&srv);
+		    if(cbc_string)myfree(cbc_string);
+		    if(fp) fclose(fp);
 		    return -12;
 		}
 #elif defined IP_BOUND_IF
@@ -627,11 +644,17 @@ int MODULEMAINFUNC (int argc, char** argv){
 		    idx = if_nametoindex(srv.ibindtodevice);
 		    if(!idx || (*SAFAMILY(&srv.intsa) == AF_INET && setsockopt(sock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)))) {
 			dolog(&defparam, (unsigned char *)"failed to bind device");
+			srvfree(&srv);
+			if(cbc_string)myfree(cbc_string);
+			if(fp) fclose(fp);
 			return -12;
 		    }
 #ifndef NOIPV6
 	            if((*SAFAMILY(&srv.intsa) == AF_INET6 && so._setsockopt(sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx)))) {
 			dolog(&defparam, (unsigned char *)"failed to bind device");
+			srvfree(&srv);
+			if(cbc_string)myfree(cbc_string);
+			if(fp) fclose(fp);
 	        	return -12;
 	    	    }
 #endif
@@ -645,6 +668,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 		sleeptime = (sleeptime<<1);	
 		if(!sleeptime) {
 			so._closesocket(sock);
+			srvfree(&srv);
+			if(cbc_string)myfree(cbc_string);
+			if(fp) fclose(fp);
 			return -3;
 		}
 	}
@@ -652,6 +678,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(so._listen (sock, srv.backlog?srv.backlog : 1+(srv.maxchild>>3))==-1) {
 			sprintf((char *)buf, "listen(): %s", strerror(errno));
 			if(!srv.silent)dolog(&defparam, buf);
+			srvfree(&srv);
+			if(cbc_string)myfree(cbc_string);
+			if(fp) fclose(fp);
 			return -4;
 		}
 	}
@@ -667,6 +696,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
 	if((srv.cbsock=so._socket(SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
 		dolog(&defparam, (unsigned char *)"Failed to allocate connect back socket");
+		srvfree(&srv);
+		myfree(cbl_string);
+		if(fp) fclose(fp);
 		return -6;
 	}
 	opt = 1;
@@ -680,10 +712,16 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 	if(so._bind(srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 		dolog(&defparam, (unsigned char *)"Failed to bind connect back socket");
+		srvfree(&srv);
+		myfree(cbl_string);
+		if(fp) fclose(fp);
 		return -7;
 	}
 	if(so._listen(srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
 		dolog(&defparam, (unsigned char *)"Failed to listen connect back socket");
+		srvfree(&srv);
+		myfree(cbl_string);
+		if(fp) fclose(fp);
 		return -8;
 	}
  }

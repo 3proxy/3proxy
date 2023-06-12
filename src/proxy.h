@@ -203,6 +203,7 @@ int afdetect(unsigned char *name);
 unsigned long myresolver(int, unsigned char *, unsigned char *);
 unsigned long fakeresolver (int, unsigned char *, unsigned char*);
 int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
+void destroyhashtable(struct hashtable *ht);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);

@@ -246,15 +246,15 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'L':
-				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->cycles);
+				 sprintf((char *)buf+i, "%"PRIu64"u", param->cycles);
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'I':
-				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->statssrv64);
+				 sprintf((char *)buf+i, "%"PRIu64"u", param->statssrv64);
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'O':
-				 sprintf((char *)buf+i, "%"PRINTF_INT64_MODIFIER"u", param->statscli64);
+				 sprintf((char *)buf+i, "%"PRIu64"u", param->statscli64);
 				 i += (int)strlen((char *)buf+i);
 				 break;
 				case 'h':

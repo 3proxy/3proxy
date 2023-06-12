@@ -510,9 +510,9 @@ void * adminchild(struct clientparam* param) {
 			 }
 			 else {
 			  inbuf += sprintf(buf+inbuf,	
-					"</td><td>%"PRINTF_INT64_MODIFIER"u</td>"
+					"</td><td>%"PRIu64"u</td>"
 					"<td>MB%s</td>"
-					"<td>%"PRINTF_INT64_MODIFIER"u.%"PRINTF_INT64_MODIFIER"u</td>"
+					"<td>%"PRIu64"u.%"PRIu64"u</td>"
 					"<td>%s</td>",
 				 cp->traflim64 / (1024 * 1024),
 				 rotations[cp->type],

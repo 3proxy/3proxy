@@ -8,7 +8,7 @@
 
 BUILDDIR = ../bin64/
 CC = cl
-CFLAGS = /nologo /MT /W3 /Ox /EHs- /GS /GA /GF /D "MSVC" /D "WITH_STD_MALLOC" /D "WITH_SSL" /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c $(VERSION) $(BUILDDATE)
+CFLAGS = /nologo /MT /W3 /Ox /EHs- /GS /GA /GF /D "MSVC" /D "WITH_STD_MALLOC" /D "WITH_SSL" /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRIu64=\"I64\"" /Fp"proxy.pch" /FD /c $(VERSION) $(BUILDDATE)
 COUT = /Fo
 LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no /machine:x64

@@ -324,7 +324,7 @@ static int h_log(int argc, unsigned char ** argv){
 		}
 #endif
 #ifndef NORADIUS
-		else if(!strcmp(argv[1],"radius")){
+		else if(!strcmp((char *)argv[1],"radius")){
 			conf.logfunc = logradius;
 		}
 #endif
@@ -400,7 +400,7 @@ static int h_include(int argc, unsigned char **argv){
 static int h_archiver(int argc, unsigned char **argv){
 	int j;
 
-	conf.archiver = myalloc(argc * sizeof(char *));
+	conf.archiver = myalloc(argc * sizeof(unsigned char *));
 	if(conf.archiver) {
 		conf.archiverc = argc;
 		for(j = 0; j < conf.archiverc; j++) conf.archiver[j] = (unsigned char *)mystrdup((char *)argv[j]);
@@ -532,9 +532,21 @@ static int h_users(int argc, unsigned char **argv){
 				pwl->password = (unsigned char *) mystrdup((char *)arg + 1);
 				pwl->pwtype = UN;
 			}
-			if(!pwl->password) return 3;
+			if(!pwl->password){
+				if(pwl->user){
+					myfree(pwl->user);
+				}
+				myfree(pwl);
+				return 3;
+			}
 		}
-		if(!pwl->user) return 21;
+		if(!pwl->user){
+			if(pwl->password){
+				myfree(pwl->password);
+			}
+			myfree(pwl);
+			return 21;
+		}
 		pthread_mutex_lock(&pwl_mutex);
 		pwl->next = conf.pwl;
 		conf.pwl = pwl;
@@ -715,7 +727,10 @@ static int h_monitor(int argc, unsigned char **argv){
 	}
 	else {
 		fm->path = mystrdup((char *)argv[1]);
-		if(!fm->path) return 21;
+		if(!fm->path){
+			myfree(fm);
+			return 21;
+		}
 		fm->next = conf.fmon;
 		conf.fmon = fm;
 	}
@@ -743,6 +758,7 @@ static int h_parent(int argc, unsigned char **argv){
 	chains->weight = (unsigned)atoi((char *)argv[1]);
 	if(chains->weight == 0 || chains->weight >1000) {
 		fprintf(stderr, "Chaining error: bad chain weight %u line %d\n", chains->weight, linenum);
+		myfree(chains);
 		return(3);
 	}
 	if(!strcmp((char *)argv[2], "tcp"))chains->type = R_TCP;
@@ -762,9 +778,10 @@ static int h_parent(int argc, unsigned char **argv){
 	else if(!strcmp((char *)argv[2], "smtp"))chains->type = R_SMTP;
 	else {
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
+		myfree(chains);
 		return(4);
 	}
-	cidr = strchr(argv[3], '/');
+	cidr = strchr((char *)argv[3], '/');
 	if(cidr) *cidr = 0;
 	if(!getip46(46, argv[3], (struct sockaddr *)&chains->addr)) return (5);
 	chains->exthost = (unsigned char *)mystrdup((char *)argv[3]);
@@ -827,7 +844,7 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 	memcpy(&dst->ip_from, SAADDR(&sa), SAADDRLEN(&sa));
 	dst->family = *SAFAMILY(&sa);
 	if(dash){
-		if(afdetect(dash+1) == -1) return 1;
+		if(afdetect((unsigned char *)dash+1) == -1) return 1;
 		if(!getip46(46, (unsigned char *)dash+1, (struct sockaddr *)&sa)) return 2;
 		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
 		if(*SAFAMILY(&sa) != dst->family || memcmp(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa)) < 0) return 3;
@@ -881,11 +898,15 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				if(!userl) {
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 				memset(userl, 0, sizeof(struct userlist));
 				userl->user=(unsigned char*)mystrdup((char *)arg);
-				if(!userl->user) return NULL;
+				if(!userl->user){
+					freeacl(acl);
+					return NULL;
+				}
 			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
 		}
 		if(argc > 1  && strcmp("*", (char *)argv[1])) {
@@ -900,11 +921,13 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				if(!ipl) {
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 				memset(ipl, 0, sizeof(struct iplist));
 				if (scanipl(arg, ipl)) {
 					fprintf(stderr, "Invalid IP, IP range or CIDR, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
@@ -928,6 +951,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				if(!hostnamel){
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 				memset(hostnamel, 0, sizeof(struct hostname));
@@ -946,6 +970,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				hostnamel->name = (unsigned char *) mystrdup( (char *)pattern);
 				if(!hostnamel->name) {
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 			 }
@@ -960,6 +985,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				if(!ipl) {
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 				*ipl = tmpip;
@@ -978,12 +1004,14 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				if(!portl) {
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 				memset(portl, 0, sizeof(struct portlist));
 				res = sscanf((char *)arg, "%hu-%hu", &portl->startport, &portl->endport);
 				if(res < 1) {
 					fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 				if (res == 1) portl->endport = portl->startport;
@@ -1051,6 +1079,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 				}
 				else {
 					fprintf(stderr, "Unknown operation type: %s line %d\n", arg, linenum);
+					freeacl(acl);
 					return(NULL);
 				}
 			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
@@ -1315,6 +1344,8 @@ static int h_ace(int argc, unsigned char **argv){
 				tl->cleared = crecord.cleared;
 				tl->updated = crecord.updated;
 				if(tl->cleared < 0 || tl->cleared >=  MAX_COUNTER_TIME || tl->updated < 0 || tl->updated >=  MAX_COUNTER_TIME){
+					myfree(tl);
+					freeacl(acl);
 					fprintf(stderr, "Invalid, incompatible or corrupted counter file.\n");
 					return(6);
 				}
@@ -1374,16 +1405,16 @@ static int h_radius(int argc, unsigned char **argv){
 	}
 */
 	memset(radiuslist, 0, sizeof(radiuslist));
-	if(strlen(argv[1]) > 63) argv[1][63] = 0;
-	strcpy(radiussecret, argv[1]);
+	if(strlen((char *)argv[1]) > 63) argv[1][63] = 0;
+	strcpy(radiussecret, (char *)argv[1]);
 	for( nradservers=0; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
 		char *s = 0;
-		if((s=strchr(argv[nradservers + 2], '/'))){
+		if((s=strchr((char *)argv[nradservers + 2], '/'))){
 			*s = 0;
 			s++;
 		}
 		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers].authaddr)) return 1;
-		if( s && !getip46(46, s+1, (struct sockaddr *)&radiuslist[nradservers].localaddr)) return 2;
+		if( s && !getip46(46, (unsigned char *)s+1, (struct sockaddr *)&radiuslist[nradservers].localaddr)) return 2;
 		if(!*SAPORT(&radiuslist[nradservers].authaddr))*SAPORT(&radiuslist[nradservers].authaddr) = htons(1812);
 		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
 		radiuslist[nradservers].logaddr = radiuslist[nradservers].authaddr;
@@ -1731,6 +1762,7 @@ int readconfig(FILE * fp){
   int res = 0;
 
   if( !(buf = myalloc(bufsize)) || ! (argv = myalloc((NPARAMS + 1) * sizeof(unsigned char *))) ) {
+		if(buf) myfree(buf);
 		fprintf(stderr, "No memory for configuration");
 		return(10);
   }
@@ -1740,6 +1772,8 @@ int readconfig(FILE * fp){
 	inbuf = (int)(strlen((char *)buf) + 1);
 	argc = parsestr (buf, argv, NPARAMS-1, &buf, &inbuf, &bufsize);
 	if(argc < 1) {
+		myfree(buf);
+		myfree(argv);
 		fprintf(stderr, "Parse error line %d\n", linenum);
 		return(11);
 	}
@@ -1751,6 +1785,8 @@ int readconfig(FILE * fp){
 		if(!writable){
 			writable = freopen(curconf, "r+", fp);
 			if(!writable){
+				myfree(buf);
+				myfree(argv);
 				fprintf(stderr, "Unable to reopen config for writing: %s\n", curconf);
 				return 1;
 			}
@@ -1764,6 +1800,8 @@ int readconfig(FILE * fp){
 			res = (*cm->handler)(argc, argv);
 			if(res > 0){
 				fprintf(stderr, "Command: '%s' failed with code %d, line %d\n", argv[0], res, linenum);
+				myfree(buf);
+				myfree(argv);
 				return(linenum);
 			}
 			if(!res) break;
@@ -1771,6 +1809,8 @@ int readconfig(FILE * fp){
 	}
 	if(res != 1)continue;
 	fprintf(stderr, "Unknown command: '%s' line %d\n", argv[0], linenum);
+	myfree(buf);
+	myfree(argv);
 	return(linenum);
   }
   myfree(buf);
@@ -1795,12 +1835,16 @@ void freeconf(struct extparam *confp){
  struct connlim * cl;
  struct trafcount * tc;
  struct passwords *pw;
+ struct auth *authfuncs;
  struct ace *acl;
  struct filemon *fm;
  int counterd, archiverc;
  unsigned char *logname, *logtarget;
  unsigned char **archiver;
  unsigned char * logformat;
+ char * counterfile;
+ FILE *stdlog;
+ char* demanddialprog;
 
  int i;
 
@@ -1835,12 +1879,10 @@ void freeconf(struct extparam *confp){
  pthread_mutex_unlock(&pwl_mutex);
 
 
-/*
  logtarget = confp->logtarget;
  confp->logtarget = NULL;
  logname = confp->logname;
  confp->logname = NULL;
-*/
  confp->logfunc = lognone;
  logformat = confp->logformat;
  confp->logformat = NULL;
@@ -1869,6 +1911,14 @@ void freeconf(struct extparam *confp){
  numservers = 0;
  acl = confp->acl;
  confp->acl = NULL;
+ authfuncs = confp->authfuncs;
+ confp->authfuncs = NULL;
+ counterfile = confp->counterfile;
+ confp->counterfile = NULL;
+ stdlog = confp->stdlog;
+ confp->stdlog = NULL;
+ demanddialprog = confp->demanddialprog;
+ confp->demanddialprog = NULL;
 
  usleep(SLEEPTIME);
 
@@ -1882,7 +1932,7 @@ void freeconf(struct extparam *confp){
 	freeacl(tc->ace);
  }
 
- 
+ freeauth(authfuncs);
  freeacl(acl);
  freepwl(pw);
  for(; bl; bl = (struct bandlim *) itfree(bl, bl->next)) freeacl(bl->ace);
@@ -1895,14 +1945,12 @@ void freeconf(struct extparam *confp){
  for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
 	if(fm->path) myfree(fm->path);
  }
-/*
  if(logtarget) {
 	myfree(logtarget);
  }
  if(logname) {
 	myfree(logname);
  }
-*/
  if(logformat) {
 	myfree(logformat);
  }
@@ -1911,6 +1959,15 @@ void freeconf(struct extparam *confp){
 	myfree(archiver);
  }
  havelog = 0;
+ if(counterfile){
+	myfree(counterfile);
+ }
+ if(stdlog){
+	fclose(stdlog);
+ }
+ if(demanddialprog){
+	myfree(demanddialprog);
+ }
 }
 
 int reload (void){
