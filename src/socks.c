@@ -15,6 +15,17 @@ unsigned char * commands[] = {(unsigned char *)"UNKNOWN", (unsigned char *)"CONN
 #define BUFSIZE 1024
 #define LARGEBUFSIZE 67000
 
+static void printcommand(unsigned char * buf, int command, struct clientparam *param){
+    sprintf((char *)buf, "%s ", commands[command]);
+    if(param->hostname){
+	sprintf((char *)buf + strlen((char *)buf), "%.265s", param->hostname);
+    }
+    else 
+	myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + strlen((char *)buf), 64);
+    sprintf((char *)buf+strlen((char *)buf), ":%hu", ntohs(*SAPORT(&param->req)));
+
+}
+
 void * sockschild(struct clientparam* param) {
  int res;
  unsigned i=0;
@@ -207,13 +218,8 @@ void * sockschild(struct clientparam* param) {
 #ifndef WITHMAIN
  if(param->nreqfilters && buf){
     int reqbufsize = BUFSIZE, reqsize, action;
-    sprintf((char *)buf, "%s ", commands[command]);
-    if(param->hostname){
-	sprintf((char *)buf + strlen((char *)buf), "%.265s", param->hostname);
-    }
-    else 
-	myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + strlen((char *)buf), 64);
-    sprintf((char *)buf+strlen((char *)buf), ":%hu", ntohs(*SAPORT(&param->req)));
+
+    printcommand(buf, command, param);
     reqsize = strlen((char *)buf);
     action = handlereqfilters(param, &buf, &reqbufsize, 0, &reqsize);
     if(action == HANDLED){
@@ -488,13 +494,8 @@ fflush(stderr);
  
  if(command > 3) command = 0;
  if(buf){
-	 sprintf((char *)buf, "%s ", commands[command]);
-	 if(param->hostname){
-	  sprintf((char *)buf + strlen((char *)buf), "%.265s", param->hostname);
-	 }
-	 else 
-		myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + strlen((char *)buf), 64);
-         sprintf((char *)buf+strlen((char *)buf), ":%hu", ntohs(*SAPORT(&param->req)));
+	 printcommand(buf, command, param);
+
 	 dolog(param, buf);
 	 myfree(buf);
  }
