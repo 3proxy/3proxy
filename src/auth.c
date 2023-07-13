@@ -683,7 +683,10 @@ int alwaysauth(struct clientparam * param){
 						countout = 1;
 						if(tc->ace->action != COUNTALL) continue;
 					}
-					if(tc->traflim64 <= tc->traf64) return 10;
+					if(tc->traflim64 <= tc->traf64) {
+					    pthread_mutex_unlock(&tc_mutex);
+					    return 10;
+					}
 					param->trafcountfunc = conf.trafcountfunc;
 					param->maxtrafin64 = tc->traflim64 - tc->traf64; 
 				}
@@ -695,7 +698,10 @@ int alwaysauth(struct clientparam * param){
 					if(tc->ace->action != COUNTOUT && tc->ace->action !=  COUNTALL) {
 						continue;
 					}
-					if(tc->traflim64 <= tc->traf64) return 10;
+					if(tc->traflim64 <= tc->traf64) {
+					    pthread_mutex_unlock(&tc_mutex);
+					    return 10;
+					}
 					param->trafcountfunc = conf.trafcountfunc;
 					param->maxtrafout64 = tc->traflim64 - tc->traf64; 
 				}
