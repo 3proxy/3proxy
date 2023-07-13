@@ -324,7 +324,7 @@ static int h_log(int argc, unsigned char ** argv){
 		}
 #endif
 #ifndef NORADIUS
-		else if(!strcmp(argv[1],"radius")){
+		else if(!strcmp((char *)argv[1],"radius")){
 			conf.logfunc = logradius;
 		}
 #endif
@@ -764,7 +764,7 @@ static int h_parent(int argc, unsigned char **argv){
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
 		return(4);
 	}
-	cidr = strchr(argv[3], '/');
+	cidr = strchr((char *)argv[3], '/');
 	if(cidr) *cidr = 0;
 	if(!getip46(46, argv[3], (struct sockaddr *)&chains->addr)) return (5);
 	chains->exthost = (unsigned char *)mystrdup((char *)argv[3]);
@@ -827,7 +827,7 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 	memcpy(&dst->ip_from, SAADDR(&sa), SAADDRLEN(&sa));
 	dst->family = *SAFAMILY(&sa);
 	if(dash){
-		if(afdetect(dash+1) == -1) return 1;
+		if(afdetect((unsigned char *)dash+1) == -1) return 1;
 		if(!getip46(46, (unsigned char *)dash+1, (struct sockaddr *)&sa)) return 2;
 		memcpy(&dst->ip_to, SAADDR(&sa), SAADDRLEN(&sa));
 		if(*SAFAMILY(&sa) != dst->family || memcmp(&dst->ip_to, &dst->ip_from, SAADDRLEN(&sa)) < 0) return 3;
@@ -1374,16 +1374,16 @@ static int h_radius(int argc, unsigned char **argv){
 	}
 */
 	memset(radiuslist, 0, sizeof(radiuslist));
-	if(strlen(argv[1]) > 63) argv[1][63] = 0;
-	strcpy(radiussecret, argv[1]);
+	if(strlen((char *)argv[1]) > 63) argv[1][63] = 0;
+	strcpy(radiussecret, (char *)argv[1]);
 	for( nradservers=0; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
 		char *s = 0;
-		if((s=strchr(argv[nradservers + 2], '/'))){
+		if((s=strchr((char *)argv[nradservers + 2], '/'))){
 			*s = 0;
 			s++;
 		}
 		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers].authaddr)) return 1;
-		if( s && !getip46(46, s+1, (struct sockaddr *)&radiuslist[nradservers].localaddr)) return 2;
+		if( s && !getip46(46, (unsigned char *)s+1, (struct sockaddr *)&radiuslist[nradservers].localaddr)) return 2;
 		if(!*SAPORT(&radiuslist[nradservers].authaddr))*SAPORT(&radiuslist[nradservers].authaddr) = htons(1812);
 		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
 		radiuslist[nradservers].logaddr = radiuslist[nradservers].authaddr;

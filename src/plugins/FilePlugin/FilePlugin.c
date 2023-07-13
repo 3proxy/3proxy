@@ -37,8 +37,10 @@ extern "C" {
 #ifndef _WIN32
 #define WINAPI
 #define fp_size_t size_t
+#define fp_ssize_t ssize_t
 #else
 #define fp_size_t int
+#define fp_ssize_t int
 #endif
 
 static struct pluginlink * pl;
@@ -457,7 +459,7 @@ static int WINAPI fp_poll(struct pollfd *fds, unsigned int nfds, int timeout){
  return sso._poll(fds, nfds, timeout);
 }
 
-static int WINAPI fp_send(SOCKET s, const char *msg, fp_size_t len, int flags){
+static fp_ssize_t WINAPI fp_send(SOCKET s, const char *msg, fp_size_t len, int flags){
  struct fp_stream *fps = NULL;
  int res;
  res = searchsocket(s, &fps);
@@ -541,7 +543,7 @@ static int WINAPI fp_send(SOCKET s, const char *msg, fp_size_t len, int flags){
  }
  return sso._send(s, msg, len, flags);
 }
-static int WINAPI fp_sendto(SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, fp_size_t tolen){
+static fp_ssize_t WINAPI fp_sendto(SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, fp_size_t tolen){
  struct fp_stream *fps = NULL;
  int res;
  res = searchsocket(s, &fps);
@@ -659,10 +661,10 @@ static int WINAPI fp_sendto(SOCKET s, const void *msg, int len, int flags, const
  }
  return sso._sendto(s, msg, len, flags, to, tolen);
 }
-static int WINAPI fp_recv(SOCKET s, void *buf, fp_size_t len, int flags){
+static fp_ssize_t WINAPI fp_recv(SOCKET s, void *buf, fp_size_t len, int flags){
  return sso._recv(s, buf, len, flags);
 }
-static int WINAPI fp_recvfrom(SOCKET s, void * buf, fp_size_t len, int flags, struct sockaddr * from, fp_size_t * fromlen){
+static fp_ssize_t WINAPI fp_recvfrom(SOCKET s, void * buf, fp_size_t len, int flags, struct sockaddr * from, fp_size_t * fromlen){
  return sso._recvfrom(s, buf, len, flags, from, fromlen);
 }
 static int WINAPI fp_shutdown(SOCKET s, int how){

@@ -20,7 +20,7 @@ void * autochild(struct clientparam* param) {
     len = sockfillbuffcli(param, 1, CONNECTION_S);
     if (len != 1){
 	param->res = 801;
-	dolog(param, "");
+	dolog(param, (unsigned char *)"");
     }
     if(*param->clibuf == 4 || *param->clibuf == 5) return sockschild(param);
     return proxychild(param);

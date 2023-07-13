@@ -110,7 +110,7 @@ struct sockfuncs sso;
 #ifdef _WIN32
 static int WINAPI ssl_send(SOCKET s, const void *msg, int len, int flags){
 #else
-static int ssl_send(SOCKET s, const void *msg, size_t len, int flags){
+static ssize_t  ssl_send(SOCKET s, const void *msg, size_t len, int flags){
 #endif
 	struct SSLqueue *sslq;
 
@@ -134,7 +134,7 @@ static int ssl_send(SOCKET s, const void *msg, size_t len, int flags){
 #ifdef _WIN32
 static int WINAPI ssl_sendto(SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, int tolen){
 #else
-static int ssl_sendto(SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen){
+static ssize_t ssl_sendto(SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen){
 #endif
 	struct SSLqueue *sslq;
 
@@ -157,7 +157,7 @@ static int ssl_sendto(SOCKET s, const void *msg, size_t len, int flags, const st
 #ifdef _WIN32
 static int WINAPI ssl_recvfrom(SOCKET s, void *msg, int len, int flags, struct sockaddr *from, int *fromlen){
 #else
-static int ssl_recvfrom(SOCKET s, void *msg, size_t len, int flags, struct sockaddr *from, SASIZETYPE *fromlen){
+static ssize_t  ssl_recvfrom(SOCKET s, void *msg, size_t len, int flags, struct sockaddr *from, SASIZETYPE *fromlen){
 #endif
 	struct SSLqueue *sslq;
 
@@ -179,7 +179,7 @@ static int ssl_recvfrom(SOCKET s, void *msg, size_t len, int flags, struct socka
 #ifdef _WIN32
 static int WINAPI ssl_recv(SOCKET s, void *msg, int len, int flags){
 #else
-static int WINAPI ssl_recv(SOCKET s, void *msg, size_t len, int flags){
+static ssize_t ssl_recv(SOCKET s, void *msg, size_t len, int flags){
 #endif
 	struct SSLqueue *sslq;
 
