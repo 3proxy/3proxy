@@ -69,6 +69,7 @@ int mutex_unlock(int *val);
 #ifdef WITH_POLL
 #include <poll.h>
 #else
+typedef unsigned int nfds_t;
 #ifdef WITH_WSAPOLL
 
 #define poll(A,B,C) WSAPoll(A,B,C)
@@ -84,7 +85,7 @@ int
 #ifdef _WIN32
   WINAPI
 #endif
-   mypoll(struct mypollfd *fds, unsigned int nfds, int timeout);
+   mypoll(struct mypollfd *fds, nfds_t nfds, int timeout);
 #ifndef POLLIN
 #define POLLIN 1
 #endif
@@ -702,7 +703,7 @@ struct sockfuncs {
 	int (WINAPI *_getsockname)(SOCKET s, struct sockaddr * name, int * namelen);
    	int (WINAPI *_getsockopt)(SOCKET s, int level, int optname, char * optval, int * optlen);
 	int (WINAPI *_setsockopt)(SOCKET s, int level, int optname, const char *optval, int optlen);
-	int (WINAPI *_poll)(struct pollfd *fds, unsigned int nfds, int timeout);
+	int (WINAPI *_poll)(struct pollfd *fds, nfds_t nfds, int timeout);
 	int (WINAPI *_send)(SOCKET s, const char *msg, int len, int flags);
 	int  (WINAPI *_sendto)(SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen);
 	int  (WINAPI *_recv)(SOCKET s, char *buf, int len, int flags);
@@ -719,7 +720,7 @@ struct sockfuncs {
 	int (*_getsockname)(SOCKET s, struct sockaddr * name, socklen_t * namelen);
    	int (*_getsockopt)(SOCKET s, int level, int optname, void * optval, socklen_t * optlen);
 	int (*_setsockopt)(int s, int level, int optname, const void *optval, socklen_t optlen);
-	int (*_poll)(struct pollfd *fds, unsigned int nfds, int timeout);
+	int (*_poll)(struct pollfd *fds, nfds_t nfds, int timeout);
 	size_t (*_send)(SOCKET s, const void *msg, size_t len, int flags);
 	size_t (*_sendto)(SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen);
 	size_t (*_recv)(SOCKET s, void *buf, size_t len, int flags);
