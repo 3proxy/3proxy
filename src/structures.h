@@ -753,8 +753,8 @@ struct pluginlink {
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);
 	int (*alwaysauth)(struct clientparam * param);
 	int (*checkACL)(struct clientparam * param);
-	void (*nametohash)(const unsigned char * name, unsigned char *hash);
-	unsigned (*hashindex)(const unsigned char* hash);
+	void (*nametohash)(const unsigned char * name, unsigned char *hash, unsigned char *rnd);
+	unsigned (*hashindex)(struct hashtable *ht, const unsigned char* hash);
 	unsigned char* (*en64)(const unsigned char *in, unsigned char *out, int inlen);
 	int (*de64)(const unsigned char *in, unsigned char *out, int maxlen);
 	void (*tohex)(unsigned char *in, unsigned char *out, int len);
