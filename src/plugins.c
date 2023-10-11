@@ -11,8 +11,8 @@
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout);
 void trafcountfunc(struct clientparam *param);
 int checkACL(struct clientparam * param);
-void nametohash(const unsigned char * name, unsigned char *hash);
-unsigned hashindex(const unsigned char* hash);
+void nametohash(const unsigned char * name, unsigned char *hash, unsigned char *rnd);
+unsigned hashindex(struct hashtable *ht, const unsigned char* hash);
 void decodeurl(unsigned char *s, int allowcr);
 int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned char ** buff, int *inbuf, int *bufsize);
 struct ace * make_ace (int argc, unsigned char ** argv);
