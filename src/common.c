@@ -190,6 +190,8 @@ int
 #endif
 
 struct sockfuncs so = {
+	NULL,
+	NULL,
 	socket,
 	accept,
 	bind,

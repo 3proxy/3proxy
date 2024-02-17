@@ -946,6 +946,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
 #ifndef NOIPV6
  srv->extsa6 = conf.extsa6;
 #endif
+ srv->so = so;
 }
 
 void srvinit2(struct srvparam * srv, struct clientparam *param){
@@ -1006,6 +1007,7 @@ void srvfree(struct srvparam * srv){
  if(srv->ibindtodevice) myfree(srv->ibindtodevice);
  if(srv->obindtodevice) myfree(srv->obindtodevice);
 #endif
+ if(srv->so.freefunc) srv->so.freefunc(srv->so.state);
 }
 
 
@@ -1030,6 +1032,7 @@ void freeparam(struct clientparam * param) {
 	if(param->clibuf) myfree(param->clibuf);
 	if(param->srvbuf) myfree(param->srvbuf);
 	if(param->srv){
+		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
 		pthread_mutex_lock(&param->srv->counter_mutex);
 		if(param->prev){
 			param->prev->next = param->next;

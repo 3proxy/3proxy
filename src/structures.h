@@ -418,7 +418,51 @@ struct filterp {
 
 #define MAX_FILTERS 16
 
+
+struct sockfuncs {
+	void * state;
+	void (*freefunc)(void* state);
+#ifdef _WIN32
+	SOCKET (WINAPI *_socket)(void* state, int domain, int type, int protocol);
+	SOCKET (WINAPI *_accept)(void* state, SOCKET s, struct sockaddr * addr, int * addrlen);
+	int (WINAPI *_bind)(void* state, SOCKET s, const struct sockaddr *addr, int addrlen);
+	int (WINAPI *_listen)(void* state, SOCKET s, int backlog);
+	int (WINAPI *_connect)(void* state, SOCKET s, const struct sockaddr *name, int namelen);
+	int (WINAPI *_getpeername)(void* state, SOCKET s, struct sockaddr * name, int * namelen);
+	int (WINAPI *_getsockname)(void* state, SOCKET s, struct sockaddr * name, int * namelen);
+   	int (WINAPI *_getsockopt)(void* state, SOCKET s, int level, int optname, char * optval, int * optlen);
+	int (WINAPI *_setsockopt)(void* state, SOCKET s, int level, int optname, const char *optval, int optlen);
+	int (WINAPI *_poll)(void* state, struct pollfd *fds, unsigned int nfds, int timeout);
+	int (WINAPI *_send)(void* state, SOCKET s, const char *msg, int len, int flags);
+	int  (WINAPI *_sendto)(void* state, SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen);
+	int  (WINAPI *_recv)(void* state, SOCKET s, char *buf, int len, int flags);
+	int  (WINAPI *_recvfrom)(void* state, SOCKET s, char * buf, int len, int flags, struct sockaddr * from, int * fromlen);
+	int (WINAPI *_shutdown)(void* state, SOCKET s, int how);
+	int (WINAPI *_closesocket)(void* state, SOCKET s);
+#else
+	SOCKET (*_socket)(void* state, int domain, int type, int protocol);
+	SOCKET (*_accept)(void* state, SOCKET s, struct sockaddr * addr, socklen_t * addrlen);
+	int (*_bind)(void* state, SOCKET s, const struct sockaddr *addr, socklen_t addrlen);
+	int (*_listen)(void* state, SOCKET s, int backlog);
+	int (*_connect)(void* state, SOCKET s, const struct sockaddr *name, socklen_t namelen);
+	int (*_getpeername)(void* state, SOCKET s, struct sockaddr * name, socklen_t * namelen);
+	int (*_getsockname)(void* state, SOCKET s, struct sockaddr * name, socklen_t * namelen);
+   	int (*_getsockopt)(void* state, SOCKET s, int level, int optname, void * optval, socklen_t * optlen);
+	int (*_setsockopt)(void* state, int s, int level, int optname, const void *optval, socklen_t optlen);
+	int (*_poll)(void* state, struct pollfd *fds, unsigned int nfds, int timeout);
+	ssize_t (*_send)(void* state, SOCKET s, const void *msg, size_t len, int flags);
+	ssize_t (*_sendto)(void* state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen);
+	ssize_t (*_recv)(void* state, SOCKET s, void *buf, size_t len, int flags);
+	ssize_t (*_recvfrom)(void* state, SOCKET s, void * buf, size_t len, int flags, struct sockaddr * from, SASIZETYPE * fromlen);
+	int (*_shutdown)(void* state, SOCKET s, int how);
+	int (*_closesocket)(void* state, SOCKET s);
+#endif
+};
+
+extern struct sockfuncs so;
+
 struct srvparam {
+	struct sockfuncs so;
 	struct srvparam *next;
 	struct srvparam *prev;
 	struct clientparam *child;
@@ -482,6 +526,7 @@ struct srvparam {
 struct clientparam {
 	struct clientparam	*next,
 				*prev;
+	void * sostate;
 	struct srvparam *srv;
 	REDIRECTFUNC redirectfunc;
 	BANDLIMFUNC bandlimfunc;
@@ -690,46 +735,6 @@ struct hashtable {
 
 extern struct hashtable dns_table;
 extern struct hashtable dns6_table;
-
-struct sockfuncs {
-#ifdef _WIN32
-	SOCKET (WINAPI *_socket)(int domain, int type, int protocol);
-	SOCKET (WINAPI *_accept)(SOCKET s, struct sockaddr * addr, int * addrlen);
-	int (WINAPI *_bind)(SOCKET s, const struct sockaddr *addr, int addrlen);
-	int (WINAPI *_listen)(SOCKET s, int backlog);
-	int (WINAPI *_connect)(SOCKET s, const struct sockaddr *name, int namelen);
-	int (WINAPI *_getpeername)(SOCKET s, struct sockaddr * name, int * namelen);
-	int (WINAPI *_getsockname)(SOCKET s, struct sockaddr * name, int * namelen);
-   	int (WINAPI *_getsockopt)(SOCKET s, int level, int optname, char * optval, int * optlen);
-	int (WINAPI *_setsockopt)(SOCKET s, int level, int optname, const char *optval, int optlen);
-	int (WINAPI *_poll)(struct pollfd *fds, unsigned int nfds, int timeout);
-	int (WINAPI *_send)(SOCKET s, const char *msg, int len, int flags);
-	int  (WINAPI *_sendto)(SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen);
-	int  (WINAPI *_recv)(SOCKET s, char *buf, int len, int flags);
-	int  (WINAPI *_recvfrom)(SOCKET s, char * buf, int len, int flags, struct sockaddr * from, int * fromlen);
-	int (WINAPI *_shutdown)(SOCKET s, int how);
-	int (WINAPI *_closesocket)(SOCKET s);
-#else
-	SOCKET (*_socket)(int domain, int type, int protocol);
-	SOCKET (*_accept)(SOCKET s, struct sockaddr * addr, socklen_t * addrlen);
-	int (*_bind)(SOCKET s, const struct sockaddr *addr, socklen_t addrlen);
-	int (*_listen)(SOCKET s, int backlog);
-	int (*_connect)(SOCKET s, const struct sockaddr *name, socklen_t namelen);
-	int (*_getpeername)(SOCKET s, struct sockaddr * name, socklen_t * namelen);
-	int (*_getsockname)(SOCKET s, struct sockaddr * name, socklen_t * namelen);
-   	int (*_getsockopt)(SOCKET s, int level, int optname, void * optval, socklen_t * optlen);
-	int (*_setsockopt)(int s, int level, int optname, const void *optval, socklen_t optlen);
-	int (*_poll)(struct pollfd *fds, unsigned int nfds, int timeout);
-	ssize_t (*_send)(SOCKET s, const void *msg, size_t len, int flags);
-	ssize_t (*_sendto)(SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen);
-	ssize_t (*_recv)(SOCKET s, void *buf, size_t len, int flags);
-	ssize_t (*_recvfrom)(SOCKET s, void * buf, size_t len, int flags, struct sockaddr * from, SASIZETYPE * fromlen);
-	int (*_shutdown)(SOCKET s, int how);
-	int (*_closesocket)(SOCKET s);
-#endif
-};
-
-extern struct sockfuncs so;
 struct pluginlink {
 	struct symbol symbols;
 	struct extparam *conf;
