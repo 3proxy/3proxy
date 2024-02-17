@@ -207,13 +207,16 @@ int
 	return connect(s, name, namelen);
     }
     int WINAPI def_getpeername(void* state, SOCKET s, struct sockaddr * name, int * namelen){
-	return getpeername(s, struct name, namelen);
+	return getpeername(s, name, namelen);
     }
     int WINAPI def_getsockname(void* state, SOCKET s, struct sockaddr * name, int * namelen){
 	return 	getsockname(s, name, namelen);
     }
     int WINAPI def_getsockopt(void* state, SOCKET s, int level, int optname, char * optval, int * optlen){
-	return getsockopts(s, level, optname, optval, optlen);
+	return getsockopt(s, level, optname, optval, optlen);
+    }
+    int WINAPI def_setsockopt(void* state, SOCKET s, int level, int optname, const char *optval, int optlen){
+	return setsockopt(s, level, optname, optval, optlen);
     }
     int WINAPI def_poll(void* state, struct pollfd *fds, unsigned int nfds, int timeout){
 #ifndef WITH_POLL
@@ -227,10 +230,10 @@ int
 #endif
     }
     int WINAPI def_send(void* state, SOCKET s, const char *msg, int len, int flags){
-	return send(state, s, msg, len, flags);
+	return send(s, msg, len, flags);
     }
     int WINAPI def_sendto(void* state, SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen){
-        return sendto(state, s, msg, len, flags, to, tolen);
+        return sendto(s, msg, len, flags, to, tolen);
     }
         
     int WINAPI def_recv(void* state, SOCKET s, char *buf, int len, int flags){
