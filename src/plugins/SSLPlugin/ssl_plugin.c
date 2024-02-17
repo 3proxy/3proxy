@@ -108,9 +108,9 @@ int delSSL(SOCKET s){
 struct sockfuncs sso;
 
 #ifdef _WIN32
-static int WINAPI ssl_send(SOCKET s, const void *msg, int len, int flags){
+static int WINAPI ssl_send(void *state, SOCKET s, const void *msg, int len, int flags){
 #else
-static ssize_t  ssl_send(SOCKET s, const void *msg, size_t len, int flags){
+static ssize_t  ssl_send(void *state, SOCKET s, const void *msg, size_t len, int flags){
 #endif
 	struct SSLqueue *sslq;
 
@@ -127,14 +127,14 @@ static ssize_t  ssl_send(SOCKET s, const void *msg, size_t len, int flags){
 		return res;
 	}
 
-	return sso._send(s, msg, len, flags);
+	return sso._send(sso.state, s, msg, len, flags);
 }
 
 
 #ifdef _WIN32
-static int WINAPI ssl_sendto(SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, int tolen){
+static int WINAPI ssl_sendto(void *state, SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, int tolen){
 #else
-static ssize_t ssl_sendto(SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen){
+static ssize_t ssl_sendto(void *state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen){
 #endif
 	struct SSLqueue *sslq;
 
@@ -151,13 +151,13 @@ static ssize_t ssl_sendto(SOCKET s, const void *msg, size_t len, int flags, cons
 		return res;
 	}
 
-	return sso._sendto(s, msg, len, flags, to, tolen);
+	return sso._sendto(sso.state, s, msg, len, flags, to, tolen);
 }
 
 #ifdef _WIN32
-static int WINAPI ssl_recvfrom(SOCKET s, void *msg, int len, int flags, struct sockaddr *from, int *fromlen){
+static int WINAPI ssl_recvfrom(void *state, SOCKET s, void *msg, int len, int flags, struct sockaddr *from, int *fromlen){
 #else
-static ssize_t  ssl_recvfrom(SOCKET s, void *msg, size_t len, int flags, struct sockaddr *from, SASIZETYPE *fromlen){
+static ssize_t  ssl_recvfrom(void *state, SOCKET s, void *msg, size_t len, int flags, struct sockaddr *from, SASIZETYPE *fromlen){
 #endif
 	struct SSLqueue *sslq;
 
@@ -173,13 +173,13 @@ static ssize_t  ssl_recvfrom(SOCKET s, void *msg, size_t len, int flags, struct 
 		}
 		return res;
 	}
-	return sso._recvfrom(s, msg, len, flags, from, fromlen);
+	return sso._recvfrom(sso.state, s, msg, len, flags, from, fromlen);
 }
 
 #ifdef _WIN32
-static int WINAPI ssl_recv(SOCKET s, void *msg, int len, int flags){
+static int WINAPI ssl_recv(void *state, SOCKET s, void *msg, int len, int flags){
 #else
-static ssize_t ssl_recv(SOCKET s, void *msg, size_t len, int flags){
+static ssize_t ssl_recv(void *state, SOCKET s, void *msg, size_t len, int flags){
 #endif
 	struct SSLqueue *sslq;
 
@@ -196,15 +196,15 @@ static ssize_t ssl_recv(SOCKET s, void *msg, size_t len, int flags){
 		return res;
 	}
 
-	return sso._recv(s, msg, len, flags);
+	return sso._recv(sso.state, s, msg, len, flags);
 }
 
-static int WINAPI ssl_closesocket(SOCKET s){
+static int WINAPI ssl_closesocket(void *state, SOCKET s){
 	delSSL(s);
-	return sso._closesocket(s);
+	return sso._closesocket(sso.state, s);
 }
 
-static int WINAPI ssl_poll(struct pollfd *fds, unsigned int nfds, int timeout){
+static int WINAPI ssl_poll(void *state, struct pollfd *fds, unsigned int nfds, int timeout){
 	struct SSLqueue *sslq = NULL;
 	unsigned int i;
 	int ret = 0;
@@ -217,7 +217,7 @@ static int WINAPI ssl_poll(struct pollfd *fds, unsigned int nfds, int timeout){
 	}
 	if(ret) return ret;
 
-	ret = sso._poll(fds, nfds, timeout);
+	ret = sso._poll(state, fds, nfds, timeout);
 	return ret;
 }
 

@@ -253,15 +253,15 @@ for(;;){
 	fds[0].events = POLLIN;
 	fds[1].fd = param->remsock;
 	fds[1].events = POLLIN;
-	res = so._poll(fds, 2, conf.timeouts[STRING_S]*1000);
+	res = so._poll(param->sostate, fds, 2, conf.timeouts[STRING_S]*1000);
 	if(res<=0) {
 		RETURN(555);
 	}
 	if((fds[1].revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL))) {
 		if(param->transparent || (!param->redirected && param->redirtype == R_HTTP)) RETURN(555);
 		ckeepalive = 0;
-		so._shutdown(param->remsock, SHUT_RDWR);
-		so._closesocket(param->remsock);
+		so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+		so._closesocket(param->sostate, param->remsock);
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
@@ -282,8 +282,8 @@ for(;;){
 	if(!param->transparent && !param->srv->transparent && (i<=prefix || strncasecmp((char *)buf, (char *)req, prefix))){
 		ckeepalive = 0;
 		if(param->remsock != INVALID_SOCKET){
-			so._shutdown(param->remsock, SHUT_RDWR);
-			so._closesocket(param->remsock);
+			so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+			so._closesocket(param->sostate, param->remsock);
 		}
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
@@ -408,7 +408,7 @@ for(;;){
 				memcpy(buf, proxy_stringtable[13], i);
 				genchallenge(param, (char *)param->password, (char *)buf + i);
 				memcpy(buf + strlen((char *)buf), "\r\n\r\n", 5);
-				socksend(param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
+				socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
 				ckeepalive = keepalive = 1;
 				goto REQUESTEND;
 			}
@@ -448,7 +448,7 @@ for(;;){
 	}
 	if( i > 11 && !strncasecmp((char *)(buf+inbuf),  "Expect: 100", 11)){
 		keepalive = 1;
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[17], (int)strlen(proxy_stringtable[17]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[17], (int)strlen(proxy_stringtable[17]), conf.timeouts[STRING_S]);
 		continue;
 	}
 	if(param->transparent && i > 6 && !strncasecmp((char *)buf + inbuf, "Host:", 5)){
@@ -530,7 +530,7 @@ for(;;){
  if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
  if((res = (*param->srv->authfunc)(param))) {
 	if (res <= 10 || haveconnection || param->transparent) RETURN(res);
-	so._closesocket(param->remsock);
+	so._closesocket(param->sostate, param->remsock);
 	param->remsock = INVALID_SOCKET;
 	param->redirected = 0;
 	param->redirtype = 0;
@@ -555,7 +555,7 @@ for(;;){
  param->nolongdatfilter = 0;
 
  if(isconnect && param->redirtype != R_HTTP) {
-	socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
+	socksend(param, param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
  }
 
  if (param->npredatfilters){
@@ -644,13 +644,13 @@ for(;;){
 	}
 	if(ftps == INVALID_SOCKET){RETURN(780);}
 	if(!mode){
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
 		s = param->remsock;
 		param->remsock = ftps;
 		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
 		res = mapsocket(param, conf.timeouts[CONNECTION_L]);
 		if (res == 99) res = 0;
-		so._closesocket(ftps);
+		so._closesocket(param->sostate, ftps);
 		ftps = INVALID_SOCKET;
 		param->remsock = s;
 	}
@@ -790,9 +790,9 @@ for(;;){
 			if((bufsize - inbuf) < LINESIZE){
 				if (bufsize > 20000){
 					if(!headsent++){
-						socksend(param->clisock, (unsigned char *)proxy_stringtable[9], (int)strlen(proxy_stringtable[9]), conf.timeouts[STRING_S]);
+						socksend(param, param->clisock, (unsigned char *)proxy_stringtable[9], (int)strlen(proxy_stringtable[9]), conf.timeouts[STRING_S]);
 					}
-					if((unsigned)socksend(param->clisock, buf, inbuf, conf.timeouts[STRING_S]) != inbuf){
+					if((unsigned)socksend(param, param->clisock, buf, inbuf, conf.timeouts[STRING_S]) != inbuf){
 						RETURN(781);
 					}
 					inbuf = 0;
@@ -806,7 +806,7 @@ for(;;){
 		}
 		memcpy(buf+inbuf, "<hr>", 4);
 		inbuf += 4;
-		so._closesocket(ftps);
+		so._closesocket(param->sostate, ftps);
 		ftps = INVALID_SOCKET;
 		param->remsock = s;
 		if(inbuf){
@@ -821,9 +821,9 @@ for(;;){
 					"Connection: keep-alive\r\n"
 					"Content-Length: %d\r\n\r\n",
 					inbuf);
-				socksend(param->clisock, (unsigned char *)ftpbuf, (int)strlen(ftpbuf), conf.timeouts[STRING_S]);
+				socksend(param, param->clisock, (unsigned char *)ftpbuf, (int)strlen(ftpbuf), conf.timeouts[STRING_S]);
 			}
-			socksend(param->clisock, buf, inbuf, conf.timeouts[STRING_S]);
+			socksend(param, param->clisock, buf, inbuf, conf.timeouts[STRING_S]);
 			if(res){RETURN(res);}
 			if(!headsent)goto REQUESTEND;
 		}
@@ -854,11 +854,11 @@ for(;;){
  else {
 #ifdef TCP_CORK
 	int opt = 1;
-	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+	so._setsockopt(param->sostate, param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
 #endif
 	 redirect = 1;
 	 res = (int)strlen((char *)req);
-	 if(socksend(param->remsock, req , res, conf.timeouts[STRING_L]) != res) {
+	 if(socksend(param, param->remsock, req , res, conf.timeouts[STRING_L]) != res) {
 		RETURN(518);
 	 }
 	 param->statscli64 += res;
@@ -900,13 +900,13 @@ for(;;){
 	sprintf((char*)buf + strlen((char *)buf), "\r\n");
  }
  sprintf((char*)buf+strlen((char *)buf), "\r\n");
- if ((res = socksend(param->remsock, buf+reqlen, (int)strlen((char *)buf+reqlen), conf.timeouts[STRING_S])) != (int)strlen((char *)buf+reqlen)) {
+ if ((res = socksend(param, param->remsock, buf+reqlen, (int)strlen((char *)buf+reqlen), conf.timeouts[STRING_S])) != (int)strlen((char *)buf+reqlen)) {
 	RETURN(518);
  }
 #ifdef TCP_CORK
  {
 	int opt = 0;
-	so._setsockopt(param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+	so._setsockopt(param->sostate, param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
  }
 #endif
  param->statscli64 += res;
@@ -1050,7 +1050,7 @@ for(;;){
 		(hascontent && ckeepalive)?"keep-alive":"close");
 	 }
 	 sprintf((char*)buf + strlen((char *)buf), "\r\n");
-	 if((socksend(param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S])) != (int)strlen((char *)buf)) {
+	 if((socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S])) != (int)strlen((char *)buf)) {
 		RETURN(521);
 	 }
  }
@@ -1059,7 +1059,7 @@ for(;;){
 		if(param->chunked){
 			unsigned char smallbuf[32];
 			while ((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) == 2) {
-				if (socksend(param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
+				if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
 					RETURN(533);
 				}
 				if(param->chunked == 2) break;
@@ -1068,12 +1068,12 @@ for(;;){
 				keepalive = 0;
 				break;
 			}
-			if (socksend(param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
+			if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
 					RETURN(535);
 			}
 			if(param->chunked == 2) {
 				if((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) != 2) RETURN(534);
-				if (socksend(param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
+				if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
 					RETURN(533);
 				}
 				break;
@@ -1107,8 +1107,8 @@ for(;;){
 REQUESTEND:
 
  if((!ckeepalive || !keepalive) && param->remsock != INVALID_SOCKET){
-	so._shutdown(param->remsock, SHUT_RDWR);
-	so._closesocket(param->remsock);
+	so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+	so._closesocket(param->sostate, param->remsock);
 	param->remsock = INVALID_SOCKET;
 	RETURN(0);
  }
@@ -1123,41 +1123,41 @@ CLEANRET:
  if(param->res != 555 && param->res && param->clisock != INVALID_SOCKET && (param->res < 90 || param->res >=800 || param->res == 100 ||(param->res > 500 && param->res< 800))) {
 	if((param->res>=509 && param->res < 517) || param->res > 900) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2);
 	if(param->res == 10) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
 	}
 	else if (res == 700 || res == 701){
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
-		socksend(param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 100 || (param->res >10 && param->res < 20) || (param->res >701 && param->res <= 705)) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[1], (int)strlen(proxy_stringtable[1]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[1], (int)strlen(proxy_stringtable[1]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res >=20 && param->res < 30) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[6], (int)strlen(proxy_stringtable[6]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[6], (int)strlen(proxy_stringtable[6]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res >=30 && param->res < 80) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[5], (int)strlen(proxy_stringtable[5]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[5], (int)strlen(proxy_stringtable[5]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 1 || (!param->srv->needuser && param->res < 10)) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[11], (int)strlen(proxy_stringtable[11]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[11], (int)strlen(proxy_stringtable[11]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res < 10) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[param->srv->usentlm?12:7], (int)strlen(proxy_stringtable[param->srv->usentlm?12:7]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[param->srv->usentlm?12:7], (int)strlen(proxy_stringtable[param->srv->usentlm?12:7]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 999) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[4], (int)strlen(proxy_stringtable[4]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[4], (int)strlen(proxy_stringtable[4]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 519) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[3], (int)strlen(proxy_stringtable[3]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[3], (int)strlen(proxy_stringtable[3]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 517) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[15], (int)strlen(proxy_stringtable[15]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[15], (int)strlen(proxy_stringtable[15]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res == 780) {
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[10], (int)strlen(proxy_stringtable[10]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[10], (int)strlen(proxy_stringtable[10]), conf.timeouts[STRING_S]);
 	}
 	else if(param->res >= 511 && param->res<=516){
-		socksend(param->clisock, (unsigned char *)proxy_stringtable[0], (int)strlen(proxy_stringtable[0]), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[0], (int)strlen(proxy_stringtable[0]), conf.timeouts[STRING_S]);
 	}
  } 
  logurl(param, (char *)buf, (char *)req, ftp);

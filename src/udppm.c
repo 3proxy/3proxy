@@ -48,7 +48,7 @@ void * udppmchild(struct clientparam* param) {
 	RETURN (21);
  }
  param->cliinbuf = param->clioffset = 0;
- i = sockrecvfrom(param->srv->srvsock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, 0);
+ i = sockrecvfrom(param, param->srv->srvsock, (struct sockaddr *)&param->sincr, param->clibuf, param->clibufsize, 0);
  if(i<=0){
 	param->srv->fds.events = POLLIN;
 	RETURN (214);
@@ -56,15 +56,15 @@ void * udppmchild(struct clientparam* param) {
  param->cliinbuf = i;
 
 #ifdef _WIN32
-	if((param->clisock=so._socket(SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
+	if((param->clisock=so._socket(param->sostate, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
-	if(so._setsockopt(param->clisock, SOL_SOCKET, SO_REUSEADDR, (char *)&ul, sizeof(int))) {RETURN(820);};
+	if(so._setsockopt(param->sostate, param->clisock, SOL_SOCKET, SO_REUSEADDR, (char *)&ul, sizeof(int))) {RETURN(820);};
 	ul = 1;
 	ioctlsocket(param->clisock, FIONBIO, &ul);
 	size = sizeof(param->sinsl);
-	if(so._getsockname(param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};
-	if(so._bind(param->clisock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
+	if(so._getsockname(param->sostate, param->srv->srvsock, (struct sockaddr *)&param->sinsl, &size)) {RETURN(21);};
+	if(so._bind(param->sostate, param->clisock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		RETURN(822);
 	}
 #else
@@ -77,8 +77,8 @@ void * udppmchild(struct clientparam* param) {
  memcpy(&param->sinsl, &param->srv->extsa, SASIZE(&param->req));
 #endif
  *SAPORT(&param->sinsl) = 0;
- if ((param->remsock=so._socket(SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
- if(so._bind(param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {RETURN (12);}
+ if ((param->remsock=so._socket(param->sostate, SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+ if(so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {RETURN (12);}
 #ifdef _WIN32
 	ul = 1;
 	ioctlsocket(param->remsock, FIONBIO, &ul);

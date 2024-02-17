@@ -189,37 +189,138 @@ int
 #endif
 #endif
 
+
+#ifdef _WIN32
+    SOCKET WINAPI def_socket(void* state, int domain, int type, int protocol){
+        return socket(domain, type, protocol);
+    }
+    SOCKET WINAPI def_accept(void* state, SOCKET s, struct sockaddr * addr, int * addrlen){
+	return accept(s, addr, addrlen);
+    }
+    int WINAPI def_bind(void* state, SOCKET s, const struct sockaddr *addr, int addrlen){
+	return bind(s, addr, addrlen);
+    }
+    int WINAPI def_listen(void* state, SOCKET s, int backlog){
+	return listen(s, backlog);
+    }
+    int WINAPI def_connect(void* state, SOCKET s, const struct sockaddr *name, int namelen){
+	return connect(s, name, namelen);
+    }
+    int WINAPI def_getpeername(void* state, SOCKET s, struct sockaddr * name, int * namelen){
+	return getpeername(s, struct name, namelen);
+    }
+    int WINAPI def_getsockname(void* state, SOCKET s, struct sockaddr * name, int * namelen){
+	return 	getsockname(s, name, namelen);
+    }
+    int WINAPI def_getsockopt(void* state, SOCKET s, int level, int optname, char * optval, int * optlen){
+	return getsockopts(s, level, optname, optval, optlen);
+    }
+    int WINAPI def_poll(void* state, struct pollfd *fds, unsigned int nfds, int timeout){
+#ifndef WITH_POLL
+#ifndef WITH_WSAPOLL
+	return mypoll(fds, nfds, timeout);
+#else
+	return WSAPoll(fds, nfds, timeout);
+#endif
+#else
+	return poll(fds, nfds, timeout);
+#endif
+    }
+    int WINAPI def_send(void* state, SOCKET s, const char *msg, int len, int flags){
+	return send(state, s, msg, len, flags);
+    }
+    int WINAPI def_sendto(void* state, SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen){
+        return sendto(state, s, msg, len, flags, to, tolen);
+    }
+        
+    int WINAPI def_recv(void* state, SOCKET s, char *buf, int len, int flags){
+	return recv(s, buf, len, flags);
+    }
+    int WINAPI def_recvfrom(void* state, SOCKET s, char * buf, int len, int flags, struct sockaddr * from, int * fromlen){
+	return recvfrom(s, buf, len, flags, from, fromlen);
+    }
+    int WINAPI def_shutdown(void* state, SOCKET s, int how){
+	return shutdown(s, how);
+    }
+    int WINAPI def_closesocket(void* state, SOCKET s){
+	return closesocket(s);
+    }
+#else
+    SOCKET def_socket(void* state, int domain, int type, int protocol){
+        return socket(domain, type, protocol);
+    }
+    SOCKET def_accept(void* state, SOCKET s, struct sockaddr * addr, socklen_t* addrlen){
+	return accept(s, addr, addrlen);
+    }
+    int def_bind(void* state, SOCKET s, const struct sockaddr *addr, socklen_t addrlen){
+	return bind(s, addr, addrlen);
+    }
+    int def_getpeername(void* state, SOCKET s, struct sockaddr * name, socklen_t* namelen){
+	return getpeername(s, name, namelen);
+    }
+    int def_getsockname(void* state, SOCKET s, struct sockaddr * name, socklen_t* namelen){
+	return 	getsockname(s, name, namelen);
+    }
+    int def_listen(void* state, SOCKET s, int backlog){
+	return listen(s, backlog);
+    }
+    int def_connect(void* state, SOCKET s, const struct sockaddr *name, socklen_t namelen){
+	return connect(s, name, namelen);
+    }
+    int def_getsockopt(void* state, SOCKET s, int level, int optname, void * optval, socklen_t * optlen){
+	return getsockopt(s, level, optname, optval, optlen);
+    }
+    int def_setsockopt(void* state, int s, int level, int optname, const void *optval, socklen_t optlen){
+	return setsockopt(s, level, optname, optval, optlen);
+    }
+
+    int def_poll(void* state, struct pollfd *fds, nfds_t nfds, int timeout){
+#ifndef WITH_POLL
+	return mypoll(fds, nfds, timeout);
+#else
+	return poll(fds, nfds, timeout);
+#endif
+    }
+
+    ssize_t def_send(void* state, SOCKET s, const void *msg, size_t len, int flags){
+	return send(s, msg, len, flags);
+    }
+    ssize_t def_sendto(void* state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
+	return sendto(s, msg, len, flags, to, tolen);
+    }
+    ssize_t def_recv(void* state, SOCKET s, void *buf, size_t len, int flags){
+	return recv(s, buf, len, flags);
+    }
+    ssize_t def_recvfrom(void* state, SOCKET s, void * buf, size_t len, int flags, struct sockaddr * from, socklen_t* fromlen){
+	return recvfrom(s, buf, len, flags, from, fromlen);
+    }
+    int def_shutdown(void* state, SOCKET s, int how){
+	return shutdown(s, how);
+    }
+    int def_closesocket(void* state, SOCKET s){
+	return close(s);
+    }
+#endif
+
 struct sockfuncs so = {
 	NULL,
 	NULL,
-	socket,
-	accept,
-	bind,
-	listen,
-	connect,
-	getpeername,
-	getsockname,
-	getsockopt,
-	setsockopt,
-#ifndef WITH_POLL
-#ifndef WITH_WSAPOLL
-	mypoll,
-#else
-	WSAPoll,
-#endif
-#else
-	poll,
-#endif
-	(void *)send,
-	(void *)sendto,
-	(void *)recv,
-	(void *)recvfrom,
-	shutdown,
-#ifdef _WIN32
-	closesocket
-#else
-	close
-#endif
+	def_socket,
+	def_accept,
+	def_bind,
+	def_listen,
+	def_connect,
+	def_getpeername,
+	def_getsockname,
+	def_getsockopt,
+	def_setsockopt,
+	def_poll,
+	def_send,
+	def_sendto,
+	def_recv,
+	def_recvfrom,
+	def_shutdown,
+	def_closesocket
 };
 
 #ifdef _WINCE
@@ -369,7 +470,7 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 }
 
 
-int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
+int connectwithpoll(void *state, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 		struct pollfd fds[1];
 #ifdef _WIN32
 		unsigned long ul = 1;
@@ -377,14 +478,14 @@ int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 #else
 		fcntl(sock,F_SETFL, O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
-		if(so._connect(sock,sa,size)) {
+		if(so._connect(state, sock,sa,size)) {
 			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
 		}
 		if(!errno) return 0;
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sock;
 	        fds[0].events = POLLOUT|POLLIN;
-		if(so._poll(fds, 1, to*1000) <= 0 || !(fds[0].revents & POLLOUT)) {
+		if(so._poll(state, fds, 1, to*1000) <= 0 || !(fds[0].revents & POLLOUT)) {
 			return (13);
 		}
 		return 0;
@@ -402,7 +503,7 @@ int doconnect(struct clientparam * param){
 	return 0;
  if (param->remsock != INVALID_SOCKET){
 	size = sizeof(param->sinsr);
-	if(so._getpeername(param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (14);}
+	if(so._getpeername(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (14);}
  }
  else {
 	struct linger lg = {1,conf.timeouts[SINGLEBYTE_S]};
@@ -415,7 +516,7 @@ int doconnect(struct clientparam * param){
 		memcpy(SAADDR(&param->sinsr), SAADDR(&param->req), SAADDRLEN(&param->req)); 
 	}
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
-	if ((param->remsock=so._socket(SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
+	if ((param->remsock=so._socket(param->sostate, SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
 	if(SAISNULL(&param->sinsl)){
 #ifndef NOIPV6
 		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
@@ -426,48 +527,48 @@ int doconnect(struct clientparam * param){
 	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, param->srv->srvsockopts);
 
-	so._setsockopt(param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+	so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #ifdef REUSE
 	{
 		int opt;
 
 #ifdef SO_REUSEADDR
 		opt = 1;
-		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
+		so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;
-		so._setsockopt(param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+		so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
 #endif
 	}
 #endif
 #if defined SO_BINDTODEVICE
 	if(param->srv->obindtodevice) {
-		if(so._setsockopt(param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))
+		if(so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))
 			return 12;
 	}
 #elif defined IP_BOUND_IF
 	if(param->srv->obindtodevice) {
 	    int idx;
 	    idx = if_nametoindex(param->srv->obindtodevice);
-	    if(!idx || (*SAFAMILY(&param->sinsl) == AF_INET && so._setsockopt(param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
+	    if(!idx || (*SAFAMILY(&param->sinsl) == AF_INET && so._setsockopt(param->sostate, param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
 			return 12;
 #ifndef NOIPV6
-	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && so._setsockopt(param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
+	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && so._setsockopt(param->sostate, param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
 #endif
 	}
 #endif
-	if(so._bind(param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
+	if(so._bind(param->sostate, param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;
 	}
 	
 	if(param->operation >= 256 || (param->operation & CONNECT)){
-		if(connectwithpoll(param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) {
+		if(connectwithpoll(param->sostate, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) {
 			return 13;
 		}
 	}
 	size = sizeof(param->sinsl);
-	if(so._getsockname(param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
+	if(so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
  }
  return 0;
 }

@@ -180,7 +180,7 @@ log(logbuf);
 		memset(fds, 0, sizeof(fds));
 		fds[0].fd = param->clisock;
 		fds[1].fd = param->remsock;
-		so._poll(fds, 2, sleeptime);
+		so._poll(param->sostate, fds, 2, sleeptime);
 		sleeptime = 0;
 	}
 	if((param->srv->logdumpsrv && (param->statssrv64 > param->srv->logdumpsrv)) ||
@@ -214,7 +214,7 @@ log("send to server from buf");
 			if(fromclient) TOCLIENTBUF = 1;
 		}
 		sasize = sizeof(param->sinsr);
-		res = so._sendto(param->remsock, (char *)param->clibuf + param->clioffset, (int)MIN(inclientbuf, fromclient), 0, (struct sockaddr*)&param->sinsr, sasize);
+		res = so._sendto(param->sostate, param->remsock, (char *)param->clibuf + param->clioffset, (int)MIN(inclientbuf, fromclient), 0, (struct sockaddr*)&param->sinsr, sasize);
 		if(res <= 0) {
 			TOSERVER = 0;
 			if(errno && errno != EAGAIN && errno != EINTR){
@@ -259,7 +259,7 @@ log("send to client from buf");
 			continue;
 		}
 		sasize = sizeof(param->sincr);
-		res = so._sendto(param->clisock, (char *)param->srvbuf + param->srvoffset, (int)MIN(inserverbuf,fromserver), 0, (struct sockaddr*)&param->sincr, sasize);
+		res = so._sendto(param->sostate, param->clisock, (char *)param->srvbuf + param->srvoffset, (int)MIN(inserverbuf,fromserver), 0, (struct sockaddr*)&param->sincr, sasize);
 		if(res <= 0) {
 			TOCLIENT = 0;
 			if(errno && errno != EAGAIN && errno != EINTR){
@@ -433,7 +433,7 @@ log("done read from server to pipe\n");
 log("read from client to buf");
 #endif
 			sasize = sizeof(param->sincr);
-			res = so._recvfrom(param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)param->clibufsize - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
+			res = so._recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)param->clibufsize - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
 			if(res <= 0) {
 				FROMCLIENT = 0;
 				if(res == 0 || (errno && errno != EINTR && errno !=EAGAIN)){
@@ -461,7 +461,7 @@ log("done read from client to buf");
 log("read from server to buf");
 #endif
 			sasize = sizeof(param->sinsr);
-			res = so._recvfrom(param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)param->srvbufsize - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
+			res = so._recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)param->srvbufsize - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
 			if(res <= 0) {
 				FROMSERVER = 0;
 				if(res == 0 || (errno && errno != EINTR && errno !=EAGAIN)) {
@@ -706,7 +706,7 @@ log("ready reading from server pipe");
 #ifdef WITHLOG
 log("entering poll");
 #endif
-			res = so._poll(fds, fdsc, timeo*1000);
+			res = so._poll(param->sostate, fds, fdsc, timeo*1000);
 #ifdef WITHLOG
 log("leaving poll");
 #endif

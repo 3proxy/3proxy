@@ -541,8 +541,8 @@ int radsend(struct clientparam * param, int auth, int stop){
 /*
 		if(auth) {
 */
-			if(sockfd >= 0) so._closesocket(sockfd);
-			if ((sockfd = so._socket(SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
+			if(sockfd >= 0) so._closesocket(so.state, sockfd);
+			if ((sockfd = so._socket(so.state, SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
 			    return 4;
 			}
 			remsock = sockfd;
@@ -550,8 +550,8 @@ int radsend(struct clientparam * param, int auth, int stop){
 		}
 		else remsock = radiuslist[loop].logsock;
 */
-		so._bind(param->remsock,(struct sockaddr *)&radiuslist[loop].localaddr,SASIZE(&radiuslist[loop].localaddr));
-		len = so._sendto(remsock, (char *)&packet, total_length, 0,
+		so._bind(so.state, remsock,(struct sockaddr *)&radiuslist[loop].localaddr,SASIZE(&radiuslist[loop].localaddr));
+		len = so._sendto(so.state, remsock, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
 			continue;
@@ -560,13 +560,13 @@ int radsend(struct clientparam * param, int auth, int stop){
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = remsock;
 	        fds[0].events = POLLIN;
-		if(so._poll(fds, 1, conf.timeouts[SINGLEBYTE_L]*1000) <= 0) {
+		if(so._poll(so.state, fds, 1, conf.timeouts[SINGLEBYTE_L]*1000) <= 0) {
 			continue;
 		}
 
 		salen = sizeof(saremote);
 				
-		data_len = so._recvfrom(remsock, (char *)&rpacket, sizeof(packet)-16,
+		data_len = so._recvfrom(so.state, remsock, (char *)&rpacket, sizeof(packet)-16,
 			0, (struct sockaddr *)&saremote, &salen);
 
 
@@ -648,7 +648,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 		res = 4;
 	}
 CLEANRET:
-	if(sockfd >= 0) so._closesocket(sockfd);
+	if(sockfd >= 0) so._closesocket(so.state, sockfd);
 	return res;
 }
 

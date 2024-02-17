@@ -62,7 +62,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				len += sprintf((char *)buf + len, "\r\n");
 			}
 			len += sprintf((char *)buf + len, "\r\n");
-			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != (int)strlen((char *)buf))
+			if(socksend(param, param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != (int)strlen((char *)buf))
 				return 31;
 			param->statssrv64+=len;
 			param->nwrites++;
@@ -99,7 +99,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				memcpy(buf+len, hostname, hostnamelen);
 				len += hostnamelen;
 			}
-			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) < len){
+			if(socksend(param, param->remsock, buf, len, conf.timeouts[CHAIN_TO]) < len){
 				return 41;
 			}
 			param->statssrv64+=len;
@@ -122,7 +122,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			buf[0] = 5;
 			buf[1] = 1;
 			buf[2] = user? 2 : 0;
-			if(socksend(param->remsock, buf, 3, conf.timeouts[CHAIN_TO]) != 3){
+			if(socksend(param, param->remsock, buf, 3, conf.timeouts[CHAIN_TO]) != 3){
 				return 51;
 			}
 			param->statssrv64+=len;
@@ -144,7 +144,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				buf[inbuf] = pass?(unsigned char)strlen((char *)pass):0;
 				if(pass)memcpy(buf+inbuf+1, pass, buf[inbuf]);
 				inbuf += buf[inbuf] + 1;
-				if(socksend(param->remsock, buf, inbuf, conf.timeouts[CHAIN_TO]) != inbuf){
+				if(socksend(param, param->remsock, buf, inbuf, conf.timeouts[CHAIN_TO]) != inbuf){
 					return 51;
 				}
 				param->statssrv64+=inbuf;
@@ -175,7 +175,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			}
 			memcpy(buf+len, SAPORT(addr), 2);
 			len += 2;
-			if(socksend(param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != len){
+			if(socksend(param, param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != len){
 				return 51;
 			}
 			param->statssrv64+=len;
@@ -739,7 +739,7 @@ int checkACL(struct clientparam * param){
 					dup = *acentry;
 					res = handleredirect(param, &dup);
 					if(!res) break;
-					if(param->remsock != INVALID_SOCKET) so._closesocket(param->remsock);
+					if(param->remsock != INVALID_SOCKET) so._closesocket(param->sostate, param->remsock);
 					param->remsock = INVALID_SOCKET;
 				}
 				return res;
@@ -1232,10 +1232,10 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			usetcp = nservers[i].usetcp;
 			*SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
 		}
-		if((sock=so._socket(SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
-		if(so._bind(sock,(struct sockaddr *)sinsl,SASIZE(sinsl))){
-			so._shutdown(sock, SHUT_RDWR);
-			so._closesocket(sock);
+		if((sock=so._socket(so.state, SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
+		if(so._bind(so.state, sock,(struct sockaddr *)sinsl,SASIZE(sinsl))){
+			so._shutdown(so.state, sock, SHUT_RDWR);
+			so._closesocket(so.state, sock);
 			break;
 		}
 		if(makeauth && !SAISNULL(&authnserver.addr)){
@@ -1245,9 +1245,9 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			*sinsr = nservers[i].addr;
 		}
 		if(usetcp){
-			if(connectwithpoll(sock,(struct sockaddr *)sinsr,SASIZE(sinsr),CONNECT_TO)) {
-				so._shutdown(sock, SHUT_RDWR);
-				so._closesocket(sock);
+			if(connectwithpoll(so.state, sock,(struct sockaddr *)sinsr,SASIZE(sinsr),CONNECT_TO)) {
+				so._shutdown(so.state, sock, SHUT_RDWR);
+				so._closesocket(so.state, sock);
 				break;
 			}
 #ifdef TCP_NODELAY
@@ -1287,15 +1287,15 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			len+=2;
 		}
 
-		if(socksendto(sock, (struct sockaddr *)sinsr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
-			so._shutdown(sock, SHUT_RDWR);
-			so._closesocket(sock);
+		if(socksendto(NULL, sock, (struct sockaddr *)sinsr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+			so._shutdown(so.state, sock, SHUT_RDWR);
+			so._closesocket(so.state, sock);
 			continue;
 		}
 		if(param) param->statscli64 += len;
-		len = sockrecvfrom(sock, (struct sockaddr *)sinsr, buf, 4096, conf.timeouts[DNS_TO]*1000);
-		so._shutdown(sock, SHUT_RDWR);
-		so._closesocket(sock);
+		len = sockrecvfrom(NULL, sock, (struct sockaddr *)sinsr, buf, 4096, conf.timeouts[DNS_TO]*1000);
+		so._shutdown(so.state, sock, SHUT_RDWR);
+		so._closesocket(so.state, sock);
 		if(len <= 13) {
 			continue;
 		}
@@ -1305,7 +1305,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 			us = ntohs(*(unsigned short*)buf);
 			len-=2;
 			buf+=2;
-			if(us > 4096 || us < len || (us > len && sockrecvfrom(sock, (struct sockaddr *)sinsr, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
+			if(us > 4096 || us < len || (us > len && sockrecvfrom(NULL, sock, (struct sockaddr *)sinsr, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
 				continue;
 			}
 		}

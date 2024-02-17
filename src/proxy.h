@@ -155,9 +155,9 @@ extern int timetoexit;
 extern struct extparam conf;
 
 int sockmap(struct clientparam * param, int timeo, int usesplice);
-int socksend(SOCKET sock, unsigned char * buf, int bufsize, int to);
-int socksendto(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
-int sockrecvfrom(SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
+int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bufsize, int to);
+int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
+int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);
@@ -277,7 +277,7 @@ void srvinit2(struct srvparam * srv, struct clientparam *param);
 void srvfree(struct srvparam * srv);
 unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 int readconfig(FILE * fp);
-int connectwithpoll(SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
+int connectwithpoll(void *state, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
 
 
 int myrand(void * entropy, int len);
