@@ -32,11 +32,6 @@ typedef struct _ssl_conn {
 	SSL *ssl;
 } ssl_conn;
 
-static X509 *CA_cert = NULL;
-static EVP_PKEY *CA_key = NULL;
-static EVP_PKEY *server_key = NULL;
-static X509_NAME *name = NULL;
-
 pthread_mutex_t ssl_file_mutex;
 
 
@@ -91,8 +86,6 @@ static int add_ext(X509 *cert, int nid, char *value)
 	return 1;
 }
 
-extern char *cert_path;
-
 void del_ext(X509 *dst_cert, int nid, int where){
 	int ex;
 
@@ -104,7 +97,7 @@ void del_ext(X509 *dst_cert, int nid, int where){
 
 }
 
-SSL_CERT ssl_copy_cert(SSL_CERT cert)
+SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 {
 	int err = -1;
 	BIO *fcache;
@@ -114,12 +107,8 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	EVP_PKEY *pk = NULL;
 	RSA *rsa = NULL;
 
-	unsigned char p1[] = "RU";
-	unsigned char p2[] = "3proxy";
-	unsigned char p3[] = "3proxy CA";
-
 	int hash_size = 20;
-	char hash_sha1[20];
+	unsigned char hash_sha1[20];
 	char hash_name_sha1[(20*2) + 1];
 	char cache_name[256];
 
@@ -130,7 +119,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	}
 
 	bin2hex(hash_sha1, 20, hash_name_sha1, sizeof(hash_name_sha1));
-	sprintf(cache_name, "%s%s.pem", cert_path, hash_name_sha1);
+	sprintf(cache_name, "%s%s.pem", config->certcache, hash_name_sha1);
 	/* check if certificate is already cached */
 	fcache = BIO_new_file(cache_name, "rb");
 	if ( fcache != NULL ) {
@@ -157,19 +146,19 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert)
 	del_ext(dst_cert, NID_authority_key_identifier, -1);
 	del_ext(dst_cert, NID_certificate_policies, 0);
 
-	err = X509_set_pubkey(dst_cert, server_key);
+	err = X509_set_pubkey(dst_cert, config->server_key);
 	if ( err == 0 ) {
 		X509_free(dst_cert);
 		return NULL;
 	}
 
 
-	err = X509_set_issuer_name(dst_cert, name);
+	err = X509_set_issuer_name(dst_cert, config->name);
 	if(!err){
 		X509_free(dst_cert);
 		return NULL;
 	}
-	err = X509_sign(dst_cert, CA_key, EVP_sha256());
+	err = X509_sign(dst_cert, config->CA_key, EVP_sha256());
 	if(!err){
 		X509_free(dst_cert);
 		return NULL;
@@ -247,7 +236,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cer
 	return conn;
 }
 
-SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, char** errSSL)
+SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *server_key, char** errSSL)
 {
 	int err = 0;
 	X509 *cert;
@@ -414,89 +403,17 @@ int thread_cleanup(void)
 
 int ssl_file_init = 0;
 
+int ssl_init_done = 0;
 
-void ssl_init(void)
+void ssl_init()
 {
-	BIO *f;
-	static char fname[200];
-
-	if(!ssl_file_init++)pthread_mutex_init(&ssl_file_mutex, NULL);
-
-	pthread_mutex_lock(&ssl_file_mutex);
-	thread_setup();
-	SSLeay_add_ssl_algorithms();
-	SSL_load_error_strings();
-
-	sprintf(fname, "%.128s3proxy.pem", cert_path);
-	f = BIO_new_file(fname, "r");
-	if ( f != NULL ) {
-		if(!(CA_cert=PEM_read_bio_X509(f, NULL, NULL, NULL))){
-			unsigned long err;
-			err=ERR_get_error();
-			fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-			return;
-		}
-		BIO_free(f);
+	if(!ssl_init_done){
+	    ssl_init_done = 1;
+	    thread_setup();
+	    SSLeay_add_ssl_algorithms();
+	    SSL_load_error_strings();
+	    pthread_mutex_init(&ssl_file_mutex, NULL);
+	    bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 	}
-	else {
-		fprintf(stderr, "failed to open: %s\n", fname);
-		return;
-	}
-	name = X509_get_subject_name(CA_cert);
-	sprintf(fname, "%.128s3proxy.key", cert_path);
-	f = BIO_new_file(fname, "rb");
-	if ( f != NULL ) {                                             
-		CA_key = PEM_read_bio_PrivateKey(f, NULL, NULL, NULL);
-		if(!CA_key){
-			unsigned long err;
-			err=ERR_get_error();
-			fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-			return;
-		}		
-		BIO_free(f);
-	}
-	else {
-		fprintf(stderr, "failed to open: %s\n", fname);
-		return;
-	}
-
-	sprintf(fname, "%.128sserver.key", cert_path);
-	f = BIO_new_file(fname, "rb");
-	if ( f != NULL ) {
-		server_key = PEM_read_bio_PrivateKey(f, &server_key, NULL, NULL);
-		if(!server_key){
-			unsigned long err;
-			err=ERR_get_error();
-			fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-			return;
-		}		
-		BIO_free(f);
-	}
-	else {
-		fprintf(stderr, "failed to open: %s\n", fname);
-	}
-
-	bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
-	pthread_mutex_unlock(&ssl_file_mutex);
 }
 
-void ssl_release(void)
-{
-	pthread_mutex_lock(&ssl_file_mutex);
-	if ( CA_cert != NULL ) {
-		X509_free(CA_cert);
-		CA_cert = NULL;
-	}
-	
-	if ( CA_key != NULL ) {
-		EVP_PKEY_free(CA_key);
-		CA_key = NULL;
-	}
-
-	if ( server_key != NULL ) {
-		EVP_PKEY_free(server_key);
-		server_key = NULL;
-	}
-	thread_cleanup();
-	pthread_mutex_unlock(&ssl_file_mutex);
-}
