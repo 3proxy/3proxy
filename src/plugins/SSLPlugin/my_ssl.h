@@ -11,7 +11,7 @@ typedef void *SSL_CONN;
 typedef void *SSL_CERT;
 
 struct ssl_config {
-    int transparent;
+    int mitm;
     char *certcache;
     X509 *CA_cert;
     EVP_PKEY *CA_key;

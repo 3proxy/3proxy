@@ -283,7 +283,6 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
  if(ServerConnp)*ServerConnp = ServerConn;
  if(ClientConnp)*ClientConnp = ClientConn;
 
-
  return 0;
 }
 
@@ -301,8 +300,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    
 
 	    if(!certcache) {
-		free(sc);
-		return NULL;
+		return sc;
 	    }
 	    sprintf(fname, "%.240s3proxy.pem", certcache);
 	    f = BIO_new_file(fname, "r");
@@ -313,14 +311,12 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		    unsigned long err;
 	    	    err=ERR_get_error();
 		    fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-		    free(sc);
-		    return NULL;
+		    return sc;
 		}
 	    }
 	    else {
 		fprintf(stderr, "failed to open: %s\n", fname);
-		free(sc);
-		return NULL;
+		return sc;
 	    }
 	    sprintf(fname, "%.240s3proxy.key", sc->certcache);
 	    f = BIO_new_file(fname, "rb");
@@ -331,12 +327,12 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		    unsigned long err;
 		    err=ERR_get_error();
 		    fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-		    return NULL;
+		    return sc;
 		}		
 	    }
 	    else {
 		fprintf(stderr, "failed to open: %s\n", fname);
-		return NULL;
+		return sc;
 	    }
 
 	    sprintf(fname, "%.128sserver.key", sc->certcache);
@@ -354,13 +350,16 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    else {
 		fprintf(stderr, "failed to open: %s\n", fname);
 	    }
-	    sc->transparent = 1;
+	    sc->mitm = 1;
 	    srv->so._send = ssl_send;
 	    srv->so._recv = ssl_recv;
 	    srv->so._sendto = ssl_sendto;
 	    srv->so._recvfrom = ssl_recvfrom;
 	    srv->so._closesocket = ssl_closesocket;
 	    srv->so._poll = ssl_poll;
+#ifdef WIWHSPLICE
+	    srv->usesplice = 0;
+#endif
 	}
 	return sc;
 }
@@ -379,8 +378,9 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 	return CONTINUE;
 }
 
-static FILTER_ACTION ssl_filter_predata(void *fo, struct clientparam * param){
+static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 	if(param->operation != HTTP_CONNECT && param->operation != CONNECT) return PASS;
+	if(!PCONF->mitm) return PASS;
 	if(dossl(param, NULL, NULL)) {
 		return REJECT;
 	}
