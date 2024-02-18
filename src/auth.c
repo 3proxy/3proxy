@@ -22,6 +22,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 	if (!param->srvbufsize){
 		param->srvbufsize = SRVBUFSIZE;
 		param->srvbuf = myalloc(param->srvbufsize);
+		if(!param->srvbuf) return 21;
 	}
 	buf = param->srvbuf;
 	username = buf + 2048;
