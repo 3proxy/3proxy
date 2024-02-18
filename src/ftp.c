@@ -189,9 +189,9 @@ SOCKET ftpdata(struct clientparam *param){
 	if(!(sb = strchr(buf+4, '(')) || !(se= strchr(sb, ')'))) return INVALID_SOCKET;
 	if(sscanf(sb+1, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) return INVALID_SOCKET;
 	sasize = sizeof(param->sinsl);
-	if(so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl, &sasize)){return INVALID_SOCKET;}
+	if(param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl, &sasize)){return INVALID_SOCKET;}
 	sasize = sizeof(param->sinsr);
-	if(so._getpeername(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &sasize)){return INVALID_SOCKET;}
+	if(param->srv->so._getpeername(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &sasize)){return INVALID_SOCKET;}
 	rem = param->remsock;
 	param->remsock = INVALID_SOCKET;
 	param->req = param->sinsr;
@@ -201,7 +201,7 @@ SOCKET ftpdata(struct clientparam *param){
 	param->operation = FTP_DATA;
 	if((param->res = (*param->srv->authfunc)(param))) {
 		if(param->remsock != INVALID_SOCKET) {
-			so._closesocket(param->sostate, param->remsock);
+			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 		}
 		memset(&param->sinsl, 0, sizeof(param->sinsl));
@@ -228,7 +228,7 @@ SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned c
 		(unsigned char *)" ":(unsigned char *)"", 
 		arg?arg:(unsigned char *)"");
 	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
-		so._closesocket(param->sostate, s);
+		param->srv->so._closesocket(param->sostate, s);
 		return INVALID_SOCKET;
 	}
 	param->statscli64 += (int)strlen(buf);
@@ -236,11 +236,11 @@ SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned c
 	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 	}
 	if(i < 3) {
-		so._closesocket(param->sostate, s);
+		param->srv->so._closesocket(param->sostate, s);
 		return INVALID_SOCKET;
 	}
 	if(buf[0] != '1') {
-		so._closesocket(param->sostate, s);
+		param->srv->so._closesocket(param->sostate, s);
 		return INVALID_SOCKET;
 	}
 	return s;

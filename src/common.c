@@ -473,7 +473,7 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 }
 
 
-int connectwithpoll(void *state, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
+int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 		struct pollfd fds[1];
 #ifdef _WIN32
 		unsigned long ul = 1;
@@ -481,14 +481,14 @@ int connectwithpoll(void *state, SOCKET sock, struct sockaddr *sa, SASIZETYPE si
 #else
 		fcntl(sock,F_SETFL, O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
-		if(so._connect(state, sock,sa,size)) {
+		if(param?param->srv->so._connect(param->sostate, sock,sa,size) : so._connect(so.state, sock,sa,size)) {
 			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
 		}
 		if(!errno) return 0;
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sock;
 	        fds[0].events = POLLOUT|POLLIN;
-		if(so._poll(state, fds, 1, to*1000) <= 0 || !(fds[0].revents & POLLOUT)) {
+		if((param?param->srv->so._poll(param->sostate, fds, 1, to*1000):so._poll(so.state, fds, 1, to*1000)) <= 0 || !(fds[0].revents & POLLOUT)) {
 			return (13);
 		}
 		return 0;
@@ -506,7 +506,7 @@ int doconnect(struct clientparam * param){
 	return 0;
  if (param->remsock != INVALID_SOCKET){
 	size = sizeof(param->sinsr);
-	if(so._getpeername(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (14);}
+	if(param->srv->so._getpeername(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (14);}
  }
  else {
 	struct linger lg = {1,conf.timeouts[SINGLEBYTE_S]};
@@ -519,7 +519,7 @@ int doconnect(struct clientparam * param){
 		memcpy(SAADDR(&param->sinsr), SAADDR(&param->req), SAADDRLEN(&param->req)); 
 	}
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
-	if ((param->remsock=so._socket(param->sostate, SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
+	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
 	if(SAISNULL(&param->sinsl)){
 #ifndef NOIPV6
 		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
@@ -530,48 +530,48 @@ int doconnect(struct clientparam * param){
 	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, param->srv->srvsockopts);
 
-	so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #ifdef REUSE
 	{
 		int opt;
 
 #ifdef SO_REUSEADDR
 		opt = 1;
-		so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
+		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;
-		so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
 #endif
 	}
 #endif
 #if defined SO_BINDTODEVICE
 	if(param->srv->obindtodevice) {
-		if(so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))
+		if(param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))
 			return 12;
 	}
 #elif defined IP_BOUND_IF
 	if(param->srv->obindtodevice) {
 	    int idx;
 	    idx = if_nametoindex(param->srv->obindtodevice);
-	    if(!idx || (*SAFAMILY(&param->sinsl) == AF_INET && so._setsockopt(param->sostate, param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
+	    if(!idx || (*SAFAMILY(&param->sinsl) == AF_INET && param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
 			return 12;
 #ifndef NOIPV6
-	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && so._setsockopt(param->sostate, param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
+	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
 #endif
 	}
 #endif
-	if(so._bind(param->sostate, param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
+	if(param->srv->so._bind(param->sostate, param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;
 	}
 	
 	if(param->operation >= 256 || (param->operation & CONNECT)){
-		if(connectwithpoll(param->sostate, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) {
+		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) {
 			return 13;
 		}
 	}
 	size = sizeof(param->sinsl);
-	if(so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
+	if(param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
  }
  return 0;
 }

@@ -253,15 +253,15 @@ for(;;){
 	fds[0].events = POLLIN;
 	fds[1].fd = param->remsock;
 	fds[1].events = POLLIN;
-	res = so._poll(param->sostate, fds, 2, conf.timeouts[STRING_S]*1000);
+	res = param->srv->so._poll(param->sostate, fds, 2, conf.timeouts[STRING_S]*1000);
 	if(res<=0) {
 		RETURN(555);
 	}
 	if((fds[1].revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL))) {
 		if(param->transparent || (!param->redirected && param->redirtype == R_HTTP)) RETURN(555);
 		ckeepalive = 0;
-		so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
-		so._closesocket(param->sostate, param->remsock);
+		param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->remsock);
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
 		param->redirtype = 0;
@@ -282,8 +282,8 @@ for(;;){
 	if(!param->transparent && !param->srv->transparent && (i<=prefix || strncasecmp((char *)buf, (char *)req, prefix))){
 		ckeepalive = 0;
 		if(param->remsock != INVALID_SOCKET){
-			so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
-			so._closesocket(param->sostate, param->remsock);
+			param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, param->remsock);
 		}
 		param->remsock = INVALID_SOCKET;
 		param->redirected = 0;
@@ -530,7 +530,7 @@ for(;;){
  if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
  if((res = (*param->srv->authfunc)(param))) {
 	if (res <= 10 || haveconnection || param->transparent) RETURN(res);
-	so._closesocket(param->sostate, param->remsock);
+	param->srv->so._closesocket(param->sostate, param->remsock);
 	param->remsock = INVALID_SOCKET;
 	param->redirected = 0;
 	param->redirtype = 0;
@@ -650,7 +650,7 @@ for(;;){
 		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
 		res = mapsocket(param, conf.timeouts[CONNECTION_L]);
 		if (res == 99) res = 0;
-		so._closesocket(param->sostate, ftps);
+		param->srv->so._closesocket(param->sostate, ftps);
 		ftps = INVALID_SOCKET;
 		param->remsock = s;
 	}
@@ -806,7 +806,7 @@ for(;;){
 		}
 		memcpy(buf+inbuf, "<hr>", 4);
 		inbuf += 4;
-		so._closesocket(param->sostate, ftps);
+		param->srv->so._closesocket(param->sostate, ftps);
 		ftps = INVALID_SOCKET;
 		param->remsock = s;
 		if(inbuf){
@@ -854,7 +854,7 @@ for(;;){
  else {
 #ifdef TCP_CORK
 	int opt = 1;
-	so._setsockopt(param->sostate, param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+	param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
 #endif
 	 redirect = 1;
 	 res = (int)strlen((char *)req);
@@ -906,7 +906,7 @@ for(;;){
 #ifdef TCP_CORK
  {
 	int opt = 0;
-	so._setsockopt(param->sostate, param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
+	param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_TCP, TCP_CORK, (unsigned char *)&opt, sizeof(int));
  }
 #endif
  param->statscli64 += res;
@@ -1107,8 +1107,8 @@ for(;;){
 REQUESTEND:
 
  if((!ckeepalive || !keepalive) && param->remsock != INVALID_SOCKET){
-	so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
-	so._closesocket(param->sostate, param->remsock);
+	param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+	param->srv->so._closesocket(param->sostate, param->remsock);
 	param->remsock = INVALID_SOCKET;
 	RETURN(0);
  }

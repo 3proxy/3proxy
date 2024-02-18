@@ -39,16 +39,16 @@ void * dnsprchild(struct clientparam* param) {
  }
  buf = bbuf+2;
  size = sizeof(param->sincr);
- i = so._recvfrom(param->sostate, param->srv->srvsock, (char *)buf, BUFSIZE, 0, (struct sockaddr *)&param->sincr, &size); 
+ i = param->srv->so._recvfrom(param->sostate, param->srv->srvsock, (char *)buf, BUFSIZE, 0, (struct sockaddr *)&param->sincr, &size); 
  size = sizeof(param->sinsl);
  getsockname(param->srv->srvsock, (struct sockaddr *)&param->sincl, &size);
 #ifdef _WIN32
-	if((param->clisock=so._socket(param->sostate, AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
+	if((param->clisock=param->srv->so._socket(param->sostate, AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
 	ioctlsocket(param->clisock, FIONBIO, &ul);
-	if(so._setsockopt(param->sostate, param->clisock, SOL_SOCKET, SO_REUSEADDR, (char *)&ul, sizeof(int))) {RETURN(820);};
-	if(so._bind(param->sostate, param->clisock,(struct sockaddr *)&param->sincl,SASIZE(&param->sincl))) {
+	if(param->srv->so._setsockopt(param->sostate, param->clisock, SOL_SOCKET, SO_REUSEADDR, (char *)&ul, sizeof(int))) {RETURN(820);};
+	if(param->srv->so._bind(param->sostate, param->clisock,(struct sockaddr *)&param->sincl,SASIZE(&param->sincl))) {
 		RETURN(822);
 	}
 
@@ -130,17 +130,17 @@ void * dnsprchild(struct clientparam* param) {
 	else ip = 0;
  }
  if(!ip && numservers){
-	if((param->remsock=so._socket(param->sostate, SASOCK(&nservers[0].addr), nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
+	if((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&nservers[0].addr), nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
 	memset(&param->sinsl, 0, sizeof(param->sinsl));
 	*SAFAMILY(&param->sinsl) = *SAFAMILY(&nservers[0].addr);
-	if(so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
+	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		RETURN(819);
 	}
 	param->sinsr = nservers[0].addr;
 	if(nservers[0].usetcp) {
-		if(connectwithpoll(param->sostate, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) RETURN(830);
+		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) RETURN(830);
 		buf-=2;
 		*(unsigned short*)buf = htons(i);
 		i+=2;

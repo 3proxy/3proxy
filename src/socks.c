@@ -189,7 +189,7 @@ void * sockschild(struct clientparam* param) {
 #else
 	 param->sinsl = param->srv->extsa;
 #endif
-	 if ((param->remsock=so._socket(param->sostate, SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+	 if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;
 #ifdef REUSE
 	if (command == 2){
@@ -197,11 +197,11 @@ void * sockschild(struct clientparam* param) {
 
 #ifdef SO_REUSEADDR
 		opt = 1;
-		so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;
-		so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
 #endif
 	}
 #endif
@@ -230,23 +230,23 @@ void * sockschild(struct clientparam* param) {
 #endif
 
  if(command > 1) {
-	if(so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
+	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		*SAPORT(&param->sinsl) = 0;
-		if(so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
+		if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
 #if SOCKSTRACE > 0
 fprintf(stderr, "%hu bound to communicate with server\n", *SAPORT(&param->sins));
 fflush(stderr);
 #endif
 	}
 	sasize = SASIZE(&param->sinsl);
-	so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl,  &sasize);
+	param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl,  &sasize);
 	if(command == 3) {
 		param->ctrlsock = param->clisock;
-		param->clisock = so._socket(param->sostate, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
+		param->clisock = param->srv->so._socket(param->sostate, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 		sin = param->sincl;
 		*SAPORT(&sin) = 0;
-		if(so._bind(param->sostate, param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}
+		if(param->srv->so._bind(param->sostate, param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}
 #if SOCKSTRACE > 0
 fprintf(stderr, "%hu binded to communicate with client\n",
 			ntohs(*SAPORT(&sin))
@@ -268,8 +268,8 @@ CLEANRET:
 	int repcode;
 
 	sasize = sizeof(sin);
-	if(command != 3 && param->remsock != INVALID_SOCKET) so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&sin,  &sasize);
-	else so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin,  &sasize);
+	if(command != 3 && param->remsock != INVALID_SOCKET) param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&sin,  &sasize);
+	else param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin,  &sasize);
 #if SOCKSTRACE > 0
 fprintf(stderr, "Sending confirmation to client with code %d for %s with %s:%hu\n",
 			param->res,
@@ -326,19 +326,19 @@ fflush(stderr);
 				param->res = mapsocket(param, conf.timeouts[CONNECTION_L]);
 				break;
 			case 2:
-				so._listen (param->sostate, param->remsock, 1);
+				param->srv->so._listen (param->sostate, param->remsock, 1);
 				
 				fds[0].fd = param->remsock;
 				fds[1].fd = param->clisock;
 				fds[0].events = fds[1].events = POLLIN;
-				res = so._poll(param->sostate, fds, 2, conf.timeouts[CONNECTION_L] * 1000);
+				res = param->srv->so._poll(param->sostate, fds, 2, conf.timeouts[CONNECTION_L] * 1000);
 				if (res < 1 || fds[1].revents) {
 					res = 460;
 					break;
 				}
 				sasize = sizeof(param->sinsr);
-				s = so._accept(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &sasize);
-				so._closesocket(param->sostate, param->remsock);
+				s = param->srv->so._accept(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &sasize);
+				param->srv->so._closesocket(param->sostate, param->remsock);
 				param->remsock = s;
 				if(s == INVALID_SOCKET) {
 					param->res = 462;
@@ -392,7 +392,7 @@ fflush(stderr);
 					fds[2].fd = param->ctrlsock;
 					fds[2].events = fds[1].events = fds[0].events = POLLIN;
 
-					res = so._poll(param->sostate, fds, 3, conf.timeouts[CONNECTION_L]*1000);
+					res = param->srv->so._poll(param->sostate, fds, 3, conf.timeouts[CONNECTION_L]*1000);
 					if(res <= 0) {
 						param->res = 463;
 						break;
@@ -403,7 +403,7 @@ fflush(stderr);
 					}
 					if (fds[1].revents) {
 						sasize = sizeof(sin);
-						if((len = so._recvfrom(param->sostate, param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
+						if((len = param->srv->so._recvfrom(param->sostate, param->clisock, (char *)buf, 65535, 0, (struct sockaddr *)&sin, &sasize)) <= 10) {
 							param->res = 464;
 							break;
 						}
@@ -464,7 +464,7 @@ fflush(stderr);
 						sasize = sizeof(param->sinsr);
 						buf[0]=buf[1]=buf[2]=0;
 						buf[3]=(*SAFAMILY(&param->sinsl) == AF_INET)?1:4;
-						if((len = so._recvfrom(param->sostate, param->remsock, (char *)buf+6+SAADDRLEN(&param->sinsl), 65535 - (6+SAADDRLEN(&param->sinsl)), 0, (struct sockaddr *)&param->sinsr, &sasize)) <= 0) {
+						if((len = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)buf+6+SAADDRLEN(&param->sinsl), 65535 - (6+SAADDRLEN(&param->sinsl)), 0, (struct sockaddr *)&param->sinsr, &sasize)) <= 0) {
 							param->res = 468;
 							break;
 						}

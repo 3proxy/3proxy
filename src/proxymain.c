@@ -22,12 +22,12 @@ void * threadfunc (void *p) {
 	fds.events = POLLIN;
 	fds.revents = 0;
 	for(i=5+(param->srv->maxchild>>10); i; i--){
-		if(so._poll(param->sostate, &fds, 1, 1000*CONNBACK_TO)!=1){
+		if(param->srv->so._poll(param->sostate, &fds, 1, 1000*CONNBACK_TO)!=1){
 			dolog(param, (unsigned char *)"Connect back not received, check connback client");
 			i = 0;
 			break;
 		}
-		param->remsock = so._accept(param->sostate, param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
+		param->remsock = param->srv->so._accept(param->sostate, param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
 			dolog(param, (unsigned char *)"Connect back accept() failed");
 			continue;
@@ -45,14 +45,14 @@ void * threadfunc (void *p) {
 		if(param->srv->acl) param->res = checkACL(param);
 		if(param->res){
 			dolog(param, (unsigned char *)"Connect back ACL failed");
-			so._closesocket(param->sostate, param->remsock);
+			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
 		}
 #endif
 		if(socksendto(param, param->remsock, (struct sockaddr*)&param->sinsr, (unsigned char *)"C", 1, CONNBACK_TO*1000) != 1){
 			dolog(param, (unsigned char *)"Connect back sending command failed");
-			so._closesocket(param->sostate, param->remsock);
+			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 			continue;
 		}
@@ -397,7 +397,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifndef _WIN32
 		 case 'I':
 			size = sizeof(defparam.sincl);
-			if(so._getsockname(srv.so.state, 0, (struct sockaddr*)&defparam.sincl, &size) ||
+			if(srv.so._getsockname(srv.so.state, 0, (struct sockaddr*)&defparam.sincl, &size) ||
 				*SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
 
 			else inetd = 1;
@@ -553,8 +553,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(!isudp){
 		lg.l_onoff = 1;
 		lg.l_linger = conf.timeouts[STRING_L];
-		so._setsockopt(srv.so.state, 0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
-		so._setsockopt(srv.so.state, 0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
+		srv.so._setsockopt(srv.so.state, 0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
+		srv.so._setsockopt(srv.so.state, 0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
 	}
 	defparam.clisock = 0;
 	if(! (newparam = myalloc (sizeof(defparam)))){
@@ -594,10 +594,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(srv.srvsock == INVALID_SOCKET){
 
 		if(!isudp){
-			sock=so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
+			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
 		}
 		else {
-			sock=so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_DGRAM, IPPROTO_UDP);
+			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_DGRAM, IPPROTO_UDP);
 		}
 		if( sock == INVALID_SOCKET) {
 			perror("socket()");
@@ -611,13 +611,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 		srv.srvsock = sock;
 		opt = 1;
-		if(so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
+		if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
 #ifdef SO_REUSEPORT
 		opt = 1;
-		so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
+		srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 #if defined SO_BINDTODEVICE
-		if(srv.ibindtodevice && so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
+		if(srv.ibindtodevice && srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
 		    dolog(&defparam, "failed to bind device");
 		    return -12;
 		}
@@ -630,7 +630,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			return -12;
 		    }
 #ifndef NOIPV6
-	            if((*SAFAMILY(&srv.intsa) == AF_INET6 && so._setsockopt(srv.so.state, sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx)))) {
+	            if((*SAFAMILY(&srv.intsa) == AF_INET6 && srv.so._setsockopt(srv.so.state, sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx)))) {
 			dolog(&defparam, (unsigned char *)"failed to bind device");
 	        	return -12;
 	    	    }
@@ -639,17 +639,17 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 	}
 	size = sizeof(srv.intsa);
-	for(sleeptime = SLEEPTIME * 100; so._bind(srv.so.state, sock, (struct sockaddr*)&srv.intsa, SASIZE(&srv.intsa))==-1; usleep(sleeptime)) {
+	for(sleeptime = SLEEPTIME * 100; srv.so._bind(srv.so.state, sock, (struct sockaddr*)&srv.intsa, SASIZE(&srv.intsa))==-1; usleep(sleeptime)) {
 		sprintf((char *)buf, "bind(): %s", strerror(errno));
 		if(!srv.silent)dolog(&defparam, buf);	
 		sleeptime = (sleeptime<<1);	
 		if(!sleeptime) {
-			so._closesocket(srv.so.state, sock);
+			srv.so._closesocket(srv.so.state, sock);
 			return -3;
 		}
 	}
  	if(!isudp){
-		if(so._listen (srv.so.state, sock, srv.backlog?srv.backlog : 1+(srv.maxchild>>3))==-1) {
+		if(srv.so._listen (srv.so.state, sock, srv.backlog?srv.backlog : 1+(srv.maxchild>>3))==-1) {
 			sprintf((char *)buf, "listen(): %s", strerror(errno));
 			if(!srv.silent)dolog(&defparam, buf);
 			return -4;
@@ -665,24 +665,24 @@ int MODULEMAINFUNC (int argc, char** argv){
  }
  if(iscbl){
 	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
-	if((srv.cbsock=so._socket(srv.so.state, SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
+	if((srv.cbsock=srv.so._socket(srv.so.state, SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
 		dolog(&defparam, (unsigned char *)"Failed to allocate connect back socket");
 		return -6;
 	}
 	opt = 1;
-	so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
+	srv.so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
 #ifdef SO_REUSEPORT
 	opt = 1;
-	so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
+	srv.so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 
 	setopts(srv.cbsock, srv.cbssockopts);
 
-	if(so._bind(srv.so.state, srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
+	if(srv.so._bind(srv.so.state, srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 		dolog(&defparam, (unsigned char *)"Failed to bind connect back socket");
 		return -7;
 	}
-	if(so._listen(srv.so.state, srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
+	if(srv.so._listen(srv.so.state, srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
 		dolog(&defparam, (unsigned char *)"Failed to listen connect back socket");
 		return -8;
 	}
@@ -711,7 +711,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if (iscbc) break;
 		if (conf.paused != srv.paused) break;
 		if (srv.fds.events & POLLIN) {
-			error = so._poll(srv.so.state, &srv.fds, 1, 1000);
+			error = srv.so._poll(srv.so.state, &srv.fds, 1, 1000);
 		}
 		else {
 			usleep(SLEEPTIME);
@@ -730,20 +730,20 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(!isudp){
 		size = sizeof(defparam.sincr);
 		if(iscbc){
-			new_sock=so._socket(srv.so.state, SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
+			new_sock=so._socket(so.state, SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
 			if(new_sock != INVALID_SOCKET){
 				setopts(new_sock, srv.cbcsockopts);
 
 				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
-				if(connectwithpoll(srv.so.state, new_sock,(struct sockaddr *)&defparam.sincr,SASIZE(&defparam.sincr),CONNBACK_TO)) {
-					so._closesocket(srv.so.state, new_sock);
+				if(connectwithpoll(NULL, new_sock,(struct sockaddr *)&defparam.sincr,SASIZE(&defparam.sincr),CONNBACK_TO)) {
+					so._closesocket(so.state, new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);
 					continue;
 				}
 
 				if(sockrecvfrom(NULL, new_sock,(struct sockaddr*)&defparam.sincr,buf,1,60*1000) != 1 || *buf!='C') {
-					so._closesocket(srv.so.state, new_sock);
+					so._closesocket(so.state, new_sock);
 					new_sock = INVALID_SOCKET;
 					usleep(SLEEPTIME);
 					continue;
@@ -755,7 +755,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 		}
 		else {
-			new_sock = so._accept(srv.so.state, sock, (struct sockaddr*)&defparam.sincr, &size);
+			new_sock = srv.so._accept(srv.so.state, sock, (struct sockaddr*)&defparam.sincr, &size);
 			if(new_sock == INVALID_SOCKET){
 #ifdef _WIN32
 				switch(WSAGetLastError()){
@@ -803,7 +803,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			setopts(new_sock, srv.clisockopts);
 		}
 		size = sizeof(defparam.sincl);
-		if(so._getsockname(srv.so.state, new_sock, (struct sockaddr *)&defparam.sincl, &size)){
+		if(srv.so._getsockname(srv.so.state, new_sock, (struct sockaddr *)&defparam.sincl, &size)){
 			sprintf((char *)buf, "getsockname(): %s", strerror(errno));
 			if(!srv.silent)dolog(&defparam, buf);
 			continue;
@@ -816,14 +816,14 @@ int MODULEMAINFUNC (int argc, char** argv){
 		lg.l_onoff = 1;
 		lg.l_linger = conf.timeouts[STRING_L];
 
-		so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
-		so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
+		srv.so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+		srv.so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
 	}
 	else {
 		srv.fds.events = 0;
 	}
 	if(! (newparam = myalloc (sizeof(defparam)))){
-		if(!isudp) so._closesocket(srv.so.state, new_sock);
+		if(!isudp) srv.so._closesocket(srv.so.state, new_sock);
 		defparam.res = 21;
 		if(!srv.silent)dolog(&defparam, (unsigned char *)"Memory Allocation Failed");
 		usleep(SLEEPTIME);
@@ -1051,20 +1051,20 @@ void freeparam(struct clientparam * param) {
 	if(param->extusername) myfree(param->extusername);
 	if(param->extpassword) myfree(param->extpassword);
 	if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
-		so._shutdown(param->sostate, param->ctrlsocksrv, SHUT_RDWR);
-		so._closesocket(param->sostate, param->ctrlsocksrv);
+		param->srv->so._shutdown(param->sostate, param->ctrlsocksrv, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->ctrlsocksrv);
 	}
 	if(param->ctrlsock != INVALID_SOCKET && param->ctrlsock != param->clisock) {
-		so._shutdown(param->sostate, param->ctrlsock, SHUT_RDWR);
-		so._closesocket(param->sostate, param->ctrlsock);
+		param->srv->so._shutdown(param->sostate, param->ctrlsock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->ctrlsock);
 	}
 	if(param->remsock != INVALID_SOCKET) {
-		so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
-		so._closesocket(param->sostate, param->remsock);
+		param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->remsock);
 	}
 	if(param->clisock != INVALID_SOCKET) {
-		so._shutdown(param->sostate, param->clisock, SHUT_RDWR);
-		so._closesocket(param->sostate, param->clisock);
+		param->srv->so._shutdown(param->sostate, param->clisock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->clisock);
 	}
 	myfree(param);
 }

@@ -44,8 +44,8 @@ void * ftpprchild(struct clientparam* param) {
 	if (!strncasecmp((char *)buf, "OPEN ", 5)){
 		if(parsehostname((char *)buf+5, param, 21)){RETURN(803);}
 		if(param->remsock != INVALID_SOCKET) {
-			so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
-			so._closesocket(param->sostate, param->remsock);
+			param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 		}
 		if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
@@ -105,27 +105,27 @@ void * ftpprchild(struct clientparam* param) {
 		}
 #endif
 		if(sc != INVALID_SOCKET) {
-			so._shutdown(param->sostate, sc, SHUT_RDWR);
-			so._closesocket(param->sostate, sc);
+			param->srv->so._shutdown(param->sostate, sc, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, sc);
 			sc = INVALID_SOCKET;
 		}
 		if(ss != INVALID_SOCKET) {
-			so._shutdown(param->sostate, ss, SHUT_RDWR);
-			so._closesocket(param->sostate, ss);
+			param->srv->so._shutdown(param->sostate, ss, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, ss);
 			ss = INVALID_SOCKET;
 		}
 		if(clidatasock != INVALID_SOCKET) {
-			so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
-			so._closesocket(param->sostate, clidatasock);
+			param->srv->so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, clidatasock);
 			clidatasock = INVALID_SOCKET;
 		}
 		if ((clidatasock=socket(SASOCK(&param->sincl), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN(821);}
 		*SAPORT(&param->sincl) = 0;
-		if(so._bind(param->sostate, clidatasock, (struct sockaddr *)&param->sincl, SASIZE(&param->sincl))){RETURN(822);}
+		if(param->srv->so._bind(param->sostate, clidatasock, (struct sockaddr *)&param->sincl, SASIZE(&param->sincl))){RETURN(822);}
 		if (pasv) {
-			if(so._listen(param->sostate, clidatasock, 1)) {RETURN(823);}
+			if(param->srv->so._listen(param->sostate, clidatasock, 1)) {RETURN(823);}
 			sasize = sizeof(param->sincl);
-			if(so._getsockname(param->sostate, clidatasock, (struct sockaddr *)&param->sincl, &sasize)){RETURN(824);}
+			if(param->srv->so._getsockname(param->sostate, clidatasock, (struct sockaddr *)&param->sincl, &sasize)){RETURN(824);}
 			if(pasv == 1){
 				if(*SAFAMILY(&param->sincl) == AF_INET)
 					sprintf((char *)buf, "227 OK (%u,%u,%u,%u,%u,%u)\r\n",
@@ -153,8 +153,8 @@ void * ftpprchild(struct clientparam* param) {
 
 			if(sscanf((char *)buf+5, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) {RETURN(828);}
 			*SAPORT(&param->sincr) = htons((unsigned short)((b5<<8)^b6));
-			if(connectwithpoll(param->sostate, clidatasock, (struct sockaddr *)&param->sincr, SASIZE(&param->sincr),CONNECT_TO)) {
-				so._closesocket(param->sostate, clidatasock);
+			if(connectwithpoll(param, clidatasock, (struct sockaddr *)&param->sincr, SASIZE(&param->sincr),CONNECT_TO)) {
+				param->srv->so._closesocket(param->sostate, clidatasock);
 				clidatasock = INVALID_SOCKET;
 				RETURN(826);
 			}
@@ -208,15 +208,15 @@ void * ftpprchild(struct clientparam* param) {
 			fds.fd = clidatasock;
 			fds.events = POLLIN;
 
-			res = so._poll (param->sostate, &fds, 1, conf.timeouts[STRING_L]*1000);
+			res = param->srv->so._poll (param->sostate, &fds, 1, conf.timeouts[STRING_L]*1000);
 			if(res != 1) {
 				RETURN(857);
 			}
 			sasize = sizeof(param->sincr);
-			ss = so._accept(param->sostate, clidatasock, (struct sockaddr *)&param->sincr, &sasize);
+			ss = param->srv->so._accept(param->sostate, clidatasock, (struct sockaddr *)&param->sincr, &sasize);
 			if (ss == INVALID_SOCKET) { RETURN (858);}
-			so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
-			so._closesocket(param->sostate, clidatasock);
+			param->srv->so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, clidatasock);
 			clidatasock = ss;
 			ss = INVALID_SOCKET;
 		}
@@ -226,8 +226,8 @@ void * ftpprchild(struct clientparam* param) {
 		status = 3;
 		ss = ftpcommand(param, buf, arg? buf+5 : NULL);
 		if (ss == INVALID_SOCKET) {
-			so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
-			so._closesocket(param->sostate, clidatasock);
+			param->srv->so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, clidatasock);
 			clidatasock = INVALID_SOCKET;
 			
 			if(socksend(param, param->ctrlsock, (unsigned char *)"550 err\r\n", 9, conf.timeouts[STRING_S])!=9) {RETURN (831);}
@@ -247,17 +247,17 @@ void * ftpprchild(struct clientparam* param) {
 		}
 		sc = param->remsock;
 		param->remsock = ss;
-		so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
-		so._setsockopt(param->sostate, clidatasock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+		param->srv->so._setsockopt(param->sostate, clidatasock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 		param->clisock = clidatasock;
 		res = mapsocket(param, conf.timeouts[CONNECTION_S]);
 		if(param->remsock != INVALID_SOCKET) {
-			so._shutdown (param->sostate, param->remsock, SHUT_RDWR);
-			so._closesocket(param->sostate, param->remsock);
+			param->srv->so._shutdown (param->sostate, param->remsock, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, param->remsock);
 		}
 		if(param->clisock != INVALID_SOCKET) {
-			so._shutdown (param->sostate, param->clisock, SHUT_RDWR);
-			so._closesocket(param->sostate, param->clisock);
+			param->srv->so._shutdown (param->sostate, param->clisock, SHUT_RDWR);
+			param->srv->so._closesocket(param->sostate, param->clisock);
 		}
 		param->clisock = param->ctrlsock;
 		param->remsock = sc;
@@ -293,7 +293,7 @@ void * ftpprchild(struct clientparam* param) {
 		if(i < 3) {RETURN (813);}
 	}
 	sasize = sizeof(param->sincr);
-	if(so._getpeername(param->sostate, param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize)){RETURN(819);}
+	if(param->srv->so._getpeername(param->sostate, param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize)){RETURN(819);}
 	if(req && (param->statscli64 || param->statssrv64)){
 		dolog(param, (unsigned char *)req);
 	}
@@ -302,19 +302,19 @@ void * ftpprchild(struct clientparam* param) {
 CLEANRET:
 
  if(sc != INVALID_SOCKET) {
-	so._shutdown(param->sostate, sc, SHUT_RDWR);
-	so._closesocket(param->sostate, sc);
+	param->srv->so._shutdown(param->sostate, sc, SHUT_RDWR);
+	param->srv->so._closesocket(param->sostate, sc);
  }
  if(ss != INVALID_SOCKET) {
-	so._shutdown(param->sostate, ss, SHUT_RDWR);
-	so._closesocket(param->sostate, ss);
+	param->srv->so._shutdown(param->sostate, ss, SHUT_RDWR);
+	param->srv->so._closesocket(param->sostate, ss);
  }
  if(clidatasock != INVALID_SOCKET) {
-	so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
-	so._closesocket(param->sostate, clidatasock);
+	param->srv->so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
+	param->srv->so._closesocket(param->sostate, clidatasock);
  }
  sasize = sizeof(param->sincr);
- so._getpeername(param->sostate, param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize);
+ param->srv->so._getpeername(param->sostate, param->ctrlsock, (struct sockaddr *)&param->sincr, &sasize);
  if(param->res != 0 || param->statscli64 || param->statssrv64 ){
 	dolog(param, (unsigned char *)((req && (param->res > 802))? req:NULL));
  }
