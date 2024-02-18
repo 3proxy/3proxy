@@ -322,7 +322,6 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		free(sc);
 		return NULL;
 	    }
-	    sc->name = X509_get_subject_name(sc->CA_cert);
 	    sprintf(fname, "%.240s3proxy.key", sc->certcache);
 	    f = BIO_new_file(fname, "rb");
 	    if ( f != NULL ) {                                             

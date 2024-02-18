@@ -153,7 +153,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 	}
 
 
-	err = X509_set_issuer_name(dst_cert, config->name);
+	err = X509_set_issuer_name(dst_cert, X509_get_subject_name(config->CA_cert));
 	if(!err){
 		X509_free(dst_cert);
 		return NULL;

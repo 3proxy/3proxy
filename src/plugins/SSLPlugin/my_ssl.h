@@ -16,7 +16,6 @@ struct ssl_config {
     X509 *CA_cert;
     EVP_PKEY *CA_key;
     EVP_PKEY *server_key;
-    X509_NAME *name;
 };
 
 typedef struct ssl_config SSL_CONFIG;
