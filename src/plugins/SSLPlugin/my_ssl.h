@@ -12,8 +12,10 @@ typedef void *SSL_CERT;
 
 struct ssl_config {
     int mitm;
+    int serv;
     char *certcache;
     X509 *CA_cert;
+    X509 *server_cert;
     EVP_PKEY *CA_key;
     EVP_PKEY *server_key;
 };

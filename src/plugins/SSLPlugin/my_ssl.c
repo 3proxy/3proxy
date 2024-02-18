@@ -146,7 +146,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 	del_ext(dst_cert, NID_authority_key_identifier, -1);
 	del_ext(dst_cert, NID_certificate_policies, 0);
 
-	err = X509_set_pubkey(dst_cert, config->server_key);
+	err = X509_set_pubkey(dst_cert, config->server_key?config->server_key:config->CA_key);
 	if ( err == 0 ) {
 		X509_free(dst_cert);
 		return NULL;
@@ -193,7 +193,6 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cer
 	if ( conn == NULL ){
 		return NULL;
 	}
-
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 	conn->ctx = SSL_CTX_new(SSLv23_client_method());
 #else
@@ -213,6 +212,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cer
 
 	if(!SSL_set_fd(conn->ssl, s)){
 		ssl_conn_free(conn);
+		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
 		return NULL;
 	}
 	if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
@@ -254,12 +254,14 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *serve
 	conn->ctx = SSL_CTX_new(TLS_server_method());
 #endif
 	if ( conn->ctx == NULL ) {
+		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
 		free(conn);
 		return NULL;
 	}
 
 	err = SSL_CTX_use_certificate(conn->ctx, (X509 *) server_cert);
 	if ( err <= 0 ) {
+		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
 		SSL_CTX_free(conn->ctx);
 		free(conn);
 		return NULL;
@@ -267,6 +269,7 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *serve
 
 	err = SSL_CTX_use_PrivateKey(conn->ctx, server_key);
 	if ( err <= 0 ) {
+		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
 		SSL_CTX_free(conn->ctx);
 		free(conn);
 		return NULL;
@@ -283,12 +286,13 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *serve
 
 	conn->ssl = SSL_new(conn->ctx);
 	if ( conn->ssl == NULL ) {
+		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
 		SSL_CTX_free(conn->ctx);
 		free(conn);
 		return NULL;
 	}
 
-	SSL_set_fd(conn->ssl, (int)s);
+	SSL_set_fd(conn->ssl, s);
 	err = SSL_accept(conn->ssl);
 	if ( err <= 0 ) {
 		*errSSL = ERR_error_string(ERR_get_error(), errbuf);

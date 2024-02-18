@@ -34,7 +34,10 @@ static struct pluginlink * pl;
 static int ssl_loaded = 0;
 static int ssl_connect_timeout = 0;
 char *certcache = NULL;
+char *srvcert;
+char *srvkey;
 int mitm = 0;
+int serv = 0;
 int ssl_inited = 0;
 
 typedef struct _ssl_conn {
@@ -213,7 +216,7 @@ static int WINAPI ssl_poll(void *state, struct pollfd *fds, unsigned int nfds, i
 
 #define PCONF (((struct SSLstate *)param->sostate)->config)
 
-int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConnp){
+int domitm(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConnp){
  SSL_CERT ServerCert=NULL, FakeCert=NULL;
  SSL_CONN ServerConn, ClientConn;
  char *errSSL=NULL;
@@ -253,7 +256,7 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
 	return 2;
  }
 
- ClientConn = ssl_handshake_to_client(param->clisock, FakeCert, PCONF->server_key, &errSSL);
+ ClientConn = ssl_handshake_to_client(param->clisock, FakeCert, PCONF->server_key?PCONF->server_key:PCONF->CA_key, &errSSL);
  
  _ssl_cert_free(FakeCert);
  if ( ClientConn == NULL ) {
@@ -286,71 +289,78 @@ int dossl(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConn
  return 0;
 }
 
+X509 * getCert (const char *fname){
+    BIO *f;
+    X509 *CA_cert;
+    
+    f = BIO_new_file(fname, "r");
+    if(!f) return NULL;
+    CA_cert=PEM_read_bio_X509(f, NULL, NULL, NULL);
+    BIO_free(f);
+    return CA_cert;
+}
 
+EVP_PKEY * getKey(const char *fname){
+    BIO *f;
+    EVP_PKEY *key;
+
+    f = BIO_new_file(fname, "r");
+    if(!f) return NULL;
+    key = PEM_read_bio_PrivateKey(f, NULL, NULL, NULL);
+    BIO_free(f);
+    
+    return key;
+}
 
 static void* ssl_filter_open(void * idata, struct srvparam * srv){
+	char fname[256];
 	struct ssl_config *sc;
 	sc = malloc(sizeof(struct ssl_config));
 	if(!sc) return NULL;
 	memset(sc, 0, sizeof(struct ssl_config));
 	if(certcache) sc->certcache = strdup(certcache);
 	if(mitm){
-	    BIO *f;
-	    char fname[256];
-	    
-
 	    if(!certcache) {
 		return sc;
 	    }
 	    sprintf(fname, "%.240s3proxy.pem", certcache);
-	    f = BIO_new_file(fname, "r");
-	    if ( f != NULL ) {
-		sc->CA_cert=PEM_read_bio_X509(f, NULL, NULL, NULL);
-		BIO_free(f);
-		if(!sc->CA_cert){
-		    unsigned long err;
-	    	    err=ERR_get_error();
-		    fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-		    return sc;
-		}
-	    }
-	    else {
-		fprintf(stderr, "failed to open: %s\n", fname);
+	    sc->CA_cert = getCert(fname);
+	    if(!sc->CA_cert){
+		fprintf(stderr, "failed to read: %s\n", fname);
 		return sc;
 	    }
 	    sprintf(fname, "%.240s3proxy.key", sc->certcache);
-	    f = BIO_new_file(fname, "rb");
-	    if ( f != NULL ) {                                             
-		sc->CA_key = PEM_read_bio_PrivateKey(f, NULL, NULL, NULL);
-		BIO_free(f);
-		if(!sc->CA_key){
-		    unsigned long err;
-		    err=ERR_get_error();
-		    fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-		    return sc;
-		}		
-	    }
-	    else {
-		fprintf(stderr, "failed to open: %s\n", fname);
+	    sc->CA_key = getKey(fname);
+	    if(!sc->CA_key){
+		fprintf(stderr, "failed to read: %s\n", fname);
+		return sc;
+	    }		
+	    sprintf(fname, "%.128sserver.key", sc->certcache);
+	    sc->server_key = getKey(fname);
+	    sc->mitm = 1;
+	    srv->so._send = ssl_send;
+	    srv->so._recv = ssl_recv;
+	    srv->so._sendto = ssl_sendto;
+	    srv->so._recvfrom = ssl_recvfrom;
+	    srv->so._closesocket = ssl_closesocket;
+	    srv->so._poll = ssl_poll;
+#ifdef WIWHSPLICE
+	    srv->usesplice = 0;
+#endif
+	}
+	if(serv){
+	    if(!srvcert || !srvkey) return sc;
+	    sc->server_cert = getCert(srvcert);
+	    if(!sc->server_cert){
+		fprintf(stderr, "failed to read: %s\n", srvcert);
 		return sc;
 	    }
-
-	    sprintf(fname, "%.128sserver.key", sc->certcache);
-	    f = BIO_new_file(fname, "rb");
-	    if ( f != NULL ) {
-		sc->server_key = PEM_read_bio_PrivateKey(f, &sc->server_key, NULL, NULL);
-		BIO_free(f);
-		if(!sc->server_key){
-		    unsigned long err;
-		    err=ERR_get_error();
-		    fprintf(stderr, "failed to read: %s: [%lu] %s\n", fname, err, ERR_error_string(err, NULL));
-		    return NULL;
-		}		
+	    sc->server_key = getKey(srvkey);
+	    if(!sc->server_key){
+		fprintf(stderr, "failed to read: %s\n", srvkey);
+		return sc;
 	    }
-	    else {
-		fprintf(stderr, "failed to open: %s\n", fname);
-	    }
-	    sc->mitm = 1;
+	    sc->serv = 1;
 	    srv->so._send = ssl_send;
 	    srv->so._recv = ssl_recv;
 	    srv->so._sendto = ssl_sendto;
@@ -375,13 +385,43 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 	ssls->param = param;
 	param->sostate = ssls;
 	*fc = ssls;
+	if(ssls->config->serv){
+	    SSL_CONN ClientConn;
+	    char *err;
+
+#ifdef _WIN32
+ ul = 0;
+ ioctlsocket(param->clisock, FIONBIO, &ul);
+#else
+ fcntl(param->clisock,F_SETFL,0);
+#endif
+
+	    ClientConn = ssl_handshake_to_client(param->clisock, ssls->config->server_cert, ssls->config->server_key, &err);
+	    if ( ClientConn == NULL ) {
+		param->res = 8013;
+		param->srv->logfunc(param, (unsigned char *)"Handshake to client failed");
+		if(err)param->srv->logfunc(param, (unsigned char *)err);
+		return REJECT;
+	    }
+#ifdef _WIN32 
+	     ul = 1;
+	     ioctlsocket(param->clisock, FIONBIO, &ul);
+#else
+	     fcntl(param->clisock,F_SETFL,O_NONBLOCK);
+#endif
+
+
+	    SSL_set_mode((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
+	    SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, 0);
+	    addSSL(param->clisock, ClientConn, INVALID_SOCKET, NULL, param);
+	}
 	return CONTINUE;
 }
 
 static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 	if(param->operation != HTTP_CONNECT && param->operation != CONNECT) return PASS;
 	if(!PCONF->mitm) return PASS;
-	if(dossl(param, NULL, NULL)) {
+	if(domitm(param, NULL, NULL)) {
 		return REJECT;
 	}
 	if(!param->redirectfunc) param->redirectfunc = proxyfunc;
@@ -399,17 +439,15 @@ static void ssl_filter_close(void *fo){
     free(CONFIG->certcache);
     if ( CONFIG->CA_cert != NULL ) {
 	X509_free(CONFIG->CA_cert);
-	CONFIG->CA_cert = NULL;
     }
-    
+    if ( CONFIG->server_cert != NULL ) {
+	X509_free(CONFIG->server_cert);
+    }
     if ( CONFIG->CA_key != NULL ) {
 	EVP_PKEY_free(CONFIG->CA_key);
-	CONFIG->CA_key = NULL;
     }
-
     if ( CONFIG->server_key != NULL ) {
 	EVP_PKEY_free(CONFIG->server_key);
-	CONFIG->server_key = NULL;
     }
     free(fo);
 }
@@ -427,8 +465,8 @@ static struct filter ssl_filter_mitm = {
 
 
 static int h_mitm(int argc, unsigned char **argv){
-	if((mitm&1)) return 1;
-	if(mitm) usleep(100*SLEEPTIME);
+	if(mitm) return 1;
+	if(serv) return 2;
 	ssl_filter_mitm.next = pl->conf->filters;
 	pl->conf->filters = &ssl_filter_mitm;
 	sso = *pl->so;
@@ -450,6 +488,42 @@ static int h_nomitm(int argc, unsigned char **argv){
 	return 0;
 }
 
+static struct filter ssl_filter_serv = {
+	NULL,
+	"ssl filter",
+	"serv",
+	ssl_filter_open,
+	ssl_filter_client,
+	NULL, NULL, NULL, NULL, NULL, NULL,
+	ssl_filter_clear, 
+	ssl_filter_close
+};
+
+
+static int h_serv(int argc, unsigned char **argv){
+	if(serv) return 1;
+	if(mitm) return 2;
+	ssl_filter_serv.next = pl->conf->filters;
+	pl->conf->filters = &ssl_filter_serv;
+	sso = *pl->so;
+	serv = 1;
+	return 0;
+}
+
+static int h_noserv(int argc, unsigned char **argv){
+	struct filter * sf;
+	if(!mitm) return 1;
+	if(pl->conf->filters == &ssl_filter_serv) pl->conf->filters = ssl_filter_serv.next;
+	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
+		if(sf->next == &ssl_filter_serv) {
+			sf->next = ssl_filter_serv.next;
+			break;
+		}
+	}
+	serv = 0;
+	return 0;
+}
+
 static int h_certcache(int argc, unsigned char **argv){
 	size_t len;
 	len = strlen((char *)argv[1]);
@@ -459,9 +533,25 @@ static int h_certcache(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_srvcert(int argc, unsigned char **argv){
+	free(srvcert);
+	srvcert = strdup((char *)argv[1]);
+	return 0;
+}
+
+static int h_srvkey(int argc, unsigned char **argv){
+	free(srvkey);
+	srvkey = strdup((char *)argv[1]);
+	return 0;
+}
+
 static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+1, "ssl_mitm", h_mitm, 1, 1},
 	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
+	{ssl_commandhandlers+3, "ssl_serv", h_serv, 1, 1},
+	{ssl_commandhandlers+4, "ssl_noserv", h_serv, 1, 1},
+	{ssl_commandhandlers+5, "ssl_srvcert", h_srvcert, 2, 2},
+	{ssl_commandhandlers+6, "ssl_srvkey", h_srvkey, 2, 2},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
@@ -479,7 +569,7 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 	if(!ssl_loaded){
 		ssl_loaded = 1;
 		ssl_init();
-		ssl_commandhandlers[2].next = pl->commandhandlers->next;
+		ssl_commandhandlers[6].next = pl->commandhandlers->next;
 		pl->commandhandlers->next = ssl_commandhandlers;
 	}
 
