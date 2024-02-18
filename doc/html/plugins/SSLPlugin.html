@@ -1,18 +1,27 @@
 <h3>3proxy SSL/TLS plugin</h3>
 
-Plugin can be used to transparently decypher SSL/TLS data. Plugin should never be used in production environment due to
+Plugin can be used to transparently decypher SSL/TLS data and TLS encryption to proxy.
 potential securiy reasons.
+
+
 
 <pre>
 ssl_certcache PATH_TO_CACHE
 ssl_mitm
 ssl_nomitm
+ssl_srvcert
+ssl_srvkey 
+ssl_serv
+ssl_noserv
 </pre>
+
+<h4>For transparent certificate spoofing:</h4>
+
 ssl_certcache - path to certificates cache. For transparent spoofing cache must contain 3 files: 3proxy.pem - public
 self-signed certificates, 3proxy.key - key for public certificates, server.key - this key will be used to generates
 spoofed certificates.
 Generated certificates will be placed to the same path.
-<br>ssl_mitm - spoof certificates for services started below
+<br>ssl_mitm - spoof certificates for services started below. Using ssl_mitm is insecure, because proxy does not check certificates.
 <br>ssl_nomitm - do not spoof certificates for services started below
 
 
@@ -25,6 +34,25 @@ proxy -p3128
 ssl_nomitm
 proxy -p3129
 </pre>
+<h4>To protect traffic to server (https:// proxy) - since 0.9.5 version</h4>
+ssl_srvcert - Server certificate (should not be selfsigned and must contain Alternative name)
+ssl_srvkey  - Server ceritifacte key
+ssl_serv - require TLS connection for services below
+ssl_noserv - do not require TLS connection for services below
+
+Example:
+<pre>
+plugin /path/to/SSLPlugin.so ssl_plugin
+ssl_srvcert path_to_cert
+ssl_srvkey path_to_key
+ssl_serv
+proxy -p33128
+ssl_noserv
+proxy -p3128
+</pre>
+creates https:// proxy on 33128 and http:// proxy on 3128
+
+
 
 <h4>Download:</h4>
 <ul>
