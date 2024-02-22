@@ -1031,6 +1031,22 @@ void freeparam(struct clientparam * param) {
 #endif
 	if(param->clibuf) myfree(param->clibuf);
 	if(param->srvbuf) myfree(param->srvbuf);
+	if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
+		param->srv->so._shutdown(param->sostate, param->ctrlsocksrv, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->ctrlsocksrv);
+	}
+	if(param->ctrlsock != INVALID_SOCKET && param->ctrlsock != param->clisock) {
+		param->srv->so._shutdown(param->sostate, param->ctrlsock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->ctrlsock);
+	}
+	if(param->remsock != INVALID_SOCKET) {
+		param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->remsock);
+	}
+	if(param->clisock != INVALID_SOCKET) {
+		param->srv->so._shutdown(param->sostate, param->clisock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->clisock);
+	}
 	if(param->srv){
 		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
 		pthread_mutex_lock(&param->srv->counter_mutex);
@@ -1050,22 +1066,6 @@ void freeparam(struct clientparam * param) {
 	if(param->password) myfree(param->password);
 	if(param->extusername) myfree(param->extusername);
 	if(param->extpassword) myfree(param->extpassword);
-	if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
-		param->srv->so._shutdown(param->sostate, param->ctrlsocksrv, SHUT_RDWR);
-		param->srv->so._closesocket(param->sostate, param->ctrlsocksrv);
-	}
-	if(param->ctrlsock != INVALID_SOCKET && param->ctrlsock != param->clisock) {
-		param->srv->so._shutdown(param->sostate, param->ctrlsock, SHUT_RDWR);
-		param->srv->so._closesocket(param->sostate, param->ctrlsock);
-	}
-	if(param->remsock != INVALID_SOCKET) {
-		param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
-		param->srv->so._closesocket(param->sostate, param->remsock);
-	}
-	if(param->clisock != INVALID_SOCKET) {
-		param->srv->so._shutdown(param->sostate, param->clisock, SHUT_RDWR);
-		param->srv->so._closesocket(param->sostate, param->clisock);
-	}
 	myfree(param);
 }
 
