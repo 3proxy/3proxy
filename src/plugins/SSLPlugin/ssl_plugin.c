@@ -92,9 +92,9 @@ void delSSL(void *state, SOCKET s){
 	STATE->cli.s = INVALID_SOCKET;
     }
     else if(STATE->srv.s == s) {
-	ssl_conn_free(STATE->cli.conn);
-	STATE->cli.conn = NULL;
-	STATE->cli.s = INVALID_SOCKET;
+	ssl_conn_free(STATE->srv.conn);
+	STATE->srv.conn = NULL;
+	STATE->srv.s = INVALID_SOCKET;
     }
 }
 
@@ -216,7 +216,7 @@ static int WINAPI ssl_poll(void *state, struct pollfd *fds, unsigned int nfds, i
 
 #define PCONF (((struct SSLstate *)param->sostate)->config)
 
-int domitm(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientConnp){
+int domitm(struct clientparam* param){
  SSL_CERT ServerCert=NULL, FakeCert=NULL;
  SSL_CONN ServerConn, ClientConn;
  char *errSSL=NULL;
@@ -240,6 +240,7 @@ int domitm(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientCon
  }
  ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF->srv_ctx, &ServerCert, &errSSL);
  if ( ServerConn == NULL || ServerCert == NULL ) {
+	if(ServerConn) ssl_conn_free(ServerConn);
 	param->res = 8011;
 	param->srv->logfunc(param, (unsigned char *)"SSL handshake to server failed");
 	if(ServerConn == NULL) 	param->srv->logfunc(param, (unsigned char *)"ServerConn is NULL");
@@ -256,7 +257,7 @@ int domitm(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientCon
 	return 2;
  }
 
- ClientConn = ssl_handshake_to_client(param->clisock, FakeCert, PCONF->server_key?PCONF->server_key:PCONF->CA_key, &errSSL);
+ ClientConn = ssl_handshake_to_client(param->clisock, NULL, FakeCert, PCONF->server_key?PCONF->server_key:PCONF->CA_key, &errSSL);
  
  _ssl_cert_free(FakeCert);
  if ( ClientConn == NULL ) {
@@ -283,8 +284,6 @@ int domitm(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientCon
  SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, 0);
  SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, 0);
  addSSL(param->clisock, ClientConn, param->remsock, ServerConn, param);
- if(ServerConnp)*ServerConnp = ServerConn;
- if(ClientConnp)*ClientConnp = ClientConn;
 
  return 0;
 }
@@ -314,6 +313,7 @@ EVP_PKEY * getKey(const char *fname){
 
 static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	char fname[256];
+	char *errSSL;
 	struct ssl_config *sc;
 	sc = malloc(sizeof(struct ssl_config));
 	if(!sc) return NULL;
@@ -358,6 +358,10 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    sc->server_key = getKey(srvkey);
 	    if(!sc->server_key){
 		fprintf(stderr, "failed to read: %s\n", srvkey);
+		return sc;
+	    }
+	    if(!(sc->cli_ctx = ssl_cli_ctx(sc->server_cert, sc->server_key, &errSSL))){
+		fprintf(stderr, "failed to create context: %s\n", errSSL);
 		return sc;
 	    }
 	    sc->serv = 1;
@@ -406,7 +410,7 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
  fcntl(param->clisock,F_SETFL,0);
 #endif
 
-	    ClientConn = ssl_handshake_to_client(param->clisock, ssls->config->server_cert, ssls->config->server_key, &err);
+	    ClientConn = ssl_handshake_to_client(param->clisock, ssls->config->cli_ctx, NULL, NULL, &err);
 	    if ( ClientConn == NULL ) {
 		param->res = 8013;
 		param->srv->logfunc(param, (unsigned char *)"Handshake to client failed");
@@ -431,7 +435,7 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 	if(param->operation != HTTP_CONNECT && param->operation != CONNECT) return PASS;
 	if(!PCONF->mitm) return PASS;
-	if(domitm(param, NULL, NULL)) {
+	if(domitm(param)) {
 		return REJECT;
 	}
 	if(!param->redirectfunc) param->redirectfunc = proxyfunc;

@@ -33,8 +33,9 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config);
 //
 // SSL/TLS handshakes
 //
+SSL_CTX * ssl_cli_ctx(SSL_CERT server_cert, EVP_PKEY *server_key, char** errSSL);
 SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CTX *srv_ctx, SSL_CERT *server_cert, char **errSSL);
-SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *server_key, char **errSSL);
+SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CTX *cli_ctx, SSL_CERT server_cert, EVP_PKEY *server_key, char **errSSL);
 
 //
 // SSL/TLS Read/Write       

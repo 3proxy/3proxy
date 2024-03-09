@@ -114,7 +114,6 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 
 	err = X509_digest(src_cert, EVP_sha1(), hash_sha1, NULL);
 	if(!err){
-		X509_free(dst_cert);
 		return NULL;
 	}
 
@@ -226,8 +225,39 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CTX *srv_ctx, SS
 	return conn;
 }
 
-SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *server_key, char** errSSL)
-{
+
+SSL_CTX * ssl_cli_ctx(SSL_CERT server_cert, EVP_PKEY *server_key, char** errSSL){
+    SSL_CTX *ctx;
+    int err = 0;
+
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ctx = SSL_CTX_new(SSLv23_server_method());
+#else
+    ctx = SSL_CTX_new(TLS_server_method());
+#endif
+    if (!ctx) {
+	*errSSL = ERR_error_string(ERR_get_error(), errbuf);
+	return NULL;
+    }
+
+    err = SSL_CTX_use_certificate(ctx, (X509 *) server_cert);
+    if ( err <= 0 ) {
+	*errSSL = ERR_error_string(ERR_get_error(), errbuf);
+	SSL_CTX_free(ctx);
+	return NULL;
+    }
+
+    err = SSL_CTX_use_PrivateKey(ctx, server_key);
+    if ( err <= 0 ) {
+	*errSSL = ERR_error_string(ERR_get_error(), errbuf);
+	SSL_CTX_free(ctx);
+	return NULL;
+    }
+    return ctx;
+}
+
+SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CTX *cli_ctx, SSL_CERT server_cert, EVP_PKEY *server_key, char** errSSL){
 	int err = 0;
 	X509 *cert;
 	ssl_conn *conn;
@@ -238,46 +268,20 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *serve
 	if ( conn == NULL )
 		return NULL;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-	conn->ctx = SSL_CTX_new(SSLv23_server_method());
-#else
-	conn->ctx = SSL_CTX_new(TLS_server_method());
-#endif
-	if ( conn->ctx == NULL ) {
-		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
-		free(conn);
+	conn->ctx = NULL;
+	conn->ssl = NULL;
+	if(!cli_ctx){
+	    conn->ctx = ssl_cli_ctx(server_cert, server_key, errSSL);
+	    if(!conn->ctx){
+		ssl_conn_free(conn);
 		return NULL;
+	    }
 	}
 
-	err = SSL_CTX_use_certificate(conn->ctx, (X509 *) server_cert);
-	if ( err <= 0 ) {
-		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
-		SSL_CTX_free(conn->ctx);
-		free(conn);
-		return NULL;
-	}
-
-	err = SSL_CTX_use_PrivateKey(conn->ctx, server_key);
-	if ( err <= 0 ) {
-		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
-		SSL_CTX_free(conn->ctx);
-		free(conn);
-		return NULL;
-	}
-/*
-	err = SSL_CTX_load_verify_locations(conn->ctx, "3proxy.pem",
-                                   NULL);
-	if ( err <= 0 ) {
-		SSL_CTX_free(conn->ctx);
-		free(conn);
-		return NULL;
-	}
-*/
-
-	conn->ssl = SSL_new(conn->ctx);
+	conn->ssl = SSL_new(cli_ctx?cli_ctx : conn->ctx);
 	if ( conn->ssl == NULL ) {
 		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
-		SSL_CTX_free(conn->ctx);
+		if(conn->ctx)SSL_CTX_free(conn->ctx);
 		free(conn);
 		return NULL;
 	}
