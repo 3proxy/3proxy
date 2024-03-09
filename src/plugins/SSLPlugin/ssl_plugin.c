@@ -238,7 +238,7 @@ int domitm(struct clientparam* param, SSL_CONN* ServerConnp, SSL_CONN* ClientCon
 	ul = ((unsigned long)ssl_connect_timeout)*1000;
 	setsockopt(param->remsock, SOL_SOCKET, SO_SNDTIMEO, (char *)&ul, 4);
  }
- ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, &ServerCert, &errSSL);
+ ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF->srv_ctx, &ServerCert, &errSSL);
  if ( ServerConn == NULL || ServerCert == NULL ) {
 	param->res = 8011;
 	param->srv->logfunc(param, (unsigned char *)"SSL handshake to server failed");
@@ -371,6 +371,16 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    srv->usesplice = 0;
 #endif
 	}
+	if(sc && sc->mitm){
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	    sc->srv_ctx = SSL_CTX_new(SSLv23_client_method());
+#else
+	    sc->srv_ctx = SSL_CTX_new(TLS_client_method());
+#endif
+	    if ( sc->srv_ctx == NULL ) {
+		sc->mitm = 0;
+	    }
+	}
 	return sc;
 }
 
@@ -448,6 +458,12 @@ static void ssl_filter_close(void *fo){
     }
     if ( CONFIG->server_key != NULL ) {
 	EVP_PKEY_free(CONFIG->server_key);
+    }
+    if ( CONFIG->srv_ctx != NULL ) {
+	SSL_CTX_free(CONFIG->srv_ctx);
+    }
+    if ( CONFIG->cli_ctx != NULL ) {
+	SSL_CTX_free(CONFIG->cli_ctx);
     }
     free(fo);
 }

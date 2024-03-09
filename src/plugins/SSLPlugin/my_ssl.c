@@ -181,7 +181,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 }
 
 
-SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cert, char **errSSL)
+SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CTX *srv_ctx, SSL_CERT *server_cert, char **errSSL)
 {
 	int err = 0;
 	X509 *cert;
@@ -193,19 +193,9 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cer
 	if ( conn == NULL ){
 		return NULL;
 	}
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-	conn->ctx = SSL_CTX_new(SSLv23_client_method());
-#else
-	conn->ctx = SSL_CTX_new(TLS_client_method());
-#endif
-	if ( conn->ctx == NULL ) {
-		free(conn);
-		return NULL;
-	}
-
-	conn->ssl = SSL_new(conn->ctx);
+	conn->ctx = NULL;
+	conn->ssl = SSL_new(srv_ctx);
 	if ( conn->ssl == NULL ) {
-		SSL_CTX_free(conn->ctx);
 		free(conn);
 		return NULL;
 	}

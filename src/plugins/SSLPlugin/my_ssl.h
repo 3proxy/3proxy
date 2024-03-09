@@ -18,6 +18,8 @@ struct ssl_config {
     X509 *server_cert;
     EVP_PKEY *CA_key;
     EVP_PKEY *server_key;
+    SSL_CTX *cli_ctx;
+    SSL_CTX *srv_ctx;
 };
 
 typedef struct ssl_config SSL_CONFIG;
@@ -31,7 +33,7 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config);
 //
 // SSL/TLS handshakes
 //
-SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CERT *server_cert, char **errSSL);
+SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CTX *srv_ctx, SSL_CERT *server_cert, char **errSSL);
 SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CERT server_cert, EVP_PKEY *server_key, char **errSSL);
 
 //
