@@ -34,11 +34,20 @@ static struct pluginlink * pl;
 static int ssl_loaded = 0;
 static int ssl_connect_timeout = 0;
 char *certcache = NULL;
-char *srvcert;
-char *srvkey;
+char *srvcert = NULL;
+char *srvkey = NULL;
 int mitm = 0;
 int serv = 0;
 int ssl_inited = 0;
+int client_min_proto_version = 0;
+int client_max_proto_version = 0;
+int server_min_proto_version = 0;
+int server_max_proto_version = 0;
+int client_verify = 0;
+char * client_ciphersuites = NULL;
+char * server_ciphersuites = NULL;
+char * client_cipher_list = NULL;
+char * server_cipher_list = NULL;
 
 typedef struct _ssl_conn {
 	struct SSL_CTX *ctx;
@@ -238,7 +247,7 @@ int domitm(struct clientparam* param){
 	ul = ((unsigned long)ssl_connect_timeout)*1000;
 	setsockopt(param->remsock, SOL_SOCKET, SO_SNDTIMEO, (char *)&ul, 4);
  }
- ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF->srv_ctx, &ServerCert, &errSSL);
+ ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF, &ServerCert, &errSSL);
  if ( ServerConn == NULL || ServerCert == NULL ) {
 	if(ServerConn) ssl_conn_free(ServerConn);
 	param->res = 8011;
@@ -257,7 +266,7 @@ int domitm(struct clientparam* param){
 	return 2;
  }
 
- ClientConn = ssl_handshake_to_client(param->clisock, NULL, FakeCert, PCONF->server_key?PCONF->server_key:PCONF->CA_key, &errSSL);
+ ClientConn = ssl_handshake_to_client(param->clisock, PCONF, FakeCert, PCONF->server_key?PCONF->server_key:PCONF->CA_key, &errSSL);
  
  _ssl_cert_free(FakeCert);
  if ( ClientConn == NULL ) {
@@ -311,6 +320,10 @@ EVP_PKEY * getKey(const char *fname){
     return key;
 }
 
+static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx){
+    return preverify_ok;
+}
+
 static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	char fname[256];
 	char *errSSL;
@@ -319,6 +332,16 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	if(!sc) return NULL;
 	memset(sc, 0, sizeof(struct ssl_config));
 	if(certcache) sc->certcache = strdup(certcache);
+	sc->client_min_proto_version = client_min_proto_version;
+	sc->client_max_proto_version = client_max_proto_version;
+	sc->server_min_proto_version = server_min_proto_version;
+	sc->server_max_proto_version = server_max_proto_version;
+	sc->client_verify = client_verify;
+	if(client_ciphersuites) sc->client_ciphersuites = strdup(client_ciphersuites);
+	if(server_ciphersuites) sc->server_ciphersuites = strdup(server_ciphersuites);
+	if(client_cipher_list) sc->client_cipher_list = strdup(client_cipher_list);
+	if(server_cipher_list) sc->server_cipher_list = strdup(server_cipher_list);
+
 	if(mitm){
 	    if(!certcache) {
 		return sc;
@@ -360,7 +383,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		fprintf(stderr, "failed to read: %s\n", srvkey);
 		return sc;
 	    }
-	    if(!(sc->cli_ctx = ssl_cli_ctx(sc->server_cert, sc->server_key, &errSSL))){
+	    if(!(sc->cli_ctx = ssl_cli_ctx(sc, sc->server_cert, sc->server_key, &errSSL))){
 		fprintf(stderr, "failed to create context: %s\n", errSSL);
 		return sc;
 	    }
@@ -383,6 +406,14 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 #endif
 	    if ( sc->srv_ctx == NULL ) {
 		sc->mitm = 0;
+	    }
+	    if(sc->client_min_proto_version)SSL_CTX_set_min_proto_version(sc->srv_ctx, sc->client_min_proto_version);
+	    if(sc->client_max_proto_version)SSL_CTX_set_max_proto_version(sc->srv_ctx, sc->client_max_proto_version);
+	    if(sc->client_cipher_list)SSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_cipher_list);
+	    if(sc->client_ciphersuites)SSL_CTX_set_ciphersuites(sc->srv_ctx, sc->client_ciphersuites);
+	    if(sc->client_verify){
+		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER, verify_callback);
+		SSL_CTX_set_default_verify_paths(sc->srv_ctx);
 	    }
 	}
 	return sc;
@@ -410,7 +441,7 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
  fcntl(param->clisock,F_SETFL,0);
 #endif
 
-	    ClientConn = ssl_handshake_to_client(param->clisock, ssls->config->cli_ctx, NULL, NULL, &err);
+	    ClientConn = ssl_handshake_to_client(param->clisock, ssls->config, NULL, NULL, &err);
 	    if ( ClientConn == NULL ) {
 		param->res = 8013;
 		param->srv->logfunc(param, (unsigned char *)"Handshake to client failed");
@@ -469,6 +500,10 @@ static void ssl_filter_close(void *fo){
     if ( CONFIG->cli_ctx != NULL ) {
 	SSL_CTX_free(CONFIG->cli_ctx);
     }
+    free(CONFIG->client_ciphersuites);
+    free(CONFIG->server_ciphersuites);
+    free(CONFIG->client_cipher_list);
+    free(CONFIG->server_cipher_list);
     free(fo);
 }
 
@@ -555,13 +590,103 @@ static int h_certcache(int argc, unsigned char **argv){
 
 static int h_srvcert(int argc, unsigned char **argv){
 	free(srvcert);
-	srvcert = strdup((char *)argv[1]);
+	srvcert = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
 static int h_srvkey(int argc, unsigned char **argv){
 	free(srvkey);
-	srvkey = strdup((char *)argv[1]);
+	srvkey = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_client_cipher_list(int argc, unsigned char **argv){
+	free(client_cipher_list);
+	client_cipher_list = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_server_cipher_list(int argc, unsigned char **argv){
+	free(server_cipher_list);
+	server_cipher_list = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_client_ciphersuites(int argc, unsigned char **argv){
+	free(client_ciphersuites);
+	client_ciphersuites = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_server_ciphersuites(int argc, unsigned char **argv){
+	free(server_ciphersuites);
+	server_ciphersuites = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+struct vermap{
+    char *sver;
+    int iver;
+} versions[] = {
+#ifdef SSL3_VERSION
+    {"SSLv3",SSL3_VERSION},
+#endif
+
+#ifdef TLS1_VERSION
+    {"TLSv1",TLS1_VERSION},
+#endif
+
+#ifdef TLS1_1_VERSION
+    {"TLSv1.1",TLS1_1_VERSION},
+#endif
+
+#ifdef TLS1_2_VERSION
+    {"TLSv1.2",TLS1_2_VERSION},
+#endif
+
+#ifdef TLS1_3_VERSION
+    {"TLSv1.3",TLS1_3_VERSION},
+#endif
+
+    {NULL, 0}
+};
+
+int string_to_version(unsigned char *ver){
+    struct vermap *v;
+    int i;
+    int res;
+    for (i=0; versions[i].sver; i++){
+	if(!strcasecmp(versions[i].sver, (char *)ver)) return versions[i].iver;
+    }
+    return 0;
+} 
+
+static int h_client_min_proto_version(int argc, unsigned char **argv){
+	client_min_proto_version = argc>1? string_to_version(argv[1]) : 0;
+	return 0;
+}
+
+static int h_client_max_proto_version(int argc, unsigned char **argv){
+	client_max_proto_version = argc>1? string_to_version(argv[1]) : 0;
+	return 0;
+}
+
+static int h_server_min_proto_version(int argc, unsigned char **argv){
+	server_min_proto_version = argc>1? string_to_version(argv[1]) : 0;
+	return 0;
+}
+
+static int h_server_max_proto_version(int argc, unsigned char **argv){
+	server_max_proto_version = argc>1? string_to_version(argv[1]) : 0;
+	return 0;
+}
+
+static int h_client_verify(int argc, unsigned char **argv){
+	client_verify = 1;
+	return 0;
+}
+static int h_no_client_verify(int argc, unsigned char **argv){
+	client_verify = 0;
 	return 0;
 }
 
@@ -570,8 +695,18 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
 	{ssl_commandhandlers+3, "ssl_serv", h_serv, 1, 1},
 	{ssl_commandhandlers+4, "ssl_noserv", h_serv, 1, 1},
-	{ssl_commandhandlers+5, "ssl_srvcert", h_srvcert, 2, 2},
-	{ssl_commandhandlers+6, "ssl_srvkey", h_srvkey, 2, 2},
+	{ssl_commandhandlers+5, "ssl_srvcert", h_srvcert, 1, 2},
+	{ssl_commandhandlers+6, "ssl_srvkey", h_srvkey, 1, 2},
+	{ssl_commandhandlers+7, "ssl_client_ciphersuites", h_client_ciphersuites, 1, 2},
+	{ssl_commandhandlers+8, "ssl_server_ciphersuites", h_server_ciphersuites, 1, 2},
+	{ssl_commandhandlers+9, "ssl_client_cipher_list", h_client_cipher_list, 1, 2},
+	{ssl_commandhandlers+10, "ssl_server_cipher_list", h_server_cipher_list, 1, 2},
+	{ssl_commandhandlers+11, "ssl_client_min_proto_version", h_client_min_proto_version, 1, 2},
+	{ssl_commandhandlers+12, "ssl_server_min_proto_version", h_server_min_proto_version, 1, 2},
+	{ssl_commandhandlers+13, "ssl_client_max_proto_version", h_client_max_proto_version, 1, 2},
+	{ssl_commandhandlers+14, "ssl_server_max_proto_version", h_server_max_proto_version, 1, 2},
+	{ssl_commandhandlers+15, "ssl_client_verify", h_client_verify, 1, 1},
+	{ssl_commandhandlers+16, "ssl_client_no_verify", h_no_client_verify, 1, 1},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
@@ -586,10 +721,31 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 					 int argc, char** argv){
 
 	pl = pluginlink;
+
+	ssl_connect_timeout = 0;
+	free(certcache);
+	certcache = NULL;
+	free(srvcert);
+	srvcert = NULL;
+	free(srvkey);
+	srvkey = NULL;
+	mitm = 0;
+	serv = 0;
+	client_min_proto_version = 0;
+	client_max_proto_version = 0;
+	server_min_proto_version = 0;
+	server_max_proto_version = 0;
+	client_verify = 0;
+	client_ciphersuites = NULL;
+	server_ciphersuites = NULL;
+	client_cipher_list = NULL;
+	server_cipher_list = NULL;
+
+
 	if(!ssl_loaded){
 		ssl_loaded = 1;
 		ssl_init();
-		ssl_commandhandlers[6].next = pl->commandhandlers->next;
+		ssl_commandhandlers[(sizeof(ssl_commandhandlers)/sizeof(struct commands))-1].next = pl->commandhandlers->next;
 		pl->commandhandlers->next = ssl_commandhandlers;
 	}
 

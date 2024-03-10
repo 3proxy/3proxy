@@ -20,6 +20,15 @@ struct ssl_config {
     EVP_PKEY *server_key;
     SSL_CTX *cli_ctx;
     SSL_CTX *srv_ctx;
+    int client_min_proto_version;
+    int client_max_proto_version;
+    int server_min_proto_version;
+    int server_max_proto_version;
+    int client_verify;
+    char * client_ciphersuites;
+    char * server_ciphersuites;
+    char * client_cipher_list;
+    char * server_cipher_list;
 };
 
 typedef struct ssl_config SSL_CONFIG;
@@ -33,9 +42,9 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config);
 //
 // SSL/TLS handshakes
 //
-SSL_CTX * ssl_cli_ctx(SSL_CERT server_cert, EVP_PKEY *server_key, char** errSSL);
-SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CTX *srv_ctx, SSL_CERT *server_cert, char **errSSL);
-SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CTX *cli_ctx, SSL_CERT server_cert, EVP_PKEY *server_key, char **errSSL);
+SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_key,char** errSSL);
+SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_key, char **errSSL);
+SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, SSL_CERT *server_cert, char **errSSL);
 
 //
 // SSL/TLS Read/Write       
