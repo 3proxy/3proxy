@@ -1,60 +1,61 @@
-<h3>Плагин SSL/TLS для 3proxy</h3>
+<h3>3proxy SSL/TLS плагин</h3>
 
-Плагин используется для транспарентной дешифровки SSL-трафика с подменой сертификата и для TLS шифрования трафика прокси.
+Плагин можно использовать для перехвата и дешифровки SSL/TLS трафика и для шифрования трафика прокси-сервера
 
+<h4>Для транспаретной перехватки трафика (mitm):</h4>
 
-<pre>
-ssl_certcache PATH_TO_CACHE
-ssl_mitm
-ssl_nomitm
-ssl_srvcert
-ssl_srvkey
-ssl_serv
-ssl_noserv
-</pre>
-
-<h4>Использование для перехвата трафика с подменой сертификата</h4>
+<br>ssl_mitm - подменять сертификаты для сервисов стартованных ниже. Не безопасно использовать без ssl_client_verify.
+<br>ssl_nomitm - не подменять сертификаты для сервисов стартованных ниже.
 
 
-ssl_certcache - путь к кэшу сертификатов. Для транспорентной подмены сертификатов в кэше должно находиться 3 файла: 3proxy.pem - публичный
-самоподписанный сертификат, 3proxy.key - ключ от этого сертификата, server.key - ключ с которым будут генерироваться подменные сертификаты.
-Сгенерированные сертификаты будут помещаться в этот же каталог.
-<br>ssl_mitm - подменять сертитфикаты для запущенных ниже сервисов. Может быть небезопасно, т.к. прокси не проверяет сертификат сервера.
-<br>ssl_nomitm - не подменять сертитфикаты для запущенных ниже сервисов
+<h4>Для защиты трафика прокси-сервера (например https:// proxy) - начиная с 0.9.5</h4>
+ssl_serv - включает TLS для соединений к сервисам ниже
+<br>ssl_noserv - отключает TLS для соединений к сервисам ниже
 
+Параметры:
+<br>ssl_server_cert /path/to/cert - сертификат сервера, не должен быть самоподписаным, имя CN должно содержаться в альтернативных именах - используется для ssl_serv
+<br>ssl_server_key /path/to/key - ключ сертификата сервера для ssl_server_cert или сгенерированного сертификата ssl_mitm
+<br>ssl_client_ciphersuites ciphersuites_list - наборы шифрова TLS для TLS 1.3, пример ssl_client_ciphersuites TLS_AES_128_GCM_SHA256
+<br>ssl_server_ciphersuites ciphersuites_list - наборы шифрова TLS для TLS 1.3
+<br>ssl_client_cipher_list ciphersuites_list - наборы шифрова TLS для TLS 1.2 и ниже, пример ssl_client_cipher_list ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305
+<br>ssl_server_cipher_list ciphersuites_list - наборы шифрова TLS для TLS 1.2 и ниже
+<br>ssl_client_min_proto_version tls_version - минимальная версия TLS клиента (например ssl_client_min_proto_version TLSv1.2)
+<br>ssl_server_min_proto_version tls_version - минимальная версия TLS сервера
+<br>ssl_client_max_proto_version tls_version - максимальная версия TLS клиента
+<br>ssl_server_max_proto_version tls_version - максимальная версия TLS сервера
+<br>ssl_client_verify - проверять сертификат сервера назначения (используется с ssl_mitm)
+<br>ssl_client_no_verify - не проверять сертификат сервера назначения
+<br>ssl_server_ca_file /path/to/cafile - CA сертификат для ssl_mitm
+<br>ssl_server_ca_key /path/to/cakey - ключ CA сертификата  ssl_server_ca_file mitm
+<br>ssl_client_ca_file, ssl_client_ca_dir, ssl_client_ca_store - расположения корневых сертификатов ssl_client_verify
+<br>ssl_certcache /path/to/cache/ - расположение кеша сгенерированных сертификатов ssl_mitm. Кеш может содержать
+файлы 3proxy.pem, 3proxy.key server.key, которые используются как ssl_server_ca_file,
+ssl_server_ca_key и ssl_server_key соответственно если они не заданы. Если server.key не задан,
+3proxy.key используется для генерации серверного сертификата.
 
-<h4>Пример:</h4>
+<h4>Пример mitm:</h4>
 <pre>
 plugin /path/to/SslPlugin.dll ssl_plugin
-ssl_certcache /path/to/cache/
+ssl_server_ca_file /path/to/cafile
+ssl_server_ca_key /path/to/cakey
 ssl_mitm
 proxy -p3128
 ssl_nomitm
 proxy -p3129
 </pre>
+Перехватывается трафик в прокси на порту 3128
 
-<h4>Использование для TLS шифрования трафика к прокси (с версии 0.9.5)
-
-ssl_srvcert - путь к файлу сертификата сервера. Сертификат должен быть аналогичен сертификату web-сервера (не должен быть самоподписанным и должен содержать AltName).
-ssl_srvkey - ключ от серверного сертификата
-ssl_serv - шифровать трафик TLS для сервисов ниже
-ssl_noserv - не шифровать трафик TLS для сервисов ниже
-
-Пример:
-
+<h4>Пример конфигурации https:// прокси (curl -x https://...):</h4>
 <pre>
 plugin /path/to/SSLPlugin.so ssl_plugin
-ssl_srvcert path_to_cert
-ssl_srvkey path_to_key
+ssl_server_cert path_to_cert
+ssl_server_key path_to_key
 ssl_serv
 proxy -p33128
 ssl_noserv
 proxy -p3128
 </pre>
-На порт 33128 https:// прокси, на порту 3128 http:// прокси
+На порту 33128 создается https:// прокси (не путать с CONNECT прокси aka HTTPS over HTTP прокси), на порту 3128
+создается http:// прокси (может пропуска в т.ч. и HTTPS коннекты)
 
-
-<h4>Загрузить:</h4>
-<ul>
- <li>Плагин включен в дистрибутив 3proxy 0.8
-</ul>
+&copy; Vladimir Dubrovin, License: BSD style

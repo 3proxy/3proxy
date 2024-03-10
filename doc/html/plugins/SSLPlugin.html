@@ -1,62 +1,64 @@
 <h3>3proxy SSL/TLS plugin</h3>
 
-Plugin can be used to transparently decypher SSL/TLS data and TLS encryption to proxy.
-potential securiy reasons.
+Plugin can be used to transparently decypher SSL/TLS data and TLS encryption for  proxy traffic.
 
 
-
-<pre>
-ssl_certcache PATH_TO_CACHE
-ssl_mitm
-ssl_nomitm
-ssl_srvcert
-ssl_srvkey 
-ssl_serv
-ssl_noserv
-</pre>
 
 <h4>For transparent certificate spoofing:</h4>
 
-ssl_certcache - path to certificates cache. For transparent spoofing cache must contain 3 files: 3proxy.pem - public
-self-signed certificates, 3proxy.key - key for public certificates, server.key - this key will be used to generates
-spoofed certificates.
-Generated certificates will be placed to the same path.
-<br>ssl_mitm - spoof certificates for services started below. Using ssl_mitm is insecure, because proxy does not check certificates.
+<br>ssl_mitm - spoof certificates for services started below. Usage without ssl_client_verify is insecure.
 <br>ssl_nomitm - do not spoof certificates for services started below
 
+<h4>To protect traffic to server (https:// proxy) - since 0.9.5 version</h4>
+ssl_serv - require TLS connection for services below
+<br>ssl_noserv - do not require TLS connection for services below
 
-<h4>Example:</h4>
+Parameters:
+<br>ssl_server_cert /path/to/cert - Server certificate (should not be selfsigned and must contain Alternative name) for ssl_serv
+<br>ssl_server_key /path/to/key - Server ceritifacte key for ssl_server_cert or generated mitm certificate
+<br>ssl_client_ciphersuites ciphersuites_list - TLS client ciphers for TLS 1.3, e.g. ssl_client_ciphersuites TLS_AES_128_GCM_SHA256
+<br>ssl_server_ciphersuites ciphersuites_list - TLS server ciphers for TLS 1.3
+<br>ssl_client_cipher_list ciphersuites_list - TLS client ciphers for TLS 1.2 and below , e.g. ssl_client_cipher_list ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305
+<br>ssl_server_cipher_list ciphersuites_list - TLS server ciphers for TLS 1.2 and below
+<br>ssl_client_min_proto_version tls_version - TLS client min TLS version (e.g. TLSv1.2)
+<br>ssl_server_min_proto_version tls_version - TLS server min TLS version (e.g. TLSv1.2)
+<br>ssl_client_max_proto_version tls_version - TLS client max TLS version (e.g. TLSv1.2)
+<br>ssl_server_max_proto_version tls_version - TLS server max TLS version (e.g. TLSv1.2)
+<br>ssl_client_verify - verify certificate for upstream server in TLS client functionality (used with ssl_mitm)
+<br>ssl_client_no_verify - do not verify certificate for upstream server in TLS client functionality (default)
+<br>ssl_server_ca_file /path/to/cafile - CA certificate file for mitm
+<br>ssl_server_ca_key /path/to/cakey - key for ssl_server_ca_file mitm CA
+<br>ssl_client_ca_file, ssl_client_ca_dir, ssl_client_ca_store - locations for root CAs used with ssl_client_verify for TLS client
+<br>ssl_certcache /path/to/cache/ - location for generated mitm certificates cache, optional, if ssl_server_ca_file / ssl_server_ca_key are configured.
+Cache may contain 3 files: 3proxy.pem - public
+self-signed certificates (used if ssl_server_ca_file is not configured), 
+3proxy.key - key for public certificates, used if ssl_server_ca_keyserver.key is not configured, server.key - this key is used if ssl_server_key is not configured to generates
+spoofed certificates. If server.key is absent, 3proxy.key is used to generate certificates.
+Generated certificates are placed to the same path.
+
+
+<h4>mitm example:</h4>
 <pre>
 plugin /path/to/SslPlugin.dll ssl_plugin
-ssl_certcache /path/to/cache/
+ssl_server_ca_file /path/to/cafile
+ssl_server_ca_key /path/to/cakey
 ssl_mitm
 proxy -p3128
 ssl_nomitm
 proxy -p3129
 </pre>
-<h4>To protect traffic to server (https:// proxy) - since 0.9.5 version</h4>
-ssl_srvcert - Server certificate (should not be selfsigned and must contain Alternative name)
-ssl_srvkey  - Server ceritifacte key
-ssl_serv - require TLS connection for services below
-ssl_noserv - do not require TLS connection for services below
+mitm's traffic with spoofed ceritifacate for port 3128 proxy.
 
-Example:
+<h4>https:// proxy example:</h4>
 <pre>
 plugin /path/to/SSLPlugin.so ssl_plugin
-ssl_srvcert path_to_cert
-ssl_srvkey path_to_key
+ssl_server_cert path_to_cert
+ssl_server_key path_to_key
 ssl_serv
 proxy -p33128
 ssl_noserv
 proxy -p3128
 </pre>
 creates https:// proxy on 33128 and http:// proxy on 3128
-
-
-
-<h4>Download:</h4>
-<ul>
- <li>Plugin included into 3proxy 0.8
-</ul>
 
 &copy; Vladimir Dubrovin, License: BSD style
