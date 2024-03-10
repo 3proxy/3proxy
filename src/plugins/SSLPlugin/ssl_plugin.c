@@ -36,6 +36,11 @@ static int ssl_connect_timeout = 0;
 char *certcache = NULL;
 char *srvcert = NULL;
 char *srvkey = NULL;
+char *server_ca_file = NULL;
+char *server_ca_key = NULL;
+char *client_ca_file = NULL;
+char *client_ca_dir = NULL;
+char *client_ca_store = NULL;
 int mitm = 0;
 int serv = 0;
 int ssl_inited = 0;
@@ -341,25 +346,45 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	if(server_ciphersuites) sc->server_ciphersuites = strdup(server_ciphersuites);
 	if(client_cipher_list) sc->client_cipher_list = strdup(client_cipher_list);
 	if(server_cipher_list) sc->server_cipher_list = strdup(server_cipher_list);
+	if(srvkey){
+	    sc->server_key = getKey(srvkey);
+	    if(!sc->server_key){
+		fprintf(stderr, "failed to read: %s\n", srvkey);
+		return sc;
+	    }
+	}
+	if(client_ca_file)sc->client_ca_file=client_ca_file;
+	if(client_ca_dir)sc->client_ca_dir=client_ca_dir;
+	if(client_ca_store)sc->client_ca_dir=client_ca_store;
+
 
 	if(mitm){
-	    if(!certcache) {
-		return sc;
+	    if(!server_ca_file){
+		if(!certcache) {
+		    return sc;
+		}
+		sprintf(fname, "%.240s3proxy.pem", certcache);
 	    }
-	    sprintf(fname, "%.240s3proxy.pem", certcache);
-	    sc->CA_cert = getCert(fname);
+	    sc->CA_cert = getCert(server_ca_file?server_ca_file:fname);
 	    if(!sc->CA_cert){
-		fprintf(stderr, "failed to read: %s\n", fname);
+		fprintf(stderr, "failed to read: %s\n", server_ca_file?server_ca_file:fname);
 		return sc;
 	    }
-	    sprintf(fname, "%.240s3proxy.key", sc->certcache);
-	    sc->CA_key = getKey(fname);
+	    if(!server_ca_key){
+		if(!certcache) {
+		    return sc;
+		}
+		sprintf(fname, "%.240s3proxy.key", sc->certcache);
+	    }
+	    sc->CA_key = getKey(server_ca_key?server_ca_key:fname);
 	    if(!sc->CA_key){
-		fprintf(stderr, "failed to read: %s\n", fname);
+		fprintf(stderr, "failed to read: %s\n", server_ca_key?server_ca_key:fname);
 		return sc;
-	    }		
-	    sprintf(fname, "%.128sserver.key", sc->certcache);
-	    sc->server_key = getKey(fname);
+	    }
+	    if(!sc->server_key && sc->certcache){
+		sprintf(fname, "%.128sserver.key", sc->certcache);
+		sc->server_key = getKey(fname);
+	    }
 	    sc->mitm = 1;
 	    srv->so._send = ssl_send;
 	    srv->so._recv = ssl_recv;
@@ -378,9 +403,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		fprintf(stderr, "failed to read: %s\n", srvcert);
 		return sc;
 	    }
-	    sc->server_key = getKey(srvkey);
 	    if(!sc->server_key){
-		fprintf(stderr, "failed to read: %s\n", srvkey);
 		return sc;
 	    }
 	    if(!(sc->cli_ctx = ssl_cli_ctx(sc, sc->server_cert, sc->server_key, &errSSL))){
@@ -412,8 +435,21 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    if(sc->client_cipher_list)SSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_cipher_list);
 	    if(sc->client_ciphersuites)SSL_CTX_set_ciphersuites(sc->srv_ctx, sc->client_ciphersuites);
 	    if(sc->client_verify){
+		if(sc->client_ca_file && sc->client_ca_dir){
+		    SSL_CTX_load_verify_locations(sc->srv_ctx, sc->client_ca_file, sc->client_ca_dir);
+		}
+		else if(sc->client_ca_file){
+		    SSL_CTX_load_verify_file(sc->srv_ctx, sc->client_ca_file);
+		}
+		else if(sc->client_ca_dir){
+		    SSL_CTX_load_verify_dir(sc->srv_ctx, sc->client_ca_dir);
+		}
+		else if(sc->client_ca_store){
+		    SSL_CTX_load_verify_store(sc->srv_ctx, sc->client_ca_store);
+		}		
+		else 
+		    SSL_CTX_set_default_verify_paths(sc->srv_ctx);
 		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER, verify_callback);
-		SSL_CTX_set_default_verify_paths(sc->srv_ctx);
 	    }
 	}
 	return sc;
@@ -504,6 +540,9 @@ static void ssl_filter_close(void *fo){
     free(CONFIG->server_ciphersuites);
     free(CONFIG->client_cipher_list);
     free(CONFIG->server_cipher_list);
+    free(CONFIG->client_ca_file);
+    free(CONFIG->client_ca_dir);
+    free(CONFIG->client_ca_store);
     free(fo);
 }
 
@@ -624,6 +663,36 @@ static int h_server_ciphersuites(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_server_ca_file(int argc, unsigned char **argv){
+	free(server_ca_file);
+	server_ca_file = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_server_ca_key(int argc, unsigned char **argv){
+	free(server_ca_key);
+	server_ca_key = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_client_ca_file(int argc, unsigned char **argv){
+	free(client_ca_file);
+	client_ca_file = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_client_ca_dir(int argc, unsigned char **argv){
+	free(client_ca_dir);
+	client_ca_dir = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_client_ca_store(int argc, unsigned char **argv){
+	free(client_ca_store);
+	client_ca_store = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
 struct vermap{
     char *sver;
     int iver;
@@ -695,18 +764,23 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
 	{ssl_commandhandlers+3, "ssl_serv", h_serv, 1, 1},
 	{ssl_commandhandlers+4, "ssl_noserv", h_serv, 1, 1},
-	{ssl_commandhandlers+5, "ssl_srvcert", h_srvcert, 1, 2},
-	{ssl_commandhandlers+6, "ssl_srvkey", h_srvkey, 1, 2},
-	{ssl_commandhandlers+7, "ssl_client_ciphersuites", h_client_ciphersuites, 1, 2},
-	{ssl_commandhandlers+8, "ssl_server_ciphersuites", h_server_ciphersuites, 1, 2},
-	{ssl_commandhandlers+9, "ssl_client_cipher_list", h_client_cipher_list, 1, 2},
-	{ssl_commandhandlers+10, "ssl_server_cipher_list", h_server_cipher_list, 1, 2},
-	{ssl_commandhandlers+11, "ssl_client_min_proto_version", h_client_min_proto_version, 1, 2},
-	{ssl_commandhandlers+12, "ssl_server_min_proto_version", h_server_min_proto_version, 1, 2},
-	{ssl_commandhandlers+13, "ssl_client_max_proto_version", h_client_max_proto_version, 1, 2},
-	{ssl_commandhandlers+14, "ssl_server_max_proto_version", h_server_max_proto_version, 1, 2},
-	{ssl_commandhandlers+15, "ssl_client_verify", h_client_verify, 1, 1},
-	{ssl_commandhandlers+16, "ssl_client_no_verify", h_no_client_verify, 1, 1},
+	{ssl_commandhandlers+5, "ssl_server_cert", h_srvcert, 1, 2},
+	{ssl_commandhandlers+6, "ssl_server_key", h_srvkey, 1, 2},
+	{ssl_commandhandlers+7, "ssl_server_ca_file", h_server_ca_file, 1, 2},
+	{ssl_commandhandlers+8, "ssl_server_ca_key", h_server_ca_key, 1, 2},
+	{ssl_commandhandlers+9, "ssl_client_ca_file", h_client_ca_file, 1, 2},
+	{ssl_commandhandlers+10, "ssl_client_ca_dir", h_client_ca_dir, 1, 2},
+	{ssl_commandhandlers+11, "ssl_client_ca_store", h_client_ca_store, 1, 2},
+	{ssl_commandhandlers+12, "ssl_client_ciphersuites", h_client_ciphersuites, 1, 2},
+	{ssl_commandhandlers+13, "ssl_server_ciphersuites", h_server_ciphersuites, 1, 2},
+	{ssl_commandhandlers+14, "ssl_client_cipher_list", h_client_cipher_list, 1, 2},
+	{ssl_commandhandlers+15, "ssl_server_cipher_list", h_server_cipher_list, 1, 2},
+	{ssl_commandhandlers+16, "ssl_client_min_proto_version", h_client_min_proto_version, 1, 2},
+	{ssl_commandhandlers+17, "ssl_server_min_proto_version", h_server_min_proto_version, 1, 2},
+	{ssl_commandhandlers+18, "ssl_client_max_proto_version", h_client_max_proto_version, 1, 2},
+	{ssl_commandhandlers+19, "ssl_server_max_proto_version", h_server_max_proto_version, 1, 2},
+	{ssl_commandhandlers+20, "ssl_client_verify", h_client_verify, 1, 1},
+	{ssl_commandhandlers+21, "ssl_client_no_verify", h_no_client_verify, 1, 1},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
@@ -736,10 +810,24 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 	server_min_proto_version = 0;
 	server_max_proto_version = 0;
 	client_verify = 0;
+	free(client_ciphersuites);
 	client_ciphersuites = NULL;
+	free(server_ciphersuites);
 	server_ciphersuites = NULL;
+	free(client_cipher_list);
 	client_cipher_list = NULL;
+	free(server_cipher_list);
 	server_cipher_list = NULL;
+	free(server_ca_file);
+	server_ca_file = NULL;
+	free(server_ca_key);
+	server_ca_key = NULL;
+	free(client_ca_file);
+	client_ca_file = NULL;
+	free(client_ca_dir);
+	client_ca_dir = NULL;
+	free(client_ca_store);
+	client_ca_store = NULL;
 
 
 	if(!ssl_loaded){

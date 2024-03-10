@@ -29,6 +29,9 @@ struct ssl_config {
     char * server_ciphersuites;
     char * client_cipher_list;
     char * server_cipher_list;
+    char * client_ca_file;
+    char * client_ca_dir;
+    char * client_ca_store;
 };
 
 typedef struct ssl_config SSL_CONFIG;
