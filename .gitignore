@@ -21,6 +21,7 @@ bin/pop3p
 bin/smtpp
 bin/ftppr
 bin/mycrypt
+bin/tlspr
 bin64/
 dll/
 tmp/
