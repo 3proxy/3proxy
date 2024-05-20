@@ -297,6 +297,7 @@ void * autochild(struct clientparam * param);
 void * udppmchild(struct clientparam * param);
 void * adminchild(struct clientparam * param);
 void * ftpprchild(struct clientparam * param);
+void * tlsprchild(struct clientparam * param);
 
 
 struct datatype;

@@ -18,7 +18,7 @@ unsigned char * commands[] = {(unsigned char *)"UNKNOWN", (unsigned char *)"CONN
 static void printcommand(unsigned char * buf, int command, struct clientparam *param){
     sprintf((char *)buf, "%s ", commands[command]);
     if(param->hostname){
-	sprintf((char *)buf + strlen((char *)buf), "%.265s", param->hostname);
+	sprintf((char *)buf + strlen((char *)buf), "%.256s", param->hostname);
     }
     else 
 	myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + strlen((char *)buf), 64);

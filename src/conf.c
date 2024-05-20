@@ -238,6 +238,13 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_TCPPM;
 		childdef.helpmessage = "";
 	}
+	else if(!strcmp((char *)argv[0], "tlspr")) {
+		childdef.pf = tlsprchild;
+		childdef.port = 1443;
+		childdef.isudp = 0;
+		childdef.service = S_TLSPR;
+		childdef.helpmessage = "";
+	}
 	else if(!strcmp((char *)argv[0], "udppm")) {
 		childdef.pf = udppmchild;
 		childdef.port = 0;
@@ -756,6 +763,7 @@ static int h_parent(int argc, unsigned char **argv){
 	else if(!strcmp((char *)argv[2], "socks4b"))chains->type = R_SOCKS4B;
 	else if(!strcmp((char *)argv[2], "socks5b"))chains->type = R_SOCKS5B;
 	else if(!strcmp((char *)argv[2], "pop3"))chains->type = R_POP3;
+	else if(!strcmp((char *)argv[2], "tls"))chains->type = R_TLS;
 	else if(!strcmp((char *)argv[2], "ftp"))chains->type = R_FTP;
 	else if(!strcmp((char *)argv[2], "admin"))chains->type = R_ADMIN;
 	else if(!strcmp((char *)argv[2], "extip"))chains->type = R_EXTIP;
@@ -1618,8 +1626,9 @@ struct commands commandhandlers[]={
 	{commandhandlers+63, "parentretries", h_parentretries, 2, 2},
 	{commandhandlers+64,  "auto", h_proxy, 1, 0},
 	{commandhandlers+65, "backlog", h_backlog, 2, 2},
+	{commandhandlers+66,  "tlspr", h_proxy, 1, 0},
 #ifndef NORADIUS
-	{commandhandlers+66, "radius", h_radius, 3, 0},
+	{commandhandlers+67, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };

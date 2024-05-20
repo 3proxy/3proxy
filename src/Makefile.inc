@@ -2,7 +2,7 @@
 # 3 proxy common Makefile
 #
 
-all:	$(BUILDDIR)3proxy$(EXESUFFICS) $(BUILDDIR)mycrypt$(EXESUFFICS) $(BUILDDIR)pop3p$(EXESUFFICS) $(BUILDDIR)smtpp$(EXESUFFICS) $(BUILDDIR)ftppr$(EXESUFFICS) $(BUILDDIR)tcppm$(EXESUFFICS) $(BUILDDIR)udppm$(EXESUFFICS) $(BUILDDIR)socks$(EXESUFFICS) $(BUILDDIR)proxy$(EXESUFFICS) allplugins
+all:	$(BUILDDIR)3proxy$(EXESUFFICS) $(BUILDDIR)mycrypt$(EXESUFFICS) $(BUILDDIR)pop3p$(EXESUFFICS) $(BUILDDIR)smtpp$(EXESUFFICS) $(BUILDDIR)ftppr$(EXESUFFICS) $(BUILDDIR)tcppm$(EXESUFFICS) $(BUILDDIR)tlspr$(EXESUFFICS) $(BUILDDIR)udppm$(EXESUFFICS) $(BUILDDIR)socks$(EXESUFFICS) $(BUILDDIR)proxy$(EXESUFFICS) allplugins
 
 
 sockmap$(OBJSUFFICS): sockmap.c proxy.h structures.h
@@ -41,6 +41,10 @@ ftppr$(OBJSUFFICS): ftppr.c proxy.h structures.h proxymain.c
 tcppm$(OBJSUFFICS): tcppm.c proxy.h structures.h proxymain.c
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP tcppm.c
 
+tlspr$(OBJSUFFICS): tlspr.c proxy.h structures.h proxymain.c
+	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP tlspr.c
+
+
 socks$(OBJSUFFICS): socks.c proxy.h structures.h proxymain.c
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP socks.c
 
@@ -68,6 +72,9 @@ $(BUILDDIR)socks$(EXESUFFICS): sockmap$(OBJSUFFICS) socks$(OBJSUFFICS) sockgetch
 $(BUILDDIR)tcppm$(EXESUFFICS): sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tcppm$(OBJSUFFICS) common$(OBJSUFFICS) log$(OBJSUFFICS)
 	$(LN) $(LNOUT)$(BUILDDIR)tcppm$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tcppm$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) $(LIBS)
 
+$(BUILDDIR)tlspr$(EXESUFFICS): sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tlspr$(OBJSUFFICS) common$(OBJSUFFICS) log$(OBJSUFFICS)
+	$(LN) $(LNOUT)$(BUILDDIR)tlspr$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tlspr$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) $(LIBS)
+
 $(BUILDDIR)udppm$(EXESUFFICS): sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) udppm$(OBJSUFFICS) common$(OBJSUFFICS) log$(OBJSUFFICS)
 	$(LN) $(LNOUT)$(BUILDDIR)udppm$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) udppm$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) $(LIBS)
 
@@ -90,6 +97,9 @@ srvftppr$(OBJSUFFICS): ftppr.c proxy.h structures.h
 
 srvtcppm$(OBJSUFFICS): tcppm.c proxy.h structures.h
 	$(CC) $(COUT)srvtcppm$(OBJSUFFICS) $(CFLAGS) tcppm.c
+
+srvtlspr$(OBJSUFFICS): tlspr.c proxy.h structures.h
+	$(CC) $(COUT)srvtlspr$(OBJSUFFICS) $(CFLAGS) tlspr.c
 
 srvauto$(OBJSUFFICS): auto.c proxy.h structures.h
 	$(CC) $(COUT)srvauto$(OBJSUFFICS) $(CFLAGS) auto.c
@@ -146,6 +156,6 @@ ntlm$(OBJSUFFICS):  ntlm.c
 stringtable$(OBJSUFFICS):  stringtable.c
 	$(CC) $(COUT)stringtable$(OBJSUFFICS) $(CFLAGS) stringtable.c
 
-$(BUILDDIR)3proxy$(EXESUFFICS): 3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) auth$(OBJSUFFICS) authradius$(OBJSUFFICS) conf$(OBJSUFFICS) log$(OBJSUFFICS) datatypes$(OBJSUFFICS) md4$(OBJSUFFICS) md5$(OBJSUFFICS) mycrypt$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) smbdes$(OBJSUFFICS) ntlm$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) $(COMPATLIBS) $(VERSIONDEP)
-	$(LN) $(LNOUT)$(BUILDDIR)3proxy$(EXESUFFICS) $(LDFLAGS) $(VERFILE)  3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) auth$(OBJSUFFICS) authradius$(OBJSUFFICS) conf$(OBJSUFFICS) datatypes$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) log$(OBJSUFFICS) mycrypt$(OBJSUFFICS) md5$(OBJSUFFICS) md4$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) smbdes$(OBJSUFFICS) ntlm$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) $(COMPATLIBS) $(LIBS)
+$(BUILDDIR)3proxy$(EXESUFFICS): 3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) auth$(OBJSUFFICS) authradius$(OBJSUFFICS) conf$(OBJSUFFICS) log$(OBJSUFFICS) datatypes$(OBJSUFFICS) md4$(OBJSUFFICS) md5$(OBJSUFFICS) mycrypt$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) smbdes$(OBJSUFFICS) ntlm$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) $(COMPATLIBS) $(VERSIONDEP)
+	$(LN) $(LNOUT)$(BUILDDIR)3proxy$(EXESUFFICS) $(LDFLAGS) $(VERFILE)  3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) auth$(OBJSUFFICS) authradius$(OBJSUFFICS) conf$(OBJSUFFICS) datatypes$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) log$(OBJSUFFICS) mycrypt$(OBJSUFFICS) md5$(OBJSUFFICS) md4$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) smbdes$(OBJSUFFICS) ntlm$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) $(COMPATLIBS) $(LIBS)
 

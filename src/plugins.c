@@ -68,13 +68,15 @@ struct symbol symbols[] = {
 	{symbols+41, "admin", (void *) adminchild},
 	{symbols+42, "ftppr", (void *) ftpprchild},
 	{symbols+43, "smtpp", (void *) smtppchild},
-	{symbols+44, "authfuncs", (void *) &authfuncs},
-	{symbols+45, "commandhandlers", (void *) &commandhandlers},
-	{symbols+46, "decodeurl", (void *) decodeurl},
-	{symbols+47, "parsestr", (void *) parsestr},
-	{symbols+48, "make_ace", (void *) make_ace},
-	{symbols+49, "freeacl", (void *) freeacl},
-	{symbols+50, "handleredirect", (void *) handleredirect},
+	{symbols+44, "auto", (void *) smtppchild},
+	{symbols+45, "tlspr", (void *) smtppchild},
+	{symbols+46, "authfuncs", (void *) &authfuncs},
+	{symbols+47, "commandhandlers", (void *) &commandhandlers},
+	{symbols+48, "decodeurl", (void *) decodeurl},
+	{symbols+49, "parsestr", (void *) parsestr},
+	{symbols+50, "make_ace", (void *) make_ace},
+	{symbols+51, "freeacl", (void *) freeacl},
+	{symbols+52, "handleredirect", (void *) handleredirect},
 	{NULL, "", NULL}
 };
 

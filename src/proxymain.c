@@ -383,6 +383,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'p':
 			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
 			break;
+		 case 'P':
+			srv.targetport = ntohs(atoi(argv[i]+2));
+			break;
 		 case '4':
 		 case '6':
 			srv.family = atoi(argv[i]+1);
@@ -413,6 +416,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case 'h':
 			hostname = argv[i] + 2;
+			break;
+		 case 'c':
+			srv.requirecert = 1;
+			if(isdigit(argv[i][2])) srv.requirecert = atoi(argv[i]+2);
 			break;
 		 case 'r':
 			cbc_string = (unsigned char *)mystrdup(argv[i] + 2);

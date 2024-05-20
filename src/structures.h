@@ -168,10 +168,10 @@ typedef enum {
 
 
 typedef enum {
-	S_NOSERVICE,
+	S_NOSERVICE = 0,
 	S_PROXY,
 	S_TCPPM,
-	S_POP3P,
+	S_POP3P = 3,
 	S_SOCKS4 = 4,	/* =4 */
 	S_SOCKS5 = 5,	/* =5 */
 	S_UDPPM,
@@ -184,7 +184,8 @@ typedef enum {
 	S_REVLI,
 	S_REVCO,
 	S_ZOMBIE,
-	S_AUTO
+	S_AUTO,
+	S_TLSPR
 }PROXYSERVICE;
 
 struct clientparam;
@@ -279,7 +280,8 @@ typedef enum {
 	R_SOCKS4B,
 	R_SOCKS5B,
 	R_ADMIN,
-	R_EXTIP
+	R_EXTIP,
+	R_TLS
 } REDIRTYPE;
 
 struct chain {
@@ -487,6 +489,7 @@ struct srvparam {
 	int anonymous;
 	int clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;
 	int gracetraf, gracenum, gracedelay;
+	int requirecert;
 #ifdef WITHSPLICE
 	int usesplice;
 #endif

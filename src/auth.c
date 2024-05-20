@@ -302,6 +302,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					case R_SMTP:
 						param->redirectfunc = smtppchild;
 						break;
+					case R_TLS:
+						param->redirectfunc = tlsprchild;
+						break;
 					default:
 						param->redirectfunc = proxychild;
 				}
