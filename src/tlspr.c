@@ -38,7 +38,7 @@ int readtls(struct clientparam *param, int direction, unsigned char *buf, int bu
 #define PROTOLEN (32)
 
 
-int parsehello(int type, unsigned char *hello, int len, unsigned char *sni, int *lv, unsigned char * proto){
+int parsehello(int type, unsigned char *hello, int len, char *sni, int *lv, char * proto){
     int hlen;
     unsigned offset;
     int slen;
@@ -174,10 +174,10 @@ int tlstobufsrv(struct clientparam *param, int offset){
 
 void * tlsprchild(struct clientparam* param) {
  int res;
- unsigned char sni[SNILEN];
+ char sni[SNILEN];
  char req[SNILEN+PROTOLEN+16];
  int lv=-1;
- unsigned char proto[PROTOLEN]="-";
+ char proto[PROTOLEN]="-";
  
  res = tlstobufcli(param, 0);
  if(res <= 0 || param->clibuf[0] != 22){
@@ -192,7 +192,7 @@ void * tlsprchild(struct clientparam* param) {
 	    param->hostname = NULL;
 	}
 	else if (parsehostname(sni, param, param->srv->targetport? param->srv->targetport:443)) RETURN (100);
-	if (!param->hostname)param->hostname = mystrdup((char *)sni);
+	if (!param->hostname)param->hostname = (unsigned char *)mystrdup(sni);
     }
     else if (res < 0 && param->srv->requirecert) RETURN(310-res);
  }
@@ -274,8 +274,8 @@ void * tlsprchild(struct clientparam* param) {
  RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
 CLEANRET:
  
- sprintf(req, "%sv%d.%d %s %s", lv<0?"NONE":lv?"TLS":"SSL", lv<0?0:lv?1:3, lv<0?0:lv?lv-1:0, param->hostname?param->hostname:"-", proto);
- dolog(param, req);
+ sprintf(req, "%sv%d.%d %s %s", lv<0?"NONE":lv?"TLS":"SSL", lv<0?0:lv?1:3, lv<0?0:lv?lv-1:0, param->hostname?(char *)param->hostname:"-", proto);
+ dolog(param, (unsigned char *)req);
  freeparam(param);
  return (NULL);
 }
