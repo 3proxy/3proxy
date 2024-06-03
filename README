@@ -3,7 +3,7 @@
 
 
 Branches:
-Master (stable) branch - 3proxy 0.9 
+Master (stable) branch - 3proxy 0.9
 Devel branch - 3proxy 10
 
 
@@ -179,7 +179,7 @@ Please read doc/html/index.html and man pages.
 proxy    	HTTP proxy server, binds to port 3128
 ftppr    	FTP proxy server, binds to port 21
 socks    	SOCKS 4/5 proxy server, binds to port 1080
-ftppr		FTP proxy server, please do not mess it with FTP over HTTP
+ftppr		FTP proxy server, please do not confuse it with FTP over HTTP
 		proxy used in browsers
 pop3p    	POP3 proxy server, binds to port 110. You must specify
 		POP3 username as username@target.host.ip[:port]
@@ -202,7 +202,7 @@ udppm    	UDP port mapping. Maps some UDP port on local machine to
 		in small network or to map Counter-Strike server for single
 		client (you can use few mappings on different ports for
 		different clients in last case).
-mycrypt    	Program to obtain crypted password fro cleartext. Supports
+mycrypt    	Program to obtain crypted password from cleartext. Supports
 		both MD5/crypt and NT password.
 			mycrypt password
 		produces NT password
