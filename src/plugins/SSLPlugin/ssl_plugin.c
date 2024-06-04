@@ -211,7 +211,11 @@ static int WINAPI ssl_closesocket(void *state, SOCKET s){
 	return sso._closesocket(sso.state, s);
 }
 
+#ifdef _WIN32
 static int WINAPI ssl_poll(void *state, struct pollfd *fds, unsigned int nfds, int timeout){
+#else
+static int ssl_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
+#endif
 	struct SSLsock *sslq = NULL;
 	unsigned int i;
 	int ret = 0;
