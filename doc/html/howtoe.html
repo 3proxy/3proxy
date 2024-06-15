@@ -290,7 +290,7 @@ Also, you must specify logformat to build SQL query, to insert recod into
 log, see <A HREF="#LOGFORMAT">How to setup logging format</A>
 </p>
 <p>
-Rotation and archiving may be set up with log, rotate � archiver commands
+Rotation and archiving may be set up with log, rotate ¨ archiver commands
 <pre>
 	log filename LOGTYPE
 </pre>
@@ -366,12 +366,19 @@ logformat "L%t.%. %N.%p %E %U %C:%c %R:%r %O %I %h %T"
 <br>(no line breaks)
 </p>
 <p>
-	If ODBC used, logformat should specify SQL command,
+	If ODBC is used, logformat should specify SQL command,
 	to insert record into log, for example
 <p><pre>
 logformat "-\'+_GINSERT INTO proxystat  VALUES (%t, '%c', '%U', %I)"</pre>
 <br>(no line breaks)
 <br>-\'+_ instructs to replace characters \ and ' with _
+</p>
+<p>
+	If no log format is set, it will fall back to the default log format:
+	<pre>
+		logformat "G%y%m%d%H%M%S.%. %p %E %U %C:%c %R:%r %O %I %h %T"
+	</pre>
+	
 </p>
 		<li><A NAME="LOGANALIZERS">How to use log analizers with 3proxy</A>
 <p>
@@ -474,7 +481,7 @@ proxy -p8080 -i192.168.2.1
   </p>
   <li><a name="ISFTP"><i>How to setup FTP proxy</i></a></li>
   <p>
-  There is FTP over HTTP (what is called FTP proxy in browsers) and FTP over FTP �ப�
+  There is FTP over HTTP (what is called FTP proxy in browsers) and FTP over FTP ¯à®ªá¨
   (what is called FTP proxy in file managers and FTP clients). For browsers, there is no need to start additional
   proxy service, 'proxy' supports FTP over HTTP, configure 'proxy' port as an FTP proxy. For ftp clients and file
   managers use ftppr. FTP proxy supports both active and passive mode with client, but always use passive mode with FTP servers.
@@ -704,7 +711,7 @@ no need to run these services expicitly. Local redirections are usefull if
 you want to see and control via ACLs protocol specific parameters, e.g.
 filenames requests thorugh FTP while clients are using SOCKS.
 </p>
-    <li><a name="SOCKSREDIR">��� �ࠢ���� ������묨 ��७��ࠢ����ﬨ</a>
+    <li><a name="SOCKSREDIR"> ª ã¯à ¢«ïâì «®ª «ì­ë¬¨ ¯¥à¥­ ¯à ¢«¥­¨ï¬¨</a>
 <p>
 <p><i>Q: What is it for?</i></p>
 A: To have control based on request and to have URLs and another protocol specific parameters to be logged.
