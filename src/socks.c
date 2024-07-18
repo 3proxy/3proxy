@@ -421,8 +421,8 @@ fflush(stderr);
 								size = 16;
 							case 1:
 								i = 4+size;
-								memcpy(SAADDR(&param->sinsr), buf+4, size);
 								*SAFAMILY(&param->sinsr) = (size == 4)?AF_INET:AF_INET6;
+								memcpy(SAADDR(&param->sinsr), buf+4, size);
 								break;
 							case 3:
 								size = buf[4];
