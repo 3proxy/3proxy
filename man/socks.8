@@ -42,6 +42,16 @@ of IP-IP NAT (will not work for PAT)
 Internal address. IP address proxy accepts connections to.
 By default connection to any interface is accepted. It\'s usually unsafe.
 .TP
+.B -k
+External address given by
+.B -e
+is ignored and the internal address or generally the address client conected to is used instead.
+This allows to utilize AnyIP Linux feature when
+.B -i0.0.0.0
+or in case of IPv6
+.B -i::
+is set. Not available for Windows platform.
+.TP
 .B -p
 Port. Port proxy listens for incoming connections. Default is 1080.
 .TP
