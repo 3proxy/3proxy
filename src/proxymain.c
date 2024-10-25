@@ -239,6 +239,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	"\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
+#ifndef _WIN32
+	" -k outgoing connection will have local IP where client connected, thus ignores -e (useful in AnyIP case)\n"
+#endif
 	" -rHOST:PORT Use IP:port for connect back proxy instead of listen port\n"
 	" -RHOST:PORT Use PORT to listen connect back proxy connection to pass data to\n"
 	" -4 Use IPv4 for outgoing connections\n"
@@ -377,6 +380,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 			}
 			break;
+#ifndef _WIN32
+		 case 'k':
+			{
+				srv.keepip = 1;
+			}
+			break;
+#endif
 		 case 'N':
 			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extNat);
 			break;
@@ -763,6 +773,34 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 		else {
 			new_sock = srv.so._accept(srv.so.state, sock, (struct sockaddr*)&defparam.sincr, &size);
+
+			if (srv.keepip) {
+#ifndef NOIPV6
+				struct sockaddr_in6 local_addr;
+				socklen_t local_addr_len = sizeof(local_addr);
+				getsockname(new_sock, (struct sockaddr *)&local_addr, &local_addr_len);
+
+				if(*SAFAMILY(&local_addr) == AF_INET6) {
+					if (IN6_IS_ADDR_V4MAPPED(&local_addr.sin6_addr)) {
+						struct sockaddr_in6 local_addr2;
+						memset(&local_addr2, 0, sizeof(local_addr2));
+						local_addr2.sin6_family = AF_INET;
+						local_addr2.sin6_port = local_addr.sin6_port;
+						srv.extsa = local_addr2;
+					} else {
+						srv.extsa6 = local_addr;
+					}
+				} else {
+					srv.extsa = local_addr;
+				}
+#else
+				struct sockaddr_in local_addr;
+				socklen_t local_addr_len = sizeof(local_addr);
+				getsockname(new_sock, (struct sockaddr *)&local_addr, &local_addr_len);
+
+				srv.extsa = local_addr;
+#endif
+			}
 			if(new_sock == INVALID_SOCKET){
 #ifdef _WIN32
 				switch(WSAGetLastError()){
@@ -938,6 +976,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->logdumpcli = conf.logdumpcli;
  srv->cbsock = INVALID_SOCKET; 
  srv->needuser = 1;
+ srv->keepip = 0;
 #ifdef WITHSPLICE
  srv->usesplice = 1;
 #endif

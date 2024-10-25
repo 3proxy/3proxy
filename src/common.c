@@ -531,6 +531,11 @@ int doconnect(struct clientparam * param){
 	setopts(param->remsock, param->srv->srvsockopts);
 
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+
+	if (param->srv->keepip) {
+		int opt = 1;
+		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_IP, IP_FREEBIND, (char *)&opt, sizeof(int));
+	}
 #ifdef REUSE
 	{
 		int opt;
