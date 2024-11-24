@@ -181,7 +181,22 @@ void * tlsprchild(struct clientparam* param) {
  
  res = tlstobufcli(param, 0);
  if(res <= 0 || param->clibuf[0] != 22){
-     if(param->srv->requirecert)RETURN(300-res);
+	param->operation = CONNECT;
+	res = (*param->srv->authfunc)(param);
+	if(res) {RETURN(res);}
+	if (param->npredatfilters){
+		int action;
+			action = handlepredatflt(param);
+			if(action == HANDLED){
+					RETURN(0);
+			}
+			if(action != PASS) RETURN(19);
+	}
+	if(param->redirectfunc){
+		return (*param->redirectfunc)(param);
+	}
+
+	RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
  }
  else {
     lv = param->clibuf[2];
