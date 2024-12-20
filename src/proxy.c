@@ -149,7 +149,7 @@ static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
 	sb = strchr(buf, '\r');
 	if(sb)*sb = 0;
 	if(ftp && (se = strchr(buf + 10, ':')) && (sb = strchr(se, '@')) ) {
-		strcpy(se, sb);
+		memmove(se, sb, strlen(sb)+1);
 	}
  }
  if(param->res != 555 && param->res != 508)dolog(param, (unsigned char *)(req?buf:NULL));

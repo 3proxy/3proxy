@@ -121,7 +121,7 @@ int ftpsyst(struct clientparam *param, unsigned char *buf, unsigned len){
 	buf[3] = 0;
 	if(atoi((char *)buf)/100 != 2) return 723;
 	buf[i-2] = 0;
-	strcpy((char *)buf, (char *)buf+4);
+	memmove((char *)buf, (char *)buf+4, strlen((char *)buf+4)+1);
 	return 0;
 }
 
@@ -145,7 +145,7 @@ int ftppwd(struct clientparam *param, unsigned char *buf, unsigned len){
 		b++;
 		*e = 0;
 	}
-	strcpy((char *)buf, b);
+	memmove((char *)buf, b, strlen(b)+1);
 	return 0;
 }
 
