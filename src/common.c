@@ -475,22 +475,36 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 		struct pollfd fds[1];
+		int err;
 #ifdef _WIN32
 		unsigned long ul = 1;
 		ioctlsocket(sock, FIONBIO, &ul);
 #else
 		fcntl(sock,F_SETFL, O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
-		if(param?param->srv->so._connect(param->sostate, sock,sa,size) : so._connect(so.state, sock,sa,size)) {
+		err = param ? param->srv->so._connect(param->sostate, sock,sa,size) : so._connect(so.state, sock,sa,size);
+		if(err) {
 			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
 		}
 		if(!errno) return 0;
-	        memset(fds, 0, sizeof(fds));
-	        fds[0].fd = sock;
-	        fds[0].events = POLLOUT|POLLIN;
-		if((param?param->srv->so._poll(param->sostate, fds, 1, to*1000):so._poll(so.state, fds, 1, to*1000)) <= 0 || !(fds[0].revents & POLLOUT)) {
+
+		memset(fds, 0, sizeof(fds));
+		fds[0].fd = sock;
+		fds[0].events = POLLOUT|POLLIN;
+
+		err = param ? param->srv->so._poll(param->sostate, fds, 1, to*1000) : so._poll(so.state, fds, 1, to*1000);
+		if(err <= 0 || !(fds[0].revents & POLLOUT)) {
 			return (13);
 		}
+
+		int sock_err;
+		socklen_t len = sizeof(sock_err);
+
+		err = param ? param->srv->so._getsockopt(param->sostate, sock, SOL_SOCKET, SO_ERROR, &sock_err, &len) : so._getsockopt(so.state, sock, SOL_SOCKET, SO_ERROR, &sock_err, &len);
+		if(err || sock_err > 0) {
+			return (13);
+		}
+
 		return 0;
 }
 
