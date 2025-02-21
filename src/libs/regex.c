@@ -386,7 +386,20 @@ int cflags;
 		len = preg->re_endp - pattern;
 	} else
 		len = strlen((char *)pattern);
-
+    /*
+	 Find the maximum len we can safely process
+	 without a rollover and a mis-malloc.
+	 p->ssize is a sopno is a long (32+ bit signed);
+	 size_t is 16+ bit unsigned.
+	*/
+	{
+	  size_t new_ssize = len / (size_t)2 * (size_t)3 + (size_t)1; /* ugh */
+	  if ((new_ssize < len) ||	/* size_t rolled over */
+	      ((SIZE_T_MAX / sizeof(sop)) < new_ssize) ||	/* malloc arg */
+	      (new_ssize > LONG_MAX))	/* won't fit in ssize */
+		return(REG_ESPACE);	/* MY_REG_ESPACE or MY_REG_INVARG */
+	  p->ssize = new_ssize;
+	}
 	/* do the mallocs early so failure handling is easy */
 	g = (struct re_guts *)malloc(sizeof(struct re_guts) +
 							(NC-1)*sizeof(cat_t));
