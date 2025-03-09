@@ -76,7 +76,7 @@ Please read doc/html/index.html and man pages.
 	  SocksCAP/FreeCAP for UDP)
 	+ Transparent SOCKS redirection for HTTP, POP3, FTP, SMTP
 	+ SNI proxy (based on TLS hostname)
-	+ TLS (SSL) server
+	+ TLS (SSL) server - may be used as https:// type proxy
 	+ POP3 Proxy
 	+ FTP proxy
 	+ TCP port mapper (port forwarding)
