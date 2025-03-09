@@ -1,5 +1,5 @@
 Name:           3proxy
-Version:        0.9.4
+Version:        0.9.5
 Release:        1
 Summary:        3proxy tiny proxy server
 License:        GPL/LGPL/Apache/BSD
@@ -35,6 +35,7 @@ make clean
 /bin/socks
 /bin/tcppm
 /bin/udppm
+/bin/tlspr
 %config(noreplace) /etc/3proxy/3proxy.cfg
 /etc/3proxy/conf
 /etc/init.d/3proxy
@@ -57,6 +58,7 @@ make clean
 /usr/share/man/man8/socks.8
 /usr/share/man/man8/tcppm.8
 /usr/share/man/man8/udppm.8
+/usr/share/man/man8/tlspr.8
 %else
 /usr/share/man/man3/3proxy.cfg.3.gz
 /usr/share/man/man8/3proxy.8.gz
@@ -67,6 +69,7 @@ make clean
 /usr/share/man/man8/socks.8.gz
 /usr/share/man/man8/tcppm.8.gz
 /usr/share/man/man8/udppm.8.gz
+/usr/share/man/man8/tlspr.8.gz
 %endif
 /var/log/3proxy
 
