@@ -220,8 +220,8 @@ void * tlsprchild(struct clientparam* param) {
     if (res < 0) RETURN(350-res);
  }
  if(param->srv->requirecert > 2){
-    if(lv > 3) RETURN(370);
     int srvcert=0, clicert=0, reqcert=0, len, rlen, done;
+    if(lv > 3) RETURN(370);
     for(done=0;!done;) {
 	len = param->srvinbuf;
 	if(socksend(param, param->clisock, param->srvbuf,len, conf.timeouts[STRING_S]) != len) RETURN(371);
