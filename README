@@ -1,5 +1,5 @@
 # 3APA3A 3proxy tiny proxy server
-(c) 2002-2021 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.org>
+(c) 2002-2025 by Vladimir '3APA3A' Dubrovin <3proxy@3proxy.org>
 
 
 Branches:
@@ -75,6 +75,8 @@ Please read doc/html/index.html and man pages.
 	+ SOCKSv5 UDP and BIND support (fully compatible with
 	  SocksCAP/FreeCAP for UDP)
 	+ Transparent SOCKS redirection for HTTP, POP3, FTP, SMTP
+	+ SNI proxy (based on TLS hostname)
+	+ TLS (SSL) server
 	+ POP3 Proxy
 	+ FTP proxy
 	+ TCP port mapper (port forwarding)
@@ -195,6 +197,7 @@ smtpp    	SMTP proxy server, binds to port 25. You must specify
 		via mail.somehost.ru via proxy.
 tcppm    	TCP port mapping. Maps some TCP port on local machine to
 		TCP port on remote host.
+tlspr    	TLS proxy (SNI proxy) - sniffs hostname from TLS handshake
 udppm    	UDP port mapping. Maps some UDP port on local machine to
 		UDP port on remote machine. Only one user simulationeously
 		can use UDP mapping, so it cann't be used for public service
