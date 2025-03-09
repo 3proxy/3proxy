@@ -32,6 +32,7 @@
 		<li><a href="#BIND">How to bind service to specific interface or port</a>
 		<li><a href="#NAMES">How to resolve names through a parent proxy</a></li>
 		<li><a href="#ISFTP">How to setup FTP proxy</a></li>
+		<li><a href="#TLSPR">How to setup SNI proxy (tlspr)</a></li>
 		<li><A HREF="#AUTH">How to limit service access</A>
 		<li><A HREF="#USERS">How to create user list</A>
 		<li><A HREF="#ACL">How to limit user access to resources</A>
@@ -478,6 +479,37 @@ proxy -p8080 -i192.168.2.1
   (what is called FTP proxy in file managers and FTP clients). For browsers, there is no need to start additional
   proxy service, 'proxy' supports FTP over HTTP, configure 'proxy' port as an FTP proxy. For ftp clients and file
   managers use ftppr. FTP proxy supports both active and passive mode with client, but always use passive mode with FTP servers.
+  </p>
+  <li><a name="TLSPR"><i>How to setup SNI proxy (tlspr)</i></a></li>
+  <p>
+    SNI proxy can be used to transparently redirect any TLS traffic with external router or local redirection rules. It can also be used
+    to extract hostnames from TLS to use in ACLs in combination with SOCKS or HTTP(s) proxy and/or Transparent plugin. It can also be used to require TLS or mTLS between services. TLS hadshake contains no
+    port information, if tlspr is used as a standalone service, destination port may be either detected with Transparent plugin or configured with -P option (default 443).
+  </p><p>    
+    -c option is used  to specify level of TLS check:    
+</p><pre>
+0 (default) - allow non-TLS traffic
+1 - require TLS, only check client HELLO packet
+2 - require TLS, check both client and server HELLO
+3 - require TLS, check server send certificate (not compatible with TLS 1.3)
+4 - require mutual TLS, check server send certificate request and client sends certificate (not compatible with TLS 1.3)    
+</pre>
+<p>
+configuration examples:
+1. port 1443 may be used to redirect traffic to destination port 143). SNI is used to find destination host
+<pre>
+tlspr -p1443 -P443 -c1
+</pre>
+2. used as parent tls to detect destination hostname from TLS in socks
+<pre>
+allow * * * 80
+parent 1000 http 0.0.0.0 0
+allow * * * * CONNECT
+parent 1000 tls 0.0.0.0 0
+deny * * some.not.allowed.host
+allow *
+socks
+</pre>
   </p>
 		<li><A NAME="AUTH">How to limit service access</A>
 <p>

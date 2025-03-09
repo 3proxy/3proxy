@@ -1,0 +1,86 @@
+.TH tlspr "8" "May 2024" "3proxy 0.9" "Universal proxy server"
+.SH NAME
+.B tlspr
+\- SNI proxy gateway service
+.SH SYNOPSIS
+.BR "tlspr " [ -d ][ -a ]
+.IB \fR[ -l \fR[ \fR[ @ \fR] logfile \fR]]
+.IB \fR[ -p listening_port\fR]
+.IB \fR[ -P destination_port\fR]
+.IB \fR[ -c tls_check_level\fR]
+.IB \fR[ -i internal_ip\fR]
+.IB \fR[ -e external_ip\fR]
+.SH DESCRIPTION
+.B proxy
+is SNI gateway service (destination host is taken from TLS handshake). Destination port must be specified via -P option (or it may be detected with Transparent plugin).
+.SH OPTIONS
+.TP
+.B -I
+Inetd mode. Standalone service only.
+.TP
+.B -d
+Daemonise. Detach service from console and run in the background.
+.TP
+.B -t
+Be silenT. Do not log start/stop/accept error records.
+.TP
+.B -u
+Never ask for username authentication
+.TP
+.B -e
+External address. IP address of interface proxy should initiate connections
+from. 
+By default system will deside which address to use in accordance
+with routing table.
+.TP
+.B -i
+Internal address. IP address proxy accepts connections to.
+By default connection to any interface is accepted. It\'s usually unsafe.
+.TP
+.B -a
+Anonymous. Hide information about client.
+.TP
+.B -a1
+Anonymous. Show fake information about client.
+.TP
+.B -p
+listening_port. Port proxy listens for incoming connections. Default is 1443.
+.TP
+.B -P
+destination_port. Port to establish outgoing connections. One is required unless Transparent plugin is not used because TLS handshake does not contain port information. Default is 443.
+.TP
+.B -c
+TLS_CHECK_LEVEL. 0 (default) - allow non-TLS traffic to pass, 1 - require TLS, only check client HELLO packet, 2 - require TLS, check both client and server HELLO, 3 - require TLS, check server send certificate (not compatible with TLS 1.3), 4 - require mutual TLS, check server send certificate request and client sends certificate (not compatible with TLS 1.3)
+.TP
+.B -l
+Log. By default logging is to stdout. If
+.I logfile
+is specified logging is to file. Under Unix, if
+.RI \' @ \'
+preceeds
+.IR logfile ,
+syslog is used for logging.
+.TP
+.B -S
+Increase or decrease stack size. You may want to try something like -S8192 if you experience 3proxy
+crashes.
+.SH CLIENTS
+You should use client with HTTP proxy support or configure router to redirect
+HTTP traffic to proxy (transparent proxy). Configure client to connect to
+.I internal_ip
+and
+.IR port .
+HTTPS support allows to use almost any TCP based protocol. If you need to
+limit clients, use 
+.BR 3proxy (8)
+instead.
+.SH BUGS
+Report all bugs to
+.BR 3proxy@3proxy.org
+.SH SEE ALSO
+3proxy(8), ftppr(8), proxy(8), socks(8), pop3p(8), smtpp(8), tcppm(8), udppm(8), syslogd(8),
+.br
+https://3proxy.org/
+.SH AUTHORS
+3proxy is designed by Vladimir 3APA3A Dubrovin
+.RI ( 3proxy@3proxy.org )

@@ -80,8 +80,17 @@ HTTP/HTTPS proxy (default port 3128)
 .B socks
 SOCKS 4/4.5/5 proxy (default port 1080)
 .br
+.B tlspr
+SNI proxy (destination address is taken from TLS handshake), may be used to redirect any TLS-based traffic
+.br
+.B auto
+Proxy with protocol autoselection between proxy / socks / tlspr 
+.br
 .B pop3p
 POP3 proxy (default port 110)
+.br
+.B smtpp
+SMTP proxy (default port 25)
 .br
 .B ftppr
 FTP proxy (default port 21)
