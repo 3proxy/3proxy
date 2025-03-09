@@ -59,6 +59,7 @@ INSTALL_OBJS	= bin/3proxy \
 		  bin/socks \
 		  bin/tcppm \
 		  bin/udppm
+		  bin/tlspr
 		  
 
 INSTALL_CFG	 = scripts/3proxy.cfg.chroot
