@@ -475,7 +475,7 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 	    char *err;
 
 #ifdef _WIN32
- ul = 0;
+ unsigned long ul = 0;
  ioctlsocket(param->clisock, FIONBIO, &ul);
 #else
  fcntl(param->clisock,F_SETFL,0);
@@ -489,8 +489,10 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 		return REJECT;
 	    }
 #ifdef _WIN32 
-	     ul = 1;
-	     ioctlsocket(param->clisock, FIONBIO, &ul);
+	     {
+		unsigned long ul = 1;
+	     	ioctlsocket(param->clisock, FIONBIO, &ul);
+	     }
 #else
 	     fcntl(param->clisock,F_SETFL,O_NONBLOCK);
 #endif
