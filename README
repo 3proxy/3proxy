@@ -58,7 +58,7 @@ usage: /etc/3proxy/conf/add3proxyuser.sh username password [day_limit] [bandwidt
 
 or modify /etc/3proxy/conf/ files directly.
 
-* For Mac OS / FreeBSD / *BSD
+* For MacOS X / FreeBSD / *BSD
 
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
