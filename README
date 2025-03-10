@@ -4,20 +4,22 @@
 
 Branches:
 Master (stable) branch - 3proxy 0.9 
-Devel branch - 3proxy 10
+Devel branch - 3proxy 10 (don't use it)
 
 
-Download: 
-	Binaries for released (master) versions (Windows, Linux):
+* Download
+	Binaries and sources for released (master) versions (Windows, Linux):
 	https://github.com/z3APA3A/3proxy/releases
-	Binaries for devel version (Windows, Linux):
-	https://3proxy.org/download/devel/
+
 	Docker images:
 	https://hub.docker.com/repository/docker/3proxy/3proxy
-Archive of old versions: https://github.com/z3APA3A/3proxy-archive
+	Archive of old versions: https://github.com/z3APA3A/3proxy-archive
 
+* Documentation
+	Documentation (man pages and HTML) available with download, on https://3proxy.org/
+	and in github wiki https://github.com/3proxy/3proxy/wiki
 
-Windows installation:
+* Windows installation
 
 3proxy --install 
 	
@@ -29,7 +31,9 @@ Windows installation:
 	removes the service (should be stopped before via
 	'net stop 3proxy').
 
-To build in Linux install git and build-essential packages, use
+* To build in Linux
+
+install git and build-essential packages, use
 
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
@@ -54,7 +58,14 @@ usage: /etc/3proxy/conf/add3proxyuser.sh username password [day_limit] [bandwidt
 
 or modify /etc/3proxy/conf/ files directly.
 
-Please read doc/html/index.html and man pages.
+* For Mac OS / FreeBSD / *BSD
+
+git clone https://github.com/z3apa3a/3proxy
+cd 3proxy
+ln -s Makefile.FreeBSD Makefile
+make
+
+(binaries are in bin/ directory)
 
  Features:
   1. General
