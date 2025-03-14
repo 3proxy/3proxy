@@ -32,11 +32,13 @@ jobs:
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
-    - name: dir Windows
+    - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win'
-    - name: make
-#      if: ${{ !startsWith(matrix.target, 'windows') }}
+    - name: SSLPlugin Linux
+      if: ${{ !startsWith(matrix.target, 'windows') }}
+      run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -l:libcrypto.a -l:libssl.a >>Makefile'
+      - name: make
       run: make
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
