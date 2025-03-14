@@ -10,7 +10,7 @@
 
 BUILDDIR = ../bin/
 CC = clang
-CFLAGS = -O2 -fno-strict-aliasing -c -pthread -DWITH_STD_MALLOC -DNOIPV6
+CFLAGS = -O2 -fno-strict-aliasing -c -pthread -DWITH_STD_MALLOC 
 COUT = -o 
 LN = $(CC)
 LDFLAGS = -O2 -fno-strict-aliasing -s
@@ -28,7 +28,7 @@ REMOVECOMMAND = rm -f
 AFTERCLEAN = find src/ -type f -name "*.o" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete
 TYPECOMMAND = cat
 COMPATLIBS =
-MAKEFILE = Makefile.win
+MAKEFILE = Makefile.llvm
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
 
 include Makefile.inc
