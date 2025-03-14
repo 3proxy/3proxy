@@ -29,10 +29,14 @@ jobs:
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
-    - name: dirs Windows
+    - name: dirs Windows 1
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win'
+    - name: dirs Windows 2
+      if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /C 'echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win'
+    - name: dirs Windows 3
+      if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /C 'type Makefile.win'
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
