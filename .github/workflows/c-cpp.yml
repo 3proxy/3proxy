@@ -32,6 +32,9 @@ jobs:
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.msvc64 Makefile
+    - name: make Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: make /F Makefile.msvc64 
     - name: make
       run: make
     - name: mkdir
