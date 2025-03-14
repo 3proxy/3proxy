@@ -39,7 +39,7 @@ jobs:
       if: ${{ !startsWith(matrix.target, 'windows') }}
       run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile'
     - name: SSLPlugin Linux
-      if: ${{ !startsWith(matrix.target, 'windows') }}
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: 'echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
     - name: make
       run: make
