@@ -17,7 +17,9 @@ jobs:
 #      run: ./configure
     - name: make
       run: make -f Makefile.Linux
+    - name: mkdir
+      run: mkdir ~/3proxy
     - name: make install
-      run: make -f Makefile.Linux install
+      run: make DESTDIR=~/3proxy -f Makefile.Linux install
     - name: make clean
       run: make -f Makefile.Linux clean
