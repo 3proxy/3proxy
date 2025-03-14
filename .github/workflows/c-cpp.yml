@@ -31,7 +31,7 @@ jobs:
       run: ln -s Makefile.FreeBSD Makefile
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: copy Makefile.llvm Makefile
+      run: copy Makefile.win Makefile
     - name: dir Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: dir "C:\Program Files\OpenSSL\lib"
@@ -39,7 +39,7 @@ jobs:
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /c set
     - name: make
-      if: ${{ !startsWith(matrix.target, 'windows') }}
+#      if: ${{ !startsWith(matrix.target, 'windows') }}
       run: make
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
