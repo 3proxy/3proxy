@@ -35,12 +35,9 @@ jobs:
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win'
-    - name: SSLPlugin
-      if: ${{ !startsWith(matrix.target, 'windows') }}
-      run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile'
     - name: SSLPlugin Linux
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: 'echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
+      run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
     - name: make
       run: make
     - name: mkdir
