@@ -10,13 +10,13 @@
 
 BUILDDIR = ../bin/
 CC = gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DNOIPV6 -DNORADIUS
+CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL 
 COUT = -o 
 LN = gcc
 LDFLAGS = -O2 -s -mthreads
 DLFLAGS = -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32
+LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32 -lcrypto -lssl
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -28,9 +28,18 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.win
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin SSLPLugin
+VERFILE := 3proxyres.o $(VERFILE)
+VERSION := $(VERSION)
+VERSIONDEP := 3proxyres.o $(VERSIONDEP)
+BUILDDATE := $(BUILDDATE)
+AFTERCLEAN = (find . -type f -name "*.o" -delete && find . -type f -name "*.res" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete) || true
 
 include Makefile.inc
 
+3proxyres.o:
+	windres 3proxy.rc -o 3proxyres.o
+
 allplugins:
-	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;  rm *.o ; cd ../.. ; done
+	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done
+

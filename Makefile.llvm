@@ -10,13 +10,13 @@
 
 BUILDDIR = ../bin/
 CC = clang
-CFLAGS = -O2 -fno-strict-aliasing -c -pthread -static -DWITH_STD_MALLOC -DNOIPV6
+CFLAGS = -O2 -fno-strict-aliasing -c -pthread -DWITH_STD_MALLOC -DWITH_WSAPOLL
 COUT = -o 
 LN = $(CC)
-LDFLAGS = -O2 -fno-strict-aliasing -static -s
+LDFLAGS = -O2 -fno-strict-aliasing -s
 DLFLAGS = -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32
+LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32 -lcrypto -lssl
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -28,10 +28,19 @@ REMOVECOMMAND = rm -f
 AFTERCLEAN = find src/ -type f -name "*.o" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete
 TYPECOMMAND = cat
 COMPATLIBS =
-MAKEFILE = Makefile.win
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
+MAKEFILE = Makefile.llvm
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin SSLPlugin
+VERFILE := 3proxy.res $(VERFILE)
+VERSION := $(VERSION)
+VERSIONDEP := 3proxy.res $(VERSIONDEP)
+BUILDDATE := $(BUILDDATE)
+AFTERCLEAN = (find . -type f -name "*.o" -delete && find . -type f -name "*.res" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete) || true
 
 include Makefile.inc
 
+3proxy.res:
+	llvm-rc 3proxy.rc
+
 allplugins:
-	for /D %%i in ($(PLUGINS)) do (copy Makefile plugins\%%i && copy Makefile.var plugins\%%i && cd plugins\%%i && nmake && del *.o &&cd ..\..)
+	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done
+
