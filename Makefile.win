@@ -33,7 +33,6 @@ PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlu
 include Makefile.inc
 
 allplugins:
-    echo building plugins
-    @list="$(PLUGINS)"; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ; cd ../.. ; done
-
+	echo building plugins
+	@list="$(PLUGINS)"; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ; cd ../.. ; done
 
