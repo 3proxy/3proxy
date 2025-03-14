@@ -17,6 +17,7 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
           - macos-15
+          - windows-2022
     runs-on: ${{ matrix.target }}
     steps:
     - uses: actions/checkout@v4
@@ -28,12 +29,22 @@ jobs:
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
+    - name: ln Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: copy Makefile.win Makefile
+    - name: dirs Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win'
+    - name: SSLPlugin Linux
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
+      run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
     - name: make
-      run: make -f Makefile
+      run: make
     - name: mkdir
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: mkdir ~/3proxy
     - name: make install
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: make DESTDIR=~/3proxy -f Makefile install
+      run: make DESTDIR=~/3proxy install
     - name: make clean
-      run: make -f Makefile clean
+      run: make clean
