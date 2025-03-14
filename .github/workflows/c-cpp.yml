@@ -3,14 +3,19 @@ name: C/C++ CI
 on:
   push:
     branches: [ "master" ]
+    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp.yml' ]
   pull_request:
     branches: [ "master" ]
+    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp.yml' ]
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
+  ci:
+    name: "${{ matrix.target }}"
+    strategy:
+      matrix:
+        target:
+          - ubuntu-latest
+    runs-on: ${{ matrix.target }}
     steps:
     - uses: actions/checkout@v4
 #    - name: configure
