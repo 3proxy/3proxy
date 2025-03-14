@@ -31,7 +31,7 @@ jobs:
       run: ln -s Makefile.FreeBSD Makefile
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo ^>Makefile.win'
+      run: cmd /C 'echo ^>>Makefile.win && type Makefile.win'
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
