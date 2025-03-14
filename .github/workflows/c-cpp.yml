@@ -29,6 +29,9 @@ jobs:
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
+    - name: dirs Windows 0
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: cmd /C 'echo:>>Makefile.win'
     - name: dirs Windows 1
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win'
