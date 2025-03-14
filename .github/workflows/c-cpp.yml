@@ -15,16 +15,24 @@ jobs:
       matrix:
         target:
           - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-15
     runs-on: ${{ matrix.target }}
     steps:
     - uses: actions/checkout@v4
 #    - name: configure
 #      run: ./configure
+    - name: ln Linux
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
+      run: ln -s Makefile.Linux Makefile
+    - name: ln Mac
+      if: ${{ startsWith(matrix.target, 'macos') }}
+      run: ln -s Makefile.FreeBSD Makefile
     - name: make
-      run: make -f Makefile.Linux
+      run: make -f Makefile
     - name: mkdir
       run: mkdir ~/3proxy
     - name: make install
-      run: make DESTDIR=~/3proxy -f Makefile.Linux install
+      run: make DESTDIR=~/3proxy -f Makefile install
     - name: make clean
-      run: make -f Makefile.Linux clean
+      run: make -f Makefile clean
