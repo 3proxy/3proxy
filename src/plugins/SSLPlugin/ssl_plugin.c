@@ -438,18 +438,14 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    if(sc->client_cipher_list)SSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_cipher_list);
 	    if(sc->client_ciphersuites)SSL_CTX_set_ciphersuites(sc->srv_ctx, sc->client_ciphersuites);
 	    if(sc->client_verify){
-		if(sc->client_ca_file && sc->client_ca_dir){
+		if(sc->client_ca_file || sc->client_ca_dir){
 		    SSL_CTX_load_verify_locations(sc->srv_ctx, sc->client_ca_file, sc->client_ca_dir);
 		}
-		else if(sc->client_ca_file){
-		    SSL_CTX_load_verify_file(sc->srv_ctx, sc->client_ca_file);
-		}
-		else if(sc->client_ca_dir){
-		    SSL_CTX_load_verify_dir(sc->srv_ctx, sc->client_ca_dir);
-		}
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 		else if(sc->client_ca_store){
 		    SSL_CTX_load_verify_store(sc->srv_ctx, sc->client_ca_store);
-		}		
+		}
+#endif		
 		else 
 		    SSL_CTX_set_default_verify_paths(sc->srv_ctx);
 		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER, verify_callback);
