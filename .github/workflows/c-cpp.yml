@@ -34,10 +34,7 @@ jobs:
       run: copy Makefile.win Makefile
     - name: dir Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: gcc -print-search-dirs
-    - name: set Windows
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /c set
+      run: echo LIBS= -L c:/program files/openssl/lib;$LIBS >>Makefile.win
     - name: make
 #      if: ${{ !startsWith(matrix.target, 'windows') }}
       run: make
