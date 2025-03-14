@@ -31,7 +31,9 @@ jobs:
       run: ln -s Makefile.FreeBSD Makefile
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo ^>>Makefile.win && type Makefile.win'
+      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win'
+      run: cmd /C 'echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win'
+      run: cmd /C 'type Makefile.win'
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
