@@ -16,7 +16,7 @@ LN = $(CC)
 LDFLAGS = -O2 -fno-strict-aliasing -s
 DLFLAGS = -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32 -llibcrypto.lib -llibssl.lib
+LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -29,7 +29,7 @@ AFTERCLEAN = find src/ -type f -name "*.o" -delete && find src/ -type f -name "M
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.llvm
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin SSLPLugin
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
 
 include Makefile.inc
 
