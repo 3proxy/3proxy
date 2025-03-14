@@ -10,7 +10,7 @@
 
 BUILDDIR = ../bin/
 CC = gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL 
+CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL -DWIN32 -D_WIN32
 COUT = -o 
 LN = gcc
 LDFLAGS = -O2 -s -mthreads
