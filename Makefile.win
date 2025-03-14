@@ -10,13 +10,13 @@
 
 BUILDDIR = ../bin/
 CC = gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC
+CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL 
 COUT = -o 
 LN = gcc
 LDFLAGS = -O2 -s -mthreads
 DLFLAGS = -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32
+LIBS = -lws2_32 -lodbc32 -ladvapi32 libcrypto.lib libssl.lib
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -28,7 +28,7 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.win
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin SSLPLugin
 
 include Makefile.inc
 
