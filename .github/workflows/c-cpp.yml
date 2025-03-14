@@ -18,6 +18,6 @@ jobs:
     - name: make
       run: make -f Makefile.Linux
     - name: make install
-      run: make install
+      run: make -f Makefile.Linux install
     - name: make clean
-      run: make clean
+      run: make -f Makefile.Linux clean
