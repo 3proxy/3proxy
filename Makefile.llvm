@@ -10,13 +10,13 @@
 
 BUILDDIR = ../bin/
 CC = clang
-CFLAGS = -O2 -fno-strict-aliasing -c -pthread -DWITH_STD_MALLOC 
+CFLAGS = -O2 -fno-strict-aliasing -c -pthread -DWITH_STD_MALLOC -DWITH_SSL -DWITH_WSAPOLL
 COUT = -o 
 LN = $(CC)
 LDFLAGS = -O2 -fno-strict-aliasing -s
 DLFLAGS = -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32
+LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32 -lcrypto.lib -ssl.lib
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
