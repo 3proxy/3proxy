@@ -29,18 +29,9 @@ jobs:
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
-    - name: dirs Windows 0
+    - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo:>>Makefile.win'
-    - name: dirs Windows 1
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win'
-    - name: dirs Windows 2
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win'
-    - name: dirs Windows 3
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'type Makefile.win'
+      run: cmd /C 'echo:>>Makefile.win && echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win'
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
@@ -49,9 +40,6 @@ jobs:
       run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
     - name: make
       run: make
-    - name: ln Windows
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: make allplugins
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: mkdir ~/3proxy
