@@ -29,12 +29,12 @@ jobs:
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
+    - name: dirs Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && echo "^"  >>Makefile.win && echo "allplugins:"  >>Makefile.win && echo " @list=''$(PLUGINS)''; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;  rm *.o ; cd ../.. ; done"  >>Makefile.win && type Makefile.win'
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
-    - name: dirs Windows
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win'
     - name: SSLPlugin Linux
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
