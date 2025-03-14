@@ -32,7 +32,14 @@ jobs:
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.llvm Makefile
+    - name: dir Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: dir \
+    - name: set Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: set
     - name: make
+      if: ${{ !startsWith(matrix.target, 'windows') }}
       run: make
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
