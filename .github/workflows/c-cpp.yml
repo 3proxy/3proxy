@@ -33,6 +33,7 @@ jobs:
     - name: mkdir
       run: mkdir ~/3proxy
     - name: make install
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: make DESTDIR=~/3proxy -f Makefile install
     - name: make clean
       run: make -f Makefile clean
