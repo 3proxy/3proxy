@@ -49,6 +49,9 @@ jobs:
       run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
     - name: make
       run: make
+    - name: ln Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: make allplugins
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: mkdir ~/3proxy
