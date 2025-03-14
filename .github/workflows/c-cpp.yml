@@ -37,7 +37,7 @@ jobs:
       run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win'
     - name: SSLPlugin
       if: ${{ !startsWith(matrix.target, 'windows') }}
-      run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -l:libcrypto.a -l:libssl.a >>Makefile'
+      run: 'echo PLUGINS := $(PLUGINS) SSLPlugin >>Makefile & echo LIBS := $(LIBS) -lcrypto -lssl >>Makefile'
     - name: make
       run: make
     - name: mkdir
