@@ -32,10 +32,11 @@ jobs:
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.msvc64 Makefile
-    - name: make Windows
+    - name: nmake Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: make /F Makefile.msvc64 
+      run: nmake /F Makefile.msvc64 
     - name: make
+      if: ${{ !startsWith(matrix.target, 'windows') }}
       run: make
     - name: mkdir
       run: mkdir ~/3proxy
