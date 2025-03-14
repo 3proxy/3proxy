@@ -34,7 +34,7 @@ jobs:
       run: copy Makefile.win Makefile
     - name: dir Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: dir "C:\Program Files\OpenSSL\lib"
+      run: gcc -print-search-dirs
     - name: set Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /c set
