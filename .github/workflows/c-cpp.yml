@@ -34,7 +34,7 @@ jobs:
       run: copy Makefile.win Makefile
     - name: dir Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C "echo LIBS= -L \"c:/program files/openssl/lib \$LIBS\" >>Makefile.win && type Makefile.win"
+      run: cmd /C 'echo LIBS= -L "c:/program files/openssl/lib" \$LIBS >>Makefile.win && type Makefile.win'
     - name: make
 #      if: ${{ !startsWith(matrix.target, 'windows') }}
       run: make
