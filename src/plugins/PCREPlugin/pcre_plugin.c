@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+#define PCRE_STATIC
+
 #ifndef isnumber
 #define isnumber(i_n_arg) ((i_n_arg>='0')&&(i_n_arg<='9'))
 #endif
