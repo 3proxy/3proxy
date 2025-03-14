@@ -34,7 +34,7 @@ jobs:
       run: copy Makefile.llvm Makefile
     - name: dir Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: dir C:\Program Files\OpenSSL\lib
+      run: dir "C:\Program Files\OpenSSL\lib"
     - name: set Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /c set
