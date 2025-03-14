@@ -6,7 +6,6 @@
 */
 
 #include "../../structures.h"
-#include <openssl/rsa.h>       /* SSLeay stuff */
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
