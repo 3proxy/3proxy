@@ -34,10 +34,10 @@ jobs:
       run: copy Makefile.llvm Makefile
     - name: dir Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: dir \
+      run: dir \a
     - name: set Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: set
+      run: cmd /c set
     - name: make
       if: ${{ !startsWith(matrix.target, 'windows') }}
       run: make
