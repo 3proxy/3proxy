@@ -16,7 +16,7 @@ LN = gcc
 LDFLAGS = -O2 -s -mthreads
 DLFLAGS = -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32 -lcrypto -lssl
+LIBS = -lws2_32 -lodbc32 -ladvapi32 -lcrypto -luser32 -lssl
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -33,6 +33,5 @@ PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlu
 include Makefile.inc
 
 allplugins:
-	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;  rm *.o ; cd ../.. ; done
-
+    @list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;  rm *.o ; cd ../.. ; done
 
