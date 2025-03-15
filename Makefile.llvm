@@ -30,8 +30,16 @@ TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.llvm
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin SSLPlugin
+VERFILE = 3proxy.res $(VERFILE)
+VERSION = $(VERSION)
+VERSIONDEP = 3proxy.res $(VERSIONDEP)
+BUILDDATE = $(BUILDDATE)
+AFTERCLEAN = (find . -type f -name "*.o" -delete && find . -type f -name "*.res" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete) || true
 
 include Makefile.inc
+
+3proxy.res:
+	llvm-rc 3proxy.rc
 
 allplugins:
 	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done
