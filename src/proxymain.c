@@ -74,6 +74,37 @@ void * threadfunc (void *p) {
 #endif
 #endif
 
+	if(param->srv->haproxy){
+	    char buf[128];
+	    int i;
+	    i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf)-1, '\n', conf.timeouts[STRING_S]);
+	    if(i > 12 && !strncasecmp(buf, "PROXY TCP", 9)){
+		char *token, *token2=NULL;
+		unsigned short u1=0, u2=0;
+		buf[i] = 0;
+		token = strchr(buf, ' ');
+		if(token) token = strchr(token+1, ' ');
+		if(token) token++;
+		if(token) token2 = strchr(token+1, ' ');
+		if(token2) {
+		    *token2 = 0;
+		    getip46(46, (unsigned char*) token, (struct sockaddr *)&param->sincr);
+		    token = token2+1;
+		    token2 = strchr(token, ' ');
+		}
+		if(token2) {
+		    *token2 = 0;
+		    getip46(46, (unsigned char *) token, (struct sockaddr *)&param->sincl);
+		    token = token2+1;
+		    token2 = strchr(token, ' ');
+		}
+		if(token){
+		    sscanf(token,"%hu%hu", &u1, &u2);
+		    if(u1) *SAPORT(&param->sincr) = htons(u1);
+		    if(u2) *SAPORT(&param->sincl) = htons(u1);
+		}
+	    }
+	}
 	((struct clientparam *) p)->srv->pf((struct clientparam *)p);
  }
 #ifdef _WIN32
@@ -416,6 +447,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		 case 'h':
 			hostname = argv[i] + 2;
+			break;
+		 case 'H':
+			srv.haproxy=1;
 			break;
 		 case 'c':
 			srv.requirecert = 1;

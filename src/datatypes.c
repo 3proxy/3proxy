@@ -325,24 +325,12 @@ static void * ef_chain_next(struct node * node){
 }
 
 static void * ef_chain_type(struct node * node){
-	switch (((struct chain *)node->value) -> type) {
-		case R_TCP:
-			return "tcp";
-		case R_CONNECT:
-			return "connect";
-		case R_SOCKS4:
-			return "socks4";
-		case R_SOCKS5:
-			return "socks5";
-		case R_HTTP:
-			return "http";
-		case R_FTP:
-			return "ftp";
-		case R_POP3:
-			return "pop3";
-		default:
-			return "";
+	int i;
+	
+	for(i=0; redirs[i].name; i++){
+	    if(((struct chain *)node->value) -> type == redirs[i].redir) return redirs[i].name;
 	}
+	return "";
 }
 
 static void * ef_chain_addr(struct node * node){

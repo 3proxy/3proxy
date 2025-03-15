@@ -222,6 +222,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	int weight = 1000;
 	int res;
 	int done = 0;
+	int ha = 0;
 	struct chain * cur;
 	struct chain * redir = NULL;
 	int r2;
@@ -278,6 +279,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				return 0;
 			}
 			else if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
+				int i;
 				if(cur->extuser){
 					if(param->extusername)
 						myfree(param->extusername);
@@ -289,27 +291,18 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					}
 					if(*cur->extuser == '*' && !param->username) return 4;
 				}
-				switch(cur->type){
-					case R_POP3:
-						param->redirectfunc = pop3pchild;
-						break;
-					case R_FTP:
-						param->redirectfunc = ftpprchild;
-						break;
-					case R_ADMIN:
-						param->redirectfunc = adminchild;
-						break;
-					case R_SMTP:
-						param->redirectfunc = smtppchild;
-						break;
-					case R_TLS:
-						param->redirectfunc = tlsprchild;
-						break;
-					default:
-						param->redirectfunc = proxychild;
+				
+				for(i=0; redirs[i].name; i++){
+				    if(cur->type == redirs[i].redir) {
+					param->redirectfunc = redirs[i].func;
+					break;
+				    }
+				}
+				if(cur->type == R_HA){
+				    ha = 1;
 				}
 				if(cur->next)continue;
-				return 0;
+				if(!ha) return 0;
 			}
 			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
 				unsigned short port = *SAPORT(&param->sinsr);
@@ -323,6 +316,21 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 
 			if((res = alwaysauth(param))){
 				return (res >= 10)? res : 60+res;
+			}
+			if(ha) {
+			    char buf[128];
+			    int len; 
+			    len = sprintf(buf, "PROXY %s ",
+				*SAFAMILY(&param->sincr) == AF_INET6 ? "TCP6" : "TCP4");
+			    len += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), buf+len, sizeof(param->sincr));
+			    buf[len++] = ' ';
+			    len += myinet_ntop(*SAFAMILY(&param->sincl), SAADDR(&param->sincl), buf+len, sizeof(param->sincl));
+			    len += sprintf(buf + len, " %hu %hu\r\n",
+				ntohs(*SAPORT(&param->sincr)),
+				ntohs(*SAPORT(&param->sincl))
+			    );
+			    if(socksend(param, param->remsock, (unsigned char *)buf, len, conf.timeouts[CHAIN_TO])!=len) return 39;
+			    return 0;
 			}
 		}
 		else {
