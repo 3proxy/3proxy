@@ -23,6 +23,7 @@ void * autochild(struct clientparam* param) {
 	dolog(param, (unsigned char *)"");
     }
     if(*param->clibuf == 4 || *param->clibuf == 5) return sockschild(param);
+    if(*param->clibuf == 22) return tlsprchild(param);
     return proxychild(param);
 }
 
