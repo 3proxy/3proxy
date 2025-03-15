@@ -266,7 +266,7 @@ struct passwords {
 };
 
 typedef enum {
-	R_TCP,
+	R_TCP = 1,
 	R_CONNECT,
 	R_SOCKS4,
 	R_SOCKS5,
@@ -281,8 +281,19 @@ typedef enum {
 	R_SOCKS5B,
 	R_ADMIN,
 	R_EXTIP,
-	R_TLS
+	R_TLS,
+	R_HA,
+	R_DNS
 } REDIRTYPE;
+
+struct redirdesc {
+    REDIRTYPE redir;
+    char * name;
+    void * (*func)(struct clientparam *);
+};
+
+extern struct redirdesc redirs[];
+
 
 struct chain {
 	struct chain * next;
@@ -490,6 +501,7 @@ struct srvparam {
 	int clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;
 	int gracetraf, gracenum, gracedelay;
 	int requirecert;
+	int haproxy;
 #ifdef WITHSPLICE
 	int usesplice;
 #endif

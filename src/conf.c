@@ -729,10 +729,34 @@ static int h_monitor(int argc, unsigned char **argv){
 	return 0;
 }
 
+
+struct redirdesc redirs[] = {
+    {R_TCP, "tcp", tcppmchild},
+    {R_CONNECT, "connect", proxychild},
+    {R_SOCKS4, "socks4", sockschild},
+    {R_SOCKS5, "socks5", sockschild},
+    {R_HTTP, "http", proxychild},
+    {R_POP3, "pop3", pop3pchild},
+    {R_SMTP, "smtp", smtppchild},
+    {R_FTP, "ftp", ftpprchild},
+    {R_CONNECTP, "connect+", proxychild},
+    {R_SOCKS4P, "socks4+", sockschild},
+    {R_SOCKS5P, "socks5+", sockschild},
+    {R_SOCKS4B, "socks4b", sockschild},
+    {R_SOCKS5B, "socks5b", sockschild},
+    {R_ADMIN, "admin", adminchild},
+    {R_EXTIP, "extip", NULL},
+    {R_TLS, "tls", tlsprchild},
+    {R_HA, "ha", NULL},
+    {R_DNS, "dns", dnsprchild},
+    {0, NULL, NULL}
+};
+
 static int h_parent(int argc, unsigned char **argv){
   struct ace *acl = NULL;
   struct chain *chains;
   char * cidr;
+  int i;
 
 	acl = conf.acl;
 	while(acl && acl->next) acl = acl->next;
@@ -752,23 +776,13 @@ static int h_parent(int argc, unsigned char **argv){
 		fprintf(stderr, "Chaining error: bad chain weight %u line %d\n", chains->weight, linenum);
 		return(3);
 	}
-	if(!strcmp((char *)argv[2], "tcp"))chains->type = R_TCP;
-	else if(!strcmp((char *)argv[2], "http"))chains->type = R_HTTP;
-	else if(!strcmp((char *)argv[2], "connect"))chains->type = R_CONNECT;
-	else if(!strcmp((char *)argv[2], "socks4"))chains->type = R_SOCKS4;
-	else if(!strcmp((char *)argv[2], "socks5"))chains->type = R_SOCKS5;
-	else if(!strcmp((char *)argv[2], "connect+"))chains->type = R_CONNECTP;
-	else if(!strcmp((char *)argv[2], "socks4+"))chains->type = R_SOCKS4P;
-	else if(!strcmp((char *)argv[2], "socks5+"))chains->type = R_SOCKS5P;
-	else if(!strcmp((char *)argv[2], "socks4b"))chains->type = R_SOCKS4B;
-	else if(!strcmp((char *)argv[2], "socks5b"))chains->type = R_SOCKS5B;
-	else if(!strcmp((char *)argv[2], "pop3"))chains->type = R_POP3;
-	else if(!strcmp((char *)argv[2], "tls"))chains->type = R_TLS;
-	else if(!strcmp((char *)argv[2], "ftp"))chains->type = R_FTP;
-	else if(!strcmp((char *)argv[2], "admin"))chains->type = R_ADMIN;
-	else if(!strcmp((char *)argv[2], "extip"))chains->type = R_EXTIP;
-	else if(!strcmp((char *)argv[2], "smtp"))chains->type = R_SMTP;
-	else {
+	for(i = 0; redirs[i].name ; i++){
+	    if(!strcmp((char *)argv[2], redirs[i].name)) {
+		chains->type = redirs[i].redir;
+		break;
+	    }
+	}
+	if(!redirs[i].name) {
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
 		return(4);
 	}
