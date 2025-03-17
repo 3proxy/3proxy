@@ -971,15 +971,6 @@ int strongauth(struct clientparam * param){
 				else if (!param->pwtype && param->password && !strcmp((char *)param->password, (char *)pwl->password)){
 					break;
 				}
-#ifndef NOCRYPT
-				else if (param->pwtype == 2 && param->password) {
-					ntpwdhash(buf, pwl->password, 0);
-					mschap(buf, param->password, buf + 16);
-					if(!memcmp(buf+16, param->password+8, 24)) {
-						break;
-					}
-				}
-#endif
 				pthread_mutex_unlock(&pwl_mutex);
 				return 6;
 #ifndef NOCRYPT
@@ -992,13 +983,6 @@ int strongauth(struct clientparam * param){
 			case NT:
 				if(param->password && !param->pwtype && !memcmp(pwl->password, ntpwdhash(buf,param->password, 1), 32)) {
 					break;
-				}
-				else if (param->pwtype == 2){
-					fromhex(pwl->password, buf, 16);
-					mschap(buf, param->password, buf + 16);
-					if(!memcmp(buf + 16, param->password+8, 24)) {
-						break;
-					}
 				}
 				pthread_mutex_unlock(&pwl_mutex);
 				return 8;
