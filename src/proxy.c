@@ -381,54 +381,6 @@ for(;;){
 			param->username = (unsigned char *)mystrdup((char *)username);
 			continue;
 		}
-#ifndef NOCRYPT
-		if(param->srv->usentlm && !strncasecmp((char *)sb, "ntlm", 4)){
-			sb+=4;
-			while(isspace(*sb))sb++;
-			i = de64(sb, username, 1023);
-			if(i<=16)continue;
-			username[i] = 0;
-			if(strncasecmp((char *)username, "NTLMSSP", 8)) continue;
-			if(username[8] == 1) {
-				while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
-					if(i> 15 && (!strncasecmp((char *)(buf), "content-length", 14))){
-						buf[i]=0;
-						sscanf((char *)buf + 15, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
-					}
-				}
-				while( contentlength64 > 0 && (i = sockgetlinebuf(param, CLIENT, buf, (BUFSIZE < contentlength64)? BUFSIZE - 1:(int)contentlength64, '\n', conf.timeouts[STRING_S])) > 0){
-					if ((uint64_t)i > contentlength64) break;
-					contentlength64-=i;
-				}
-				contentlength64 = 0;
-				if(param->password)myfree(param->password);
-				param->password = myalloc(32);
-				param->pwtype = 2;
-				i = (int)strlen(proxy_stringtable[13]);
-				memcpy(buf, proxy_stringtable[13], i);
-				genchallenge(param, (char *)param->password, (char *)buf + i);
-				memcpy(buf + strlen((char *)buf), "\r\n\r\n", 5);
-				socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
-				ckeepalive = keepalive = 1;
-				goto REQUESTEND;
-			}
-			if(username[8] == 3 && param->pwtype == 2 && i>=80) {
-				unsigned offset, len;
-
-				len = username[20] + (((unsigned)username[21]) << 8);
-				offset = username[24] + (((unsigned)username[25]) << 8);
-				if(len != 24 || len + offset > (unsigned)i) continue;
-				memcpy(param->password + 8, username + offset, 24);
-				len = username[36] + (((unsigned)username[37]) << 8);
-				offset = username[40] + (((unsigned)username[41]) << 8);
-				if(len> 255 || len + offset > (unsigned)i) continue;
-				if(param->username) myfree(param->username);
-				unicode2text((char *)username+offset, (char *)username+offset, (len>>1));
-				param->username = (unsigned char *)mystrdup((char *)username+offset);
-			}
-			continue;
-		}
-#endif
 	}
 #endif
 	if(!isconnect && (
