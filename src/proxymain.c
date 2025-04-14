@@ -1414,6 +1414,8 @@ FILTER_ACTION handlepredatflt(struct clientparam *cparam){
 	FILTER_ACTION action;
 	int i;
 
+	if(cparam->predatdone) return PASS;
+	cparam->predatdone = 1;
 	for(i=0; i<cparam->npredatfilters ;i++){
 		action =  (*cparam->predatfilters[i]->filter->filter_predata)(cparam->predatfilters[i]->data, cparam);
 		if(action!=CONTINUE) return action;

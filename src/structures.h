@@ -584,7 +584,8 @@ struct clientparam {
 		chunked,
 		paused,
 		version,
-		connlim;
+		connlim,
+		predatdone;
 
 	unsigned char 	*hostname,
 			*username,
