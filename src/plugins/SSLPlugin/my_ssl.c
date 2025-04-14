@@ -186,10 +186,18 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, SSL_CERT *server_cert, char **errSSL)
 {
 	int err = 0;
-	X509 *cert;
 	ssl_conn *conn;
+	unsigned long ul;
 
 	*errSSL = NULL;
+
+/*FIXME: support SSL_ERROR_WANT_(READ|WRITE) */
+#ifdef _WIN32
+ ul = 0; 
+ ioctlsocket(s, FIONBIO, &ul);
+#else
+ fcntl(s,F_SETFL,0);
+#endif
 
 	conn = (ssl_conn *)malloc(sizeof(ssl_conn));
 	if ( conn == NULL ){
@@ -201,7 +209,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 		free(conn);
 		return NULL;
 	}
-	if(config->client_verify){
+	if(hostname && *hostname && config->client_verify){
 	    X509_VERIFY_PARAM *param;
 	    
 	    param = SSL_get0_param(conn->ssl);
@@ -221,16 +229,23 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 		return NULL;
 	}
 
-	cert = SSL_get_peer_certificate(conn->ssl);     
-	if(!cert) {
+	if(server_cert){
+	    X509 *cert;
+	    cert = SSL_get_peer_certificate(conn->ssl);     
+	    if(!cert) {
 		ssl_conn_free(conn);
 		return NULL;
+	    }
+
+	    *server_cert = cert;
 	}
 
-	/* TODO: Verify certificate */
-
-	*server_cert = cert;
-
+#ifdef _WIN32 
+ ul = 1;
+ ioctlsocket(s, FIONBIO, &ul);
+#else
+ fcntl(s,F_SETFL,O_NONBLOCK);
+#endif
 	return conn;
 }
 
@@ -245,6 +260,7 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
 #else
     ctx = SSL_CTX_new(TLS_server_method());
 #endif
+
     if (!ctx) {
 	*errSSL = ERR_error_string(ERR_get_error(), errbuf);
 	return NULL;
@@ -274,6 +290,17 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	int err = 0;
 	X509 *cert;
 	ssl_conn *conn;
+	unsigned long ul;
+	
+/*FIXME: support SSL_ERROR_WANT_(READ|WRITE)*/
+
+#ifdef _WIN32
+ ul = 0;
+ ioctlsocket(s, FIONBIO, &ul);
+#else
+ fcntl(s,F_SETFL,0);
+#endif
+
 
 	*errSSL = NULL;
 
@@ -316,6 +343,12 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	if ( cert != NULL )
 		X509_free(cert);
 
+#ifdef _WIN32 
+ ul = 1;
+ ioctlsocket(s, FIONBIO, &ul);
+#else
+ fcntl(s,F_SETFL,O_NONBLOCK);
+#endif
 	return conn;
 }
 

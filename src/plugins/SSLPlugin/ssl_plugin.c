@@ -35,6 +35,8 @@ static int ssl_connect_timeout = 0;
 char *certcache = NULL;
 char *srvcert = NULL;
 char *srvkey = NULL;
+char *clicert = NULL;
+char *clikey = NULL;
 char *server_ca_file = NULL;
 char *server_ca_key = NULL;
 char *client_ca_file = NULL;
@@ -42,6 +44,7 @@ char *client_ca_dir = NULL;
 char *client_ca_store = NULL;
 int mitm = 0;
 int serv = 0;
+int cli = 0;
 int ssl_inited = 0;
 int client_min_proto_version = 0;
 int client_max_proto_version = 0;
@@ -233,21 +236,10 @@ static int ssl_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
 
 #define PCONF (((struct SSLstate *)param->sostate)->config)
 
-int domitm(struct clientparam* param){
- SSL_CERT ServerCert=NULL, FakeCert=NULL;
- SSL_CONN ServerConn, ClientConn;
+SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
+ SSL_CONN ServerConn;
  char *errSSL=NULL;
  unsigned long ul;
-
-#ifdef _WIN32
- ul = 0; 
- ioctlsocket(param->remsock, FIONBIO, &ul);
- ul = 0;
- ioctlsocket(param->clisock, FIONBIO, &ul);
-#else
- fcntl(param->remsock,F_SETFL,0);
- fcntl(param->clisock,F_SETFL,0);
-#endif
 
  if(ssl_connect_timeout){
 	ul = ((unsigned long)ssl_connect_timeout)*1000;
@@ -255,16 +247,31 @@ int domitm(struct clientparam* param){
 	ul = ((unsigned long)ssl_connect_timeout)*1000;
 	setsockopt(param->remsock, SOL_SOCKET, SO_SNDTIMEO, (char *)&ul, 4);
  }
- ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF, &ServerCert, &errSSL);
- if ( ServerConn == NULL || ServerCert == NULL ) {
+ ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF, cert, &errSSL);
+ if ( ServerConn == NULL) {
 	if(ServerConn) ssl_conn_free(ServerConn);
 	param->res = 8011;
 	param->srv->logfunc(param, (unsigned char *)"SSL handshake to server failed");
 	if(ServerConn == NULL) 	param->srv->logfunc(param, (unsigned char *)"ServerConn is NULL");
-	if(ServerCert == NULL) 	param->srv->logfunc(param, (unsigned char *)"ServerCert is NULL");
+	if(cert && *cert == NULL) 	param->srv->logfunc(param, (unsigned char *)"ServerCert is NULL");
 	if(errSSL)param->srv->logfunc(param, (unsigned char *)errSSL);
-	return 1;
+	return NULL;
  }
+
+ SSL_set_mode((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
+ SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, 0);
+
+
+ return ServerConn;
+}
+
+int domitm(struct clientparam* param){
+ SSL_CERT ServerCert=NULL, FakeCert=NULL;
+ SSL_CONN ServerConn, ClientConn;
+ char *errSSL=NULL;
+
+ ServerConn = dosrvcon(param, &ServerCert);
+ if(!ServerConn) return 1;
  FakeCert = ssl_copy_cert(ServerCert, PCONF);
  _ssl_cert_free(ServerCert);
  if ( FakeCert == NULL ) {
@@ -285,23 +292,25 @@ int domitm(struct clientparam* param){
 	return 3;
  }
 
-#ifdef _WIN32 
- ul = 1;
- ioctlsocket(param->remsock, FIONBIO, &ul);
- ul = 1;
- ioctlsocket(param->clisock, FIONBIO, &ul);
-#else
- fcntl(param->remsock,F_SETFL,O_NONBLOCK);
- fcntl(param->clisock,F_SETFL,O_NONBLOCK);
-#endif
-
-
- SSL_set_mode((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
  SSL_set_mode((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
- SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, 0);
  SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, 0);
+
  addSSL(param->clisock, ClientConn, param->remsock, ServerConn, param);
 
+ return 0;
+}
+
+int docli(struct clientparam* param){
+
+ SSL_CONN ServerConn;
+ SSL_CERT ServerCert=NULL;
+ 
+ ServerConn = dosrvcon(param, &ServerCert);
+ _ssl_cert_free(ServerCert);
+
+ if(!ServerConn) return 1;
+
+ addSSL(INVALID_SOCKET, NULL, param->remsock, ServerConn, param);
  return 0;
 }
 
@@ -336,6 +345,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	char fname[256];
 	char *errSSL;
 	struct ssl_config *sc;
+	
 	sc = malloc(sizeof(struct ssl_config));
 	if(!sc) return NULL;
 	memset(sc, 0, sizeof(struct ssl_config));
@@ -353,6 +363,13 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    sc->server_key = getKey(srvkey);
 	    if(!sc->server_key){
 		fprintf(stderr, "failed to read: %s\n", srvkey);
+		return sc;
+	    }
+	}
+	if(clikey){
+	    sc->client_key = getKey(clikey);
+	    if(!sc->client_key){
+		fprintf(stderr, "failed to read: %s\n", clikey);
 		return sc;
 	    }
 	}
@@ -389,15 +406,20 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		sc->server_key = getKey(fname);
 	    }
 	    sc->mitm = 1;
-	    srv->so._send = ssl_send;
-	    srv->so._recv = ssl_recv;
-	    srv->so._sendto = ssl_sendto;
-	    srv->so._recvfrom = ssl_recvfrom;
-	    srv->so._closesocket = ssl_closesocket;
-	    srv->so._poll = ssl_poll;
-#ifdef WIWHSPLICE
-	    srv->usesplice = 0;
-#endif
+	}
+	if(cli){
+	    if(clicert){
+		sc->client_cert = getCert(clicert);
+		if(!sc->client_cert){
+		    fprintf(stderr, "failed to read client cert from: %s\n", clicert);
+		    return sc;
+		}
+		if(!sc->client_key){
+		    fprintf(stderr, "no client key\n");
+		    return sc;
+		}
+	    }
+	    sc->cli = 1;
 	}
 	if(serv){
 	    if(!srvcert || !srvkey) return sc;
@@ -414,24 +436,28 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		return sc;
 	    }
 	    sc->serv = 1;
+	}
+	if(mitm || cli || serv){
 	    srv->so._send = ssl_send;
 	    srv->so._recv = ssl_recv;
 	    srv->so._sendto = ssl_sendto;
 	    srv->so._recvfrom = ssl_recvfrom;
 	    srv->so._closesocket = ssl_closesocket;
 	    srv->so._poll = ssl_poll;
-#ifdef WIWHSPLICE
-	    srv->usesplice = 0;
-#endif
 	}
-	if(sc && sc->mitm){
+	if(sc && (sc->mitm || sc->cli)){
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 	    sc->srv_ctx = SSL_CTX_new(SSLv23_client_method());
 #else
 	    sc->srv_ctx = SSL_CTX_new(TLS_client_method());
 #endif
 	    if ( sc->srv_ctx == NULL ) {
-		sc->mitm = 0;
+		fprintf(stderr, "failed to set client context\n");
+		sc->mitm = sc->cli = 0;
+	    }
+	    if(sc->client_cert){
+		SSL_CTX_use_certificate(sc->srv_ctx, (X509 *) sc->client_cert);
+		SSL_CTX_use_PrivateKey(sc->srv_ctx, sc->client_key);
 	    }
 	    if(sc->client_min_proto_version)SSL_CTX_set_min_proto_version(sc->srv_ctx, sc->client_min_proto_version);
 	    if(sc->client_max_proto_version)SSL_CTX_set_max_proto_version(sc->srv_ctx, sc->client_max_proto_version);
@@ -451,6 +477,9 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER, verify_callback);
 	    }
 	}
+#ifdef WIWHSPLICE
+	srv->usesplice = 0;
+#endif
 	return sc;
 }
 
@@ -469,13 +498,6 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 	    SSL_CONN ClientConn;
 	    char *err;
 
-#ifdef _WIN32
- unsigned long ul = 0;
- ioctlsocket(param->clisock, FIONBIO, &ul);
-#else
- fcntl(param->clisock,F_SETFL,0);
-#endif
-
 	    ClientConn = ssl_handshake_to_client(param->clisock, ssls->config, NULL, NULL, &err);
 	    if ( ClientConn == NULL ) {
 		param->res = 8013;
@@ -483,16 +505,6 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 		if(err)param->srv->logfunc(param, (unsigned char *)err);
 		return REJECT;
 	    }
-#ifdef _WIN32 
-	     {
-		unsigned long ul = 1;
-	     	ioctlsocket(param->clisock, FIONBIO, &ul);
-	     }
-#else
-	     fcntl(param->clisock,F_SETFL,O_NONBLOCK);
-#endif
-
-
 	    SSL_set_mode((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
 	    SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, 0);
 	    addSSL(param->clisock, ClientConn, INVALID_SOCKET, NULL, param);
@@ -501,13 +513,21 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 }
 
 static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
+
 	if(param->operation != HTTP_CONNECT && param->operation != CONNECT) return PASS;
-	if(!PCONF->mitm) return PASS;
-	if(domitm(param)) {
+	if(PCONF->mitm){
+	    if(domitm(param)) {
 		return REJECT;
+	    }
+	    if(!param->redirectfunc) param->redirectfunc = proxyfunc;
+	    return CONTINUE;
 	}
-	if(!param->redirectfunc) param->redirectfunc = proxyfunc;
-	return CONTINUE;
+	else if(PCONF->cli) {
+	    if(docli(param)) {
+		return REJECT;
+	    }
+	}
+	return PASS;
 }
 
 
@@ -525,10 +545,16 @@ static void ssl_filter_close(void *fo){
     if ( CONFIG->server_cert != NULL ) {
 	X509_free(CONFIG->server_cert);
     }
+    if ( CONFIG->client_cert != NULL ) {
+	X509_free(CONFIG->server_cert);
+    }
     if ( CONFIG->CA_key != NULL ) {
 	EVP_PKEY_free(CONFIG->CA_key);
     }
     if ( CONFIG->server_key != NULL ) {
+	EVP_PKEY_free(CONFIG->server_key);
+    }
+    if ( CONFIG->client_key != NULL ) {
 	EVP_PKEY_free(CONFIG->server_key);
     }
     if ( CONFIG->srv_ctx != NULL ) {
@@ -607,7 +633,8 @@ static int h_serv(int argc, unsigned char **argv){
 
 static int h_noserv(int argc, unsigned char **argv){
 	struct filter * sf;
-	if(!mitm) return 1;
+	if(!serv) return 1;
+	serv = 0;
 	if(pl->conf->filters == &ssl_filter_serv) pl->conf->filters = ssl_filter_serv.next;
 	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
 		if(sf->next == &ssl_filter_serv) {
@@ -615,9 +642,45 @@ static int h_noserv(int argc, unsigned char **argv){
 			break;
 		}
 	}
-	serv = 0;
 	return 0;
 }
+
+static struct filter ssl_filter_cli = {
+	NULL,
+	"ssl filter",
+	"cli",
+	ssl_filter_open,
+	ssl_filter_client,
+	NULL, NULL, NULL, ssl_filter_predata, NULL, NULL,
+	ssl_filter_clear, 
+	ssl_filter_close
+};
+
+
+static int h_cli(int argc, unsigned char **argv){
+	if(mitm) return 1;
+	if(cli) return 2;
+	ssl_filter_cli.next = pl->conf->filters;
+	pl->conf->filters = &ssl_filter_cli;
+	sso = *pl->so;
+	cli = 1;
+	return 0;
+}
+
+static int h_nocli(int argc, unsigned char **argv){
+	struct filter * sf;
+	if(!cli) return 1;
+	cli = 0;
+	if(pl->conf->filters == &ssl_filter_cli) pl->conf->filters = ssl_filter_cli.next;
+	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
+		if(sf->next == &ssl_filter_cli) {
+			sf->next = ssl_filter_cli.next;
+			break;
+		}
+	}
+	return 0;
+}
+
 
 static int h_certcache(int argc, unsigned char **argv){
 	size_t len;
@@ -639,6 +702,19 @@ static int h_srvkey(int argc, unsigned char **argv){
 	srvkey = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
+
+static int h_clicert(int argc, unsigned char **argv){
+	free(clicert);
+	clicert = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_clikey(int argc, unsigned char **argv){
+	free(clikey);
+	clikey = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
 
 static int h_client_cipher_list(int argc, unsigned char **argv){
 	free(client_cipher_list);
@@ -764,7 +840,7 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+1, "ssl_mitm", h_mitm, 1, 1},
 	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
 	{ssl_commandhandlers+3, "ssl_serv", h_serv, 1, 1},
-	{ssl_commandhandlers+4, "ssl_noserv", h_serv, 1, 1},
+	{ssl_commandhandlers+4, "ssl_noserv", h_noserv, 1, 1},
 	{ssl_commandhandlers+5, "ssl_server_cert", h_srvcert, 1, 2},
 	{ssl_commandhandlers+6, "ssl_server_key", h_srvkey, 1, 2},
 	{ssl_commandhandlers+7, "ssl_server_ca_file", h_server_ca_file, 1, 2},
@@ -782,6 +858,10 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+19, "ssl_server_max_proto_version", h_server_max_proto_version, 1, 2},
 	{ssl_commandhandlers+20, "ssl_client_verify", h_client_verify, 1, 1},
 	{ssl_commandhandlers+21, "ssl_client_no_verify", h_no_client_verify, 1, 1},
+	{ssl_commandhandlers+22, "ssl_cli", h_cli, 1, 1},
+	{ssl_commandhandlers+23, "ssl_nocli", h_nocli, 1, 1},
+	{ssl_commandhandlers+24, "ssl_client_cert", h_clicert, 1, 2},
+	{ssl_commandhandlers+25, "ssl_client_key", h_clikey, 1, 2},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
