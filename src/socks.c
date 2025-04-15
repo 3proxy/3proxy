@@ -15,6 +15,11 @@ unsigned char * commands[] = {(unsigned char *)"UNKNOWN", (unsigned char *)"CONN
 #define BUFSIZE 1024
 #define LARGEBUFSIZE 67000
 
+#if SOCKSTRACE > 0
+char tracebuf[256];
+#endif
+
+
 static void printcommand(unsigned char * buf, int command, struct clientparam *param){
     sprintf((char *)buf, "%s ", commands[command]);
     if(param->hostname){
@@ -234,7 +239,7 @@ void * sockschild(struct clientparam* param) {
 		*SAPORT(&param->sinsl) = 0;
 		if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
 #if SOCKSTRACE > 0
-fprintf(stderr, "%hu bound to communicate with server\n", *SAPORT(&param->sins));
+fprintf(stderr, "%hu bound to communicate with server\n", *SAPORT(&param->sinsl));
 fflush(stderr);
 #endif
 	}
@@ -271,11 +276,12 @@ CLEANRET:
 	if(command != 3 && param->remsock != INVALID_SOCKET) param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&sin,  &sasize);
 	else param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin,  &sasize);
 #if SOCKSTRACE > 0
+myinet_ntop(*SAFAMILY(&sin), &sin, tracebuf, SASIZE(&sin));
 fprintf(stderr, "Sending confirmation to client with code %d for %s with %s:%hu\n",
 			param->res,
 			commands[command],
-			inet_ntoa(sin.sin_addr),
-			ntohs(sin.sin_port)
+			tracebuf,
+			ntohs(*SAPORT(&sin))
 	);
 fflush(stderr);
 #endif
@@ -362,7 +368,7 @@ fflush(stderr);
 fprintf(stderr, "Sending incoming connection to client with code %d for %s with %hu\n",
 			param->res,
 			commands[command],
-			*SAPORT(param->sins);
+			*SAPORT(&param->sinsr)
 	);
 fflush(stderr);
 #endif
@@ -445,15 +451,18 @@ fflush(stderr);
 							param->statscli64+=(len - i);
 							param->nwrites++;
 #if SOCKSTRACE > 1
+myinet_ntop(*SAFAMILY(&param->sinsr), &param->sinsr, tracebuf, SASIZE(&param->sinsr));
+
 fprintf(stderr, "UDP packet relayed from client to %s:%hu size %d, header %d\n",
-			inet_ntoa(param->sins.sin_addr),
-			ntohs(param->sins.sin_port),
+			tracebuf,
+			ntohs(*SAPORT(&param->sinsr)),
 			(len - i),
 			i
 	);
+myinet_ntop(*SAFAMILY(&sin), &sin, tracebuf, SASIZE(&sin));
 fprintf(stderr, "client address is assumed to be %s:%hu\n",
-			inet_ntoa(sin.sin_addr),
-			ntohs(sin.sin_port)
+			tracebuf,
+			ntohs(*SAPORT(&sin))
 	);
 fflush(stderr);
 #endif
