@@ -45,6 +45,11 @@ static char hexMap[] = {
 static BIO *bio_err=NULL;
 
 
+
+char * getSSLErr(){
+    return ERR_error_string(ERR_get_error(), errbuf);
+}
+
 static size_t bin2hex (const unsigned char* bin, size_t bin_length, char* str, size_t str_length) 
 {
 	char *p;
@@ -218,13 +223,13 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 
 	if(!SSL_set_fd(conn->ssl, s)){
 		ssl_conn_free(conn);
-		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
+		*errSSL = getSSLErr();
 		return NULL;
 	}
 	if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
 	err = SSL_connect(conn->ssl);
 	if ( err == -1 ) {
-		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
+		*errSSL = getSSLErr();
 		ssl_conn_free(conn);
 		return NULL;
 	}
@@ -249,42 +254,6 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 	return conn;
 }
 
-
-SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_key, char** errSSL){
-    SSL_CTX *ctx;
-    int err = 0;
-
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ctx = SSL_CTX_new(SSLv23_server_method());
-#else
-    ctx = SSL_CTX_new(TLS_server_method());
-#endif
-
-    if (!ctx) {
-	*errSSL = ERR_error_string(ERR_get_error(), errbuf);
-	return NULL;
-    }
-
-    err = SSL_CTX_use_certificate(ctx, (X509 *) server_cert);
-    if ( err <= 0 ) {
-	*errSSL = ERR_error_string(ERR_get_error(), errbuf);
-	SSL_CTX_free(ctx);
-	return NULL;
-    }
-
-    err = SSL_CTX_use_PrivateKey(ctx, server_key);
-    if ( err <= 0 ) {
-	*errSSL = ERR_error_string(ERR_get_error(), errbuf);
-	SSL_CTX_free(ctx);
-	return NULL;
-    }
-    if(config->server_min_proto_version)SSL_CTX_set_min_proto_version(ctx, config->server_min_proto_version);
-    if(config->server_max_proto_version)SSL_CTX_set_max_proto_version(ctx, config->server_max_proto_version);
-    if(config->server_cipher_list)SSL_CTX_set_cipher_list(ctx, config->server_cipher_list);
-    if(config->server_ciphersuites)SSL_CTX_set_ciphersuites(ctx, config->server_ciphersuites);
-    return ctx;
-}
 
 SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_key, char** errSSL){
 	int err = 0;
@@ -320,7 +289,7 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 
 	conn->ssl = SSL_new(config->cli_ctx?config->cli_ctx : conn->ctx);
 	if ( conn->ssl == NULL ) {
-		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
+		*errSSL = getSSLErr();
 		if(conn->ctx)SSL_CTX_free(conn->ctx);
 		free(conn);
 		return NULL;
@@ -329,7 +298,7 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	SSL_set_fd(conn->ssl, s);
 	err = SSL_accept(conn->ssl);
 	if ( err <= 0 ) {
-		*errSSL = ERR_error_string(ERR_get_error(), errbuf);
+		*errSSL = getSSLErr();
 		ssl_conn_free(conn);
 		return NULL;
 	}
