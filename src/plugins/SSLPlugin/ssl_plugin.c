@@ -38,6 +38,8 @@ char *srvkey = NULL;
 char *clicert = NULL;
 char *clikey = NULL;
 char *server_ca_file = NULL;
+char *server_ca_dir = NULL;
+char *server_ca_store = NULL;
 char *server_ca_key = NULL;
 char *client_ca_file = NULL;
 char *client_ca_dir = NULL;
@@ -51,6 +53,7 @@ int client_max_proto_version = 0;
 int server_min_proto_version = 0;
 int server_max_proto_version = 0;
 int client_verify = 0;
+int server_verify = 0;
 char * client_ciphersuites = NULL;
 char * server_ciphersuites = NULL;
 char * client_cipher_list = NULL;
@@ -341,6 +344,59 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx){
     return preverify_ok;
 }
 
+
+SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_key, char** errSSL){
+    SSL_CTX *ctx;
+    int err = 0;
+
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ctx = SSL_CTX_new(SSLv23_server_method());
+#else
+    ctx = SSL_CTX_new(TLS_server_method());
+#endif
+
+    if (!ctx) {
+	*errSSL = getSSLErr();
+	return NULL;
+    }
+
+    err = SSL_CTX_use_certificate(ctx, (X509 *) server_cert);
+    if ( err <= 0 ) {
+	*errSSL = getSSLErr();
+	SSL_CTX_free(ctx);
+	return NULL;
+    }
+
+    err = SSL_CTX_use_PrivateKey(ctx, server_key);
+    if ( err <= 0 ) {
+	*errSSL = getSSLErr();
+	SSL_CTX_free(ctx);
+	return NULL;
+    }
+    if(config->server_min_proto_version)SSL_CTX_set_min_proto_version(ctx, config->server_min_proto_version);
+    if(config->server_max_proto_version)SSL_CTX_set_max_proto_version(ctx, config->server_max_proto_version);
+    if(config->server_cipher_list)SSL_CTX_set_cipher_list(ctx, config->server_cipher_list);
+    if(config->server_ciphersuites)SSL_CTX_set_ciphersuites(ctx, config->server_ciphersuites);
+    if(config->server_verify){
+fprintf(stderr, "server verify\n");
+fflush(stderr);
+                if(config->server_ca_file || config->server_ca_dir){
+                    SSL_CTX_load_verify_locations(ctx, config->server_ca_file, config->server_ca_dir);
+                }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+                else if(config->server_ca_store){
+                    SSL_CTX_load_verify_store(ctx, config->server_ca_store);
+                }
+#endif          
+                else 
+                    SSL_CTX_set_default_verify_paths(ctx);
+                SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT|SSL_VERIFY_CLIENT_ONCE, NULL);
+    }
+    return ctx;
+}
+
+
 static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	char fname[256];
 	char *errSSL;
@@ -355,6 +411,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	sc->server_min_proto_version = server_min_proto_version;
 	sc->server_max_proto_version = server_max_proto_version;
 	sc->client_verify = client_verify;
+	sc->server_verify = server_verify;
 	if(client_ciphersuites) sc->client_ciphersuites = strdup(client_ciphersuites);
 	if(server_ciphersuites) sc->server_ciphersuites = strdup(server_ciphersuites);
 	if(client_cipher_list) sc->client_cipher_list = strdup(client_cipher_list);
@@ -375,7 +432,10 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	}
 	if(client_ca_file)sc->client_ca_file=client_ca_file;
 	if(client_ca_dir)sc->client_ca_dir=client_ca_dir;
-	if(client_ca_store)sc->client_ca_dir=client_ca_store;
+	if(client_ca_store)sc->client_ca_store=client_ca_store;
+	if(server_ca_file)sc->server_ca_file=server_ca_file;
+	if(server_ca_dir)sc->server_ca_dir=server_ca_dir;
+	if(server_ca_store)sc->server_ca_store=server_ca_store;
 
 
 	if(mitm){
@@ -474,7 +534,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 #endif		
 		else 
 		    SSL_CTX_set_default_verify_paths(sc->srv_ctx);
-		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER, verify_callback);
+		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
 	}
 #ifdef WIWHSPLICE
@@ -770,6 +830,18 @@ static int h_client_ca_store(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_server_ca_dir(int argc, unsigned char **argv){
+	free(server_ca_dir);
+	server_ca_dir = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_server_ca_store(int argc, unsigned char **argv){
+	free(server_ca_store);
+	server_ca_store = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
 struct vermap{
     char *sver;
     int iver;
@@ -836,6 +908,15 @@ static int h_no_client_verify(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_server_verify(int argc, unsigned char **argv){
+	server_verify = 1;
+	return 0;
+}
+static int h_no_server_verify(int argc, unsigned char **argv){
+	server_verify = 0;
+	return 0;
+}
+
 static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+1, "ssl_mitm", h_mitm, 1, 1},
 	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
@@ -862,6 +943,14 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+23, "ssl_nocli", h_nocli, 1, 1},
 	{ssl_commandhandlers+24, "ssl_client_cert", h_clicert, 1, 2},
 	{ssl_commandhandlers+25, "ssl_client_key", h_clikey, 1, 2},
+	{ssl_commandhandlers+26, "ssl_server", h_serv, 1, 1},
+	{ssl_commandhandlers+27, "ssl_noserver", h_noserv, 1, 1},
+	{ssl_commandhandlers+28, "ssl_client", h_cli, 1, 1},
+	{ssl_commandhandlers+29, "ssl_noclient", h_nocli, 1, 1},
+	{ssl_commandhandlers+30, "ssl_server_verify", h_server_verify, 1, 1},
+	{ssl_commandhandlers+31, "ssl_server_no_verify", h_no_server_verify, 1, 1},
+	{ssl_commandhandlers+32, "ssl_server_ca_dir", h_server_ca_dir, 1, 2},
+	{ssl_commandhandlers+33, "ssl_server_ca_store", h_server_ca_store, 1, 2},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
@@ -875,22 +964,30 @@ static struct commands ssl_commandhandlers[] = {
 PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
 
+	mitm = 0;
+	serv = 0;
+	cli = 0;
+
 	pl = pluginlink;
 
 	ssl_connect_timeout = 0;
+
 	free(certcache);
 	certcache = NULL;
 	free(srvcert);
 	srvcert = NULL;
 	free(srvkey);
 	srvkey = NULL;
-	mitm = 0;
-	serv = 0;
+	free(clicert);
+	clicert = NULL;
+	free(clikey);
+	clikey = NULL;
 	client_min_proto_version = 0;
 	client_max_proto_version = 0;
 	server_min_proto_version = 0;
 	server_max_proto_version = 0;
 	client_verify = 0;
+	server_verify = 0;
 	free(client_ciphersuites);
 	client_ciphersuites = NULL;
 	free(server_ciphersuites);
@@ -909,6 +1006,10 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 	client_ca_dir = NULL;
 	free(client_ca_store);
 	client_ca_store = NULL;
+	free(server_ca_dir);
+	server_ca_dir = NULL;
+	free(server_ca_store);
+	server_ca_store = NULL;
 
 
 	if(!ssl_loaded){
