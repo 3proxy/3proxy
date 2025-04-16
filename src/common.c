@@ -93,6 +93,7 @@ char *rotations[] = {
 
 
 struct extparam conf = {
+	{0, 0},
 	{1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 0, 0},
 	NULL,
 	NULL,
@@ -101,7 +102,7 @@ struct extparam conf = {
 	NULL,
 	NULL,
 	0,
-	0, -1, 0, 0, 0, 0, 
+	-1, 0, 0, 0, 0, 
 	0, 500, 0, 0, 0, 0, 0, 0, 2,
 	0, 0, 0,
 	6, 600,
