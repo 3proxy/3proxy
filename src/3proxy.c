@@ -521,6 +521,14 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #ifndef NORADIUS
   pthread_mutex_init(&rad_mutex, NULL);
 #endif
+#ifdef _WIN32
+  if(!CreatePipe(&conf.threadinit[0], &conf.threadinit[1], NULL, 1)){
+#else
+  if(pipe(conf.threadinit)) {
+#endif
+    fprintf(stderr, "CreatePipe failed\n");
+    return 1;
+  };
 
   freeconf(&conf);
   res = readconfig(fp);

@@ -632,6 +632,11 @@ struct filemon {
 
 
 struct extparam {
+#ifdef _WIN32
+	HANDLE threadinit[2];
+#else
+	int threadinit[2];
+#endif
 	int timeouts[12];
 	struct ace * acl;
 	char * conffile;
@@ -640,7 +645,7 @@ struct extparam {
 	struct trafcount * trafcounter;
 	struct srvparam *services;
 	int stacksize,
-		threadinit, counterd, haveerror, rotate, paused, archiverc,
+		counterd, haveerror, rotate, paused, archiverc,
 		demon, maxchild, backlog, needreload, timetoexit, version, noforce, bandlimver, parentretries;
 	int authcachetype, authcachetime;
 	int filtermaxsize;

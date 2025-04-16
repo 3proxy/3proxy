@@ -115,6 +115,15 @@ void * threadfunc (void *p) {
 }
 #undef param
 
+int pushthreadinit(){
+    return 
+#ifdef _WIN32
+    WriteFile(conf.threadinit[1], "1", 1, NULL, NULL);
+#else
+    write(conf.threadinit[1], "1", 1);
+#endif
+}
+
 
 struct socketoptions sockopts[] = {
 #ifdef TCP_NODELAY
@@ -526,7 +535,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if (error || i!=argc) {
 #ifndef STDMAIN
 		haveerror = 1;
-		conf.threadinit = 0;
+		pushthreadinit();
 #endif
 		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options\n"
@@ -558,7 +567,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv.intsa) = htons((unsigned short)atoi(argv[i])))==0 || (srv.targetport = htons((unsigned short)atoi(argv[i+2])))==0) {
 #ifndef STDMAIN
 		haveerror = 1;
-		conf.threadinit = 0;
+		pushthreadinit();
 #endif
 		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options"
@@ -624,7 +633,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifndef STDMAIN
 
  copyfilter(conf.filters, &srv);
- conf.threadinit = 0;
+ pushthreadinit();
 
 
 #endif
