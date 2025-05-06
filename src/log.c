@@ -190,7 +190,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 					break;
 
 				case 'N':
-				 if(param->service < 15) {
+				 if(param->service <= MAX_SERVICE) {
 					 len = (conf.stringtable)? (int)strlen((char *)conf.stringtable[SERVICES + param->service]) : 0;
 					 if(len > 20) len = 20;
 					 memcpy(buf+i, (len)?conf.stringtable[SERVICES + param->service]:(unsigned char*)"-", (len)?len:1);

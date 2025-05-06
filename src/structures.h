@@ -181,12 +181,13 @@ typedef enum {
 	S_DNSPR,
 	S_FTPPR,
 	S_SMTPP,
-	S_REVLI,
-	S_REVCO,
-	S_ZOMBIE,
 	S_AUTO,
-	S_TLSPR
+	S_TLSPR,
+	S_ZOMBIE
 }PROXYSERVICE;
+
+#define MAX_SERVICE S_ZOMBIE
+
 
 struct clientparam;
 struct node;
