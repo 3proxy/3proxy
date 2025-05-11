@@ -3,7 +3,7 @@
 #to  build:
 # docker build -f Dockerfile.full -t 3proxy.full .
 #to run:
-# by default 3proxy uses safe chroot environment with chroot to /usr/local/3proxy with uid/gid 65535/65535 and expects
+# by default 3proxy uses safe chroot environment with chroot to /usr/local/3proxy with uid/gid 65534/65534 and expects
 # configuration file to be placed in /usr/local/etc/3proxy.
 # Paths in configuration file must be relative to /usr/local/3proxy, that is use /logs instead of 
 # /usr/local/3proxy/logs. nserver in chroot is required for DNS resolution. An example:
@@ -43,13 +43,13 @@ COPY --from=buildenv 3proxy/bin/3proxy /bin/
 COPY --from=buildenv 3proxy/bin/*.ld.so /usr/local/3proxy/libexec/
 RUN mkdir /usr/local/3proxy/logs &&\
  mkdir /usr/local/3proxy/conf &&\
- chown -R 65535:65535 /usr/local/3proxy &&\
+ chown -R 65534:65534 /usr/local/3proxy &&\
  chmod -R 550  /usr/local/3proxy &&\
  chmod 750  /usr/local/3proxy/logs &&\
  chmod -R 555 /usr/local/3proxy/libexec &&\
  chown -R root /usr/local/3proxy/libexec &&\
  mkdir /etc/3proxy/ &&\
- echo chroot /usr/local/3proxy 65535 65535 >/etc/3proxy/3proxy.cfg &&\
+ echo chroot /usr/local/3proxy 65534 65534 >/etc/3proxy/3proxy.cfg &&\
  echo include /conf/3proxy.cfg >>/etc/3proxy/3proxy.cfg &&\
  chmod 440  /etc/3proxy/3proxy.cfg
 CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]
