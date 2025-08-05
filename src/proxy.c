@@ -506,10 +506,14 @@ for(;;){
  if(action != PASS) RETURN(517);
  param->nolongdatfilter = 0;
 
+#endif
+
  if(isconnect && param->redirtype != R_HTTP) {
 	socksend(param, param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
  }
 
+
+#ifndef WITHMAIN
  if (param->npredatfilters){
 	action = handlepredatflt(param);
 	if(action == HANDLED){
