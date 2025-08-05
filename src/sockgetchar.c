@@ -39,7 +39,7 @@ int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, un
  do {
 	if(conf.timetoexit) return 0;
 	fds.events = POLLOUT;
-	res = param?param->srv->so._poll(param->sostate, &fds, 1, to*1000):so._poll(so.state, &fds, 1, to*1000);
+	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 	if(res < 1) break;
 	res = param?param->srv->so._sendto(param->sostate, sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin)):so._sendto(so.state, sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin)); 
@@ -60,7 +60,7 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 	fds.fd = sock;
 	fds.events = POLLIN;
 	if(conf.timetoexit) return EOF;
-	res = param?param->srv->so._poll(param->sostate, &fds, 1, to*1000):so._poll(so.state, &fds, 1, to*1000);
+	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
 	if (res<1) return 0;
 	sasize = SASIZE(sin);
 	do {
