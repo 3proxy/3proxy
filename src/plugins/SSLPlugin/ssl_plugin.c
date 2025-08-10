@@ -361,11 +361,13 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
 	return NULL;
     }
 
-    err = SSL_CTX_use_certificate(ctx, (X509 *) server_cert);
-    if ( err <= 0 ) {
-	*errSSL = getSSLErr();
-	SSL_CTX_free(ctx);
-	return NULL;
+    if(server_cert) {
+        err = SSL_CTX_use_certificate(ctx, (X509 *) server_cert);
+	if ( err <= 0 ) {
+	    *errSSL = getSSLErr();
+	    SSL_CTX_free(ctx);
+	    return NULL;
+	}
     }
 
     err = SSL_CTX_use_PrivateKey(ctx, server_key);
@@ -379,8 +381,6 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
     if(config->server_cipher_list)SSL_CTX_set_cipher_list(ctx, config->server_cipher_list);
     if(config->server_ciphersuites)SSL_CTX_set_ciphersuites(ctx, config->server_ciphersuites);
     if(config->server_verify){
-fprintf(stderr, "server verify\n");
-fflush(stderr);
                 if(config->server_ca_file || config->server_ca_dir){
                     SSL_CTX_load_verify_locations(ctx, config->server_ca_file, config->server_ca_dir);
                 }
@@ -483,16 +483,15 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	}
 	if(serv){
 	    if(!srvcert || !srvkey) return sc;
-	    sc->server_cert = getCert(srvcert);
-	    if(!sc->server_cert){
-		fprintf(stderr, "failed to read: %s\n", srvcert);
-		return sc;
-	    }
 	    if(!sc->server_key){
 		return sc;
 	    }
-	    if(!(sc->cli_ctx = ssl_cli_ctx(sc, sc->server_cert, sc->server_key, &errSSL))){
+	    if(!(sc->cli_ctx = ssl_cli_ctx(sc, NULL, sc->server_key, &errSSL))){
 		fprintf(stderr, "failed to create context: %s\n", errSSL);
+		return sc;
+	    }
+	    if(SSL_CTX_use_certificate_chain_file(sc->cli_ctx, srvcert) != 1){
+		fprintf(stderr, "failed to read server cert: %s\n", srvcert);
 		return sc;
 	    }
 	    sc->serv = 1;
@@ -534,7 +533,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 #endif		
 		else 
 		    SSL_CTX_set_default_verify_paths(sc->srv_ctx);
-		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+		    SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
 	}
 #ifdef WIWHSPLICE
