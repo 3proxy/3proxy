@@ -19,8 +19,8 @@ fi
 echo ""
 echo 3proxy installed.
 if /bin/systemctl >/dev/null 2>&1; then \
- /bin/systemctl stop 3proxy.service \
- /bin/systemctl start 3proxy.service \
+ /bin/systemctl stop 3proxy.service ;\
+ /bin/systemctl start 3proxy.service ;\
  echo use ;\
  echo "  "systemctl start 3proxy.service ;\
  echo to start proxy ;\
