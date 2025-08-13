@@ -488,7 +488,7 @@ int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa,
 		if(!errno) return 0;
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sock;
-	        fds[0].events = POLLOUT|POLLIN|POLLERR|POLLHUP;
+	        fds[0].events = POLLOUT;
 		if((param?param->srv->so._poll(param->sostate, fds, 1, to*1000):so._poll(so.state, fds, 1, to*1000)) <= 0 || !(fds[0].revents & POLLOUT) || (fds[0].revents & (POLLERR|POLLHUP))) {
 			return (13);
 		}
