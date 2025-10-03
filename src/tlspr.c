@@ -191,7 +191,7 @@ void * tlsprchild(struct clientparam* param) {
 	    myfree(param->hostname);
 	    param->hostname = NULL;
 	}
-	else if (parsehostname(sni, param, param->srv->targetport? param->srv->targetport:443)) RETURN (100);
+	else if (parsehostname(sni, param, param->srv->targetport? ntohs(param->srv->targetport):443)) RETURN (100);
 	if (!param->hostname)param->hostname = (unsigned char *)mystrdup(sni);
     }
     else if (res < 0 && param->srv->requirecert) RETURN(310-res);
