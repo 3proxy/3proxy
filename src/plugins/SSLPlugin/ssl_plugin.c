@@ -536,7 +536,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		    SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
 	}
-#ifdef WIWHSPLICE
+#ifdef WITHSPLICE
 	srv->usesplice = 0;
 #endif
 	return sc;
