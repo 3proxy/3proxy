@@ -34,7 +34,7 @@ jobs:
       run: copy Makefile.win Makefile
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib" && dir "c:/program files/openssl/lib/VC/x64"'
+      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib" && dir "c:/program files/openssl/lib/VC/x64" && pacman -S openssl-devel '
     - name: SSLPlugin Linux
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: "sed -i '/^PLUGIN/s/$/ SSLPlugin/' Makefile && sed -i '/^LIBS/s/$/ -lcrypto -lssl/' Makefile"
