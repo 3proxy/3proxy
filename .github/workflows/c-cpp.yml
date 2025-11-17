@@ -2,10 +2,10 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "test-ci" ]
     paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp.yml' ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "test-ci" ]
     paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp.yml' ]
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
       run: copy Makefile.win Makefile
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win'
+      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib" && dir "c:/program files/openssl/lib/VC"'
     - name: SSLPlugin Linux
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: "sed -i '/^PLUGIN/s/$/ SSLPlugin/' Makefile && sed -i '/^LIBS/s/$/ -lcrypto -lssl/' Makefile"
