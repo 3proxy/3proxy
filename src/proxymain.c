@@ -171,6 +171,9 @@ struct socketoptions sockopts[] = {
 #ifdef TCP_FASTOPEN_CONNECT
 	{TCP_FASTOPEN_CONNECT, "TCP_FASTOPEN_CONNECT"},
 #endif
+#ifdef TCP_MAXSEG
+	{TCP_MAXSEG, "TCP_MAXSEG"},
+#endif
 	{0, NULL}
 };
 
@@ -193,6 +196,12 @@ void setopts(SOCKET s, int opts){
 	int i, opt, set;
 	for(i = 0; opts >= (opt = (1<<i)); i++){
 		set = 1;
+#ifdef TCP_MAXSEG
+		if(sockopts[i].opt == TCP_MAXSEG){
+		    if(!conf.maxseg) continue;
+		    set = conf.maxseg;
+		}
+#endif
 		if(opts & opt) setsockopt(s, *sockopts[i].optname == 'T'? IPPROTO_TCP:
 #ifdef SOL_IP
 			*sockopts[i].optname == 'I'? SOL_IP: 
