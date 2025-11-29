@@ -651,6 +651,7 @@ struct extparam {
 	int authcachetype, authcachetime;
 	int filtermaxsize;
 	int gracetraf, gracenum, gracedelay;
+	int maxseg;
 	unsigned char *logname, **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;

@@ -93,27 +93,31 @@ char *rotations[] = {
 
 
 struct extparam conf = {
-	{0, 0},
-	{1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 0, 0},
-	NULL,
-	NULL,
-	NULL, NULL,
-	NULL,
-	NULL,
-	NULL,
-	0,
-	-1, 0, 0, 0, 0, 
-	0, 500, 0, 0, 0, 0, 0, 0, 2,
-	0, 0, 0,
-	6, 600,
-	1048576,
-	NULL, NULL,
-	NONE, NONE,
-	NULL,
+	{0, 0}, /* threadinit */
+	{1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 0, 0}, /* timeouts */
+	NULL, /* struct ace * acl; */
+	NULL, /* char * conffile; */
+	NULL, NULL, /* struct bandlim * bandlimiter,  *bandlimiterout; */
+	NULL, /* struct connlim * connlimiter; */
+	NULL, /* struct trafcount * trafcounter; */
+	NULL, /* struct srvparam *services; */
+	0, /* int stacksize, */
+	-1, 0, 0, 0, 0, /* counterd, haveerror, rotate, paused, archiverc, */
+	0, 500, 0, 0, 0, 0, 0, 0, 2, /* demon, maxchild, backlog, needreload, timetoexit, version, noforce, bandlimver, parentretries; */
+	6, 600, /* int authcachetype, authcachetime; */
+	1048576, /* int filtermaxsize; */
+	0, 0, 0, /* int gracetraf, gracenum, gracedelay */
+	0, /* int maxseg */
+	NULL, NULL, /* unsigned char *logname, **archiver; */
+	NONE, NONE, /* ROTATION logtype, countertype; */
+	NULL, /* char * counterfile; */
 #ifndef NOIPV6
-	{AF_INET},{AF_INET6},{AF_INET}, 
+	{AF_INET},
+	{AF_INET6},
+	{AF_INET}, 
 #else
-	{AF_INET},{AF_INET}, 
+	{AF_INET},
+	{AF_INET}, 
 #endif
 	NULL,
 	NULL,
