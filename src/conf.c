@@ -466,6 +466,11 @@ static int h_rotate(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_maxseg(int argc, unsigned char **argv){
+	conf.maxseg = atoi((char *)argv[1]);
+	return 0;
+}
+
 static int h_logformat(int argc, unsigned char **argv){
 	unsigned char * old = conf.logformat;
 	conf.logformat = (unsigned char *)mystrdup((char *)argv[1]);
@@ -1645,11 +1650,12 @@ struct commands commandhandlers[]={
 	{commandhandlers+61, "force", h_force, 1, 1},
 	{commandhandlers+62, "noforce", h_noforce, 1, 1},
 	{commandhandlers+63, "parentretries", h_parentretries, 2, 2},
-	{commandhandlers+64,  "auto", h_proxy, 1, 0},
+	{commandhandlers+64, "auto", h_proxy, 1, 0},
 	{commandhandlers+65, "backlog", h_backlog, 2, 2},
-	{commandhandlers+66,  "tlspr", h_proxy, 1, 0},
+	{commandhandlers+66, "tlspr", h_proxy, 1, 0},
+	{commandhandlers+67, "maxseg", h_maxseg, 2, 2},
 #ifndef NORADIUS
-	{commandhandlers+67, "radius", h_radius, 3, 0},
+	{commandhandlers+68, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
