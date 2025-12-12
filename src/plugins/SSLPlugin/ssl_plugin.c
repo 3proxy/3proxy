@@ -211,6 +211,11 @@ static ssize_t ssl_recv(void *state, SOCKET s, void *msg, size_t len, int flags)
 	return sso._recv(sso.state, s, msg, len, flags);
 }
 
+static int WINAPI ssl_shutdown(void *state, SOCKET s, int how){
+	delSSL(state, s);
+	return sso._shutdown(sso.state, s, how);
+}
+
 static int WINAPI ssl_closesocket(void *state, SOCKET s){
 	delSSL(state, s);
 	return sso._closesocket(sso.state, s);
@@ -501,6 +506,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    srv->so._recv = ssl_recv;
 	    srv->so._sendto = ssl_sendto;
 	    srv->so._recvfrom = ssl_recvfrom;
+	    srv->so._shutdown = ssl_shutdown;
 	    srv->so._closesocket = ssl_closesocket;
 	    srv->so._poll = ssl_poll;
 	}
