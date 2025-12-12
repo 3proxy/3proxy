@@ -30,6 +30,8 @@ struct ssl_config {
     char * server_ca_file;
     char * server_ca_dir;
     char * server_ca_store;
+    char * client_sni;
+    char * client_alpn;
     int mitm;
     int serv;
     int cli;
