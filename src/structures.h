@@ -491,6 +491,7 @@ struct srvparam {
 	int paused, version;
 	int singlepacket;
 	int usentlm;
+	int keepip;
 	int needuser;
 	int silent;
 	int transparent;

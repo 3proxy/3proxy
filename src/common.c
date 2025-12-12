@@ -526,16 +526,48 @@ int doconnect(struct clientparam * param){
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
 	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
 	if(SAISNULL(&param->sinsl)){
+		if (param->srv->keepip) {
 #ifndef NOIPV6
-		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
-		else
+			struct sockaddr_in6 local_addr;
+			socklen_t local_addr_len = sizeof(local_addr);
+			getsockname(param->clisock, (struct sockaddr *)&local_addr, &local_addr_len);
+
+			if(*SAFAMILY(&local_addr) == AF_INET6) {
+				if (IN6_IS_ADDR_V4MAPPED(&local_addr.sin6_addr)) {
+					struct sockaddr_in6 local_addr2;
+					memset(&local_addr2, 0, sizeof(local_addr2));
+					local_addr2.sin6_family = AF_INET;
+					local_addr2.sin6_port = local_addr.sin6_port;
+					param->sinsl = local_addr2;
+				} else {
+					param->sinsl = local_addr;
+				}
+			} else {
+				param->sinsl = local_addr;
+			}
+#else
+			struct sockaddr_in local_addr;
+			socklen_t local_addr_len = sizeof(local_addr);
+			getsockname(new_sock, (struct sockaddr *)&local_addr, &local_addr_len);
+				param->sinsl = local_addr;
 #endif
-			param->sinsl = param->srv->extsa;
+		} else {
+#ifndef NOIPV6
+			if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
+			else
+#endif
+				param->sinsl = param->srv->extsa;
+		}
 	}
 	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, param->srv->srvsockopts);
 
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+
+	if (param->srv->keepip) {
+		int opt = 1;
+		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_IP, IP_FREEBIND, (char *)&opt, sizeof(int));
+	}
 #ifdef REUSE
 	{
 		int opt;
@@ -569,7 +601,7 @@ int doconnect(struct clientparam * param){
 	if(param->srv->so._bind(param->sostate, param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;
 	}
-	
+
 	if(param->operation >= 256 || (param->operation & CONNECT)){
 		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) {
 			return 13;
