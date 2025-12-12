@@ -58,6 +58,8 @@ char * client_ciphersuites = NULL;
 char * server_ciphersuites = NULL;
 char * client_cipher_list = NULL;
 char * server_cipher_list = NULL;
+char * client_sni = NULL;
+char * client_alpn = NULL;
 
 typedef struct _ssl_conn {
 	struct SSL_CTX *ctx;
@@ -312,8 +314,11 @@ int docli(struct clientparam* param){
 
  SSL_CONN ServerConn;
  SSL_CERT ServerCert=NULL;
- 
+ unsigned char *hostname;
+ hostname = param->hostname;
+ param->hostname = (unsigned char *)PCONF->client_sni;
  ServerConn = dosrvcon(param, &ServerCert);
+ param->hostname = hostname;
  _ssl_cert_free(ServerCert);
 
  if(!ServerConn) return 1;
@@ -441,6 +446,9 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	if(server_ca_file)sc->server_ca_file=server_ca_file;
 	if(server_ca_dir)sc->server_ca_dir=server_ca_dir;
 	if(server_ca_store)sc->server_ca_store=server_ca_store;
+
+	if(client_sni)sc->client_sni=client_sni;
+	if(client_alpn)sc->client_alpn=client_alpn;
 
 
 	if(mitm){
@@ -635,6 +643,8 @@ static void ssl_filter_close(void *fo){
     free(CONFIG->client_ca_file);
     free(CONFIG->client_ca_dir);
     free(CONFIG->client_ca_store);
+    free(CONFIG->client_sni);
+    free(CONFIG->client_alpn);
     free(fo);
 }
 
@@ -835,6 +845,18 @@ static int h_client_ca_store(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_client_sni(int argc, unsigned char **argv){
+	free(client_sni);
+	client_sni = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_client_alpn(int argc, unsigned char **argv){
+	free(client_alpn);
+	client_alpn = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
 static int h_server_ca_dir(int argc, unsigned char **argv){
 	free(server_ca_dir);
 	server_ca_dir = argc > 1? strdup((char *)argv[1]) : NULL;
@@ -956,6 +978,8 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+31, "ssl_server_no_verify", h_no_server_verify, 1, 1},
 	{ssl_commandhandlers+32, "ssl_server_ca_dir", h_server_ca_dir, 1, 2},
 	{ssl_commandhandlers+33, "ssl_server_ca_store", h_server_ca_store, 1, 2},
+	{ssl_commandhandlers+34, "ssl_client_sni", h_client_sni, 1, 2},
+	{ssl_commandhandlers+35, "ssl_client_alpn", h_client_alpn, 1, 2},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
