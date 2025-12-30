@@ -99,10 +99,14 @@ static void addSSL(
     SOCKET srv_s, SSL_CONN srv_conn, 
     struct clientparam* param){
 	if(!param->sostate) return;
-	SOSTATE->cli.s = cli_s;
-	SOSTATE->cli.conn = cli_conn;
-	SOSTATE->srv.s = srv_s;
-	SOSTATE->srv.conn = srv_conn;
+	if (cli_s != INVALID_SOCKET){
+	    SOSTATE->cli.s = cli_s;
+	    SOSTATE->cli.conn = cli_conn;
+	}
+	if (srv_s != INVALID_SOCKET){
+	    SOSTATE->srv.s = srv_s;
+	    SOSTATE->srv.conn = srv_conn;
+	}
 }
 
 void delSSL(void *state, SOCKET s){
@@ -270,7 +274,6 @@ SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
 
  SSL_set_mode((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
  SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, 0);
-
 
  return ServerConn;
 }
@@ -648,10 +651,10 @@ static void ssl_filter_close(void *fo){
     free(fo);
 }
 
-static struct filter ssl_filter_mitm = {
+static struct filter ssl_filter = {
 	NULL,
 	"ssl filter",
-	"mitm",
+	"ssl_filter",
 	ssl_filter_open,
 	ssl_filter_client,
 	NULL, NULL, NULL, ssl_filter_predata, NULL, NULL,
@@ -659,100 +662,73 @@ static struct filter ssl_filter_mitm = {
 	ssl_filter_close
 };
 
+int filterset = 0;
+
+static void setfilters(){
+	filterset++;
+	if(filterset > 1) return;
+	ssl_filter.next = pl->conf->filters;
+	pl->conf->filters = &ssl_filter;
+	sso = *pl->so;
+}
+
+static void unsetfilters(){
+	struct filter * sf;
+
+	if(!filterset) return;
+	filterset--;
+	if(filterset > 0) return;
+	if(pl->conf->filters == &ssl_filter) pl->conf->filters = ssl_filter.next;
+	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
+		if(sf->next == &ssl_filter) {
+			sf->next = ssl_filter.next;
+			break;
+		}
+	}
+}
 
 static int h_mitm(int argc, unsigned char **argv){
-	if(mitm) return 1;
+	if(mitm) return 0;
 	if(serv) return 2;
-	ssl_filter_mitm.next = pl->conf->filters;
-	pl->conf->filters = &ssl_filter_mitm;
-	sso = *pl->so;
 	mitm = 1;
+	setfilters();
 	return 0;
 }
 
 static int h_nomitm(int argc, unsigned char **argv){
-	struct filter * sf;
-	if(!mitm) return 1;
-	if(pl->conf->filters == &ssl_filter_mitm) pl->conf->filters = ssl_filter_mitm.next;
-	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
-		if(sf->next == &ssl_filter_mitm) {
-			sf->next = ssl_filter_mitm.next;
-			break;
-		}
-	}
+	if(!mitm) return 0;
 	mitm = 0;
+	unsetfilters();
 	return 0;
 }
 
-static struct filter ssl_filter_serv = {
-	NULL,
-	"ssl filter",
-	"serv",
-	ssl_filter_open,
-	ssl_filter_client,
-	NULL, NULL, NULL, NULL, NULL, NULL,
-	ssl_filter_clear, 
-	ssl_filter_close
-};
-
-
 static int h_serv(int argc, unsigned char **argv){
-	if(serv) return 1;
+	if(serv) return 0;
 	if(mitm) return 2;
-	ssl_filter_serv.next = pl->conf->filters;
-	pl->conf->filters = &ssl_filter_serv;
-	sso = *pl->so;
 	serv = 1;
+	setfilters();
 	return 0;
 }
 
 static int h_noserv(int argc, unsigned char **argv){
-	struct filter * sf;
-	if(!serv) return 1;
+	if(!serv) return 0;
 	serv = 0;
-	if(pl->conf->filters == &ssl_filter_serv) pl->conf->filters = ssl_filter_serv.next;
-	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
-		if(sf->next == &ssl_filter_serv) {
-			sf->next = ssl_filter_serv.next;
-			break;
-		}
-	}
+	unsetfilters();
 	return 0;
 }
 
-static struct filter ssl_filter_cli = {
-	NULL,
-	"ssl filter",
-	"cli",
-	ssl_filter_open,
-	ssl_filter_client,
-	NULL, NULL, NULL, ssl_filter_predata, NULL, NULL,
-	ssl_filter_clear, 
-	ssl_filter_close
-};
-
-
 static int h_cli(int argc, unsigned char **argv){
-	if(mitm) return 1;
-	if(cli) return 2;
-	ssl_filter_cli.next = pl->conf->filters;
-	pl->conf->filters = &ssl_filter_cli;
-	sso = *pl->so;
+	if(cli) return 0;
+	if(mitm) return 2;
 	cli = 1;
+	setfilters();
 	return 0;
 }
 
 static int h_nocli(int argc, unsigned char **argv){
-	struct filter * sf;
-	if(!cli) return 1;
+	if(!cli) return 0;
 	cli = 0;
-	if(pl->conf->filters == &ssl_filter_cli) pl->conf->filters = ssl_filter_cli.next;
-	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
-		if(sf->next == &ssl_filter_cli) {
-			sf->next = ssl_filter_cli.next;
-			break;
-		}
-	}
+	unsetfilters();
 	return 0;
 }
 
@@ -993,9 +969,10 @@ static struct commands ssl_commandhandlers[] = {
 PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
 
-	mitm = 0;
-	serv = 0;
-	cli = 0;
+
+	h_nomitm(0, NULL);
+	h_noserv(0, NULL);
+	h_nocli(0, NULL);
 
 	pl = pluginlink;
 
