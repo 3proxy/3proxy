@@ -196,14 +196,6 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 
 	*errSSL = NULL;
 
-/*FIXME: support SSL_ERROR_WANT_(READ|WRITE) */
-#ifdef _WIN32
- ul = 0; 
- ioctlsocket(s, FIONBIO, &ul);
-#else
- fcntl(s,F_SETFL,0);
-#endif
-
 	conn = (ssl_conn *)malloc(sizeof(ssl_conn));
 	if ( conn == NULL ){
 		return NULL;
@@ -227,8 +219,28 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 		return NULL;
 	}
 	if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
-	err = SSL_connect(conn->ssl);
-	if ( err == -1 ) {
+
+
+	do {
+		struct pollfd fds[1] = {{}};
+		int sslerr;
+
+		err = SSL_connect(conn->ssl);
+		if (err != -1) break;
+		sslerr  = SSL_get_error(conn->ssl, err);
+		if(sslerr == SSL_ERROR_WANT_READ){
+		    fds[0].fd = s;
+		    fds[0].events = POLLIN;
+		}
+		else if(sslerr == SSL_ERROR_WANT_WRITE){
+		    fds[0].fd = s;
+		    fds[0].events = POLLOUT;
+		}
+		else break;
+		if(sso._poll(sso.state, fds, 1, CONNECT_TO*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+	} while (err == -1);
+
+	if ( err != 1 ) {
 		*errSSL = getSSLErr();
 		ssl_conn_free(conn);
 		return NULL;
@@ -245,12 +257,6 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 	    *server_cert = cert;
 	}
 
-#ifdef _WIN32 
- ul = 1;
- ioctlsocket(s, FIONBIO, &ul);
-#else
- fcntl(s,F_SETFL,O_NONBLOCK);
-#endif
 	return conn;
 }
 
@@ -261,15 +267,6 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	ssl_conn *conn;
 	unsigned long ul;
 	
-/*FIXME: support SSL_ERROR_WANT_(READ|WRITE)*/
-
-#ifdef _WIN32
- ul = 0;
- ioctlsocket(s, FIONBIO, &ul);
-#else
- fcntl(s,F_SETFL,0);
-#endif
-
 
 	*errSSL = NULL;
 
@@ -296,28 +293,38 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	}
 
 	SSL_set_fd(conn->ssl, s);
-	err = SSL_accept(conn->ssl);
-	if ( err <= 0 ) {
+
+	do {
+		struct pollfd fds[1] = {{}};
+		int sslerr;
+
+		err = SSL_accept(conn->ssl);
+		if (err != -1) break;
+		sslerr  = SSL_get_error(conn->ssl, err);
+		if(sslerr == SSL_ERROR_WANT_READ){
+		    fds[0].fd = s;
+		    fds[0].events = POLLIN;
+		}
+		else if(sslerr == SSL_ERROR_WANT_WRITE){
+		    fds[0].fd = s;
+		    fds[0].events = POLLOUT;
+		}
+		else break;
+		if(sso._poll(sso.state, fds, 1, CONNECT_TO*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+	} while (err == -1);
+
+
+	if ( err != 1 ) {
 		*errSSL = getSSLErr();
 		ssl_conn_free(conn);
 		return NULL;
 	}
 
-	//
-	// client certificate
-	// TODO: is it required?
-	//
 	cert = SSL_get_peer_certificate(conn->ssl);     
 
 	if ( cert != NULL )
 		X509_free(cert);
 
-#ifdef _WIN32 
- ul = 1;
- ioctlsocket(s, FIONBIO, &ul);
-#else
- fcntl(s,F_SETFL,O_NONBLOCK);
-#endif
 	return conn;
 }
 

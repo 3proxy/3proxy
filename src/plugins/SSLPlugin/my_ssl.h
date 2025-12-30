@@ -77,5 +77,5 @@ void _ssl_cert_free(SSL_CERT cert);
 void ssl_init(void);
 char * getSSLErr(void);
 
-
+extern struct sockfuncs sso;
 #endif // __my_ssl_h__
