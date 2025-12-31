@@ -266,6 +266,8 @@ void freepwl(struct passwords *pw);
 void copyfilter(struct filter *, struct srvparam *srv);
 FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param);
 FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
+FILTER_ACTION handleconnectflt(struct clientparam *param);
+FILTER_ACTION handleafterauthflt(struct clientparam *param);
 FILTER_ACTION handlehdrfilterscli(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
 FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
 FILTER_ACTION handlepredatflt(struct clientparam *param);

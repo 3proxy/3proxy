@@ -578,6 +578,13 @@ int doconnect(struct clientparam * param){
 	size = sizeof(param->sinsl);
 	if(param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
  }
+ if (param->nconnectfilters){
+    FILTER_ACTION action;
+    
+    action = handleconnectflt(param);
+    if(action != PASS) return 19;
+ }
+
  return 0;
 }
 

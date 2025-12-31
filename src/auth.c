@@ -895,8 +895,15 @@ int doauth(struct clientparam * param){
 		if(ret > 9) return ret;
 	}
 	if(!res){
-		return alwaysauth(param);
+		ret = alwaysauth(param);
+		if (param->afterauthfilters){
+		    FILTER_ACTION action;
+    
+		    action = handleafterauthflt(param);
+		    if(action != PASS) return 19;
+		}
 	}
+
 
 	return ret;
 }

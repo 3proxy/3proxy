@@ -30,37 +30,38 @@ PROXYFUNC tcppmfunc, proxyfunc, smtppfunc, ftpprfunc;
 
 static struct pluginlink * pl;
 
-struct alpn client_alpn_protos;
+static struct alpn client_alpn_protos;
 
 static int ssl_loaded = 0;
 static int ssl_connect_timeout = 0;
-char *certcache = NULL;
-char *srvcert = NULL;
-char *srvkey = NULL;
-char *clicert = NULL;
-char *clikey = NULL;
-char *server_ca_file = NULL;
-char *server_ca_dir = NULL;
-char *server_ca_store = NULL;
-char *server_ca_key = NULL;
-char *client_ca_file = NULL;
-char *client_ca_dir = NULL;
-char *client_ca_store = NULL;
-int mitm = 0;
-int serv = 0;
-int cli = 0;
-int ssl_inited = 0;
-int client_min_proto_version = 0;
-int client_max_proto_version = 0;
-int server_min_proto_version = 0;
-int server_max_proto_version = 0;
-int client_verify = 0;
-int server_verify = 0;
-char * client_ciphersuites = NULL;
-char * server_ciphersuites = NULL;
-char * client_cipher_list = NULL;
-char * server_cipher_list = NULL;
-char * client_sni = NULL;
+static char *certcache = NULL;
+static char *srvcert = NULL;
+static char *srvkey = NULL;
+static char *clicert = NULL;
+static char *clikey = NULL;
+static char *server_ca_file = NULL;
+static char *server_ca_dir = NULL;
+static char *server_ca_store = NULL;
+static char *server_ca_key = NULL;
+static char *client_ca_file = NULL;
+static char *client_ca_dir = NULL;
+static char *client_ca_store = NULL;
+static int mitm = 0;
+static int serv = 0;
+static int cli = 0;
+static int ssl_inited = 0;
+static int client_min_proto_version = 0;
+static int client_max_proto_version = 0;
+static int server_min_proto_version = 0;
+static int server_max_proto_version = 0;
+static int client_verify = 0;
+static int server_verify = 0;
+static char * client_ciphersuites = NULL;
+static char * server_ciphersuites = NULL;
+static char * client_cipher_list = NULL;
+static char * server_cipher_list = NULL;
+static char * client_sni = NULL;
+static int client_mode = 0;
 
 typedef struct _ssl_conn {
 	struct SSL_CTX *ctx;
@@ -79,10 +80,6 @@ struct SSLstate {
 	SSL_CONFIG *config;
 };
 
-
-/*
- TO DO: use hashtable
-*/
 
 #define STATE ((struct SSLstate *)(state))
 
@@ -424,6 +421,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	sc->client_max_proto_version = client_max_proto_version;
 	sc->server_min_proto_version = server_min_proto_version;
 	sc->server_max_proto_version = server_max_proto_version;
+	sc->client_mode = client_mode;
 	sc->client_verify = client_verify;
 	sc->server_verify = server_verify;
 	if(client_ciphersuites) sc->client_ciphersuites = strdup(client_ciphersuites);
@@ -595,6 +593,24 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 	return CONTINUE;
 }
 
+static FILTER_ACTION ssl_filter_connect(void *fc, struct clientparam * param){
+	if(PCONF->cli && !client_mode) {
+	    if(docli(param)) {
+		return REJECT;
+	    }
+	}
+	return PASS;
+}
+
+static FILTER_ACTION ssl_filter_afterauth(void *fc, struct clientparam * param){
+	if(PCONF->cli && client_mode == 1) {
+	    if(docli(param)) {
+		return REJECT;
+	    }
+	}
+	return PASS;
+}
+
 static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 
 	if(param->operation != HTTP_CONNECT && param->operation != CONNECT) return PASS;
@@ -605,7 +621,7 @@ static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 	    if(!param->redirectfunc) param->redirectfunc = proxyfunc;
 	    return CONTINUE;
 	}
-	else if(PCONF->cli) {
+	else if(PCONF->cli && client_mode == 2) {
 	    if(docli(param)) {
 		return REJECT;
 	    }
@@ -668,7 +684,12 @@ static struct filter ssl_filter = {
 	"ssl_filter",
 	ssl_filter_open,
 	ssl_filter_client,
-	NULL, NULL, NULL, ssl_filter_predata, NULL, NULL,
+	NULL, 
+	ssl_filter_connect, 
+	ssl_filter_afterauth, 
+	NULL, NULL, 
+	ssl_filter_predata,
+	NULL, NULL,
 	ssl_filter_clear, 
 	ssl_filter_close
 };
@@ -950,6 +971,15 @@ static int h_server_verify(int argc, unsigned char **argv){
 	server_verify = 1;
 	return 0;
 }
+
+static int h_client_mode(int argc, unsigned char **argv){
+	client_mode = 0;
+	if(argc <= 1) return 0;
+	client_mode = atoi((char *)argv[1]);
+	return 0;
+}
+
+
 static int h_no_server_verify(int argc, unsigned char **argv){
 	server_verify = 0;
 	return 0;
@@ -991,6 +1021,7 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+33, "ssl_server_ca_store", h_server_ca_store, 1, 2},
 	{ssl_commandhandlers+34, "ssl_client_sni", h_client_sni, 1, 2},
 	{ssl_commandhandlers+35, "ssl_client_alpn", h_client_alpn, 1, 0},
+	{ssl_commandhandlers+36, "ssl_client_mode", h_client_mode, 1, 2},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
@@ -1029,6 +1060,7 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 	server_max_proto_version = 0;
 	client_verify = 0;
 	server_verify = 0;
+	client_mode = 0;
 	free(client_ciphersuites);
 	client_ciphersuites = NULL;
 	free(server_ciphersuites);
