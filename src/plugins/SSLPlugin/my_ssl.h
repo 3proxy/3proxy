@@ -10,6 +10,11 @@ typedef void *SSL_CONN;
 //
 typedef void *SSL_CERT;
 
+struct alpn {
+    unsigned char *protos;
+    unsigned int protos_len;
+};
+
 struct ssl_config {
     X509 *CA_cert;
     X509 *server_cert;
@@ -31,7 +36,7 @@ struct ssl_config {
     char * server_ca_dir;
     char * server_ca_store;
     char * client_sni;
-    char * client_alpn;
+    struct alpn client_alpn_protos;
     int mitm;
     int serv;
     int cli;
