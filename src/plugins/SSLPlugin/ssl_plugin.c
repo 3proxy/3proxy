@@ -30,6 +30,8 @@ PROXYFUNC tcppmfunc, proxyfunc, smtppfunc, ftpprfunc;
 
 static struct pluginlink * pl;
 
+struct alpn client_alpn_protos;
+
 static int ssl_loaded = 0;
 static int ssl_connect_timeout = 0;
 char *certcache = NULL;
@@ -59,7 +61,6 @@ char * server_ciphersuites = NULL;
 char * client_cipher_list = NULL;
 char * server_cipher_list = NULL;
 char * client_sni = NULL;
-char * client_alpn = NULL;
 
 typedef struct _ssl_conn {
 	struct SSL_CTX *ctx;
@@ -443,15 +444,20 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		return sc;
 	    }
 	}
-	if(client_ca_file)sc->client_ca_file=client_ca_file;
-	if(client_ca_dir)sc->client_ca_dir=client_ca_dir;
-	if(client_ca_store)sc->client_ca_store=client_ca_store;
-	if(server_ca_file)sc->server_ca_file=server_ca_file;
-	if(server_ca_dir)sc->server_ca_dir=server_ca_dir;
-	if(server_ca_store)sc->server_ca_store=server_ca_store;
+	if(client_ca_file)sc->client_ca_file =strdup(client_ca_file);
+	if(client_ca_dir)sc->client_ca_dir = strdup(client_ca_dir);
+	if(client_ca_store)sc->client_ca_store = strdup(client_ca_store);
+	if(server_ca_file)sc->server_ca_file = strdup(server_ca_file);
+	if(server_ca_dir)sc->server_ca_dir = strdup(server_ca_dir);
+	if(server_ca_store)sc->server_ca_store = strdup(server_ca_store);
 
-	if(client_sni)sc->client_sni=client_sni;
-	if(client_alpn)sc->client_alpn=client_alpn;
+	if(client_sni)sc->client_sni=strdup(client_sni);
+	if(client_alpn_protos.protos_len){
+	    sc->client_alpn_protos = client_alpn_protos;
+	    sc->client_alpn_protos.protos = malloc(client_alpn_protos.protos_len);
+	    if(!sc->client_alpn_protos.protos) sc->client_alpn_protos.protos_len = 0;
+	    else memcpy(sc->client_alpn_protos.protos, client_alpn_protos.protos, client_alpn_protos.protos_len);
+	}
 
 
 	if(mitm){
@@ -539,6 +545,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    if(sc->client_max_proto_version)SSL_CTX_set_max_proto_version(sc->srv_ctx, sc->client_max_proto_version);
 	    if(sc->client_cipher_list)SSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_cipher_list);
 	    if(sc->client_ciphersuites)SSL_CTX_set_ciphersuites(sc->srv_ctx, sc->client_ciphersuites);
+	    if(sc->client_alpn_protos.protos_len)SSL_CTX_set_alpn_protos(sc->srv_ctx, sc->client_alpn_protos.protos, sc->client_alpn_protos.protos_len);
 	    if(sc->client_verify){
 		if(sc->client_ca_file || sc->client_ca_dir){
 		    SSL_CTX_load_verify_locations(sc->srv_ctx, sc->client_ca_file, sc->client_ca_dir);
@@ -647,7 +654,11 @@ static void ssl_filter_close(void *fo){
     free(CONFIG->client_ca_dir);
     free(CONFIG->client_ca_store);
     free(CONFIG->client_sni);
-    free(CONFIG->client_alpn);
+    if(CONFIG->client_alpn_protos.protos_len){
+	free(CONFIG->client_alpn_protos.protos);
+	CONFIG->client_alpn_protos.protos = NULL;
+	CONFIG->client_alpn_protos.protos_len = 0;
+    }
     free(fo);
 }
 
@@ -828,9 +839,33 @@ static int h_client_sni(int argc, unsigned char **argv){
 }
 
 static int h_client_alpn(int argc, unsigned char **argv){
-	free(client_alpn);
-	client_alpn = argc > 1? strdup((char *)argv[1]) : NULL;
-	return 0;
+    int len, i;
+
+    if(client_alpn_protos.protos_len){
+	free(client_alpn_protos.protos);
+	client_alpn_protos.protos = NULL;
+	client_alpn_protos.protos_len = 0;
+    }
+    if(argc <= 1) return 0;
+
+    for(len = argc - 1, i = 1; i < argc; i++){
+	len += strlen((char *)argv[i]);
+    }
+
+    if(!(client_alpn_protos.protos = malloc(len))) return 10;
+
+    for(len = 0, i = 1; i < argc; i++){
+	int l;
+	
+	l = strlen((char *)argv[i]);
+	if(l >= 255) return 2;
+	client_alpn_protos.protos[len++] = l;
+	memcpy(client_alpn_protos.protos + len, argv[i], l);
+	len += l;
+    }
+    client_alpn_protos.protos_len = len;
+
+    return 0;
 }
 
 static int h_server_ca_dir(int argc, unsigned char **argv){
@@ -955,7 +990,7 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+32, "ssl_server_ca_dir", h_server_ca_dir, 1, 2},
 	{ssl_commandhandlers+33, "ssl_server_ca_store", h_server_ca_store, 1, 2},
 	{ssl_commandhandlers+34, "ssl_client_sni", h_client_sni, 1, 2},
-	{ssl_commandhandlers+35, "ssl_client_alpn", h_client_alpn, 1, 2},
+	{ssl_commandhandlers+35, "ssl_client_alpn", h_client_alpn, 1, 0},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
