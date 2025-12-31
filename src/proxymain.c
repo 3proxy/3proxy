@@ -718,7 +718,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		defparam.clisock = sock;
 
 	if(!srv.silent && !iscbc){
-		sprintf((char *)buf, "Accepting connections [%u/%u]", (unsigned)getpid(), (unsigned)pthread_self());
+		sprintf((char *)buf, "Accepting connections [%"PRINTF_INT64_MODIFIER"u/%"PRINTF_INT64_MODIFIER"u]", (uint64_t)getpid(), (uint64_t)pthread_self());
 		dolog(&defparam, buf);
 	}
  }
@@ -916,7 +916,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 	srv.childcount++;
 	if (h) {
-		newparam->threadid = (unsigned)thread;
+		newparam->threadid = (uint64_t)thread;
 		CloseHandle(h);
 	}
 	else {
@@ -933,7 +933,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(!srv.silent)dolog(&defparam, buf);
 	}
 	else {
-		newparam->threadid = (unsigned)thread;
+		newparam->threadid = (uint64_t)thread;
 	}
 #endif
 	pthread_mutex_unlock(&srv.counter_mutex);
@@ -1075,6 +1075,8 @@ void freeparam(struct clientparam * param) {
 	if(param->datfilterssrv) myfree(param->datfilterssrv);
 #ifndef STDMAIN
 	if(param->reqfilters) myfree(param->reqfilters);
+	if(param->connectfilters) myfree(param->connectfilters);
+	if(param->afterauthfilters) myfree(param->afterauthfilters);
 	if(param->hdrfilterscli) myfree(param->hdrfilterscli);
 	if(param->hdrfilterssrv) myfree(param->hdrfilterssrv);
 	if(param->predatfilters) myfree(param->predatfilters);
@@ -1126,6 +1128,19 @@ void freeparam(struct clientparam * param) {
 	if(param->extusername) myfree(param->extusername);
 	if(param->extpassword) myfree(param->extpassword);
 	myfree(param);
+}
+
+FILTER_ACTION handleconnectflt(struct clientparam *cparam){
+#ifndef STDMAIN
+	FILTER_ACTION action;
+	int i;
+
+	for(i=0; i<cparam->nconnectfilters ;i++){
+		action =  (*cparam->connectfilters[i]->filter->filter_connect)(cparam->connectfilters[i]->data, cparam);
+		if(action!=CONTINUE) return action;
+	}
+#endif
+	return PASS;
 }
 
 
@@ -1313,6 +1328,8 @@ void copyfilter (struct filter *filter, struct srvparam *srv){
 	if(srv->nfilters>0)srv->filter[srv->nfilters - 1].next = srv->filter + srv->nfilters;
 	srv->nfilters++;
 	if(filter->filter_request)srv->nreqfilters++;
+	if(filter->filter_connect)srv->nconnectfilters++;
+	if(filter->filter_afterauth)srv->nafterauthfilters++;
 	if(filter->filter_header_srv)srv->nhdrfilterssrv++;
 	if(filter->filter_header_cli)srv->nhdrfilterscli++;
 	if(filter->filter_predata)srv->npredatfilters++;
@@ -1330,6 +1347,8 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 
 	if(!(param->filters = myalloc(sizeof(struct filterp) * srv->nfilters)) ||
 	   (srv->nreqfilters && !(param->reqfilters = myalloc(sizeof(struct filterp *) * srv->nreqfilters))) ||
+	   (srv->nconnectfilters && !(param->connectfilters = myalloc(sizeof(struct filterp *) * srv->nconnectfilters))) ||
+	   (srv->nafterauthfilters && !(param->afterauthfilters = myalloc(sizeof(struct filterp *) * srv->nafterauthfilters))) ||
 	   (srv->nhdrfilterssrv && !(param->hdrfilterssrv = myalloc(sizeof(struct filterp *) * srv->nhdrfilterssrv))) ||
 	   (srv->nhdrfilterscli && !(param->hdrfilterscli = myalloc(sizeof(struct filterp *) * srv->nhdrfilterscli))) ||
 	   (srv->npredatfilters && !(param->predatfilters = myalloc(sizeof(struct filterp *) * srv->npredatfilters))) ||
@@ -1347,6 +1366,8 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 		if(action > CONTINUE) return action;
 		param->filters[param->nfilters].filter = srv->filter + i;
 		if(srv->filter[i].filter_request)param->reqfilters[param->nreqfilters++] = param->filters + param->nfilters;
+		if(srv->filter[i].filter_connect)param->connectfilters[param->nconnectfilters++] = param->filters + param->nfilters;
+		if(srv->filter[i].filter_afterauth)param->afterauthfilters[param->nafterauthfilters++] = param->filters + param->nfilters;
 		if(srv->filter[i].filter_header_cli)param->hdrfilterscli[param->nhdrfilterscli++] = param->filters + param->nfilters;
 		if(srv->filter[i].filter_header_srv)param->hdrfilterssrv[param->nhdrfilterssrv++] = param->filters + param->nfilters;
 		if(srv->filter[i].filter_predata)param->predatfilters[param->npredatfilters++] = param->filters + param->nfilters;
@@ -1391,6 +1412,20 @@ void freeacl(struct ace *ac){
 		}
 	}
 }
+
+FILTER_ACTION handleafterauthflt(struct clientparam *cparam){
+#ifndef STDMAIN
+	FILTER_ACTION action;
+	int i;
+
+	for(i=0; i<cparam->nafterauthfilters ;i++){
+		action =  (*cparam->afterauthfilters[i]->filter->filter_afterauth)(cparam->afterauthfilters[i]->data, cparam);
+		if(action!=CONTINUE) return action;
+	}
+#endif
+	return PASS;
+}
+
 
 FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;

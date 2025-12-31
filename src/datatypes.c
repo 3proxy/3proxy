@@ -749,7 +749,7 @@ static struct property prop_server[] = {
 
 static struct property prop_client[] = {
 	{prop_client + 1, "servicetype", ef_client_type, TYPE_STRING, "type of the client"},
-	{prop_client + 2, "threadid", ef_client_threadid, TYPE_INTEGER, "process thread id"},
+	{prop_client + 2, "threadid", ef_client_threadid, TYPE_UNSIGNED64, "process thread id"},
 	{prop_client + 3, "starttime", ef_client_starttime, TYPE_DATETIME, "client started seconds"},
 	{prop_client + 4, "starttime_msec", ef_client_starttime_msec, TYPE_UNSIGNED, "client started milliseconds"},
 	{prop_client + 5, "redirected", ef_client_redirected, TYPE_INTEGER, "number of redirections"},

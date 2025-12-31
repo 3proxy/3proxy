@@ -46,6 +46,7 @@ struct ssl_config {
     int server_max_proto_version;
     int client_verify;
     int server_verify;
+    int client_mode;
 };
 
 typedef struct ssl_config SSL_CONFIG;
