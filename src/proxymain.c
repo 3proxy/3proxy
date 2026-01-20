@@ -288,6 +288,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	"\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
+#ifndef _WIN32
+	" -k outgoing connection will have local IP where client connected, thus ignores -e (useful in AnyIP case)\n"
+#endif
 	" -rHOST:PORT Use IP:port for connect back proxy instead of listen port\n"
 	" -RHOST:PORT Use PORT to listen connect back proxy connection to pass data to\n"
 	" -4 Use IPv4 for outgoing connections\n"
@@ -426,6 +429,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 			}
 			break;
+#ifndef _WIN32
+		 case 'k':
+			{
+				srv.keepip = 1;
+			}
+			break;
+#endif
 		 case 'N':
 			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extNat);
 			break;
@@ -815,6 +825,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 		else {
 			new_sock = srv.so._accept(srv.so.state, sock, (struct sockaddr*)&defparam.sincr, &size);
+
 			if(new_sock == INVALID_SOCKET){
 #ifdef _WIN32
 				switch(WSAGetLastError()){
@@ -990,6 +1001,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->logdumpcli = conf.logdumpcli;
  srv->cbsock = INVALID_SOCKET; 
  srv->needuser = 1;
+ srv->keepip = 0;
 #ifdef WITHSPLICE
  srv->usesplice = 1;
 #endif
