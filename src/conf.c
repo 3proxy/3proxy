@@ -105,6 +105,10 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 	struct tm *ts;
 
 	ts = localtime(&t);
+	if(strlen((char *)name) >= 4096){
+	    *buf = 0;
+	    return buf;
+	}
 	if(strchr((char *)name, '%')){
 		struct clientparam fakecli;
 
@@ -1682,7 +1686,7 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 	 }
          switch(*str){
 		case '\0': 
-			if(comment) return -1;
+			if(comment || incbegin) return -1;
 			argm[argc] = 0;
 			return argc;
 		case '$':
@@ -1709,14 +1713,14 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 					argc--;
 					if((fd = open((char *)incbegin+1, O_RDONLY)) <= 0){
 						fprintf(stderr, "Failed to open %s\n", incbegin+1);
-						break;
+						return -1;
 					}
 					if((*bufsize - *inbuf) <STRINGBUF){
 						*bufsize += STRINGBUF;
 						if(!(buf = myrealloc(buf, *bufsize))){
 							fprintf(stderr, "Failed to allocate memory for %s\n", incbegin+1);
 							close(fd);
-							break;
+							return -1;
 						}
 					}
 					len = 0;
@@ -1727,7 +1731,7 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 					if((res = read(fd, buf+*inbuf+len, STRINGBUF-(1+len))) <= 0) {
 						perror((char *)incbegin+1);
 						close(fd);
-						break;
+						return -1;
 					}
 					close(fd);
 					buf[*inbuf+res+len] = 0;

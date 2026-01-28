@@ -300,6 +300,8 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 						break;
 
 					}
+				case 0:
+				 j--;
 				default:
 				 buf[i++] = format[j];
 			}
