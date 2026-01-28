@@ -909,7 +909,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		if(argc > 0 && strcmp("*", (char *)argv[0])) {
 			arg = argv[0];
 			arg = (unsigned char *)strtok((char *)arg, ",");
-			do {
+			if(arg) do {
 				if(!acl->users) {
 					acl->users = userl = myalloc(sizeof(struct userlist));
 				}
@@ -928,7 +928,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 1  && strcmp("*", (char *)argv[1])) {
 			arg = (unsigned char *)strtok((char *)argv[1], ",");
-			do {
+			if(arg) do {
 				if(!acl->src) {
 					acl->src = ipl = myalloc(sizeof(struct iplist));
 				}
@@ -949,7 +949,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 2 && strcmp("*", (char *)argv[2])) {
 			arg = (unsigned char *)strtok((char *)argv[2], ",");
-			do {
+			if(arg) do {
 			 int arglen;
 			 unsigned char *pattern;
 			 struct iplist tmpip={NULL};
@@ -1006,7 +1006,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 3 && strcmp("*", (char *)argv[3])) {
 			arg = (unsigned char *)strtok((char *)argv[3], ",");
-			do {
+			if(arg) do {
 				if(!acl->ports) {
 					acl->ports = portl = myalloc(sizeof(struct portlist));
 				}
@@ -1029,7 +1029,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 4 && strcmp("*", (char *)argv[4])) {
 			arg = (unsigned char *)strtok((char *)argv[4], ",");	
-			do {
+			if(arg) do {
 				if(!strcmp((char *)arg, "CONNECT")){
 					acl->operation |= CONNECT;
 				}
