@@ -110,11 +110,13 @@ static void addSSL(
 void delSSL(void *state, SOCKET s){
     if(!state || s == INVALID_SOCKET) return;
     if(STATE->cli.s == s) {
+	SSL_shutdown(STATE->cli.conn);
 	ssl_conn_free(STATE->cli.conn);
 	STATE->cli.conn = NULL;
 	STATE->cli.s = INVALID_SOCKET;
     }
     else if(STATE->srv.s == s) {
+	SSL_shutdown(STATE->srv.conn);
 	ssl_conn_free(STATE->srv.conn);
 	STATE->srv.conn = NULL;
 	STATE->srv.s = INVALID_SOCKET;
@@ -630,8 +632,13 @@ static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 }
 
 
-static void ssl_filter_clear(void *fc){
-    free(fc);
+static void ssl_filter_clear(void *state){
+    struct clientparam *param;
+    
+    if(!state) return;
+    param = STATE->param;
+    free(state);
+    param->sostate = NULL;
 }
 
 #define CONFIG ((SSL_CONFIG *)fo)
