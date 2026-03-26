@@ -251,6 +251,7 @@ int
 	return shutdown(s, how);
     }
     int WINAPI def_closesocket(void* state, SOCKET s){
+	usleep(SLEEPTIME);
 	return closesocket(s);
     }
 #else

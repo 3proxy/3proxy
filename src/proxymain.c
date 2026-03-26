@@ -1072,24 +1072,6 @@ void srvfree(struct srvparam * srv){
 
 void freeparam(struct clientparam * param) {
 	if(param->res == 2) return;
-	if(param->datfilterssrv) myfree(param->datfilterssrv);
-#ifndef STDMAIN
-	if(param->reqfilters) myfree(param->reqfilters);
-	if(param->connectfilters) myfree(param->connectfilters);
-	if(param->afterauthfilters) myfree(param->afterauthfilters);
-	if(param->hdrfilterscli) myfree(param->hdrfilterscli);
-	if(param->hdrfilterssrv) myfree(param->hdrfilterssrv);
-	if(param->predatfilters) myfree(param->predatfilters);
-	if(param->datfilterscli) myfree(param->datfilterscli);
-	if(param->filters){
-		if(param->nfilters)while(param->nfilters--){
-			if(param->filters[param->nfilters].filter->filter_clear)
-				(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
-		}
-		myfree(param->filters);
-	}
-	if(param->connlim) stopconnlims(param);
-#endif
 	if(param->clibuf) myfree(param->clibuf);
 	if(param->srvbuf) myfree(param->srvbuf);
 	if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
@@ -1108,6 +1090,24 @@ void freeparam(struct clientparam * param) {
 		param->srv->so._shutdown(param->sostate, param->clisock, SHUT_RDWR);
 		param->srv->so._closesocket(param->sostate, param->clisock);
 	}
+	if(param->datfilterssrv) myfree(param->datfilterssrv);
+#ifndef STDMAIN
+	if(param->reqfilters) myfree(param->reqfilters);
+	if(param->connectfilters) myfree(param->connectfilters);
+	if(param->afterauthfilters) myfree(param->afterauthfilters);
+	if(param->hdrfilterscli) myfree(param->hdrfilterscli);
+	if(param->hdrfilterssrv) myfree(param->hdrfilterssrv);
+	if(param->predatfilters) myfree(param->predatfilters);
+	if(param->datfilterscli) myfree(param->datfilterscli);
+	if(param->filters){
+		if(param->nfilters)while(param->nfilters--){
+			if(param->filters[param->nfilters].filter->filter_clear)
+				(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
+		}
+		myfree(param->filters);
+	}
+	if(param->connlim) stopconnlims(param);
+#endif
 	if(param->srv){
 		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
 		pthread_mutex_lock(&param->srv->counter_mutex);
