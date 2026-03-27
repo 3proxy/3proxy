@@ -41,6 +41,9 @@ jobs:
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
+    - name: install Windows libraries
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: vcpkg install pcre:x64-windows
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib"'
