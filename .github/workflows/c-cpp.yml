@@ -26,6 +26,9 @@ jobs:
     - name: ln Linux
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: ln -s Makefile.Linux Makefile
+    - name: Linux libraries
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
+      run: sudo apt install libssl-dev libpam-dev
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
