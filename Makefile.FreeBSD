@@ -40,7 +40,7 @@ ifeq ($(PAM_CHECK), true)
     PLUGINS += PamAuth
 endif
 PCRE_CHECK = $(shell echo "\#include <pcre.h>\\n int main(){return 0;}" | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
-ifeq ($(OPENSSL_CHECK), true)
+ifeq ($(PCRE_CHECK), true)
     PLUGINS += PCREPlugin
 endif
 
