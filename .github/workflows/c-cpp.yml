@@ -32,6 +32,9 @@ jobs:
     - name: Mac libraries
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: brew install pcre
+    - name: Test Mac PCRE
+      if: ${{ startsWith(matrix.target, 'macos') }}
+      run: echo "#include <pcre.h>\n int main(){return 0;}" | cc -x c -l pcre -o testpcre -
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
