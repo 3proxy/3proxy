@@ -10,11 +10,11 @@
 BUILDDIR = ../bin/
 CC = mips-openwrt-linux-gcc
 
-CFLAGS = -g -O2 -fno-strict-aliasing -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
+CFLAGS ?= -g -O2 -fno-strict-aliasing -c -pthread -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
 COUT = -o 
 LN = $(CC)
 DCFLAGS = -fPIC
-LDFLAGS = -O2 -fno-strict-aliasing -pthread -s
+LDFLAGS ?= -O2 -fno-strict-aliasing -pthread -s
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
@@ -33,9 +33,22 @@ MAKEFILE = Makefile.openwrt-mips
 # PamAuth requires libpam, you may require pam-devel package to be installed
 # SSLPlugin requires  -lcrypto -lssl
 #LIBS = -lcrypto -lssl -ldl 
-LIBS = -ldl 
+LIBS ?= -ldl 
 #PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin PamAuth
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin
+OPENSSL_CHECK = $(shell echo "#include <openssl/ssl.h>\\n int main(){return 0;}" | cc -x c $(CFLAGS) $(LDFLAGS) -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
+ifeq ($(OPENSSL_CHECK), true)
+    LIBS += -l crypto -l ssl
+    PLUGINS += SSLPlugin
+endif
+PCRE_CHECK = $(shell echo "#include <pcre.h>\\n int main(){return 0;}" | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+ifeq ($(OPENSSL_CHECK), true)
+    PLUGINS += PCREPlugin
+endif
+PAM_CHECK = $(shell echo "#include <security/pam_appl.h>\\n int main(){return 0;}" | cc -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
+ifeq ($(PAM_CHECK), true)
+    PLUGINS += PamAuth
+endif
 
 include Makefile.inc
 

@@ -35,11 +35,15 @@ MAKEFILE = Makefile.Linux
 #LIBS = -lcrypto -lssl -ldl 
 LIBS ?= -ldl 
 #PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin PamAuth
-PLUGINS ?= StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin
 OPENSSL_CHECK = $(shell echo "#include <openssl/ssl.h>\\n int main(){return 0;}" | cc -x c $(CFLAGS) $(LDFLAGS) -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
 ifeq ($(OPENSSL_CHECK), true)
     LIBS += -l crypto -l ssl
     PLUGINS += SSLPlugin
+endif
+PCRE_CHECK = $(shell echo "#include <pcre.h>\\n int main(){return 0;}" | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+ifeq ($(OPENSSL_CHECK), true)
+    PLUGINS += PCREPlugin
 endif
 PAM_CHECK = $(shell echo "#include <security/pam_appl.h>\\n int main(){return 0;}" | cc -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
 ifeq ($(PAM_CHECK), true)
