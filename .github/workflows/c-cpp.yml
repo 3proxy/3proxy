@@ -41,18 +41,9 @@ jobs:
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
-    - name: install Windows libraries
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      uses: msys2/setup-msys2@v2
-      with:
-       msystem: MINGW64
-       update: true
-       install: >-
-        mingw-w64-x86_64-gcc
-        mingw-w64-x86_64-pcre
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib"'
+      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib" && set'
     - name: make
       run: make
     - name: mkdir
