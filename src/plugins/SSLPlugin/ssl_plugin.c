@@ -109,13 +109,15 @@ static void addSSL(
 
 void delSSL(void *state, SOCKET s){
     if(!state || s == INVALID_SOCKET) return;
-    if(STATE->cli.s == s) {
+    if(STATE->cli.s == s && STATE->cli.conn) {
+	SSL_set_quiet_shutdown(STATE->cli.conn, 1);
 	SSL_shutdown(STATE->cli.conn);
 	ssl_conn_free(STATE->cli.conn);
 	STATE->cli.conn = NULL;
 	STATE->cli.s = INVALID_SOCKET;
     }
-    else if(STATE->srv.s == s) {
+    else if(STATE->srv.s == s && STATE->srv.conn) {
+	SSL_set_quiet_shutdown(STATE->srv.conn, 1);
 	SSL_shutdown(STATE->srv.conn);
 	ssl_conn_free(STATE->srv.conn);
 	STATE->srv.conn = NULL;
