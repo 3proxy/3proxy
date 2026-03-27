@@ -28,7 +28,7 @@ jobs:
       run: ln -s Makefile.Linux Makefile
     - name: Linux libraries
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: sudo apt install libssl-dev libpam-dev libpcre libpcre-dev
+      run: sudo apt install libssl-dev libpam-dev libpcre3 libpcre3-dev
     - name: Mac libraries
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: brew install pcre
