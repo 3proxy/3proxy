@@ -20,7 +20,7 @@ LDFLAGS = -O2 -fno-strict-aliasing -pthread
 DCFLAGS = -fPIC
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
-LIBS =
+LIBS ?=
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -33,7 +33,16 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.unix
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin PamAuth TransparentPlugin
+PLUGINS ?= StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin
+OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | cc -x c -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
+ifeq ($(OPENSSL_CHECK), true)
+    LIBS += -l crypto -l ssl
+    PLUGINS += SSLPlugin
+endif
+PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | cc -x c -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
+ifeq ($(PAM_CHECK), true)
+    PLUGINS += PamAuth
+endif
 
 include Makefile.inc
 
