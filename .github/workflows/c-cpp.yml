@@ -35,20 +35,24 @@ jobs:
     - name: ln Mac
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: ln -s Makefile.FreeBSD Makefile
-    - name: Mac variables
-      if: ${{ startsWith(matrix.target, 'macos') }}
-      run: echo "LDFLAGS=-L/usr/local/lib -L/opt/homebrew/lib -L/usr/local/opt/openssl/lib -L/opt/homebrew/opt/openssl/lib" >> $GITHUB_ENV && echo "CFLAGS=-I/usr/local/include -I/opt/homebrew/include -I/usr/local/opt/openssl/include -I/opt/homebrew/opt/openssl/include" >> $GITHUB_ENV
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
-    - name: install Windows libraries
+    - name: make Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: vcpkg install pcre:x64-windows
-    - name: dirs Windows
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib"'
-    - name: make
       run: make
+      env:
+       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
+       CFLAGS: '-I "c:/program files/openssl/include"'
+    - name: make Ubuntu
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
+      run: make
+    - name: make MacOS
+      if: ${{ startsWith(matrix.target, 'macos') }}
+      run: make
+      env:
+       LDFLAGS: "-L/usr/local/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/openssl/lib"
+       CFLAGS: "-I/usr/local/include -I/opt/homebrew/include -I/usr/local/opt/openssl/include -I/opt/homebrew/opt/openssl/include"
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: mkdir ~/3proxy

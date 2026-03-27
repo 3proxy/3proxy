@@ -8,21 +8,21 @@
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
-CC = gcc
+CC ?= gcc
 
 # you may need -L/usr/pkg/lib for older NetBSD versions
-CFLAGS = -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS := -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL $(CFLAGS)
 COUT = -o 
-LN = $(CC)
-LDFLAGS = -O2 -fno-strict-aliasing -pthread
+LN ?= $(CC)
+LDFLAGS ?= -O2 -fno-strict-aliasing -pthread
 # -lpthreads may be reuqired on some platforms instead of -pthreads
 # -ldl or -lld may be required for some platforms
-DCFLAGS = -fPIC
-DLFLAGS = -shared
-DLSUFFICS = .ld.so
+DCFLAGS ?= -fPIC
+DLFLAGS ?= -shared
+DLSUFFICS ?= .ld.so
 LIBS ?=
-LIBSPREFIX = -l
-LIBSSUFFIX = 
+LIBSPREFIX ?= -l
+LIBSSUFFIX ?= 
 LNOUT = -o 
 EXESUFFICS =
 OBJSUFFICS = .o
