@@ -16,7 +16,7 @@ LDFLAGS += -pthread -fno-strict-aliasing
 DCFLAGS = -fPIC
 DLFLAGS = -shared
 DLSUFFICS = .so
-LIBS =
+LIBS ?=
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -29,7 +29,7 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.FreeBSD
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin PamAuth TransparentPlugin
+PLUGINS ?= StringsPlugin TrafficPlugin PCREPlugin PamAuth TransparentPlugin
 
 include Makefile.inc
 
