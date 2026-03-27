@@ -37,7 +37,7 @@ jobs:
       run: ln -s Makefile.FreeBSD Makefile
     - name: Mac variables
       if: ${{ startsWith(matrix.target, 'macos') }}
-      run: echo "LDFLAGS=-L/usr/local/lib -L/usr/local/opt/openssl/lib -L/opt/homebrew/opt/openssl/lib" >> $GITHUB_ENV && echo "CFLAGS=-I/usr/local/include -I/usr/local/opt/openssl/include -I/opt/homebrew/opt/openssl/include" >> $GITHUB_ENV
+      run: echo "LDFLAGS=-L/usr/local/lib -L/opt/homebrew/lib -L/usr/local/opt/openssl/lib -L/opt/homebrew/opt/openssl/lib" >> $GITHUB_ENV && echo "CFLAGS=-I/usr/local/include -I/opt/homebrew/include -I/usr/local/opt/openssl/include -I/opt/homebrew/opt/openssl/include" >> $GITHUB_ENV
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
