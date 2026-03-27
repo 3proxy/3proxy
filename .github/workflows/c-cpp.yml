@@ -46,7 +46,7 @@ jobs:
       run: vcpkg install pcre:x64-windows
     - name: dirs Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib"'
+      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" -L C:/vcpkg/installed/x64-windows/lib $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" -I C:/vcpkg/installed/x64-windows/include $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib"'
     - name: make
       run: make
     - name: mkdir
