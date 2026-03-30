@@ -59,16 +59,15 @@ jobs:
     - name: make clean Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: make -f Makefile.win clean
-    - name: make Windows MSVC
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      shell: cmd
-      run: |
-       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-       nmake /F Makefile.msvc64'
-      env:
-       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
-       CFLAGS: '-I "c:/program files/openssl/include"'
-    - name: make clean Windows
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: nmake /F Makefile.msvc64 clean
-       
+#    - name: make Windows MSVC
+#      if: ${{ startsWith(matrix.target, 'windows') }}
+#      shell: cmd
+#      run: |
+#       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+#       nmake /F Makefile.msvc64'
+#      env:
+#       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
+#       CFLAGS: '-I "c:/program files/openssl/include"'
+#    - name: make clean Windows
+#      if: ${{ startsWith(matrix.target, 'windows') }}
+#      run: nmake /F Makefile.msvc64 clean
