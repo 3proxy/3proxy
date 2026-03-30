@@ -7,14 +7,14 @@
 BUILDDIR = ../bin/
 CC ?= cc
 
-CFLAGS += -c -fno-strict-aliasing -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS := -c -fno-strict-aliasing -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL $(CFLAGS)
 COUT = -o 
 LN ?= ${CC}
 LDFLAGS += -pthread -fno-strict-aliasing 
 # -lpthreads may be reuiured on some platforms instead of -pthreads
 # -ldl or -lld may be required for some platforms
-DCFLAGS = -fPIC
-DLFLAGS = -shared
+DCFLAGS ?= -fPIC
+DLFLAGS ?= -shared
 DLSUFFICS = .so
 LIBS ?=
 LIBSPREFIX = -l

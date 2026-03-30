@@ -41,10 +41,11 @@ jobs:
     - name: ln Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: copy Makefile.win Makefile
-    - name: dirs Windows
+    - name: make Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib" && set && dir "C:/mingw64/bin" && dir "C:/" && dir "C:/msys64/ucrt64/bin"'
-    - name: make
+      run: make all LIBS='-L "c:/program files/openssl/lib/VC/x64/MT"' CFLAGS='-I "c:/program files/openssl/include"'
+    - name: make POSIX
+      if: !${{ startsWith(matrix.target, 'windows') }}
       run: make
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}

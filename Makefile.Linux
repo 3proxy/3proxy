@@ -8,14 +8,14 @@
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
-CC = gcc
+CC ?= gcc
 
-CFLAGS = -g  -fPIC -O2 -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER
+CFLAGS := -g  -fPIC -O2 -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER $(CFLAGS)
 COUT = -o 
-LN = $(CC)
-DCFLAGS = 
-LDFLAGS = -fPIC -O2 -fno-strict-aliasing -pthread
-DLFLAGS = -shared
+LN ?= ${CC}
+DCFLAGS ?= 
+LDFLAGS ?= -fPIC -O2 -fno-strict-aliasing -pthread
+DLFLAGS ?= -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
 LIBSPREFIX = -l

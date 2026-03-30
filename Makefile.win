@@ -9,14 +9,14 @@
 
 
 BUILDDIR = ../bin/
-CC = gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL 
+CC ?= gcc
+CFLAGS := -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL $(CFLAGS)
 COUT = -o 
-LN = gcc
-LDFLAGS = -O2 -s -mthreads
-DLFLAGS = -shared
+LN ?= $(CC)
+LDFLAGS ?= -O2 -s -mthreads
+DLFLAGS ?= -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32 -lcrypto -lssl
+LIBS := -lws2_32 -lodbc32 -ladvapi32 -luser32 $(LIBS)
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
