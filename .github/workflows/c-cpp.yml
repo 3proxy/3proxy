@@ -43,7 +43,10 @@ jobs:
       run: copy Makefile.win Makefile
     - name: make Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: make all 'LIBS=-L "c:/program files/openssl/lib/VC/x64/MT"' 'CFLAGS=-I "c:/program files/openssl/include"'
+      run: make
+      env:
+       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
+       CFLAGS: '-I "c:/program files/openssl/include"'
     - name: make Ubuntu
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: make
