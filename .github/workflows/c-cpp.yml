@@ -59,7 +59,12 @@ jobs:
     - name: make clean Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: make -f Makefile.win clean
-    - name: make Windows
+    - name: Setup MSVC environment
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      uses: microsoft/setup-msbuild@v1
+      with:
+       msbuild-version: latest
+    - name: make Windows MSVC
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: nmake /F Makefile.msvc64
       env:
