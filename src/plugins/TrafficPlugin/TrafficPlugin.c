@@ -200,12 +200,12 @@ void mylogfunc(struct clientparam * param, const unsigned char * pz) {
 #endif
 		rule++;
 		if (((g_s == param->service) && (port == myhtons(*SAPORT(&param->sinsr)))) || 
-			( ((starttrafcorrect->type == UDP) && 
+			( ((starttrafcorrect->con_type == UDP) && 
 				((param->operation == UDPASSOC)||
 				 (param->operation == DNSRESOLVE)||
 				 (param->operation == BIND)||
 				 (param->operation == ICMPASSOC))
-			   )||(starttrafcorrect->type == TCP))) /* TCP support */
+			   )||(starttrafcorrect->con_type == TCP))) /* TCP support */
 		{
 				/* фильтр подошёл. можно изменять значение траффика
 				   домножаем на число */
