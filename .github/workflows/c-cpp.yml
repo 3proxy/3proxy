@@ -49,7 +49,7 @@ jobs:
       run: mkdir ~/3proxy
     - name: make install
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: make DESTDIR=~/3proxy install
+      run: make -f Makefile.Linux DESTDIR=~/3proxy install
     - name: make clean Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: make -f Makefile.win clean
