@@ -51,7 +51,7 @@ jobs:
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: make
       env:
-       LDFLAGS: "-L/usr/local/lib -L/opt/homebrew/lib -L/usr/local/opt/openssl/lib -L/opt/homebrew/opt/openssl/lib"
+       LDFLAGS: "-L/usr/local/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/openssl/lib"
        CFLAGS: "-I/usr/local/include -I/opt/homebrew/include -I/usr/local/opt/openssl/include -I/opt/homebrew/opt/openssl/include"
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
