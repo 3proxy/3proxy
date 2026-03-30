@@ -67,7 +67,7 @@ jobs:
        msbuild-architecture: x64
     - name: make Windows MSVC
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: call "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\BuildTools\VC\Auxiliary\Build\vcvars64.bat" && nmake /F Makefile.msvc64
+      run: nmake /F Makefile.msvc64
       env:
        LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
        CFLAGS: '-I "c:/program files/openssl/include"'
