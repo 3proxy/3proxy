@@ -54,7 +54,7 @@ jobs:
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: make -f Makefile.win
       env:
-       LIBS: '-L "c:/program files/openssl/lib/mingw/x64/"'
+       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
        CFLAGS: '-I "c:/program files/openssl/include"'
     - name: make clean Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
