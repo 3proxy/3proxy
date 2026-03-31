@@ -70,9 +70,10 @@ jobs:
        D:
        cd "D:/a/3proxy/3proxy"
        mkdir bin64
+       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT"
        nmake /F Makefile.msvc64
       env:
-       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
+       LIBS: '/LIBPATH:"c:/program files/openssl/lib/VC/x64/MT"'
        CFLAGS: '-I "c:/program files/openssl/include"'
     - name: make clean Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
