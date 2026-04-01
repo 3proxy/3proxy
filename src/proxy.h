@@ -154,6 +154,8 @@ extern int timetoexit;
 
 extern struct extparam conf;
 
+extern int timeouts[12];
+
 int sockmap(struct clientparam * param, int timeo, int usesplice);
 int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bufsize, int to);
 int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);

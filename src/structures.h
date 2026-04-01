@@ -643,7 +643,7 @@ struct extparam {
 #else
 	int threadinit[2];
 #endif
-	int timeouts[12];
+	int *timeouts;
 	struct ace * acl;
 	char * conffile;
 	struct bandlim * bandlimiter,  *bandlimiterout;
