@@ -1,4 +1,4 @@
-# 3proxy.full is fully functional 3proxy build based on busibox:glibc
+# 3proxy.full is fully functional 3proxy build based on busybox:glibc
 #
 #to  build:
 # docker build -f Dockerfile.full -t 3proxy.full .
@@ -13,8 +13,11 @@
 # docker run -p 3129:3129 -v /path/to/local/config/directory:/usr/local/3proxy/conf -name 3proxy.full 3proxy.full
 #
 # /path/to/local/config/directory in this example must conrain 3proxy.cfg
-# if you need 3proxy to be executed without chroot with root permissions, replace /etc/3proxy/3proxy.cfg by e.g. mounting config
+# if you need 3proxy to be executed without chroot with root permissions
+# replace /etc/3proxy/3proxy.cfg by e.g. mounting config
 # dir to /etc/3proxy ot by providing config file /etc/3proxy/3proxy.cfg
+# some plugins like SSLPLugin / pamauth also conflict with chroot and must
+# be started prior to chroot.
 # docker run -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy -name 3proxy.full 3proxy.full
 #
 # use "log" without pathname in config to log to stdout.
@@ -24,9 +27,7 @@
 FROM gcc AS buildenv
 COPY . 3proxy
 RUN cd 3proxy &&\
- echo "">> Makefile.Linux &&\
- echo PLUGINS = StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin SSLPlugin>>Makefile.Linux &&\
- echo LIBS = -l:libcrypto.a -l:libssl.a -ldl >>Makefile.Linux &&\
+ apt update && apt install libssl-dev libpam-dev libpcre3 libpcre3-dev &&\
  make -f Makefile.Linux &&\
  strip bin/3proxy &&\
  strip bin/StringsPlugin.ld.so &&\
