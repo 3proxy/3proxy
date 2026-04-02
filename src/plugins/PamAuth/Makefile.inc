@@ -5,3 +5,4 @@ pamauth$(OBJSUFFICS): pamauth.c
 
 $(BUILDDIR)pamauth$(DLSUFFICS): pamauth$(OBJSUFFICS)
 	$(LN) $(LNOUT)../../$(BUILDDIR)pamauth$(DLSUFFICS) $(LDFLAGS) $(DLFLAGS) $(LIBSPREFIX)pam$(LIBSSUFFIX) pamauth$(OBJSUFFICS)
+
