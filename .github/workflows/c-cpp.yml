@@ -25,7 +25,7 @@ jobs:
 #      run: ./configure
     - name: Linux libraries
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: sudo apt install libssl-dev libpam-dev libpcre3 libpcre3-dev
+      run: sudo apt install libssl-dev libpam-dev libpcre2-dev
     - name: make Ubuntu
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: make -f Makefile.Linux
@@ -40,7 +40,7 @@ jobs:
       run: make -f Makefile.Linux clean
     - name: Mac libraries
       if: ${{ startsWith(matrix.target, 'macos') }}
-      run: brew install pcre
+      run: brew install pcre2
     - name: make MacOS
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: make -f Makefile.FreeBSD
