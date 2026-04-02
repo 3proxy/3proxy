@@ -27,7 +27,7 @@
 FROM gcc AS buildenv
 COPY . 3proxy
 RUN cd 3proxy &&\
- apt update && apt install libssl-dev libpam-dev libpcre2-dev &&\
+ apt update && apt -y install libssl-dev libpam-dev libpcre2-dev &&\
  make -f Makefile.Linux &&\
  strip bin/3proxy &&\
  strip bin/StringsPlugin.ld.so &&\
