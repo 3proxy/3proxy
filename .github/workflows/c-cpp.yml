@@ -69,6 +69,7 @@ jobs:
        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
        D:
        cd "D:/a/3proxy/3proxy"
+       vcpkg install pcre2:x64-windows
        mkdir bin64
        set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT"
        nmake /F Makefile.msvc64
