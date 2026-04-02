@@ -75,5 +75,4 @@ jobs:
        nmake /F Makefile.msvc64
        nmake /F Makefile.msvc64 clean
       env:
-#       LIBS: '/LIBPATH:"c:/program files/openssl/lib/VC/x64/MT" /LIBPATH'
        CFLAGS: '-I "c:/program files/openssl/include" -I "c:/vcpkg/installed/x64-windows/include"'
