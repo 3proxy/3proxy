@@ -41,7 +41,7 @@ ifeq ($(OPENSSL_CHECK), true)
     LIBS += -l crypto -l ssl
     PLUGINS += SSLPlugin
 endif
-PCRE_CHECK = $(shell echo "\#include <pcre.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n\#include <pcre2.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre2-8 -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
 ifeq ($(PCRE_CHECK), true)
     PLUGINS += PCREPlugin
 endif

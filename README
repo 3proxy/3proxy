@@ -141,7 +141,7 @@ make
 	+ All access control entries now support weekday and time limitations
 	+ Hostnames and * templates are supported instead of IP address
   5. Extensions
-	+ Regular expression filtering (with PCRE) via PCREPlugin
+	+ Regular expression filtering (with PCRE2) via PCREPlugin
 	+ Authentication with Windows username/password (cleartext only)
 	+ SSL/TLS decryptions with certificate spoofing
 	+ Transparent redirection support for Linux and *BSD
