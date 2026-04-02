@@ -76,3 +76,4 @@ jobs:
        nmake /F Makefile.msvc64 clean
       env:
        CFLAGS: '-I "c:/program files/openssl/include" -I "c:/vcpkg/installed/x64-windows/include"'
+
