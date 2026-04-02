@@ -21,7 +21,8 @@
 # plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config).
 
 
-FROM gcc AS buildenv
+FROM gcc:bookworm AS buildenv
+RUN apt update && apt install -y --no-install-recommends libpcre3-dev && rm -rf /var/lib/apt/lists/*
 COPY . 3proxy
 RUN cd 3proxy &&\
  echo "">> Makefile.Linux &&\
