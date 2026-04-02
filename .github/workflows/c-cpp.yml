@@ -71,9 +71,9 @@ jobs:
        cd "D:/a/3proxy/3proxy"
        vcpkg install pcre2:x64-windows
        mkdir bin64
-       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT"
+       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
        nmake /F Makefile.msvc64
        nmake /F Makefile.msvc64 clean
       env:
-       LIBS: '/LIBPATH:"c:/program files/openssl/lib/VC/x64/MT"'
-       CFLAGS: '-I "c:/program files/openssl/include"'
+#       LIBS: '/LIBPATH:"c:/program files/openssl/lib/VC/x64/MT" /LIBPATH'
+       CFLAGS: '-I "c:/program files/openssl/include" -I "c:/vcpkg/installed/x64-windows/include"'

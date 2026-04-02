@@ -38,7 +38,6 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find . -type f -name "*.res"
 ifndef OPENSSL_CHECK
 OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
 ifeq ($(OPENSSL_CHECK), true)
-    LIBS += -l crypto -l ssl
     PLUGINS += SSLPlugin
 endif
 PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
