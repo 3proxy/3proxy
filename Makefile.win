@@ -17,7 +17,7 @@ LDFLAGS ?= -O2 -s -mthreads
 DLFLAGS ?= -shared
 DLSUFFICS = .dll
 LIBS := -lws2_32 -lodbc32 -ladvapi32 -luser32 $(LIBS)
-LIBSPREFIX = lib
+LIBSPREFIX = -l
 LIBSSUFFIX = .lib
 LNOUT = -o 
 EXESUFFICS = .exe
@@ -45,7 +45,7 @@ PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0
 ifeq ($(PAM_CHECK), true)
     PLUGINS += PamAuth
 endif
-PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n#include <pcre2.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) pcre2-8.lib  -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n#include <pcre2.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -lpcre2-8.lib -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
 ifeq ($(PCRE_CHECK), true)
     PLUGINS += PCREPlugin
 endif
