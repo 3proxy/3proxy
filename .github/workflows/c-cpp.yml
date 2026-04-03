@@ -73,9 +73,9 @@ jobs:
        dir /S "c:\program files\openssl\lib\"
        dir "c:\vcpkg\installed\x64-windows\lib"
        mkdir bin64
-       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
+       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT"
        nmake /F Makefile.msvc64
        nmake /F Makefile.msvc64 clean
       env:
-       CFLAGS: '-I "c:/program files/openssl/include" -I "c:/vcpkg/installed/x64-windows/include"'
-
+       LIBS: '/LIBPATH:"c:/program files/openssl/lib/VC/x64/MT"'
+       CFLAGS: '-I "c:/program files/openssl/include"'

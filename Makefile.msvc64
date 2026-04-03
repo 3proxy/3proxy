@@ -16,7 +16,8 @@ LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no /machine:x64
 DLFLAGS = /DLL
 DLSUFFICS = .dll
-LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib Crypt32.lib $(LIBS)
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib Crypt32.lib libcrypto.lib libssl.lib $(LIBS)
+LIBSOLD = libeay32.lib ssleay32.lib
 LIBSPREFIX = 
 LIBSSUFFIX = .lib
 LIBEXT = .lib
@@ -30,7 +31,7 @@ TYPECOMMAND = type
 COMPATLIBS =
 VERFILE = 3proxy.res $(VERFILE)
 VERSIONDEP = 3proxy.res $(VERSIONDEP)
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin FilePlugin SSLPlugin PCREPlugin
+PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin FilePlugin SSLPlugin
 AFTERCLEAN = del src\*.res
 
 include Makefile.inc
