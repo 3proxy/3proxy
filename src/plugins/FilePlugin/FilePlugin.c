@@ -833,6 +833,8 @@ static struct filter fp_filter = {
 	fp_open,
 	fp_client,
 	fp_request,
+	NULL,
+	NULL,
 	fp_hcli,
 	fp_hsrv,
 	NULL,

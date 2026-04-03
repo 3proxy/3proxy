@@ -7,8 +7,8 @@
 
 #include "../../structures.h"
 #include <string.h>
-#define PCRE_STATIC
-#include "pcre.h"
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -35,46 +35,76 @@ static struct filter pcre_first_filter = {
 
 static struct filter *pcre_last_filter;
 static int pcre_loaded = 0;
-static int pcre_options = 0;
+static uint32_t pcre_options = 0;
 
 static struct pcreopt {
 	char * name;
-	int value;	
+	uint32_t value;
 } pcreopts[]= {
 
- {"PCRE_CASELESS",           0x00000001},
- {"PCRE_MULTILINE",          0x00000002},
- {"PCRE_DOTALL",             0x00000004},
- {"PCRE_EXTENDED",           0x00000008},
- {"PCRE_ANCHORED",           0x00000010},
- {"PCRE_DOLLAR_ENDONLY",     0x00000020},
- {"PCRE_EXTRA",              0x00000040},
- {"PCRE_NOTBOL",             0x00000080},
- {"PCRE_NOTEOL",             0x00000100},
- {"PCRE_UNGREEDY",           0x00000200},
- {"PCRE_NOTEMPTY",           0x00000400},
- {"PCRE_UTF8",               0x00000800},
- {"PCRE_NO_AUTO_CAPTURE",    0x00001000},
- {"PCRE_NO_UTF8_CHECK",      0x00002000},
- {"PCRE_AUTO_CALLOUT",       0x00004000},
- {"PCRE_PARTIAL",            0x00008000},
- {"PCRE_DFA_SHORTEST",       0x00010000},
- {"PCRE_DFA_RESTART",        0x00020000},
- {"PCRE_FIRSTLINE",          0x00040000},
- {"PCRE_DUPNAMES",           0x00080000},
- {"PCRE_NEWLINE_CR",         0x00100000},
- {"PCRE_NEWLINE_LF",         0x00200000},
- {"PCRE_NEWLINE_CRLF",       0x00300000},
- {"PCRE_NEWLINE_ANY",        0x00400000},
- {"PCRE_NEWLINE_ANYCRLF",    0x00500000},
- {"PCRE_BSR_ANYCRLF",        0x00800000},
- {"PCRE_BSR_UNICODE",        0x01000000},
+ {"PCRE2_ALLOW_EMPTY_CLASS", PCRE2_ALLOW_EMPTY_CLASS},
+ {"PCRE2_ALT_BSUX", PCRE2_ALT_BSUX},
+ {"PCRE2_AUTO_CALLOUT", PCRE2_AUTO_CALLOUT},
+ {"PCRE2_CASELESS", PCRE2_CASELESS},
+ {"PCRE2_DOLLAR_ENDONLY", PCRE2_DOLLAR_ENDONLY},
+ {"PCRE2_DOTALL", PCRE2_DOTALL},
+ {"PCRE2_DUPNAMES", PCRE2_DUPNAMES},
+ {"PCRE2_EXTENDED", PCRE2_EXTENDED},
+ {"PCRE2_FIRSTLINE", PCRE2_FIRSTLINE},
+ {"PCRE2_MATCH_UNSET_BACKREF", PCRE2_MATCH_UNSET_BACKREF},
+ {"PCRE2_MULTILINE", PCRE2_MULTILINE},
+ {"PCRE2_NEVER_UCP", PCRE2_NEVER_UCP},
+ {"PCRE2_NEVER_UTF", PCRE2_NEVER_UTF},
+ {"PCRE2_NO_AUTO_CAPTURE", PCRE2_NO_AUTO_CAPTURE},
+ {"PCRE2_NO_AUTO_POSSESS", PCRE2_NO_AUTO_POSSESS},
+ {"PCRE2_NO_DOTSTAR_ANCHOR", PCRE2_NO_DOTSTAR_ANCHOR},
+ {"PCRE2_NO_START_OPTIMIZE", PCRE2_NO_START_OPTIMIZE},
+ {"PCRE2_UCP", PCRE2_UCP},
+ {"PCRE2_UNGREEDY", PCRE2_UNGREEDY},
+ {"PCRE2_UTF", PCRE2_UTF},
+ {"PCRE2_NEVER_BACKSLASH_C", PCRE2_NEVER_BACKSLASH_C},
+ {"PCRE2_ALT_CIRCUMFLEX", PCRE2_ALT_CIRCUMFLEX},
+ {"PCRE2_ALT_VERBNAMES", PCRE2_ALT_VERBNAMES},
+ {"PCRE2_USE_OFFSET_LIMIT", PCRE2_USE_OFFSET_LIMIT},
+ {"PCRE2_EXTENDED_MORE", PCRE2_EXTENDED_MORE},
+ {"PCRE2_LITERAL", PCRE2_LITERAL},
+ {"PCRE2_MATCH_INVALID_UTF", PCRE2_MATCH_INVALID_UTF},
+
+ {"PCRE_CASELESS",           PCRE2_CASELESS},
+ {"PCRE_MULTILINE",          PCRE2_MULTILINE},
+ {"PCRE_DOTALL",             PCRE2_DOTALL},
+ {"PCRE_EXTENDED",           PCRE2_EXTENDED},
+ {"PCRE_ANCHORED",           PCRE2_ANCHORED},
+ {"PCRE_DOLLAR_ENDONLY",     PCRE2_DOLLAR_ENDONLY},
+ {"PCRE_EXTRA",              PCRE2_EXTENDED_MORE},
+ {"PCRE_NOTBOL",             PCRE2_NOTBOL},
+ {"PCRE_NOTEOL",             PCRE2_NOTEOL},
+ {"PCRE_UNGREEDY",           PCRE2_UNGREEDY},
+ {"PCRE_NOTEMPTY",           PCRE2_NOTEMPTY},
+ {"PCRE_UTF8",               PCRE2_UTF},
+ {"PCRE_NO_AUTO_CAPTURE",    PCRE2_NO_AUTO_CAPTURE},
+ {"PCRE_NO_UTF8_CHECK",      PCRE2_MATCH_INVALID_UTF},
+ {"PCRE_AUTO_CALLOUT",       PCRE2_AUTO_CALLOUT},
+ {"PCRE_PARTIAL",            PCRE2_PARTIAL_SOFT},
+ {"PCRE_DFA_SHORTEST",       PCRE2_DFA_SHORTEST},
+ {"PCRE_DFA_RESTART",        PCRE2_DFA_RESTART},
+ {"PCRE_FIRSTLINE",          PCRE2_FIRSTLINE},
+ {"PCRE_DUPNAMES",           PCRE2_DUPNAMES},
+ {"PCRE_NEWLINE_CR",         PCRE2_NEWLINE_CR},
+ {"PCRE_NEWLINE_LF",         PCRE2_NEWLINE_LF},
+ {"PCRE_NEWLINE_CRLF",       PCRE2_NEWLINE_CRLF},
+ {"PCRE_NEWLINE_ANY",        PCRE2_NEWLINE_ANY},
+ {"PCRE_NEWLINE_ANYCRLF",    PCRE2_NEWLINE_ANYCRLF},
+ {"PCRE_BSR_ANYCRLF",        PCRE2_BSR_ANYCRLF},
+ {"PCRE_BSR_UNICODE",        PCRE2_BSR_UNICODE},
+
  {NULL, 0}
 };
 
 struct pcre_filter_data {
 	int users;
-	pcre * re;
+	pcre2_code * re;
+	pcre2_match_data * match_data;
 	int action;
 	char * replace;
 	struct ace *acl;
@@ -84,7 +114,8 @@ static void pcre_data_free(struct pcre_filter_data *pcrefd){
 	pthread_mutex_lock(&pcre_mutex);
 	pcrefd->users--;
 	if(!pcrefd->users){
-		if(pcrefd->re) pl->freefunc(pcrefd->re);
+		if(pcrefd->match_data) pcre2_match_data_free(pcrefd->match_data);
+		if(pcrefd->re) pcre2_code_free(pcrefd->re);
 		if(pcrefd->acl) pl->freeacl(pcrefd->acl);
 		if(pcrefd->replace) pl->freefunc(pcrefd->replace);
 		pl->freefunc(pcrefd);
@@ -124,7 +155,7 @@ static FILTER_ACTION pcre_filter_client(void *fo, struct clientparam * param, vo
 }
 
 static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
-	int ovector[48];
+	PCRE2_SIZE *ovector;
 	int count = 0;
 	struct ace *acl;
 	int match = 0;
@@ -144,8 +175,9 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 	if(!pcrefd->re) return pcrefd->action;
 	for(; offset < *length_p; nreplaces++){
 
-		count = pcre_exec(pcrefd->re, NULL, (char *)*buf_p, *length_p, offset, 0, ovector, 48);
+		count = pcre2_match(pcrefd->re, (PCRE2_SPTR)*buf_p, *length_p, offset, 0, pcrefd->match_data, NULL);
 		if(count <= 0) break;
+		ovector = pcre2_get_ovector_pointer(pcrefd->match_data);
 		if(!(replace = pcrefd->replace) || param->nooverwritefilter) return pcrefd->action;
 
 		replen = *length_p - ovector[1];
@@ -221,14 +253,15 @@ static void pcre_filter_close(void *fo){
 
 static int h_pcre(int argc, unsigned char **argv){
 	int action = 0;
-	pcre *re = NULL;
+	pcre2_code *re = NULL;
+	pcre2_match_data *match_data = NULL;
 	struct ace *acl;
-	int offset = 4;
-	const char * errptr;
+	int errcode;
+	PCRE2_SIZE erroffset;
 	struct pcre_filter_data *flt;
 	struct filter *newf;
 	char *replace = NULL;
-	
+
 	if(!strncmp((char *)argv[2], "allow",5)) action = PASS;
 	else if(!strncmp((char *)argv[2], "deny",4)) action = REJECT;
 	else if(!strncmp((char *)argv[2], "remove",6)) action = REMOVE;
@@ -236,7 +269,6 @@ static int h_pcre(int argc, unsigned char **argv){
 	else return 1;
 	if(!strncmp((char *)argv[0], "pcre_rewrite", 12)) {
 		int i,j;
-		offset = 5;
 		replace = pl->strdupfunc((char *)argv[4]);
 		if(!replace) return 9;
 		for(i=0, j=0; replace[i]; i++, j++){
@@ -265,22 +297,30 @@ static int h_pcre(int argc, unsigned char **argv){
 		}
 		replace[j] = 0;
 	}
-	if(!(acl = pl->make_ace(argc - offset, argv + offset))) return 2;
+	if(!(acl = pl->make_ace(argc - 4, argv + 4))) return 2;
 	acl->nolog = (strstr((char *)argv[2],"log") == 0);
 	if(*argv[3] && !(*argv[3] == '*' && !argv[3][1]) ){
-		re = pcre_compile((char *)argv[3], pcre_options, &errptr, &offset, NULL);
+		re = pcre2_compile((PCRE2_SPTR)argv[3], PCRE2_ZERO_TERMINATED, pcre_options, &errcode, &erroffset, NULL);
 		if(!re) {
 			pl->freefunc(acl);
 			if(replace) pl->freefunc(replace);
 			return 3;
 		}
+		match_data = pcre2_match_data_create_from_pattern(re, NULL);
+		if(!match_data) {
+			pcre2_code_free(re);
+			pl->freefunc(acl);
+			if(replace) pl->freefunc(replace);
+			return 4;
+		}
 	}
 	flt = pl->mallocfunc(sizeof(struct pcre_filter_data));
 	newf = pl->mallocfunc(sizeof(struct filter));
-	
+
 	if(!flt || !newf) {
+		if(match_data) pcre2_match_data_free(match_data);
+		if(re) pcre2_code_free(re);
 		pl->freefunc(acl);
-		pl->freefunc(re);
 		if(replace) pl->freefunc(replace);
 		if(flt) pl->freefunc(flt);
 		return 4;
@@ -289,6 +329,7 @@ static int h_pcre(int argc, unsigned char **argv){
 	memset(newf, 0, sizeof(struct filter));
 	flt->action = action;
 	flt->re = re;
+	flt->match_data = match_data;
 	flt->acl = acl;
 	flt->replace = replace;
 	flt->users = 1;
@@ -303,7 +344,114 @@ static int h_pcre(int argc, unsigned char **argv){
 	if(strstr((char *)argv[1], "srvdata"))newf->filter_data_srv = pcre_filter_buffer;
 	newf->filter_clear = pcre_filter_clear;
 	newf->filter_close = pcre_filter_close;
-	
+
+	if(!pcre_last_filter){
+		newf->next = pcre_first_filter.next;
+		pcre_first_filter.next=newf;
+	}
+	else {
+		newf->next = pcre_last_filter->next;
+		pcre_last_filter->next = newf;
+	}
+	pcre_last_filter=newf;
+
+	return 0;
+}
+
+static int h_pcre_rewrite(int argc, unsigned char **argv){
+	int action = 0;
+	pcre2_code *re = NULL;
+	pcre2_match_data *match_data = NULL;
+	struct ace *acl;
+	int errcode;
+	PCRE2_SIZE erroffset;
+	struct pcre_filter_data *flt;
+	struct filter *newf;
+	char *replace = NULL;
+
+	if(!strncmp((char *)argv[2], "allow",5)) action = PASS;
+	else if(!strncmp((char *)argv[2], "deny",4)) action = REJECT;
+	else if(!strncmp((char *)argv[2], "remove",6)) action = REMOVE;
+	else if(!strncmp((char *)argv[2], "dunno",5)) action = CONTINUE;
+	else return 1;
+	{
+		int i,j;
+		replace = pl->strdupfunc((char *)argv[4]);
+		if(!replace) return 9;
+		for(i=0, j=0; replace[i]; i++, j++){
+			if(replace[i] == '\\'){
+				switch(replace[i+1]){
+				case 'r':
+					i++;
+					replace[j] = '\r';
+					break;
+				case 'n':
+					i++;
+					replace[j] = '\n';
+					break;
+				case '0':
+					i++;
+					replace[j] = 0;
+					break;
+				case '\\':
+					i++;
+				default:
+					replace[j] = '\\';
+					break;
+				}
+			}
+			else replace[j] = replace[i];
+		}
+		replace[j] = 0;
+	}
+	if(!(acl = pl->make_ace(argc - 5, argv + 5))) return 2;
+	acl->nolog = (strstr((char *)argv[2],"log") == 0);
+	if(*argv[3] && !(*argv[3] == '*' && !argv[3][1]) ){
+		re = pcre2_compile((PCRE2_SPTR)argv[3], PCRE2_ZERO_TERMINATED, pcre_options, &errcode, &erroffset, NULL);
+		if(!re) {
+			pl->freefunc(acl);
+			if(replace) pl->freefunc(replace);
+			return 3;
+		}
+		match_data = pcre2_match_data_create_from_pattern(re, NULL);
+		if(!match_data) {
+			pcre2_code_free(re);
+			pl->freefunc(acl);
+			if(replace) pl->freefunc(replace);
+			return 4;
+		}
+	}
+	flt = pl->mallocfunc(sizeof(struct pcre_filter_data));
+	newf = pl->mallocfunc(sizeof(struct filter));
+
+	if(!flt || !newf) {
+		if(match_data) pcre2_match_data_free(match_data);
+		if(re) pcre2_code_free(re);
+		pl->freefunc(acl);
+		if(replace) pl->freefunc(replace);
+		if(flt) pl->freefunc(flt);
+		return 4;
+	}
+	memset(flt, 0, sizeof(struct pcre_filter_data));
+	memset(newf, 0, sizeof(struct filter));
+	flt->action = action;
+	flt->re = re;
+	flt->match_data = match_data;
+	flt->acl = acl;
+	flt->replace = replace;
+	flt->users = 1;
+	newf->instance = "pcre";
+	newf->data = flt;
+	newf->filter_open = pcre_filter_open;
+	newf->filter_client = pcre_filter_client;
+	if(strstr((char *)argv[1], "request"))newf->filter_request = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "cliheader"))newf->filter_header_cli = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "clidata"))newf->filter_data_cli = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "srvheader"))newf->filter_header_srv = pcre_filter_buffer;
+	if(strstr((char *)argv[1], "srvdata"))newf->filter_data_srv = pcre_filter_buffer;
+	newf->filter_clear = pcre_filter_clear;
+	newf->filter_close = pcre_filter_close;
+
 	if(!pcre_last_filter){
 		newf->next = pcre_first_filter.next;
 		pcre_first_filter.next=newf;
@@ -336,21 +484,21 @@ static int h_pcre_options(int argc, unsigned char **argv){
 		for(i=0; pcreopts[i].name; i++)
 			if(!strcmp(pcreopts[i].name, (char *)argv[j]))
 				pcre_options |= pcreopts[i].value;
-		 
+
 	return 0;
 }
 
 
 static struct commands pcre_commandhandlers[] = {
 	{pcre_commandhandlers+1, "pcre", h_pcre, 4, 0},
-	{pcre_commandhandlers+2, "pcre_rewrite", h_pcre, 5, 0},
+	{pcre_commandhandlers+2, "pcre_rewrite", h_pcre_rewrite, 5, 0},
 	{pcre_commandhandlers+3, "pcre_extend", h_pcre_extend, 2, 0},
 	{NULL, "pcre_options", h_pcre_options, 2, 0}
 };
 
 static struct symbol regexp_symbols[] = {
-	{regexp_symbols+1, "pcre_compile", (void*) pcre_compile},
-	{regexp_symbols+2, "pcre_exec", (void*) pcre_exec},
+	{regexp_symbols+1, "pcre2_compile", (void*) pcre2_compile},
+	{regexp_symbols+2, "pcre2_match", (void*) pcre2_match},
 	{NULL, "pcre_options", (void *)&pcre_options},
 };
 
@@ -360,15 +508,13 @@ static struct symbol regexp_symbols[] = {
 #define PLUGINCALL
 #endif
 
-PLUGINAPI int PLUGINCALL pcre_plugin (struct pluginlink * pluginlink, 
+PLUGINAPI int PLUGINCALL pcre_plugin (struct pluginlink * pluginlink,
 					 int argc, char** argv){
 
 	struct filter *flt, *tmpflt;
 	pl = pluginlink;
 	pcre_options = 0;
 	if(!pcre_loaded){
-		pcre_malloc = pl->mallocfunc;
-		pcre_free = pl->freefunc;
 		pcre_loaded = 1;
 		pthread_mutex_init(&pcre_mutex, NULL);
 		regexp_symbols[2].next = pl->symbols.next;
@@ -391,7 +537,7 @@ PLUGINAPI int PLUGINCALL pcre_plugin (struct pluginlink * pluginlink,
 	}
 	pcre_last_filter = NULL;
 	return 0;
-		
+
  }
 #ifdef  __cplusplus
 }

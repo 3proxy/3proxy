@@ -63,7 +63,7 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 #endif
 	pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)addrbuf, sizeof(addrbuf));
 	if(param->hostname) pl->freefunc(param->hostname);
-	param->hostname = pl->strdupfunc(addrbuf);
+	param->hostname = (unsigned char *)pl->strdupfunc(addrbuf);
 	param->sinsr = param->req;
 	return PASS;
 }
@@ -81,7 +81,7 @@ static struct filter transparent_filter = {
 	"Transparent filter",
 	transparent_filter_open,
 	transparent_filter_client, 
-	NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	transparent_filter_clear, 
 	transparent_filter_close
 };

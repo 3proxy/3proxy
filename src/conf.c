@@ -105,6 +105,10 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 	struct tm *ts;
 
 	ts = localtime(&t);
+	if(strlen((char *)name) >= 4096){
+	    *buf = 0;
+	    return buf;
+	}
 	if(strchr((char *)name, '%')){
 		struct clientparam fakecli;
 
@@ -463,6 +467,11 @@ static int h_counter(int argc, unsigned char **argv){
 
 static int h_rotate(int argc, unsigned char **argv){
 	conf.rotate = atoi((char *)argv[1]);
+	return 0;
+}
+
+static int h_maxseg(int argc, unsigned char **argv){
+	conf.maxseg = atoi((char *)argv[1]);
 	return 0;
 }
 
@@ -900,7 +909,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		if(argc > 0 && strcmp("*", (char *)argv[0])) {
 			arg = argv[0];
 			arg = (unsigned char *)strtok((char *)arg, ",");
-			do {
+			if(arg) do {
 				if(!acl->users) {
 					acl->users = userl = myalloc(sizeof(struct userlist));
 				}
@@ -919,7 +928,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 1  && strcmp("*", (char *)argv[1])) {
 			arg = (unsigned char *)strtok((char *)argv[1], ",");
-			do {
+			if(arg) do {
 				if(!acl->src) {
 					acl->src = ipl = myalloc(sizeof(struct iplist));
 				}
@@ -940,7 +949,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 2 && strcmp("*", (char *)argv[2])) {
 			arg = (unsigned char *)strtok((char *)argv[2], ",");
-			do {
+			if(arg) do {
 			 int arglen;
 			 unsigned char *pattern;
 			 struct iplist tmpip={NULL};
@@ -997,7 +1006,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 3 && strcmp("*", (char *)argv[3])) {
 			arg = (unsigned char *)strtok((char *)argv[3], ",");
-			do {
+			if(arg) do {
 				if(!acl->ports) {
 					acl->ports = portl = myalloc(sizeof(struct portlist));
 				}
@@ -1020,7 +1029,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		}
 		if(argc > 4 && strcmp("*", (char *)argv[4])) {
 			arg = (unsigned char *)strtok((char *)argv[4], ",");	
-			do {
+			if(arg) do {
 				if(!strcmp((char *)arg, "CONNECT")){
 					acl->operation |= CONNECT;
 				}
@@ -1645,11 +1654,12 @@ struct commands commandhandlers[]={
 	{commandhandlers+61, "force", h_force, 1, 1},
 	{commandhandlers+62, "noforce", h_noforce, 1, 1},
 	{commandhandlers+63, "parentretries", h_parentretries, 2, 2},
-	{commandhandlers+64,  "auto", h_proxy, 1, 0},
+	{commandhandlers+64, "auto", h_proxy, 1, 0},
 	{commandhandlers+65, "backlog", h_backlog, 2, 2},
-	{commandhandlers+66,  "tlspr", h_proxy, 1, 0},
+	{commandhandlers+66, "tlspr", h_proxy, 1, 0},
+	{commandhandlers+67, "maxseg", h_maxseg, 2, 2},
 #ifndef NORADIUS
-	{commandhandlers+67, "radius", h_radius, 3, 0},
+	{commandhandlers+68, "radius", h_radius, 3, 0},
 #endif
 	{specificcommands, 	 "", h_noop, 1, 0}
 };
@@ -1676,7 +1686,7 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 	 }
          switch(*str){
 		case '\0': 
-			if(comment) return -1;
+			if(comment || incbegin) return -1;
 			argm[argc] = 0;
 			return argc;
 		case '$':
@@ -1703,14 +1713,14 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 					argc--;
 					if((fd = open((char *)incbegin+1, O_RDONLY)) <= 0){
 						fprintf(stderr, "Failed to open %s\n", incbegin+1);
-						break;
+						return -1;
 					}
 					if((*bufsize - *inbuf) <STRINGBUF){
 						*bufsize += STRINGBUF;
 						if(!(buf = myrealloc(buf, *bufsize))){
 							fprintf(stderr, "Failed to allocate memory for %s\n", incbegin+1);
 							close(fd);
-							break;
+							return -1;
 						}
 					}
 					len = 0;
@@ -1721,7 +1731,7 @@ int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned cha
 					if((res = read(fd, buf+*inbuf+len, STRINGBUF-(1+len))) <= 0) {
 						perror((char *)incbegin+1);
 						close(fd);
-						break;
+						return -1;
 					}
 					close(fd);
 					buf[*inbuf+res+len] = 0;

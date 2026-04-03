@@ -9,14 +9,14 @@
 
 
 BUILDDIR = ../bin/
-CC = gcc
-CFLAGS = -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL 
+CC ?= gcc
+CFLAGS := -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL $(CFLAGS)
 COUT = -o 
-LN = gcc
-LDFLAGS = -O2 -s -mthreads
-DLFLAGS = -shared
+LN ?= $(CC)
+LDFLAGS ?= -O2 -s -mthreads
+DLFLAGS ?= -shared
 DLSUFFICS = .dll
-LIBS = -lws2_32 -lodbc32 -ladvapi32 -luser32 -lcrypto -lssl
+LIBS := -lws2_32 -lodbc32 -ladvapi32 -luser32 $(LIBS)
 LIBSPREFIX = -l
 LIBSSUFFIX = 
 LNOUT = -o 
@@ -28,12 +28,27 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.win
-PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin SSLPLugin
+PLUGINS := utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin
 VERFILE := 3proxyres.o $(VERFILE)
 VERSION := $(VERSION)
 VERSIONDEP := 3proxyres.o $(VERSIONDEP)
 BUILDDATE := $(BUILDDATE)
 AFTERCLEAN = (find . -type f -name "*.o" -delete && find . -type f -name "*.res" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete) || true
+
+ifndef OPENSSL_CHECK
+OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
+ifeq ($(OPENSSL_CHECK), true)
+    PLUGINS += SSLPlugin
+endif
+PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
+ifeq ($(PAM_CHECK), true)
+    PLUGINS += PamAuth
+endif
+PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n#include <pcre2.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre2-8 -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+ifeq ($(PCRE_CHECK), true)
+    PLUGINS += PCREPlugin
+endif
+endif
 
 include Makefile.inc
 

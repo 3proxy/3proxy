@@ -8,21 +8,21 @@
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
-CC = gcc
+CC ?= gcc
 
 # you may need -L/usr/pkg/lib for older NetBSD versions
-CFLAGS = -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS := -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL $(CFLAGS)
 COUT = -o 
-LN = $(CC)
-LDFLAGS = -O2 -fno-strict-aliasing -pthread
+LN ?= $(CC)
+LDFLAGS ?= -O2 -fno-strict-aliasing -pthread
 # -lpthreads may be reuqired on some platforms instead of -pthreads
 # -ldl or -lld may be required for some platforms
-DCFLAGS = -fPIC
-DLFLAGS = -shared
-DLSUFFICS = .ld.so
-LIBS =
-LIBSPREFIX = -l
-LIBSSUFFIX = 
+DCFLAGS ?= -fPIC
+DLFLAGS ?= -shared
+DLSUFFICS ?= .ld.so
+LIBS ?=
+LIBSPREFIX ?= -l
+LIBSSUFFIX ?= 
 LNOUT = -o 
 EXESUFFICS =
 OBJSUFFICS = .o
@@ -33,8 +33,19 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.unix
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin PamAuth TransparentPlugin
-
+PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin
+OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
+ifeq ($(OPENSSL_CHECK), true)
+    PLUGINS += SSLPlugin
+endif
+PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
+ifeq ($(PAM_CHECK), true)
+    PLUGINS += PamAuth
+endif
+PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n\#include <pcre2.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre2-8 -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+ifeq ($(PCRE_CHECK), true)
+    PLUGINS += PCREPlugin
+endif
 include Makefile.inc
 
 install: all

@@ -30,34 +30,38 @@ PROXYFUNC tcppmfunc, proxyfunc, smtppfunc, ftpprfunc;
 
 static struct pluginlink * pl;
 
+static struct alpn client_alpn_protos;
+
 static int ssl_loaded = 0;
 static int ssl_connect_timeout = 0;
-char *certcache = NULL;
-char *srvcert = NULL;
-char *srvkey = NULL;
-char *clicert = NULL;
-char *clikey = NULL;
-char *server_ca_file = NULL;
-char *server_ca_dir = NULL;
-char *server_ca_store = NULL;
-char *server_ca_key = NULL;
-char *client_ca_file = NULL;
-char *client_ca_dir = NULL;
-char *client_ca_store = NULL;
-int mitm = 0;
-int serv = 0;
-int cli = 0;
-int ssl_inited = 0;
-int client_min_proto_version = 0;
-int client_max_proto_version = 0;
-int server_min_proto_version = 0;
-int server_max_proto_version = 0;
-int client_verify = 0;
-int server_verify = 0;
-char * client_ciphersuites = NULL;
-char * server_ciphersuites = NULL;
-char * client_cipher_list = NULL;
-char * server_cipher_list = NULL;
+static char *certcache = NULL;
+static char *srvcert = NULL;
+static char *srvkey = NULL;
+static char *clicert = NULL;
+static char *clikey = NULL;
+static char *server_ca_file = NULL;
+static char *server_ca_dir = NULL;
+static char *server_ca_store = NULL;
+static char *server_ca_key = NULL;
+static char *client_ca_file = NULL;
+static char *client_ca_dir = NULL;
+static char *client_ca_store = NULL;
+static int mitm = 0;
+static int serv = 0;
+static int cli = 0;
+static int ssl_inited = 0;
+static int client_min_proto_version = 0;
+static int client_max_proto_version = 0;
+static int server_min_proto_version = 0;
+static int server_max_proto_version = 0;
+static int client_verify = 0;
+static int server_verify = 0;
+static char * client_ciphersuites = NULL;
+static char * server_ciphersuites = NULL;
+static char * client_cipher_list = NULL;
+static char * server_cipher_list = NULL;
+static char * client_sni = NULL;
+static int client_mode = 0;
 
 typedef struct _ssl_conn {
 	struct SSL_CTX *ctx;
@@ -77,10 +81,6 @@ struct SSLstate {
 };
 
 
-/*
- TO DO: use hashtable
-*/
-
 #define STATE ((struct SSLstate *)(state))
 
 static struct SSLsock *searchSSL(void* state, SOCKET s){
@@ -97,20 +97,24 @@ static void addSSL(
     SOCKET srv_s, SSL_CONN srv_conn, 
     struct clientparam* param){
 	if(!param->sostate) return;
-	SOSTATE->cli.s = cli_s;
-	SOSTATE->cli.conn = cli_conn;
-	SOSTATE->srv.s = srv_s;
-	SOSTATE->srv.conn = srv_conn;
+	if (cli_s != INVALID_SOCKET){
+	    SOSTATE->cli.s = cli_s;
+	    SOSTATE->cli.conn = cli_conn;
+	}
+	if (srv_s != INVALID_SOCKET){
+	    SOSTATE->srv.s = srv_s;
+	    SOSTATE->srv.conn = srv_conn;
+	}
 }
 
 void delSSL(void *state, SOCKET s){
     if(!state || s == INVALID_SOCKET) return;
-    if(STATE->cli.s == s) {
+    if(STATE->cli.s == s && STATE->cli.conn) {
 	ssl_conn_free(STATE->cli.conn);
 	STATE->cli.conn = NULL;
 	STATE->cli.s = INVALID_SOCKET;
     }
-    else if(STATE->srv.s == s) {
+    else if(STATE->srv.s == s && STATE->srv.conn) {
 	ssl_conn_free(STATE->srv.conn);
 	STATE->srv.conn = NULL;
 	STATE->srv.s = INVALID_SOCKET;
@@ -120,7 +124,7 @@ void delSSL(void *state, SOCKET s){
 struct sockfuncs sso;
 
 #ifdef _WIN32
-static int WINAPI ssl_send(void *state, SOCKET s, const void *msg, int len, int flags){
+static int WINAPI ssl_send(void *state, SOCKET s, const char *msg, int len, int flags){
 #else
 static ssize_t  ssl_send(void *state, SOCKET s, const void *msg, size_t len, int flags){
 #endif
@@ -144,7 +148,7 @@ static ssize_t  ssl_send(void *state, SOCKET s, const void *msg, size_t len, int
 
 
 #ifdef _WIN32
-static int WINAPI ssl_sendto(void *state, SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, int tolen){
+static int WINAPI ssl_sendto(void *state, SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen){
 #else
 static ssize_t ssl_sendto(void *state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen){
 #endif
@@ -167,7 +171,7 @@ static ssize_t ssl_sendto(void *state, SOCKET s, const void *msg, size_t len, in
 }
 
 #ifdef _WIN32
-static int WINAPI ssl_recvfrom(void *state, SOCKET s, void *msg, int len, int flags, struct sockaddr *from, int *fromlen){
+static int WINAPI ssl_recvfrom(void *state, SOCKET s, char *msg, int len, int flags, struct sockaddr *from, int *fromlen){
 #else
 static ssize_t  ssl_recvfrom(void *state, SOCKET s, void *msg, size_t len, int flags, struct sockaddr *from, SASIZETYPE *fromlen){
 #endif
@@ -189,7 +193,7 @@ static ssize_t  ssl_recvfrom(void *state, SOCKET s, void *msg, size_t len, int f
 }
 
 #ifdef _WIN32
-static int WINAPI ssl_recv(void *state, SOCKET s, void *msg, int len, int flags){
+static int WINAPI ssl_recv(void *state, SOCKET s, char *msg, int len, int flags){
 #else
 static ssize_t ssl_recv(void *state, SOCKET s, void *msg, size_t len, int flags){
 #endif
@@ -209,6 +213,11 @@ static ssize_t ssl_recv(void *state, SOCKET s, void *msg, size_t len, int flags)
 	}
 
 	return sso._recv(sso.state, s, msg, len, flags);
+}
+
+static int WINAPI ssl_shutdown(void *state, SOCKET s, int how){
+	delSSL(state, s);
+	return sso._shutdown(sso.state, s, how);
 }
 
 static int WINAPI ssl_closesocket(void *state, SOCKET s){
@@ -264,7 +273,6 @@ SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
  SSL_set_mode((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
  SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, 0);
 
-
  return ServerConn;
 }
 
@@ -307,8 +315,11 @@ int docli(struct clientparam* param){
 
  SSL_CONN ServerConn;
  SSL_CERT ServerCert=NULL;
- 
+ unsigned char *hostname;
+ hostname = param->hostname;
+ param->hostname = (unsigned char *)PCONF->client_sni;
  ServerConn = dosrvcon(param, &ServerCert);
+ param->hostname = hostname;
  _ssl_cert_free(ServerCert);
 
  if(!ServerConn) return 1;
@@ -410,6 +421,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	sc->client_max_proto_version = client_max_proto_version;
 	sc->server_min_proto_version = server_min_proto_version;
 	sc->server_max_proto_version = server_max_proto_version;
+	sc->client_mode = client_mode;
 	sc->client_verify = client_verify;
 	sc->server_verify = server_verify;
 	if(client_ciphersuites) sc->client_ciphersuites = strdup(client_ciphersuites);
@@ -430,12 +442,20 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		return sc;
 	    }
 	}
-	if(client_ca_file)sc->client_ca_file=client_ca_file;
-	if(client_ca_dir)sc->client_ca_dir=client_ca_dir;
-	if(client_ca_store)sc->client_ca_store=client_ca_store;
-	if(server_ca_file)sc->server_ca_file=server_ca_file;
-	if(server_ca_dir)sc->server_ca_dir=server_ca_dir;
-	if(server_ca_store)sc->server_ca_store=server_ca_store;
+	if(client_ca_file)sc->client_ca_file =strdup(client_ca_file);
+	if(client_ca_dir)sc->client_ca_dir = strdup(client_ca_dir);
+	if(client_ca_store)sc->client_ca_store = strdup(client_ca_store);
+	if(server_ca_file)sc->server_ca_file = strdup(server_ca_file);
+	if(server_ca_dir)sc->server_ca_dir = strdup(server_ca_dir);
+	if(server_ca_store)sc->server_ca_store = strdup(server_ca_store);
+
+	if(client_sni)sc->client_sni=strdup(client_sni);
+	if(client_alpn_protos.protos_len){
+	    sc->client_alpn_protos = client_alpn_protos;
+	    sc->client_alpn_protos.protos = malloc(client_alpn_protos.protos_len);
+	    if(!sc->client_alpn_protos.protos) sc->client_alpn_protos.protos_len = 0;
+	    else memcpy(sc->client_alpn_protos.protos, client_alpn_protos.protos, client_alpn_protos.protos_len);
+	}
 
 
 	if(mitm){
@@ -501,6 +521,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    srv->so._recv = ssl_recv;
 	    srv->so._sendto = ssl_sendto;
 	    srv->so._recvfrom = ssl_recvfrom;
+	    srv->so._shutdown = ssl_shutdown;
 	    srv->so._closesocket = ssl_closesocket;
 	    srv->so._poll = ssl_poll;
 	}
@@ -522,6 +543,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    if(sc->client_max_proto_version)SSL_CTX_set_max_proto_version(sc->srv_ctx, sc->client_max_proto_version);
 	    if(sc->client_cipher_list)SSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_cipher_list);
 	    if(sc->client_ciphersuites)SSL_CTX_set_ciphersuites(sc->srv_ctx, sc->client_ciphersuites);
+	    if(sc->client_alpn_protos.protos_len)SSL_CTX_set_alpn_protos(sc->srv_ctx, sc->client_alpn_protos.protos, sc->client_alpn_protos.protos_len);
 	    if(sc->client_verify){
 		if(sc->client_ca_file || sc->client_ca_dir){
 		    SSL_CTX_load_verify_locations(sc->srv_ctx, sc->client_ca_file, sc->client_ca_dir);
@@ -536,7 +558,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		    SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
 	}
-#ifdef WIWHSPLICE
+#ifdef WITHSPLICE
 	srv->usesplice = 0;
 #endif
 	return sc;
@@ -571,6 +593,24 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 	return CONTINUE;
 }
 
+static FILTER_ACTION ssl_filter_connect(void *fc, struct clientparam * param){
+	if(PCONF->cli && !client_mode) {
+	    if(docli(param)) {
+		return REJECT;
+	    }
+	}
+	return PASS;
+}
+
+static FILTER_ACTION ssl_filter_afterauth(void *fc, struct clientparam * param){
+	if(PCONF->cli && client_mode == 1) {
+	    if(docli(param)) {
+		return REJECT;
+	    }
+	}
+	return PASS;
+}
+
 static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 
 	if(param->operation != HTTP_CONNECT && param->operation != CONNECT) return PASS;
@@ -581,7 +621,7 @@ static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 	    if(!param->redirectfunc) param->redirectfunc = proxyfunc;
 	    return CONTINUE;
 	}
-	else if(PCONF->cli) {
+	else if(PCONF->cli && client_mode == 2) {
 	    if(docli(param)) {
 		return REJECT;
 	    }
@@ -590,8 +630,13 @@ static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 }
 
 
-static void ssl_filter_clear(void *fc){
-    free(fc);
+static void ssl_filter_clear(void *state){
+    struct clientparam *param;
+    
+    if(!state) return;
+    param = STATE->param;
+    free(state);
+    param->sostate = NULL;
 }
 
 #define CONFIG ((SSL_CONFIG *)fo)
@@ -629,114 +674,98 @@ static void ssl_filter_close(void *fo){
     free(CONFIG->client_ca_file);
     free(CONFIG->client_ca_dir);
     free(CONFIG->client_ca_store);
+    free(CONFIG->client_sni);
+    if(CONFIG->client_alpn_protos.protos_len){
+	free(CONFIG->client_alpn_protos.protos);
+	CONFIG->client_alpn_protos.protos = NULL;
+	CONFIG->client_alpn_protos.protos_len = 0;
+    }
     free(fo);
 }
 
-static struct filter ssl_filter_mitm = {
+static struct filter ssl_filter = {
 	NULL,
 	"ssl filter",
-	"mitm",
+	"ssl_filter",
 	ssl_filter_open,
 	ssl_filter_client,
-	NULL, NULL, NULL, ssl_filter_predata, NULL, NULL,
+	NULL, 
+	ssl_filter_connect, 
+	ssl_filter_afterauth, 
+	NULL, NULL, 
+	ssl_filter_predata,
+	NULL, NULL,
 	ssl_filter_clear, 
 	ssl_filter_close
 };
 
+int filterset = 0;
+
+static void setfilters(){
+	filterset++;
+	if(filterset > 1) return;
+	ssl_filter.next = pl->conf->filters;
+	pl->conf->filters = &ssl_filter;
+	sso = *pl->so;
+}
+
+static void unsetfilters(){
+	struct filter * sf;
+
+	if(!filterset) return;
+	filterset--;
+	if(filterset > 0) return;
+	if(pl->conf->filters == &ssl_filter) pl->conf->filters = ssl_filter.next;
+	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
+		if(sf->next == &ssl_filter) {
+			sf->next = ssl_filter.next;
+			break;
+		}
+	}
+}
 
 static int h_mitm(int argc, unsigned char **argv){
-	if(mitm) return 1;
+	if(mitm) return 0;
 	if(serv) return 2;
-	ssl_filter_mitm.next = pl->conf->filters;
-	pl->conf->filters = &ssl_filter_mitm;
-	sso = *pl->so;
 	mitm = 1;
+	setfilters();
 	return 0;
 }
 
 static int h_nomitm(int argc, unsigned char **argv){
-	struct filter * sf;
-	if(!mitm) return 1;
-	if(pl->conf->filters == &ssl_filter_mitm) pl->conf->filters = ssl_filter_mitm.next;
-	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
-		if(sf->next == &ssl_filter_mitm) {
-			sf->next = ssl_filter_mitm.next;
-			break;
-		}
-	}
+	if(!mitm) return 0;
 	mitm = 0;
+	unsetfilters();
 	return 0;
 }
 
-static struct filter ssl_filter_serv = {
-	NULL,
-	"ssl filter",
-	"serv",
-	ssl_filter_open,
-	ssl_filter_client,
-	NULL, NULL, NULL, NULL, NULL, NULL,
-	ssl_filter_clear, 
-	ssl_filter_close
-};
-
-
 static int h_serv(int argc, unsigned char **argv){
-	if(serv) return 1;
+	if(serv) return 0;
 	if(mitm) return 2;
-	ssl_filter_serv.next = pl->conf->filters;
-	pl->conf->filters = &ssl_filter_serv;
-	sso = *pl->so;
 	serv = 1;
+	setfilters();
 	return 0;
 }
 
 static int h_noserv(int argc, unsigned char **argv){
-	struct filter * sf;
-	if(!serv) return 1;
+	if(!serv) return 0;
 	serv = 0;
-	if(pl->conf->filters == &ssl_filter_serv) pl->conf->filters = ssl_filter_serv.next;
-	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
-		if(sf->next == &ssl_filter_serv) {
-			sf->next = ssl_filter_serv.next;
-			break;
-		}
-	}
+	unsetfilters();
 	return 0;
 }
 
-static struct filter ssl_filter_cli = {
-	NULL,
-	"ssl filter",
-	"cli",
-	ssl_filter_open,
-	ssl_filter_client,
-	NULL, NULL, NULL, ssl_filter_predata, NULL, NULL,
-	ssl_filter_clear, 
-	ssl_filter_close
-};
-
-
 static int h_cli(int argc, unsigned char **argv){
-	if(mitm) return 1;
-	if(cli) return 2;
-	ssl_filter_cli.next = pl->conf->filters;
-	pl->conf->filters = &ssl_filter_cli;
-	sso = *pl->so;
+	if(cli) return 0;
+	if(mitm) return 2;
 	cli = 1;
+	setfilters();
 	return 0;
 }
 
 static int h_nocli(int argc, unsigned char **argv){
-	struct filter * sf;
-	if(!cli) return 1;
+	if(!cli) return 0;
 	cli = 0;
-	if(pl->conf->filters == &ssl_filter_cli) pl->conf->filters = ssl_filter_cli.next;
-	else for(sf = pl->conf->filters; sf && sf->next; sf=sf->next){
-		if(sf->next == &ssl_filter_cli) {
-			sf->next = ssl_filter_cli.next;
-			break;
-		}
-	}
+	unsetfilters();
 	return 0;
 }
 
@@ -829,6 +858,42 @@ static int h_client_ca_store(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_client_sni(int argc, unsigned char **argv){
+	free(client_sni);
+	client_sni = argc > 1? strdup((char *)argv[1]) : NULL;
+	return 0;
+}
+
+static int h_client_alpn(int argc, unsigned char **argv){
+    int len, i;
+
+    if(client_alpn_protos.protos_len){
+	free(client_alpn_protos.protos);
+	client_alpn_protos.protos = NULL;
+	client_alpn_protos.protos_len = 0;
+    }
+    if(argc <= 1) return 0;
+
+    for(len = argc - 1, i = 1; i < argc; i++){
+	len += strlen((char *)argv[i]);
+    }
+
+    if(!(client_alpn_protos.protos = malloc(len))) return 10;
+
+    for(len = 0, i = 1; i < argc; i++){
+	int l;
+	
+	l = strlen((char *)argv[i]);
+	if(l >= 255) return 2;
+	client_alpn_protos.protos[len++] = l;
+	memcpy(client_alpn_protos.protos + len, argv[i], l);
+	len += l;
+    }
+    client_alpn_protos.protos_len = len;
+
+    return 0;
+}
+
 static int h_server_ca_dir(int argc, unsigned char **argv){
 	free(server_ca_dir);
 	server_ca_dir = argc > 1? strdup((char *)argv[1]) : NULL;
@@ -911,6 +976,15 @@ static int h_server_verify(int argc, unsigned char **argv){
 	server_verify = 1;
 	return 0;
 }
+
+static int h_client_mode(int argc, unsigned char **argv){
+	client_mode = 0;
+	if(argc <= 1) return 0;
+	client_mode = atoi((char *)argv[1]);
+	return 0;
+}
+
+
 static int h_no_server_verify(int argc, unsigned char **argv){
 	server_verify = 0;
 	return 0;
@@ -950,6 +1024,9 @@ static struct commands ssl_commandhandlers[] = {
 	{ssl_commandhandlers+31, "ssl_server_no_verify", h_no_server_verify, 1, 1},
 	{ssl_commandhandlers+32, "ssl_server_ca_dir", h_server_ca_dir, 1, 2},
 	{ssl_commandhandlers+33, "ssl_server_ca_store", h_server_ca_store, 1, 2},
+	{ssl_commandhandlers+34, "ssl_client_sni", h_client_sni, 1, 2},
+	{ssl_commandhandlers+35, "ssl_client_alpn", h_client_alpn, 1, 0},
+	{ssl_commandhandlers+36, "ssl_client_mode", h_client_mode, 1, 2},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
@@ -963,9 +1040,10 @@ static struct commands ssl_commandhandlers[] = {
 PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){
 
-	mitm = 0;
-	serv = 0;
-	cli = 0;
+
+	h_nomitm(0, NULL);
+	h_noserv(0, NULL);
+	h_nocli(0, NULL);
 
 	pl = pluginlink;
 
@@ -987,6 +1065,7 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 	server_max_proto_version = 0;
 	client_verify = 0;
 	server_verify = 0;
+	client_mode = 0;
 	free(client_ciphersuites);
 	client_ciphersuites = NULL;
 	free(server_ciphersuites);

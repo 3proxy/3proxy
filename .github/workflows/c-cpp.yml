@@ -23,28 +23,57 @@ jobs:
     - uses: actions/checkout@v4
 #    - name: configure
 #      run: ./configure
-    - name: ln Linux
+    - name: Linux libraries
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: ln -s Makefile.Linux Makefile
-    - name: ln Mac
-      if: ${{ startsWith(matrix.target, 'macos') }}
-      run: ln -s Makefile.FreeBSD Makefile
-    - name: ln Windows
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: copy Makefile.win Makefile
-    - name: dirs Windows
-      if: ${{ startsWith(matrix.target, 'windows') }}
-      run: cmd /C 'echo LIBS := -L "c:/program files/openssl/lib/VC/x64/MT" $(LIBS) >>Makefile.win && echo CFLAGS := -I "c:/program files/openssl/include" $(CFLAGS) >>Makefile.win && type Makefile.win && dir "c:/program files/openssl/lib" && dir "c:/program files/openssl/lib/VC/x64/MT" && dir "c:/mingw64/lib/" '
-    - name: SSLPlugin Linux
+      run: sudo apt install libssl-dev libpam-dev libpcre2-dev
+    - name: make Ubuntu
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: "sed -i '/^PLUGIN/s/$/ SSLPlugin/' Makefile && sed -i '/^LIBS/s/$/ -lcrypto -lssl/' Makefile"
-    - name: make
-      run: make
+      run: make -f Makefile.Linux
     - name: mkdir
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: mkdir ~/3proxy
     - name: make install
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
-      run: make DESTDIR=~/3proxy install
-    - name: make clean
-      run: make clean
+      run: make -f Makefile.Linux DESTDIR=~/3proxy install
+    - name: make clean Linux
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
+      run: make -f Makefile.Linux clean
+    - name: Mac libraries
+      if: ${{ startsWith(matrix.target, 'macos') }}
+      run: brew install pcre2
+    - name: make MacOS
+      if: ${{ startsWith(matrix.target, 'macos') }}
+      run: make -f Makefile.FreeBSD
+      env:
+       LDFLAGS: "-L/usr/local/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/openssl/lib"
+       CFLAGS: "-I/usr/local/include -I/opt/homebrew/include -I/usr/local/opt/openssl/include -I/opt/homebrew/opt/openssl/include"
+    - name: make clean MacOS
+      if: ${{ startsWith(matrix.target, 'macos') }}
+      run: make -f Makefile.FreeBSD clean
+    - name: make Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: make -f Makefile.win
+      env:
+       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
+       CFLAGS: '-I "c:/program files/openssl/include"'
+    - name: make clean Windows
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: make -f Makefile.win clean
+    - name: Add msbuild to PATH
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      uses: microsoft/setup-msbuild@v3
+    - name: make Windows MSVC
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      shell: cmd
+      run: |
+       call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+       D:
+       cd "D:/a/3proxy/3proxy"
+       vcpkg install pcre2:x64-windows
+       mkdir bin64
+       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
+       nmake /F Makefile.msvc64
+       nmake /F Makefile.msvc64 clean
+      env:
+       CFLAGS: '-I "c:/program files/openssl/include" -I "c:/vcpkg/installed/x64-windows/include"'
+

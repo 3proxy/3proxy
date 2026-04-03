@@ -416,6 +416,8 @@ struct filter {
 	FILTER_OPEN *filter_open;
 	FILTER_CLIENT *filter_client;
 	FILTER_BUFFER *filter_request;
+	FILTER_PREDATA *filter_connect;
+	FILTER_PREDATA *filter_afterauth;
 	FILTER_BUFFER *filter_header_cli;
 	FILTER_BUFFER *filter_header_srv;
 	FILTER_PREDATA *filter_predata;
@@ -494,7 +496,7 @@ struct srvparam {
 	int needuser;
 	int silent;
 	int transparent;
-	int nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
+	int nfilters, nreqfilters, nconnectfilters, nafterauthfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
 	int stacksize;
 	int noforce;
@@ -550,7 +552,7 @@ struct clientparam {
 
 
 	struct filterp	*filters,
-			**reqfilters,
+			**reqfilters, **connectfilters, **afterauthfilters,
 			**hdrfilterscli, **hdrfilterssrv,
 			**predatfilters, **datfilterscli, **datfilterssrv;
 
@@ -565,18 +567,21 @@ struct clientparam {
 
 	uint64_t	waitclient64,
 			waitserver64,
-			cycles;
+			cycles,
+			threadid;
 
 	int	redirected,
 		operation,
-		nfilters, nreqfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv,
+		nfilters,
+		nreqfilters, nconnectfilters, nafterauthfilters,
+		nhdrfilterscli, nhdrfilterssrv,
+		npredatfilters, ndatfilterscli, ndatfilterssrv,
 		unsafefilter,
 		bandlimver;
 
 	int	res,
 		status;
 	int	pwtype,
-		threadid,
 		weight,
 		nolog,
 		nolongdatfilter,
@@ -638,7 +643,7 @@ struct extparam {
 #else
 	int threadinit[2];
 #endif
-	int timeouts[12];
+	int *timeouts;
 	struct ace * acl;
 	char * conffile;
 	struct bandlim * bandlimiter,  *bandlimiterout;
@@ -651,6 +656,7 @@ struct extparam {
 	int authcachetype, authcachetime;
 	int filtermaxsize;
 	int gracetraf, gracenum, gracedelay;
+	int maxseg;
 	unsigned char *logname, **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;

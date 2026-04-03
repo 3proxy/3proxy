@@ -30,7 +30,7 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.Solaris-gcc
-PLUGINS = StringsPlugin TrafficPlugin PCREPlugin
+PLUGINS = StringsPlugin TrafficPlugin
 
 include Makefile.inc
 

@@ -608,7 +608,7 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 			param->bandlims[i]->nexttime - now : 0;
 		sleeptime = (nsleeptime > sleeptime)? nsleeptime : sleeptime;
 		param->bandlims[i]->basetime = sec;
-		param->bandlims[i]->nexttime = msec + nsleeptime + ((nbytesin > 512)? ((nbytesin+32)/64)*(((64*8*1000000)/param->bandlims[i]->rate)) : ((nbytesin+1) * (8*1000000))/param->bandlims[i]->rate);
+		param->bandlims[i]->nexttime = msec + nsleeptime + (((uint64_t)nbytesin * 8 * 1000000) / param->bandlims[i]->rate);
 	}
 	for(i=0; nbytesout && i<MAXBANDLIMS && param->bandlimsout[i]; i++){
 		if( !param->bandlimsout[i]->basetime || 
@@ -895,8 +895,15 @@ int doauth(struct clientparam * param){
 		if(ret > 9) return ret;
 	}
 	if(!res){
-		return alwaysauth(param);
+		ret = alwaysauth(param);
+		if (param->afterauthfilters){
+		    FILTER_ACTION action;
+    
+		    action = handleafterauthflt(param);
+		    if(action != PASS) return 19;
+		}
 	}
+
 
 	return ret;
 }

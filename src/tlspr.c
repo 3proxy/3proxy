@@ -38,7 +38,7 @@ int readtls(struct clientparam *param, int direction, unsigned char *buf, int bu
 #define PROTOLEN (32)
 
 
-int parsehello(int type, unsigned char *hello, int len, char *sni, int *lv, char * proto){
+int parsehello(int type, unsigned char *hello, int len, char *sni, int * snipos, int *lv, char * proto){
     int hlen;
     unsigned offset;
     int slen;
@@ -86,6 +86,7 @@ int parsehello(int type, unsigned char *hello, int len, char *sni, int *lv, char
 		if(snlen + 3 > snllen) return -14;
 		if(snlen+1 > SNILEN) return -15;
 		memcpy(sni, hello + offset + 9, snlen);
+		*snipos = offset + 9;
 		sni[snlen] = 0;
 		snifound = snlen;
 	    }
@@ -178,6 +179,7 @@ void * tlsprchild(struct clientparam* param) {
  char req[SNILEN+PROTOLEN+16];
  int lv=-1;
  char proto[PROTOLEN]="-";
+ int snipos = 0;
  
  res = tlstobufcli(param, 0);
  if(res <= 0 || param->clibuf[0] != 22){
@@ -185,7 +187,7 @@ void * tlsprchild(struct clientparam* param) {
  }
  else {
     lv = param->clibuf[2];
-    res = parsehello(1, param->clibuf, res, sni, &lv, proto);
+    res = parsehello(1, param->clibuf, res, sni, &snipos, &lv, proto);
     if(res > 0){
 	if(param->hostname){
 	    myfree(param->hostname);
@@ -193,6 +195,16 @@ void * tlsprchild(struct clientparam* param) {
 	}
 	else if (parsehostname(sni, param, param->srv->targetport? ntohs(param->srv->targetport):443)) RETURN (100);
 	if (!param->hostname)param->hostname = (unsigned char *)mystrdup(sni);
+	if(param->srv->singlepacket && snipos && res > 1){
+	    int len;
+	    
+	    len = socksend(param, param->remsock, param->clibuf+param->clioffset,snipos + (res/2), conf.timeouts[STRING_S]);
+	    if(len != snipos + (res/2)){
+		RETURN(310);
+	    }
+	    param->clioffset += snipos + (res/2);
+
+	}
     }
     else if (res < 0 && param->srv->requirecert) RETURN(310-res);
  }
@@ -216,7 +228,7 @@ void * tlsprchild(struct clientparam* param) {
     res = tlstobufsrv(param, 0);
     if(res <= 0 || param->srvbuf[0] != 22) RETURN(340-res);
     lv = param->srvbuf[2];
-    res = parsehello(2, param->srvbuf, res, sni, &lv, proto);
+    res = parsehello(2, param->srvbuf, res, sni, &snipos, &lv, proto);
     if (res < 0) RETURN(350-res);
  }
  if(param->srv->requirecert > 2){

@@ -92,45 +92,85 @@ char *rotations[] = {
 };
 
 
-struct extparam conf = {
-	{0, 0},
-	{1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 0, 0},
-	NULL,
-	NULL,
-	NULL, NULL,
-	NULL,
-	NULL,
-	NULL,
+int timeouts[12] = {
+	1,    /* SINGLEBYTE_S */
+	5,    /* SINGLEBYTE_L */
+	30,   /* STRING_S */
+	60,   /* STRING_L */
+	180,  /* CONNECTION_S */
+	1800, /* CONNECTION_L */
+	15,   /* DNS_TO */
+	60,   /* CHAIN_TO */
+	15,   /* CONNECT_TO */
+	5,    /* CONNBACK_TO */
 	0,
-	-1, 0, 0, 0, 0, 
-	0, 500, 0, 0, 0, 0, 0, 0, 2,
-	0, 0, 0,
-	6, 600,
-	1048576,
-	NULL, NULL,
-	NONE, NONE,
-	NULL,
+	0
+};
+
+struct extparam conf = {
+	.threadinit = {0, 0},
+	.timeouts = timeouts,
+	.acl = NULL,
+	.conffile = NULL,
+	.bandlimiter = NULL,
+	.bandlimiterout = NULL,
+	.connlimiter = NULL,
+	.trafcounter = NULL,
+	.services = NULL,
+	.stacksize = 0,
+	.counterd = -1,
+	.haveerror = 0,
+	.rotate = 0,
+	.paused = 0,
+	.archiverc = 0,
+	.demon = 0,
+	.maxchild = 500,
+	.backlog = 0,
+	.needreload = 0,
+	.timetoexit = 0,
+	.version = 0,
+	.noforce = 0,
+	.bandlimver = 0,
+	.parentretries = 2,
+	.authcachetype = 6,
+	.authcachetime = 600,
+	.filtermaxsize = 1048576,
+	.gracetraf = 0,
+	.gracenum = 0,
+	.gracedelay = 0,
+	.maxseg = 0,
+	.logname = NULL,
+	.archiver = NULL,
+	.logtype = NONE,
+	.countertype = NONE,
+	.counterfile = NULL,
 #ifndef NOIPV6
-	{AF_INET},{AF_INET6},{AF_INET}, 
+	.intsa = {AF_INET},
+	.extsa6 = {AF_INET6},
+	.extsa = {AF_INET},
 #else
-	{AF_INET},{AF_INET}, 
+	.intsa = {AF_INET},
+	.extsa = {AF_INET},
 #endif
-	NULL,
-	NULL,
-	doconnect,
-	lognone,
-	NULL,
-	NULL,
-	NULL, NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	(time_t)0, (time_t)0,
-	0,0,
-	'@',
+	.pwl = NULL,
+	.authenticate = NULL,
+	.authfunc = doconnect,
+	.logfunc = lognone,
+	.bandlimfunc = NULL,
+	.trafcountfunc = NULL,
+	.logtarget = NULL,
+	.logformat = NULL,
+	.fmon = NULL,
+	.filters = NULL,
+	.authfuncs = NULL,
+	.stdlog = NULL,
+	.demanddialprog = NULL,
+	.stringtable = NULL,
+	.logtime = (time_t)0,
+	.time = (time_t)0,
+	.logdumpsrv = 0,
+	.logdumpcli = 0,
+	.delimchar = '@',
 };
 
 int numservers=0;
@@ -247,6 +287,7 @@ int
 	return shutdown(s, how);
     }
     int WINAPI def_closesocket(void* state, SOCKET s){
+	usleep(SLEEPTIME);
 	return closesocket(s);
     }
 #else
@@ -574,6 +615,13 @@ int doconnect(struct clientparam * param){
 	size = sizeof(param->sinsl);
 	if(param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl, &size)==-1) {return (15);}
  }
+ if (param->nconnectfilters){
+    FILTER_ACTION action;
+    
+    action = handleconnectflt(param);
+    if(action != PASS) return 19;
+ }
+
  return 0;
 }
 
