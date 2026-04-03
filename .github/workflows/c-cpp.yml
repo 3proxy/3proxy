@@ -52,7 +52,7 @@ jobs:
       run: make -f Makefile.FreeBSD clean
     - name: install Windows libraries
       if: ${{ startsWith(matrix.target, 'windows') }}
-      run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S pcre2 openssl
+      run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm pcre2 openssl
     - name: make Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: make -f Makefile.win
