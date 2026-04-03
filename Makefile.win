@@ -28,7 +28,7 @@ REMOVECOMMAND = rm -f
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.win
-PLUGINS := utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin PCREPlugin
+PLUGINS := utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin
 VERFILE := 3proxyres.o $(VERFILE)
 VERSION := $(VERSION)
 VERSIONDEP := 3proxyres.o $(VERSIONDEP)
@@ -45,7 +45,7 @@ PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0
 ifeq ($(PAM_CHECK), true)
     PLUGINS += PamAuth
 endif
-PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n#include <pcre2.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -lpcre2-8.lib -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n#include <pcre2.h>\\n int main(){return 0;}" | tr -d '\\\\' | cc -x c $(CFLAGS) $(LDFLAGS) -lpcre2-8 -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
 ifeq ($(PCRE_CHECK), true)
     PLUGINS += PCREPlugin
 endif
