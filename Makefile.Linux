@@ -14,7 +14,7 @@ CFLAGS := -g  -fPIC -O2 -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOU
 COUT = -o 
 LN ?= ${CC}
 DCFLAGS ?= 
-LDFLAGS ?= -fPIC -O2 -fno-strict-aliasing -pthread
+LDFLAGS := -fPIC -O2 -fno-strict-aliasing -pthread $(LDFLAGS)
 DLFLAGS ?= -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads
