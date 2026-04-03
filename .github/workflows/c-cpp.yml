@@ -50,12 +50,15 @@ jobs:
     - name: make clean MacOS
       if: ${{ startsWith(matrix.target, 'macos') }}
       run: make -f Makefile.FreeBSD clean
+    - name: install Windows libraries
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-openssl
     - name: make Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: make -f Makefile.win
       env:
-       LIBS: '-L "c:/program files/openssl/lib/VC/x64/MT"'
-       CFLAGS: '-I "c:/program files/openssl/include"'
+       LDFLAGS: '-L "c:/msys64/mingw64/lib"'
+       CFLAGS: '-I "c:/msys64/mingw64/include"'
     - name: make clean Windows
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: make -f Makefile.win clean
@@ -69,11 +72,8 @@ jobs:
        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
        D:
        cd "D:/a/3proxy/3proxy"
-       vcpkg install pcre2:x64-windows
        mkdir bin64
        set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
+       set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
        nmake /F Makefile.msvc64
        nmake /F Makefile.msvc64 clean
-      env:
-       CFLAGS: '-I "c:/program files/openssl/include" -I "c:/vcpkg/installed/x64-windows/include"'
-
