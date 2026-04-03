@@ -74,8 +74,9 @@ jobs:
        cd "D:/a/3proxy/3proxy"
        dir /S "c:\program files\openssl\lib\"
        dir "c:\vcpkg\installed\x64-windows\lib"
-       dir /S "c:\msys*"
-       dir /S "c:\mingw*"
+       dir /S "c:\msys64\"
+       dir /S "c:\mingw32\"
+       dir /S "c:\mingw64\"
        mkdir bin64
        set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
        set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
