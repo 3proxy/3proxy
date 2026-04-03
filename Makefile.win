@@ -1,8 +1,6 @@
 #
 # 3 proxy Makefile for GCC/windows
 #
-# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
-# libraries
 #
 # remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
 # library support
@@ -10,7 +8,7 @@
 
 BUILDDIR = ../bin/
 CC ?= gcc
-CFLAGS := -O2 -s -c -mthreads -DWITH_STD_MALLOC -DWITH_WSAPOLL $(CFLAGS)
+CFLAGS := -O2 -s -c -mthreads  -DWITH_WSAPOLL $(CFLAGS)
 COUT = -o 
 LN ?= $(CC)
 LDFLAGS := -O2 -s -mthreads $(LDFLAGS)

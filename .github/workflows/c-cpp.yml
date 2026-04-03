@@ -77,3 +77,6 @@ jobs:
        set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
        nmake /F Makefile.msvc64
        nmake /F Makefile.msvc64 clean
+    - name: make Windows MSVC
+      run: mkdir build && cd build && cmake .. && make
+

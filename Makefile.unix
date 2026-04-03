@@ -1,8 +1,6 @@
 #
 # 3 proxy Makefile for GCC/Unix
 #
-# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
-# libraries
 #
 # remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
@@ -11,7 +9,7 @@ BUILDDIR = ../bin/
 CC ?= gcc
 
 # you may need -L/usr/pkg/lib for older NetBSD versions
-CFLAGS := -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC -DWITH_STD_MALLOC -DFD_SETSIZE=4096 -DWITH_POLL $(CFLAGS)
+CFLAGS := -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL $(CFLAGS)
 COUT = -o 
 LN ?= $(CC)
 LDFLAGS ?= -O2 -fno-strict-aliasing -pthread

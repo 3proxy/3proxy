@@ -1,14 +1,12 @@
 #
 # 3 proxy Makefile for Open Watcom 2
 #
-# You can try to remove -DWITH_STD_MALLOC to CFLAGS to use optimized malloc
-# libraries
 #
 # Add /DSAFESQL to CFLAGS if you are using poorely written/tested ODBC driver
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /Ox /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "NORADIUS" /D"WATCOM" /D "MSVC" /D "WITH_STD_MALLOC" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /c $(VERSION) $(BUILDDATE)
+CFLAGS = /nologo /Ox /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "NORADIUS" /D"WATCOM" /D "MSVC"  /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /c $(VERSION) $(BUILDDATE)
 COUT = /Fo
 LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no 
