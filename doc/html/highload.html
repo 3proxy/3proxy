@@ -1,12 +1,12 @@
-<h3>Optimizing 3proxy for high load</h3>
-<p>Precaution 1: 3proxy was not initially developed for high load and is positioned as a SOHO product, the main reason is "one connection - one thread" model 3proxy uses. 3proxy is known to work with above 200,000 connections under proper configuration, but use it in production environment under high loads at your own risk and do not expect too much.
-<p>Precaution 2: This documentation is incomplete and is not sufficient. High loads may require very specific system tuning including, but not limited to specific or cusomized kernels, builds, settings, sysctls, options, etc. All this is not covered by this documentation.
+<h3>Optimizing 3proxy for High Load</h3>
+<p>Precaution 1: 3proxy was not initially developed for high load and is positioned as a SOHO product. The main reason is the "one connection - one thread" model 3proxy uses. 3proxy is known to work with over 200,000 connections under proper configuration, but use it in a production environment under high loads at your own risk and do not expect too much.
+<p>Precaution 2: This documentation is incomplete and insufficient. High loads may require very specific system tuning including, but not limited to, specific or customized kernels, builds, settings, sysctls, options, etc. All of this is not covered by this documentation.
 
 <h4>Configuring 'maxconn'</h4>
 
-A number of simulatineous connections per service is limited by 'maxconn' option.
-Default maxconn value since 3proxy 0.8 is 500. You may want to set 'maxconn'
-to higher value. Under this configuration:
+The number of simultaneous connections per service is limited by the 'maxconn' option.
+The default maxconn value since 3proxy 0.8 is 500. You may want to set 'maxconn'
+to a higher value. Under this configuration:
 <pre>
 maxconn 1000
 proxy -p3129
@@ -14,53 +14,53 @@ proxy -p3128
 socks
 </pre>
 maxconn for every service is 1000, and there are 3 services running
-(2 proxy and 1 socks), so, for all services there can be up to 3000
-simulatineous connections to 3proxy.
-<p>Avoid setting 'maxconn' to arbitrary high value, it should be carefully
-choosen to protect system and proxy from resources exhaution. Setting maxconn
-above resources available can lead to denial of service conditions.
-<h4>Understanding resources requirements</h4>
-Each running service require:
+(2 proxy and 1 socks), so for all services there can be up to 3000
+simultaneous connections to 3proxy.
+<p>Avoid setting 'maxconn' to an arbitrarily high value; it should be carefully
+chosen to protect the system and proxy from resource exhaustion. Setting maxconn
+above available resources can lead to denial of service conditions.
+<h4>Understanding Resource Requirements</h4>
+Each running service requires:
 <ul>
-<li>1*thread (process)
-<li>1*socket (file descriptor)
+<li>1 thread (process)
+<li>1 socket (file descriptor)
 <li>1 stack memory segment + some heap memory, ~64K-128K depending on the system
 </ul>
-Each connected client require:
+Each connected client requires:
 <ul>
-<li>1*thread (process)
-<li>2*socket (file descriptor). For FTP 4 sockets are required. 
-<br>Under linux since 0.9 splice() is used. It's much more effective, but requires
-<br>2*socket (file descriptor) + 2*pipe (file descriptors) = 4 file descriptors.
-<br>For FTP 4 sockets and 2 pipes are required with splice().
-<br>Up to 128K (up to 256K in the case of splice()) of kernel buffers memory. This is theoretical maximum, actual numbers depend on connection quality and traffic amount.
+<li>1 thread (process)
+<li>2 sockets (file descriptors). For FTP, 4 sockets are required.
+<br>Under Linux since 0.9, splice() is used. It's much more efficient but requires
+<br>2 sockets (file descriptors) + 2 pipes (file descriptors) = 4 file descriptors.
+<br>For FTP with splice(), 4 sockets and 2 pipes are required.
+<br>Up to 128K (up to 256K in the case of splice()) of kernel buffer memory. This is the theoretical maximum; actual numbers depend on connection quality and traffic amount.
 <br>1 additional socket (file descriptor) during name resolution for non-cached names
 <br>1 additional socket during authentication or logging for RADIUS authentication or logging.
-<li>1*ephemeral port (3*ephemeral ports for FTP connection).
-<li>1 stack memory segment of ~32K-128K depending on the system + at least 16K and up to few MB (for 'proxy' and 'ftppr') of heap memory. If you are short of memory, prefer 'socks' to 'proxy' and 'ftppr'.
-<li>a lot of system buffers, specially in the case of slow network connections.
+<li>1 ephemeral port (3 ephemeral ports for FTP connections).
+<li>1 stack memory segment of ~32K-128K depending on the system + at least 16K and up to a few MB (for 'proxy' and 'ftppr') of heap memory. If you are short on memory, prefer 'socks' over 'proxy' and 'ftppr'.
+<li>Many system buffers, especially in the case of slow network connections.
 </ul>
 Also, additional resources like system buffers are required for network activity.
 
 <h4>Setting ulimits</h4>
 
 Hard and soft ulimits must be set above calculated requirements. Under Linux, you can
-check limits of running process with
+check the limits of a running process with
 <pre>
 cat /proc/PID/limits
 </pre>
-where PID is a pid of the process. 
-Validate ulimits match your expectation, especially if you run 3proxy under dedicated account
-by adding e.g.
+where PID is the process ID.
+Validate that ulimits match your expectations, especially if you run 3proxy under a dedicated account
+by adding, e.g.:
 <pre>
 system "ulimit -Ha >>/tmp/3proxy.ulim.hard"
 system "ulimit -Sa >>/tmp/3proxy.ulim.soft"
 </pre>
-in the beginning (before first service started) and the end of config file.
-Make both hard restart (that is kill and start 3proxy process) and soft restart
-by sending SIGUSR1 to 3proxy process, check ulimits recorded to files match your
-expecation. In systemd based distros (e.g. latest Debian / Ubuntu) changing limits.conf
-is not enough, limits must be ajusted in systemd configuration, e.g. by setting
+at the beginning (before the first service is started) and at the end of the config file.
+Perform both a hard restart (i.e., kill and start the 3proxy process) and a soft restart
+by sending SIGUSR1 to the 3proxy process; check that the ulimits recorded to files match your
+expectations. In systemd-based distros (e.g., latest Debian/Ubuntu), changing limits.conf
+is not enough; limits must be adjusted in the systemd configuration, e.g., by setting:
 <pre>
 DefaultLimitDATA=infinity
 DefaultLimitSTACK=infinity
@@ -73,51 +73,51 @@ DefaultLimitMEMLOCK=infinity
 </pre>
 in user.conf / system.conf
 
-<h4>Extending system limitation</h4>
+<h4>Extending System Limitations</h4>
 
-Check manuals / documentation for your system limitations e.g. system-wide limit for number of open files
+Check the manuals/documentation for your system's limitations, e.g., the system-wide limit for the number of open files
 (fs.file-max in Linux). You may need to change sysctls or even rebuild the kernel from source.
 <p>
-To help with socket-based system-dependant settings, since 0.9-devel 3proxy supports different
-socket options which can be set via -ol option for listening socket, -oc for proxy-to-client
-socket and -os for proxy-to-server socket. Example:
+To help with socket-based system-dependent settings, since 0.9-devel, 3proxy supports different
+socket options which can be set via the -ol option for the listening socket, -oc for the proxy-to-client
+socket, and -os for the proxy-to-server socket. Example:
 <pre>
 proxy -olSO_REUSEADDR,SO_REUSEPORT -ocTCP_TIMESTAMPS,TCP_NODELAY -osTCP_NODELAY
 </pre>
-available options are system dependant.
+Available options are system-dependent.
 
-<h4>Using 3proxy in virtual environment</h4>
+<h4>Using 3proxy in a Virtual Environment</h4>
 
-If 3proxy is used in VPS environment, there can be additional limitations. 
-For example, kernel resources / system CPU usage / IOCTLs can be limited in a different way, and this can become a bottleneck. 
-Since 0.9 devel, 3proxy uses splice() by default on Linux, splice() prevents network traffic from being copied from
-kernel space to 3proxy process and generally increases throughput, epecially in the case of high volume traffic. It especially
-true for virtual environment (it can improve thoughput up to 10 times) unless there are additional kernel limitations.
-Since some work is moved to kernel, it requires up to 2 times more kernel resources in terms of CPU, memory and IOCTLs.
-If your hosting additionally limits kernel resources (you can see it as nearly 100% CPU usage without any real CPU activity for
-any application which performs IOCTLS), use -s0 option to disable splice() usage for given service e.g.
-<pre> 
+If 3proxy is used in a VPS environment, there can be additional limitations.
+For example, kernel resources, system CPU usage, and IOCTLs can be limited differently, and this can become a bottleneck.
+Since 0.9-devel, 3proxy uses splice() by default on Linux. splice() prevents network traffic from being copied from
+kernel space to the 3proxy process and generally increases throughput, especially in the case of high-volume traffic. This is especially
+true for virtual environments (it can improve throughput up to 10 times) unless there are additional kernel limitations.
+Since some work is moved to the kernel, it requires up to 2 times more kernel resources in terms of CPU, memory, and IOCTLs.
+If your hosting additionally limits kernel resources (you can see this as nearly 100% CPU usage without any real CPU activity for
+any application performing IOCTLs), use the -s0 option to disable splice() usage for a given service, e.g.:
+<pre>
 socks -s0
 </pre>
 
-<h4>Extending ephemeral port range</h4>
+<h4>Extending the Ephemeral Port Range</h4>
 
-Check ephemeral port range for your system and extend it to the number of the
+Check the ephemeral port range for your system and extend it to the number of
 ports required.
-Ephimeral range is always limited to maximum number of ports (64K). To extend the
-number of outgoing connections above this limit, extending ephemeral port range
-is not enough, you need additional actions:
+The ephemeral range is always limited to the maximum number of ports (64K). To extend the
+number of outgoing connections above this limit, extending the ephemeral port range
+is not enough; you need additional actions:
 <ol>
 <li> Configure multiple outgoing IPs
-<li> Make sure 3proxy is configured to use different outgoing IP by either setting
-external IP via RADIUS
+<li> Make sure 3proxy is configured to use a different outgoing IP by either setting
+the external IP via RADIUS:
 <pre>
 radius secret 1.2.3.4
 auth radius
 proxy
 </pre>
 or by using multiple services with different external
-interfaces, example:
+interfaces, for example:
 <pre>
 allow user1,user11,user111
 proxy -p1111 -e1.1.1.1
@@ -133,7 +133,7 @@ proxy -p4444 -e4.4.4.4
 flush
 </pre>
 or via "parent extip" rotation,
-e.g.
+e.g.:
 <pre>
 allow user1,user11,user111
 parent 1000 extip 1.1.1.1 0
@@ -156,8 +156,8 @@ socks
 </pre>
 <pre>
 </pre>
-Under latest Linux version you can also start multiple services with different
-external addresses on the single port with SO_REUSEPORT on listening socket to
+Under the latest Linux versions, you can also start multiple services with different
+external addresses on a single port with SO_REUSEPORT on the listening socket to
 evenly distribute incoming connections between outgoing interfaces:
 <pre>
 socks -olSO_REUSEPORT -p3128 -e 1.1.1.1
@@ -165,136 +165,136 @@ socks -olSO_REUSEPORT -p3128 -e 2.2.2.2
 socks -olSO_REUSEPORT -p3128 -e 3.3.3.3
 socks -olSO_REUSEPORT -p3128 -e 4.4.4.4
 </pre>
-for Web browsing last two examples are not recommended, because same client can get
-different external address for different requests, you should choose external
+For web browsing, the last two examples are not recommended because the same client can get
+a different external address for different requests; you should choose the external
 interface with user-based rules instead.
-<li> You may need additional system dependant actions to use same port on different IPs,
-usually by adding SO_REUSEADDR (SO_PORT_SCALABILITY for Windows) socket option to
-external socket. This option can be set (since 0.9 devel) with -os option:
+<li> You may need additional system-dependent actions to use the same port on different IPs,
+usually by adding the SO_REUSEADDR (SO_PORT_SCALABILITY for Windows) socket option to
+the external socket. This option can be set (since 0.9-devel) with the -os option:
 <pre>
 proxy -p3128 -e1.2.3.4 -osSO_REUSEADDR
 </pre>
-Behavior for SO_REUSEADDR and SO_REUSEPORT is different between different system,
-even between different kernel versions and can lead to unexpected results.
-Specifics is described <a href="https://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t">here</a>.
-Use this options only if actually required and if you fully understand possible
-consiquences. E.g. SO_REUSEPORT can help to establish more connections than the
-number of the client port available, but it can also lead to situation connections
-are randomely fail due to ip+port pairs collision if remote or local system 
+The behavior for SO_REUSEADDR and SO_REUSEPORT is different between different systems,
+even between different kernel versions, and can lead to unexpected results.
+The specifics are described <a href="https://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t">here</a>.
+Use these options only if actually required and if you fully understand the possible
+consequences. For example, SO_REUSEPORT can help establish more connections than the
+number of client ports available, but it can also lead to situations where connections
+randomly fail due to IP+port pair collisions if the remote or local system
 doesn't support this trick.
 </ol>
 
-<h4>Setting stacksize</h4>
+<h4>Setting Stack Size</h4>
 
 'stacksize' is a size added to all stack allocations and can be both positive and
-negative. Stack is required in functions call. 3proxy itself doesn't require large
+negative. Stack is required for function calls. 3proxy itself doesn't require a large
 stack, but it can be required if some
-purely-written libc, 3rd party libraries or system functions called. There is known\
+poorly written libc, 3rd party libraries, or system functions are called. There is known
 dirty code in Unix ODBC
-implementations, build-in DNS resolvers, especially in the case of IPv6 and large
-number of interfaces. Under most 64-bit system extending stacksize will lead
-to additional memory space usage, but do not require actual commited memory,
-so you can inrease stacksize to relatively large value (e.g. 1024000) without
-the need to add additional phisical memory,
-but it's system/libc dependant and requires additional testing under your
-installation. Don't forget about memory related ulimts.
-<p>For 32-bit systems address space can be a bottlneck you should consider. If
-you're short of address space you can try to use negative stack size.
+implementations and built-in DNS resolvers, especially in the case of IPv6 and a large
+number of interfaces. Under most 64-bit systems, extending stacksize will lead
+to additional memory space usage but does not require actual committed memory,
+so you can increase stacksize to a relatively large value (e.g., 1024000) without
+the need to add additional physical memory,
+but it's system/libc dependent and requires additional testing under your
+installation. Don't forget about memory-related ulimits.
+<p>For 32-bit systems, address space can be a bottleneck you should consider. If
+you're short on address space, you can try using a negative stack size.
 
-<h4>Known system issues</h4>
+<h4>Known System Issues</h4>
 
-There are known race condition issues in Linux / glibc resolver. The probability
-of race condition arises under configuration with IPv6, large number of interfaces
-or IP addresses or resolvers configured. In this case, install local recursor and
-use 3proxy built-in resolver (nserver / nscache / nscache6).
-<h4>Do not use public resolvers</h4>
-Public resolvers like ones from Google have ratelimits. For large number of
-requests install local caching recursor (ISC bind named, PowerDNS recursor, etc).
+There are known race condition issues in the Linux/glibc resolver. The probability
+of a race condition arises under configuration with IPv6, a large number of interfaces
+or IP addresses, or with resolvers configured. In this case, install a local recursor and
+use 3proxy's built-in resolver (nserver / nscache / nscache6).
+<h4>Do Not Use Public Resolvers</h4>
+Public resolvers like those from Google have rate limits. For a large number of
+requests, install a local caching recursor (ISC bind named, PowerDNS recursor, etc).
 
-<h4>Avoid large lists</h4>
+<h4>Avoid Large Lists</h4>
 
 Currently, 3proxy is not optimized to use large ACLs, user lists, etc. All lists
-are processed lineary. In devel version you can use RADIUS authentication to avoid
-user lists and ACLs in 3proxy itself. Also, RADIUS allows to easily set outgoing IP
-on per-user basis or more sophisicated logics.
-RADIUS is a new beta feature, test it before using in production.
+are processed linearly. In the devel version, you can use RADIUS authentication to avoid
+user lists and ACLs in 3proxy itself. Also, RADIUS allows you to easily set an outgoing IP
+on a per-user basis or implement more sophisticated logic.
+RADIUS is a new beta feature; test it before using it in production.
 
-<h4>Avoid changing configuration too often</h4>
+<h4>Avoid Changing Configuration Too Often</h4>
 
-Every configuration reload requires additional resources. Do not do frequent
-changes, like users addition/deletaion via connfiguration, use alternative
+Every configuration reload requires additional resources. Do not make frequent
+changes, such as user addition/deletion via configuration; use alternative
 authentication methods instead, like RADIUS.
 
-<h4>Consider using 'noforce'</h4>
+<h4>Consider Using 'noforce'</h4>
 
-'force' behaviour (default) re-authenticates all connections after
-configuration reload, it may be resource consuming on large number of
-connections. Consider adding 'noforce' command before services started
-to prevent connections reauthentication.
+The 'force' behavior (default) re-authenticates all connections after
+configuration reload; it may be resource-consuming with a large number of
+connections. Consider adding the 'noforce' command before services are started
+to prevent connection re-authentication.
 
-<h4>Do not monitor configuration files directly</h4>
+<h4>Do Not Monitor Configuration Files Directly</h4>
 
-Using configuration file directly in 'monitor' can lead to race condition where
-configuration is reloaded while file is being written.
+Using a configuration file directly in 'monitor' can lead to a race condition where
+the configuration is reloaded while the file is being written.
 To avoid race conditions:
 <ol>
 <li> Update config files only if there is no lock file
-<li> Create lock file then 3proxy configuration is updated, e.g. with
+<li> Create a lock file when the 3proxy configuration is updated, e.g., with
 "touch /some/path/3proxy/3proxy.lck". If you generate config files
-asynchronously, e.g. by user's request via web, you should consider
-implementing existance checking and file creation as atomic operation.
-<li>add
+asynchronously, e.g., by a user's request via web, you should consider
+implementing existence checking and file creation as an atomic operation.
+<li> Add
 <pre>
 system "rm /some/path/3proxy/3proxy.lck"
 </pre>
-at the end of config file to remove it after configuration is successfully loaded
-<li> Use a dedicated version file to monitor, e.g.
+at the end of the config file to remove it after the configuration is successfully loaded
+<li> Use a dedicated version file to monitor, e.g.:
 <pre>
 monitor "/some/path/3proxy/3proxy.ver"
 </pre>
-<li> After config is updated, change version file for 3proxy to reload configuration,
-e.g. with "touch /some/path/3proxy/3proxy.ver".
+<li> After the config is updated, change the version file for 3proxy to reload the configuration,
+e.g., with "touch /some/path/3proxy/3proxy.ver".
 </ol>
 
-<h4>Use TCP_NODELAY to speed-up connections with small amount of data</h4>
+<h4>Use TCP_NODELAY to Speed Up Connections with Small Amounts of Data</h4>
 
-If most requests require exchange with a small amount of data in a both ways
-without the need for bandwidth, e.g. messengers or small web request,
-you can eliminate Nagle's algorithm delay with TCP_NODELAY flag. Usage example:
+If most requests require an exchange with a small amount of data in both directions
+without the need for bandwidth, e.g., messengers or small web requests,
+you can eliminate Nagle's algorithm delay with the TCP_NODELAY flag. Usage example:
 <pre>
 proxy -osTCP_NODELAY -ocTCP_NODELAY
 </pre>
 sets TCP_NODELAY for client (oc) and server (os) connections.
-<p>Do not use TCP_NODELAY on slow connections with high delays and then
+<p>Do not use TCP_NODELAY on slow connections with high delays when
 connection bandwidth is a bottleneck.
 
-<h4>Use splice to speedup large data amount transfers</h4>
+<h4>Use Splice to Speed Up Large Data Amount Transfers</h4>
 
-splice() allows to copy data between connections without copying to process
-addres space. It can speedup proxy on high bandwidth connections, if most
+splice() allows copying data between connections without copying to the process
+address space. It can speed up the proxy on high-bandwidth connections if most
 connections require large data transfers. Splice is enabled by default on Linux
-since 0.9, "-s0" disables splice usage. Example:
+since 0.9; "-s0" disables splice usage. Example:
 <pre>
 proxy -s0
 </pre>
-Splice is only available on Linux. Splice requires more system buffers and file descriptors,
+Splice is only available on Linux. Splice requires more system buffers and file descriptors
 and produces more IOCTLs but reduces process memory and overall CPU usage.
-Disable splice if there is a lot of short-living connections with no bandwidth
+Disable splice if there are a lot of short-lived connections with no bandwidth
 requirements.
-<p>Use splice only on high-speed connections (e.g. 10GBE), if processor, memory speed or
+<p>Use splice only on high-speed connections (e.g., 10GbE) when the processor, memory speed, or
 system bus are bottlenecks.
-<p>TCP_NODELAY and splice are not contrary to each over and should be combined on
+<p>TCP_NODELAY and splice are not contrary to each other and should be combined on
 high-speed connections.
 
-<h4>Add grace delay to reduce system calls<h4>
+<h4>Add Grace Delay to Reduce System Calls</h4>
 
 <pre>proxy -g8000,3,10</pre>
-First parameter is average read size we want to keep, second parameter is
-minimal number of packets in the same direction to apply algorythm,
-last value is delay added after polling and prior to reading data.
-An example above adds 10 millisecond delay before reading data if average
-polling size is below 8000 bytes and 3 read operations are made in the same
-direction. It's specially usefule with splice. <pre>logdump 1 1</pre> is useful
-to see how grace delays work, choose delay value to avoid filling the read
-pipe/buffer (typically 64K) but keep the request sizes close to chosen average
-on large file upload/download.
+The first parameter is the average read size we want to keep, the second parameter is
+the minimal number of packets in the same direction to apply the algorithm,
+and the last value is the delay added after polling and prior to reading data.
+The example above adds a 10-millisecond delay before reading data if the average
+polling size is below 8000 bytes and 3 read operations have been made in the same
+direction. It's especially useful with splice. <pre>logdump 1 1</pre> is useful
+to see how grace delays work; choose a delay value to avoid filling the read
+pipe/buffer (typically 64K) but keep the request sizes close to the chosen average
+on large file uploads/downloads.

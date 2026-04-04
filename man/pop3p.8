@@ -19,7 +19,7 @@ servers.
 Inetd mode. Standalone service only.
 .TP
 .B -d
-Daemonise. Detach service from console and run in the background.
+Daemonize. Detach service from console and run in the background.
 .TP
 .B -t
 Be silenT. Do not log start/stop/accept error records.
@@ -28,27 +28,27 @@ Be silenT. Do not log start/stop/accept error records.
 Never look for username authentication.
 .TP
 .B -e
-External address. IP address of interface proxy should initiate connections
-from. 
-By default system will deside which address to use in accordance
-with routing table.
+External address. IP address of the interface the proxy should initiate connections
+from.
+By default, the system will decide which address to use in accordance
+with the routing table.
 .TP
 .B -i
-Internal address. IP address proxy accepts connections to.
-By default connection to any interface is accepted. It\'s usually unsafe.
+Internal address. IP address the proxy accepts connections to.
+By default, connections to any interface are accepted. It\'s usually unsafe.
 .TP
 .B -p
 Port. Port proxy listens for incoming connections. Default is 110.
 .TP
 .B -h
-Default destination. It's used if targed address is not specified by user.
+Default destination. It's used if the target address is not specified by the user.
 .TP
 .B -l
 Log. By default logging is to stdout. If
 .I logfile
 is specified logging is to file. Under Unix, if
 .RI \' @ \'
-preceeds
+precedes
 .IR logfile ,
 syslog is used for logging.
 .TP
@@ -56,21 +56,21 @@ syslog is used for logging.
 Increase or decrease stack size. You may want to try something like -S8192 if you experience 3proxy
 crashes.
 .SH CLIENTS
-You can use any MUA (Mail User Agent) with POP3 support. Set client to use
+You can use any MUA (Mail User Agent) with POP3 support. Set the client to use
 .I internal_ip
 and
 .IR port
-as a POP3 server. Address of real POP3 server must be configured as a part of
-POP3 username. Format for username is
+as a POP3 server. The address of the real POP3 server must be configured as a part of
+the POP3 username. The format for the username is
 .IR username \fB@ server ,
 where
 .I server
-is address of POP3 server and
+is the address of the POP3 server and
 .I username
-is user\'s login on this POP3 server. Login itself may contain \'@\' sign.
+is the user\'s login on this POP3 server. The login itself may contain an \'@\' sign.
 Only cleartext authentication is supported, because challenge-response
-authentication (APOP, CRAM-MD5, etc) requires challenge from server before
-we know which server to connect.
+authentication (APOP, CRAM-MD5, etc.) requires a challenge from the server before
+we know which server to connect to.
 .SH BUGS
 Report all bugs to
 .BR 3proxy@3proxy.org

@@ -14,18 +14,18 @@ server
 .RI [ \-\-remove ]
 .SH DESCRIPTION
 .B 3proxy
-is universal proxy server. It can be used to provide internal users wuth
+is a universal proxy server. It can be used to provide internal users with
 fully controllable access to external resources or to provide external
 users with access to internal resources. 3proxy is not developed to replace
 .BR squid (8),
-but it can extend functionality of existing cashing proxy.
+but it can extend the functionality of an existing caching proxy.
 It can be used to route requests between different types of clients and proxy
 servers. Think about it as application level
 gateway with configuration like hardware router has for network layer.
 It can establish multiple
 gateways with HTTP and HTTPS proxy with FTP over HTTP support, SOCKS v4,
 v4.5 and v5, POP3 proxy, UDP and TCP portmappers. Each gateway is started
-from configuration file like independant service 
+from the configuration file like an independent service 
 .BR proxy (8)
 .BR socks (8)
 .BR pop3p (8)
@@ -35,24 +35,24 @@ from configuration file like independant service
 .BR dnspr
 but
 .BR 3proxy
-is not a kind of wrapper or superserver for this daemons. It just has same
+is not a kind of wrapper or superserver for these daemons. It just has the same
 code compiled in, but provides much more functionality. SOCKSv5
-implementatation allows to use 3proxy with any UDP or TCP based client
+implementation allows you to use 3proxy with any UDP or TCP based client
 applications designed without
 proxy support (with
 .IR SocksCAP ,
 .I FreeCAP
-or another client-side redirector under Windows of with socksification library
-under Unix). So you can play your favourite games, listen music, exchange
-files and messages and even accept incoming connections behind proxy server.
+or another client-side redirector under Windows or with a socksification library
+under Unix). So you can play your favourite games, listen to music, exchange
+files and messages and even accept incoming connections behind a proxy server.
 .PP
 .I dnspr
-does not exist as independant service. It\' DNS caching proxy (it requires
+does not exist as an independent service. It's a DNS caching proxy (it requires
 .I nscache
 and
 .I nserver
-to be set in configuration. Only A-records are cached. Please note, the
-this caching is mostly a 'hack' and has nothing to do with real
+to be set in the configuration. Only A-records are cached. Please note that
+this caching is mostly a 'hack' and has nothing to do with a real
 DNS server, but it works perfectly for SOHO networks.
 
 .PP
@@ -65,9 +65,9 @@ NetBIOS name for Windows clients (it\'s very like ident authentication).
 Depending on ACL action request can be allowed, denied or redirected to another
 host or to another proxy server or even to a chain of proxy servers.
 .PP
-It supports different types of logging: to logfiles, 
+It supports different types of logging: to logfiles,
 .BR syslog (3)
-(only under Unix) or to ODBC database. Logging format is turnable to provide
+(only under Unix) or to an ODBC database. Logging format is tunable to provide
 compatibility with existing log file parsers. It makes it possible to use
 3proxy with IIS, ISA, Apache or Squid log parsers.
 .SH OPTIONS
@@ -77,12 +77,12 @@ Name of config file. See
 .BR 3proxy.cfg (3)
 for configuration file format. Under Windows, if config_file is not specified,
 .BR 3proxy
-looks for file named
+looks for a file named
 .I 3proxy.cfg
-in the default location (in same directory with executable file and in current
+in the default location (in the same directory as the executable file and in the current
 directory). Under Unix, if no config file is specified, 3proxy reads
-configuration from stdin. It makes it possible to use 3proxy.cfg file as
-executable script just by setting +x mode and adding
+configuration from stdin. It makes it possible to use the 3proxy.cfg file as
+an executable script just by setting +x mode and adding
 .br
 #!/usr/local/3proxy/3proxy
 .br
@@ -98,28 +98,28 @@ as a system service
 .BR 3proxy
 from system services
 .SH SIGNALS
-Under Unix there are few signals
+Under Unix there are a few signals
 .BR 3proxy
 catches. See
 .BR kill (1).
 .TP
 .B SIGTERM
-cleanup connections and exit
+clean up connections and exit
 .TP
 .B SIGPAUSE
-stop to accept new connections, on second signal - start and re-read
+stop accepting new connections, on second signal - start and re-read
 configuration
 .TP
 .B SIGCONT
-start to accept new conenctions
+start to accept new connections
 .TP
 .B SIGUSR1
 reload configuration
 .PP
 Under Windows, if
 .BR 3proxy
-is installed as service you can standard service management to start, stop,
-pause and continue 3proxy service, for example:
+is installed as a service you can use standard service management to start, stop,
+pause and continue the 3proxy service, for example:
 .br
 .BR "net start 3proxy"
 .br

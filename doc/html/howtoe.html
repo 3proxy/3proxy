@@ -1,5 +1,5 @@
 <ul>
- <li>3APA3A 3proxy tiny proxy server HowTo
+ <li>3APA3A 3proxy Tiny Proxy Server HowTo
  <br>Under construction, very incomplete
  <ul>
 	<li><A HREF="#COMPILE">Compilation</A>
@@ -18,27 +18,27 @@
 	<li><A HREF="#SERVER">Server configuration</A>
 	<ul>
   <li><a href="#NOTHING">How to make 3proxy start</a></li>
-    <li><a href="#LIMITS">How to make limitation (access, bandwidth, traffic, connections) work</a></li>
-    <li><a href="#SERVICE">How to make 3proxy to run as a service</a></li>
+    <li><a href="#LIMITS">How to make limitations (access, bandwidth, traffic, connections) work</a></li>
+    <li><a href="#SERVICE">How to make 3proxy run as a service</a></li>
     <li><a href="#INTEXT">How to understand internal and external</a></li>
     <li><a href="#ODBC">How to make ODBC logging work?</a></li>
     <li><a href="#IPV6">How to make IPv6 work</a></li>
     <li><a href="#CRASH">How to fix 3proxy crashes</a></li>
-  		<li><A HREF="#SAMPLE">Where to find configuration example</A>
+  		<li><A HREF="#SAMPLE">Where to find a configuration example</A>
 		<li><A HREF="#LOGGING">How to set up logging</A>
-		<li><A HREF="#LOGFORMAT">How to setup logging format</A>
-		<li><A HREF="#LOGANALIZERS">How to use log analizers with 3proxy</A>
-		<li><A HREF="#LAUNCH">How to start any of proxy services (HTTP, SOCKS etc)</A>
-		<li><a href="#BIND">How to bind service to specific interface or port</a>
+		<li><A HREF="#LOGFORMAT">How to set up logging format</A>
+		<li><A HREF="#LOGANALIZERS">How to use log analyzers with 3proxy</A>
+		<li><A HREF="#LAUNCH">How to start any of the proxy services (HTTP, SOCKS, etc.)</A>
+		<li><a href="#BIND">How to bind a service to a specific interface or port</a>
 		<li><a href="#NAMES">How to resolve names through a parent proxy</a></li>
-		<li><a href="#ISFTP">How to setup FTP proxy</a></li>
-		<li><a href="#TLSPR">How to setup SNI proxy (tlspr)</a></li>
+		<li><a href="#ISFTP">How to set up an FTP proxy</a></li>
+		<li><a href="#TLSPR">How to set up an SNI proxy (tlspr)</a></li>
 		<li><A HREF="#AUTH">How to limit service access</A>
-		<li><A HREF="#USERS">How to create user list</A>
+		<li><A HREF="#USERS">How to create a user list</A>
 		<li><A HREF="#ACL">How to limit user access to resources</A>
 		<li><A HREF="#REDIR">How to manage redirections</A>
 		<li><a href="#SOCKSREDIR">How to manage local redirections</a>
-		<li><A HREF="#ROUNDROBIN">How to balance traffic between few external channgels?</A>
+		<li><A HREF="#ROUNDROBIN">How to balance traffic between multiple external channels?</A>
 		<li><A HREF="#CHAIN">How to manage proxy chains</A>
 		<li><A HREF="#BANDLIM">How to limit bandwidth</A>
 		<li><A HREF="#TRAFLIM">How to limit traffic amount</A>
@@ -49,13 +49,13 @@
 		<li><a href="#CONNBACK">How to use connect back</a>
 	</ul>
 	<li><A HREF="#CLIENT">Client configuration</A>
-	<li><A HREF="#ADMIN">Administering and information analisys</A>
+	<li><A HREF="#ADMIN">Administering and information analysis</A>
 	<ul>
-		<li><A HREF="#NEWVERSION">How to obtain latest 3proxy version</A>
-		<li><A HREF="#NTSERVICE">How to control 3proxy service under Windows NT/2000/XP</A>
+		<li><A HREF="#NEWVERSION">How to obtain the latest 3proxy version</A>
+		<li><A HREF="#NTSERVICE">How to control the 3proxy service under Windows NT/2000/XP</A>
 		<li><A HREF="#ERRORS">Log error codes reference</A>
 	</ul>
-	<li><A HREF="#QUEST">How To ask quiestion not in How To?</A>
+	<li><A HREF="#QUEST">How to ask a question not in How To?</A>
  </ul>
 <br>
  <ul>
@@ -87,14 +87,14 @@ Use
 make -f Makefile.Linux
 </pre>
 for Linux or Cygwin, Makefile.Solaris* (depending on compiler version) for Solaris
-and Makefile.unix for different Unix-like OS. On BSD derivered systems make
-sure to use GNU make, sometimes it's called gmake instead of make.
-<br>Compilation is tested under FreeBSD/i386, NetBSD/i386, OpenBSD/i386, 
-RH Linux/Alpha, Debian/i386, Gentoo/i386, Gentoo/PPC, Solaris/x86 but you
-shouldn't have problems under different Solaris, BSD or linux compatible systems.
-For different systems you may be required to patch Makefile or even source codes.
-If you want to use ODBC support, make sure to install ODBC for unix, remove -DNOODBC
-option from makefile compiler options and add ODBC library to linker variable.
+and Makefile.unix for different Unix-like OSes. On BSD-derived systems, make
+sure to use GNU make; sometimes it's called gmake instead of make.
+<br>Compilation is tested under FreeBSD/i386, NetBSD/i386, OpenBSD/i386,
+RH Linux/Alpha, Debian/i386, Gentoo/i386, Gentoo/PPC, Solaris/x86, but you
+shouldn't have problems under different Solaris, BSD, or Linux-compatible systems.
+For different systems, you may be required to patch the Makefile or even the source code.
+If you want to use ODBC support, make sure to install ODBC for Unix, remove the -DNOODBC
+option from the makefile compiler options, and add the ODBC library to the linker variable.
 </p>
 	</ul>
 <hr>
@@ -104,38 +104,38 @@ option from makefile compiler options and add ODBC library to linker variable.
 		<li><A NAME="INSTNT">How to install/remove 3proxy under Windows NT/2000/XP</A>
 <p>
 Unpack 3proxy.zip to any directory, for example
-c:\Program Files\3proxy. If needed, create directory for storing log files,
-ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (See <A HREF="#SERVER">Server configuration</A>).
-If you use 3proxy before 0.6 Add
+c:\Program Files\3proxy. If needed, create a directory for storing log files,
+ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (see <A HREF="#SERVER">Server configuration</A>).
+If you use 3proxy before version 0.6, add the
 <pre>
 service
 </pre>
-string into 3proxy.cfg. Now, start command prompt (cmd.exe).
-Change directory to 3proxy installation and run 3proxy.exe --install:
+string into 3proxy.cfg. Now, start a command prompt (cmd.exe).
+Change to the 3proxy installation directory and run 3proxy.exe --install:
 <pre>
 D:\>C:
 C:\>cd C:\Program Files\3proxy
 C:\Program Files\3proxy>3proxy.exe --install
 </pre>
-Now, you should have 3proxy service installed and running. If service is not
-started, remove "service" string from 3proxy.cfg, run 3proxy.exe manually
+Now, you should have the 3proxy service installed and running. If the service is not
+started, remove the "service" string from 3proxy.cfg, run 3proxy.exe manually
 and correct all errors.
 </p><p>
-To remove 3proxy run 3proxy --remove:
+To remove 3proxy, run 3proxy --remove:
 <pre>
 D:\>C:
 C:\>cd C:\Program Files\3proxy
 C:\Program Files\3proxy>net stop 3proxy
 C:\Program Files\3proxy>3proxy.exe --remove
 </pre>
-Now you can simply remove 3proxy installation directory.
+Now you can simply remove the 3proxy installation directory.
 </p>
 		<li><A NAME="INST95">How to install/remove 3proxy under Windows 95/98/ME</A>
 <p>
 Unpack 3proxy.zip to any directory, for example
-c:\Program Files\3proxy. If needed, create directory for storing log files,
-ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (See <A HREF="#SERVER">Server configuration</A>).
-Remove string
+c:\Program Files\3proxy. If needed, create a directory for storing log files,
+ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (see <A HREF="#SERVER">Server configuration</A>).
+Remove the string
 <pre>
 service
 </pre>
@@ -143,26 +143,26 @@ from 3proxy.cfg and add
 <pre>
 daemon
 </pre>
-if you want 3proxy to run in background.
-Create shortcut for 3proxy.exe and place it in autostart or add
-to registry with regedit.exe:
+if you want 3proxy to run in the background.
+Create a shortcut for 3proxy.exe and place it in the autostart folder or add
+it to the registry with regedit.exe:
 <br>HKLM\Software\Microsoft\Windows\CurrentVersion\Run</br>
 Type: String
 <br>3proxy = "c:\Program Files\3proxy.exe" "C:\Program Files\3proxy.cfg"<br>
-You must use quotes if path contains space. If neccessary, restart Windows.
-If service is not started, check log. Remove "daemon" command from 3proxy.cfg,
+You must use quotes if the path contains spaces. If necessary, restart Windows.
+If the service is not started, check the log. Remove the "daemon" command from 3proxy.cfg,
 start 3proxy.exe manually and correct all errors.
 </p>
 		<li><A NAME="INSTUNIX">How to install/remove 3proxy under Unix/Linux</A>
 <p>
-Complie 3proxy (see <A HREF="#COMPILE">Compilation</A>). Copy
-executables to any appropriate location (for example /usr/local/3proxy/sbin
+Compile 3proxy (see <A HREF="#COMPILE">Compilation</A>). Copy
+executables to any appropriate location (for example, /usr/local/3proxy/sbin
 for servers and /usr/local/3proxy/bin for utilities).
-Create /usr/local/etc/3proxy.cfg. 
+Create /usr/local/etc/3proxy.cfg.
 (see <A HREF="#SERVER">Server configuration</A>).
-You can change default configuration file location by specifing configuration file
-in 3proxy command line.
-Add 3proxy to system startup scripts.
+You can change the default configuration file location by specifying the configuration file
+in the 3proxy command line.
+Add 3proxy to the system startup scripts.
 </p>
 	</ul>
 <hr>
@@ -170,36 +170,36 @@ Add 3proxy to system startup scripts.
 <p>
 	<ul>
   <li><a name="NOTHING">How to make 3proxy start</a>
-<p>Valid configuration file is required.
+<p>A valid configuration file is required.
 
-    <li><a name="IMITS">How to make limitation (access, bandwidth, traffic, connections) work</a>
-<p> Most probable reasons for non-working limitations: 'auth none' or no auth is used. For any ACL based feature one of 'iponly', 'nbname' or 'strong' auths required. Sequence of commands may be invalid. Commands are executed one-by-one and 'proxy', 'tcppm', 'socks' or another service commands must follow valid configuration. Invalid sequence of ACLs. First matching ACL is used (except of internal redirections, see below). If ACL contains at least one records last record is assumed to be 'deny *'.
+    <li><a name="LIMITS">How to make limitations (access, bandwidth, traffic, connections) work</a>
+<p> The most probable reasons for non-working limitations: 'auth none' or no auth is used. For any ACL-based feature, one of 'iponly', 'nbname', or 'strong' auth is required. The sequence of commands may be invalid. Commands are executed one-by-one, and 'proxy', 'tcppm', 'socks', or another service commands must follow a valid configuration. An invalid sequence of ACLs. The first matching ACL is used (except for internal redirections, see below). If an ACL contains at least one record, the last record is assumed to be 'deny *'.
 
-    <li><a name="SERVICE">How to make 3proxy to run as a service</a>
-<p>Possible reasons for 3proxy starts manually but fails to start as a service:
+    <li><a name="SERVICE">How to make 3proxy run as a service</a>
+<p>Possible reasons for 3proxy starting manually but failing to start as a service:
 <ul>
-<li>there are relative paths in configuration file for included files,
-log files, etc. Always use absolute paths. For example
-$"c:\3proxy\networks.local" instead of  $networks.local. For debugging remove
-'service' and 'daemon', log to stdout an try to execute 3proxy from command
-line from some different directory (for example from disk root).
-<li>SYSTEM account doesn't have access to executable file, configuration files,
+<li>there are relative paths in the configuration file for included files,
+log files, etc. Always use absolute paths. For example,
+$"c:\3proxy\networks.local" instead of $networks.local. For debugging, remove
+'service' and 'daemon', log to stdout, and try to execute 3proxy from the command
+line from a different directory (for example, from the disk root).
+<li>the SYSTEM account doesn't have access to the executable file, configuration files,
 log files, etc.
-<li>configuration files is not located in default path (3proxy.cfg in same
-location with 3proxy.exe). For alternative configuration file location use
+<li>the configuration file is not located in the default path (3proxy.cfg in the same
+location as 3proxy.exe). For an alternative configuration file location, use
 <pre>
 3proxy --install full_path_to_configuration_file
 </pre>
-<li>user has no rights to install or start service
-<li>service is already installed and/or started
+<li>the user has no rights to install or start the service
+<li>the service is already installed and/or started
 
 </ul>
 
-<p><A NAME="INTEXT">How to understant internal and external</A>
+<p><A NAME="INTEXT">How to understand internal and external</A>
 <p>
 Both internal and external IPs are IPs of the host running 3proxy itself.
-This configuration option is usefull in situation 3proxy is running on the
-border host with 2 (or more) connections: e.g. LAN and WAN with different IPs
+This configuration option is useful in situations where 3proxy is running on a
+border host with 2 (or more) connections: e.g., LAN and WAN with different IPs
 <pre>
      LAN connection +-------------+ Internet connection
 LAN <-------------->| 3proxy host |<-------------------> INTERNET
@@ -207,60 +207,60 @@ LAN <-------------->| 3proxy host |<-------------------> INTERNET
 	           |               |
               Internal IP       External IP
 </pre>
-If 3proxy is used on the host with single connection, both internal and
-external are usually same IP.
-<br>Internal should exist and be UP on the moment 3proxy is started and
+If 3proxy is used on a host with a single connection, both internal and
+external are usually the same IP.
+<br>The internal interface should exist and be UP at the moment 3proxy is started and
 should never be disconnected/DOWN. If this interface is periodically
-disconnected (e.g. direct link between 2 hosts), do not specify internal
+disconnected (e.g., a direct link between 2 hosts), do not specify an internal
 address or use 0.0.0.0 instead. In this case, if you have 2 or more
-interfaces you must use firewall (preferably) or 3proxy ACLs to avoid open
-proxy situation. 
+interfaces, you must use a firewall (preferably) or 3proxy ACLs to avoid an open
+proxy situation.
 <br>
-External IP (if specified) must exist in the momet 3proxy
-serves client request. If external interface is no specified (or 0.0.0.0),
-system select external IP. It may be possible to access resources of internal
-network, to prevent this use ACLs. In addition, SOCKSv5 will not support BIND
-operation, required for incoming connections (this operation is quite rarely
-implemented in SOCKSv5 clients and usually is not required). In case of
-dynamic address, do not specify external or use external 0.0.0.0 or, if
-external address is required, create a script to determine current external
-IP and save it to file, and use external "$path_to_file" with "monitor" command
-to automatically reload configuration on address change.
+The external IP (if specified) must exist at the moment 3proxy
+serves a client request. If the external interface is not specified (or 0.0.0.0),
+the system selects the external IP. It may be possible to access resources of the internal
+network; to prevent this, use ACLs. In addition, SOCKSv5 will not support the BIND
+operation, which is required for incoming connections (this operation is quite rarely
+implemented in SOCKSv5 clients and is usually not required). In case of
+a dynamic address, do not specify external or use external 0.0.0.0, or, if
+an external address is required, create a script to determine the current external
+IP and save it to a file, and use external "$path_to_file" with the "monitor" command
+to automatically reload the configuration on address change.
 
     <li><a name="ODBC">How to make ODBC logging work?</a>
 <p>
-Check you use system DSN. 
-Check SQL request is valid. 
-The best way to check is to make file or stdout logging, get SQL request from log file or console and execute this request manually.
-Under Unix, you may also want to adjust 'stacksize' parameter.
+Check that you are using a system DSN.
+Check that the SQL request is valid.
+The best way to check is to use file or stdout logging, get the SQL request from the log file or console, and execute this request manually.
+Under Unix, you may also want to adjust the 'stacksize' parameter.
 
     <li><a name="IPV6">How to make IPv6 work</a>
-<p> Proxy can not access destination directly over IPv6 if client requests IPv4 address.
-To access IPv6 destination, either IPv6 address or hostname  must be used in request.
-Best solution is to enable option to resolve hostnames via proxy on client side.
+<p> The proxy cannot access a destination directly over IPv6 if the client requests an IPv4 address.
+To access an IPv6 destination, either an IPv6 address or a hostname must be used in the request.
+The best solution is to enable the option to resolve hostnames via the proxy on the client side.
 
     <li><a name="CRASH">How to fix 3proxy crashes</a>
-<p> default stacksize may be insufficient, if some non-default plugins
-  are used (e.g. PAM and ODBC on Linux) or if compiled on some platforms with
-  invalid system defined values (few versionds of FreeBSD on amd64).
-  Problem can be resolved with 'stacksize' command or '-S' option starting 3proxy 0.8.4.
+<p> The default stacksize may be insufficient if some non-default plugins
+  are used (e.g., PAM and ODBC on Linux) or if compiled on some platforms with
+  invalid system-defined values (a few versions of FreeBSD on amd64).
+  The problem can be resolved with the 'stacksize' command or '-S' option starting with 3proxy 0.8.4.
 
 
-		<li><A NAME="SAMPLE">Where to find configuration example</A>
+		<li><A NAME="SAMPLE">Where to find a configuration example</A>
 <p>
-Server configuration example 3proxy.cfg.sample is in any 3proxy distribution.
+A server configuration example, 3proxy.cfg.sample, is included in every 3proxy distribution.
 </p>
 		<li><A NAME="LOGGING">How to set up logging</A>
 <p>
-3proxy can log to stdout, file, ODBC datasource and
-syslog (Unix/Linux/Cygwin only). For using ODBC under Unix/Linux you must
-compile 3proxy with Unix ODBC libraries, see <A HREF="#COMPILE">Compilation</A>.
-You can control logging from 3proxy.cfg for all services or you can control
-logging of individual service, for example 
-/usr/local/sbin/socks -l/var/log/socks.log starts SOCKS proxy with logging to file.
-For universal proxy (3proxy) log file rotation and archiving is supported.
-Log type is defined with "log" configuration file command or with
--l switch on individual service invokation. log or -l is stdout logging.
+3proxy can log to stdout, a file, an ODBC datasource, or
+syslog (Unix/Linux/Cygwin only). To use ODBC under Unix/Linux, you must
+compile 3proxy with Unix ODBC libraries; see <A HREF="#COMPILE">Compilation</A>.
+You can control logging from 3proxy.cfg for all services, or you can control
+logging for an individual service. For example,
+/usr/local/sbin/socks -l/var/log/socks.log starts a SOCKS proxy with logging to a file.
+For the universal proxy (3proxy), log file rotation and archiving are supported.
+The log type is defined with the "log" configuration file command or with the
+-l switch on individual service invocation. log or -l with no argument is stdout logging.
 <pre>
 	log filename
 </pre>
@@ -268,7 +268,7 @@ and
 <pre>
 	-lfilename
 </pre>
-specify filename for logging
+specify a filename for logging.
 <pre>
 	log @ident
 </pre>
@@ -276,28 +276,28 @@ and
 <pre>
 	-l@ident
 </pre>
-specify ident for syslog logging. If filename within "log" command contains
-'%' characters, it's processes as format specificator (see "logformat"). E.g.
-log c:\3proxy\logs\%y%m%d.log D creates file like c:\3proxy\logs\060729.log,
-date is generated based on local time.
+specify an ident for syslog logging. If the filename within the "log" command contains
+'%' characters, it is processed as a format specifier (see "logformat"). E.g.,
+log c:\3proxy\logs\%y%m%d.log D creates a file like c:\3proxy\logs\060729.log;
+the date is generated based on local time.
 <pre>
 	log &connstring
 </pre>
 
-specifies ODBC connection string, connstring is in format
-datasource,username,password (2 last are optional of
-datasource does not require or already has authentication information). 
-Also, you must specify logformat to build SQL query, to insert recod into
-log, see <A HREF="#LOGFORMAT">How to setup logging format</A>
+specifies an ODBC connection string; connstring is in the format
+datasource,username,password (the last two are optional if the
+datasource does not require or already has authentication information).
+Also, you must specify logformat to build the SQL query to insert a record into
+the log; see <A HREF="#LOGFORMAT">How to set up logging format</A>
 </p>
 <p>
-Rotation and archiving may be set up with log, rotate и archiver commands
+Rotation and archiving may be set up with log, rotate, and archiver commands.
 <pre>
 	log filename LOGTYPE
 </pre>
-sets rotation type. LOGTYPE may be:
+sets the rotation type. LOGTYPE may be:
 <ul>
-	<li>M, monthely
+	<li>M, monthly
 	<li>W, weekly
 	<li>D, daily
 	<li>H, hourly
@@ -306,55 +306,55 @@ sets rotation type. LOGTYPE may be:
 <pre>
 	rotate NUMBER
 </pre>
-	specifies number of files in rotation (that is how many files to keep).
+	specifies the number of files in rotation (i.e., how many files to keep).
 <pre>
 	archiver EXT COMMAND PARAMETERS
 </pre>
-	Sets external archiver. EXT is extention of archived files
-	(for example zip, gz, Z, rar etc) COMMAND and PARAMETERS are command
-	to execute and command line PARAMETERS. Originale file is not deleted by
-	3proxy, this work is left for archiver.
-	You can pass original filename to archiver with %F macro and archive filename with %A.
+	Sets an external archiver. EXT is the extension of archived files
+	(for example, zip, gz, Z, rar, etc.). COMMAND and PARAMETERS are the command
+	to execute and its command-line parameters. The original file is not deleted by
+	3proxy; this work is left for the archiver.
+	You can pass the original filename to the archiver with the %F macro and the archive filename with %A.
 	Examples are located in
 	3proxy.cfg.sample
 </p>
-		<li><A NAME="LOGFORMAT">How to setup logging format</A>
+		<li><A NAME="LOGFORMAT">How to set up logging format</A>
 <p>
-	Since 0.3 version log format may be set with "logformat" command.
-	First symbol of log format specifies format of date and time and
-	should be L (LOCAL) or G (GMT - Grinwitch Meridian Time). Format
-	string may contains some macro substitutions:
+	Since version 0.3, the log format may be set with the "logformat" command.
+	The first symbol of the log format specifies the format of the date and time and
+	should be L (LOCAL) or G (GMT - Greenwich Meridian Time). The format
+	string may contain some macro substitutions:
 	<ul>
 <li>	 %y - Year (2 digits)
 <li>	 %Y - Year (4 digits)
 <li>	 %m - Month (2 digits)
-<li>	 %o - mOnth (3 letter abbriviation)
+<li>	 %o - Month (3-letter abbreviation)
 <li>	 %d - Day (2 digits)
 <li>	 %H - Hour (2 digits)
 <li>	 %M - Minute (2 digits)
 <li>	 %S - Second (2 digits)
-<li>	 %t - Timestamp (seconds since January, 1 1970 00:00:00 GMT)
+<li>	 %t - Timestamp (seconds since January 1, 1970 00:00:00 GMT)
 <li>	 %. - Milliseconds
-<li>	 %z - Timezone in mail format (from GMT, '+' east, '-' west HHMM), For example Moscow winter time is +0300.
+<li>	 %z - Timezone in mail format (from GMT, '+' east, '-' west HHMM). For example, Moscow winter time is +0300.
 <li>	 %U - Username ('-' if unknown).
-<li>	 %N - Service name (PROXY, SOCKS, POP3P, etc)
+<li>	 %N - Service name (PROXY, SOCKS, POP3P, etc.)
 <li>	 %p - Service port
-<li>	 %E - Error code (see. <A HREF="#ERRORS">Log error codes reference</A>)
+<li>	 %E - Error code (see <A HREF="#ERRORS">Log error codes reference</A>)
 <li>	 %C - client IP
 <li>	 %c - client port
 <li>	 %R - target IP
 <li>	 %r - target port
-<li>	 %e - external IP address used to establish connection
+<li>	 %e - external IP address used to establish the connection
 <li>	 %Q - requested IP
 <li>	 %q - requested port
-<li>	 %I - bytes received from target
-<li>	 %O - bytes sent to target
-<li>	 %n - host name from request
-<li>	 %h - hops  before target (if redirection or chaning is used).
+<li>	 %I - bytes received from the target
+<li>	 %O - bytes sent to the target
+<li>	 %n - hostname from the request
+<li>	 %h - hops before the target (if redirection or chaining is used);
 	 see <A HREF="#CHAIN">How to use chains and parent proxies</A>)
-<li>	 %T - service specific text (for example URL requested). %X-YT
+<li>	 %T - service-specific text (for example, the requested URL). %X-YT,
 	 where X and Y are positive numbers, only displays fields
- 	 (space delimited) X to Y of the text. An example is %1-2T.
+	 (space-delimited) X to Y of the text. An example is %1-2T.
 	</ul>
 	Example:
 <pre>
@@ -367,23 +367,23 @@ logformat "L%t.%. %N.%p %E %U %C:%c %R:%r %O %I %h %T"
 <br>(no line breaks)
 </p>
 <p>
-	If ODBC used, logformat should specify SQL command,
-	to insert record into log, for example
+	If ODBC is used, logformat should specify the SQL command
+	to insert a record into the log, for example:
 <p><pre>
 logformat "-\'+_GINSERT INTO proxystat  VALUES (%t, '%c', '%U', %I)"</pre>
 <br>(no line breaks)
 <br>-\'+_ instructs to replace characters \ and ' with _
 </p>
-		<li><A NAME="LOGANALIZERS">How to use log analizers with 3proxy</A>
+		<li><A NAME="LOGANALIZERS">How to use log analyzers with 3proxy</A>
 <p>
-Just make format of 3proxy logs compatible with format supported by your
-favourite log analizer. Examples of compatible logformats are:
+Just make the format of 3proxy logs compatible with a format supported by your
+favorite log analyzer. Examples of compatible logformats are:
 <br>
 For Squid access.log:
 <p><font face="courier">
 &quot;- +_G%t.%. %D %C TCP_MISS/200 %I %1-1T %2-2T %U DIRECT/%R application/unknown&quot;
 </p>
-or, more compatible format without %D
+or, a more compatible format without %D:
 <pre>
 &quot;- +_G%t.%.      1 %C TCP_MISS/200 %I %1-1T %2-2T %U
  DIRECT/%R application/unknown&quot;
@@ -413,30 +413,30 @@ HTTPD standard log (Apache and others):
 <p><font face="courier">
 &quot;-&quot;&quot;+_L%C - %U [%d/%o/%Y:%H:%M:%S %z] &quot;&quot;%T&quot;&quot; %E %I&quot;
 </p>
-or more compatible without error code
+or a more compatible format without the error code:
 <p><font face="courier">
 &quot;-&quot;&quot;+_L%C - %U [%d/%o/%Y:%H:%M:%S %z] &quot;&quot;%T&quot;&quot; 200 %I&quot;
 </p>
-		<li><A NAME="LAUNCH">How to start any of proxy services (HTTP, SOCKS etc)</A>
+		<li><A NAME="LAUNCH">How to start any of the proxy services (HTTP, SOCKS, etc.)</A>
 <p>
 3proxy is distributed in 2 variants: as a set of standalone modules (proxy,
-socks, pop3p, tcppm, udppm) and as universal proxy server. These services are
-absolutely independant, and if you use 3proxy you needn't any of standalone
+socks, pop3p, tcppm, udppm) and as a universal proxy server. These services are
+absolutely independent, and if you use 3proxy, you don't need any of the standalone
 modules.
-<br>Standalone modules are only configurable via command line interface while
-3proxy uses configuration file. Many functions, such as ODBC logging, log
-rotation, access control, etc are only available in 3proxy, not in standalone
+<br>Standalone modules are only configurable via the command line interface, while
+3proxy uses a configuration file. Many functions, such as ODBC logging, log
+rotation, access control, etc., are only available in 3proxy, not in standalone
 proxies.
-Standalone module may be started from command line, for example:
+A standalone module may be started from the command line, for example:
 <pre>
 $/sbin/socks -l/var/log/socks.log -i127.0.0.1
 </pre>
-Starts SOCKS server binded to localhost ip, port 1080 with logging to
+Starts a SOCKS server bound to localhost IP, port 1080, with logging to
 /var/log/socks.log.
-You can get help for any standalone service with -? command line option.
+You can get help for any standalone service with the -? command line option.
 </p><p>
-If 3proxy is used you should start all services in 3proxy.cfg file. 3proxy.cfg
-is executed by 3proxy as a batch file. Example of 3proxy.cfg and command syntaxys
+If 3proxy is used, you should start all services in the 3proxy.cfg file. 3proxy.cfg
+is executed by 3proxy as a batch file. An example of 3proxy.cfg and command syntax
 can be found in
 3proxy.cfg.sample.
 <pre>
@@ -446,19 +446,19 @@ internal 127.0.0.1
 external 192.168.1.1
 proxy
 socks -p3129
-pop3p 
+pop3p
 </pre>
-Starts 3 services: HTTP PROXY, SOCKS and POP3 PROXY. Each listens localhost
-interface with default port (3128 for HTTP, 1080 for SOCKS and 110 for POP3P)
-except socks started with port 3129.
-All logs are in file /var/log/3proxy.log (with daily date modification and
-rotation). 30 last files are stored.
+Starts 3 services: HTTP PROXY, SOCKS, and POP3 PROXY. Each listens on the localhost
+interface with the default port (3128 for HTTP, 1080 for SOCKS, and 110 for POP3P)
+except socks, which is started with port 3129.
+All logs are in the file /var/log/3proxy.log (with daily date modification and
+rotation). The 30 most recent files are stored.
 </p>
-		<li><A NAME="BIND">How to bind service to specific interface and port?</A>
+		<li><A NAME="BIND">How to bind a service to a specific interface and port?</A>
 <p>
--i options specifies internal interface, -p - listening port. No space are
-allowed. To bind 'proxy' service to port 8080 on interfaces 192.168.1.1
-and 192.168.2.1 use
+The -i option specifies the internal interface; -p specifies the listening port. No spaces are
+allowed. To bind the 'proxy' service to port 8080 on interfaces 192.168.1.1
+and 192.168.2.1, use:
 <pre>
 proxy -p8080 -i192.168.1.1
 proxy -p8080 -i192.168.2.1
@@ -466,41 +466,41 @@ proxy -p8080 -i192.168.2.1
 </p>
   <li><a name="NAMES">How to resolve names through a parent proxy</a></li>
   <p>
-  <i>A:</i> Use one of proxy, connect+, socks4+ or socks5+ as a parent type. 3proxy
-  itself still performs a name resolution, it's required e.g. to ACLs matching.
-  So, if no name resolution must be performed by 3proxy itself add a command
+  <i>A:</i> Use one of proxy, connect+, socks4+, or socks5+ as the parent type. 3proxy
+  itself still performs name resolution; it's required, e.g., for ACL matching.
+  So, if no name resolution must be performed by 3proxy itself, add the command
   <pre>
   fakeresolve</pre>
-  this command resolves any name to 127.0.0.2 address.
+  This command resolves any name to the 127.0.0.2 address.
   </p>
-  <li><a name="ISFTP"><i>How to setup FTP proxy</i></a></li>
+  <li><a name="ISFTP"><i>How to set up an FTP proxy</i></a></li>
   <p>
-  There is FTP over HTTP (what is called FTP proxy in browsers) and FTP over FTP прокси
-  (what is called FTP proxy in file managers and FTP clients). For browsers, there is no need to start additional
-  proxy service, 'proxy' supports FTP over HTTP, configure 'proxy' port as an FTP proxy. For ftp clients and file
-  managers use ftppr. FTP proxy supports both active and passive mode with client, but always use passive mode with FTP servers.
+  There is FTP over HTTP (what is called FTP proxy in browsers) and FTP over FTP
+  (what is called FTP proxy in file managers and FTP clients). For browsers, there is no need to start an additional
+  proxy service; 'proxy' supports FTP over HTTP. Configure the 'proxy' port as an FTP proxy. For FTP clients and file
+  managers, use ftppr. The FTP proxy supports both active and passive mode with the client but always uses passive mode with FTP servers.
   </p>
-  <li><a name="TLSPR"><i>How to setup SNI proxy (tlspr)</i></a></li>
+  <li><a name="TLSPR"><i>How to set up an SNI proxy (tlspr)</i></a></li>
   <p>
-    SNI proxy can be used to transparently redirect any TLS traffic with external router or local redirection rules. It can also be used
-    to extract hostnames from TLS to use in ACLs in combination with SOCKS or HTTP(s) proxy and/or Transparent plugin. It can also be used to require TLS or mTLS between services. TLS hadshake contains no
-    port information, if tlspr is used as a standalone service, destination port may be either detected with Transparent plugin or configured with -P option (default 443).
-  </p><p>    
-    -c option is used  to specify level of TLS check:    
+    An SNI proxy can be used to transparently redirect any TLS traffic with an external router or via local redirection rules. It can also be used
+    to extract hostnames from TLS to use in ACLs in combination with SOCKS or HTTP(s) proxy and/or the Transparent plugin. It can also be used to require TLS or mTLS between services. The TLS handshake contains no
+    port information; if tlspr is used as a standalone service, the destination port may be either detected with the Transparent plugin or configured with the -P option (default 443).
+  </p><p>
+    The -c option is used to specify the level of TLS check:
 </p><pre>
 0 (default) - allow non-TLS traffic
 1 - require TLS, only check client HELLO packet
 2 - require TLS, check both client and server HELLO
-3 - require TLS, check server send certificate (not compatible with TLS 1.3)
-4 - require mutual TLS, check server send certificate request and client sends certificate (not compatible with TLS 1.3)    
+3 - require TLS, check that the server sends a certificate (not compatible with TLS 1.3)
+4 - require mutual TLS, check that the server sends a certificate request and the client sends a certificate (not compatible with TLS 1.3)
 </pre>
 <p>
-configuration examples:
-1. port 1443 may be used to redirect traffic to destination port 143). SNI is used to find destination host
+Configuration examples:
+1. Port 1443 may be used to redirect traffic to destination port 143. SNI is used to find the destination host.
 <pre>
 tlspr -p1443 -P443 -c1
 </pre>
-2. used as parent tls to detect destination hostname from TLS in socks
+2. Used as a parent TLS proxy to detect the destination hostname from TLS in socks:
 <pre>
 allow * * * 80
 parent 1000 http 0.0.0.0 0
@@ -513,36 +513,36 @@ socks
   </p>
 		<li><A NAME="AUTH">How to limit service access</A>
 <p>
-First, always specify internal interface to accept incoming connection with
+First, always specify the internal interface to accept incoming connections with the
 'internal' configuration command or '-i' service command. (See
-<A HREF="#LAUNCH">How to start any of proxy services (HTTP, SOCKS etc)</A>). If
-no internal interface is specified your proxy will act as open one.
-<p>It's also important to specify external interface to prevent access to
+<A HREF="#LAUNCH">How to start any of the proxy services (HTTP, SOCKS, etc.)</A>). If
+no internal interface is specified, your proxy will act as an open proxy.
+<p>It's also important to specify the external interface to prevent access to the
 internal network with 'external' or -e.
-<p>3proxy with configuration files allows to use authentication and
-authorization for user's access. Authentication is possible by
-username/password or user's NetBIOS name. Authentication type is specified by
-'auth' command.  
+<p>3proxy with configuration files allows you to use authentication and
+authorization for user access. Authentication is possible by
+username/password or the user's NetBIOS name. The authentication type is specified by the
+'auth' command.
 <pre>
 auth none
 </pre>
-Disables both authentication and authorization. You can not use ACLs.
+Disables both authentication and authorization. You cannot use ACLs.
 <pre>
 auth iponly
 </pre>
-Specifies no authentication, ACLs authorization is used.
+Specifies no authentication; ACL-based authorization is used.
 <pre>
 auth nbname
 </pre>
-Authentication by NetBIOS name + ACLs. NetBIOS name of 'messenger' service
-is obrained before ACL validation. If no name is obtained it's assumed to be
-empty. Messenger is started by default in Windows NT/2000/XP. For Win9x
-WinPopUP need to be launched. This type of authentication may be spoofed
-by privileged local user.
+Authentication by NetBIOS name + ACLs. The NetBIOS name of the 'messenger' service
+is obtained before ACL validation. If no name is obtained, it's assumed to be
+empty. Messenger is started by default in Windows NT/2000/XP. For Win9x,
+WinPopUP needs to be launched. This type of authentication may be spoofed
+by a privileged local user.
 <pre>
 auth strong
 </pre>
-Authentication by username/password. If user is not registered his
+Authentication by username/password. If the user is not registered, their
 access is denied regardless of ACLs.
 <p>
 Different services can have different authentication levels.
@@ -556,30 +556,30 @@ socks
 </pre>
 
 It's possible to authorize access by client IP address, IP address or requested resource,
-target port, time, etc after authentication.
+target port, time, etc., after authentication.
 (See <A HREF="#ACL">How to limit resource access</A>).
-</p><p>Since 0.6 version double authentication is possible, e.g.
+</p><p>Since version 0.6, double authentication is possible, e.g.:
 <pre>
 auth iponly strong
 allow * * 192.168.0.0/16
 allow user1,user2
 proxy
 </pre>
-strong authentication will only be used if ACL requires username to deside if
-access must be granted. That is, in example, strong username authentication
-is not required to access 192.168.0.0/16
-</p><p>0.6 version introduces authentication (username) caching to increase
-productivity. It's recommended to use authentication caching with resource
-or time consuming authentication types, such as nbname or external plugins
+Strong authentication will only be used if the ACL requires a username to decide if
+access must be granted. That is, in the example, strong username authentication
+is not required to access 192.168.0.0/16.
+</p><p>Version 0.6 introduces authentication (username) caching to increase
+performance. It's recommended to use authentication caching with resource-
+or time-consuming authentication types, such as nbname or external plugins
 (WindowsAuthentication).
-Caching can be set with 'authcache' command with 2 parameters: caching type
-and caching time (in seconds). Caching type defines the type of cached access:
-'ip' - after successful authentication all connections during caching time
-from same IP are assigned to the same user, username is not requested.
-"ip,user" - username is requested and all connections from the same IP are
+Caching can be set with the 'authcache' command with 2 parameters: caching type
+and caching time (in seconds). The caching type defines the type of cached access:
+'ip' - after successful authentication, all connections during the caching time
+from the same IP are assigned to the same user; the username is not requested.
+"ip,user" - the username is requested, and all connections from the same IP are
 assigned to the same user without actual authentication. "user" - same as above,
 but IP is not checked. "user,password" - username and password are checked
-against cached ones. For authentication special authentication type 'cache'
+against cached ones. For authentication, the special authentication type 'cache'
 must be used.
  Example:
 <pre>
@@ -588,42 +588,42 @@ auth cache strong windows
 proxy -n
 </pre>
 </p>
-Please note, that caching affects security. Never use caching for access to
+Please note that caching affects security. Never use caching for access to
 critical resources, such as web administration.
-  <p>authcache can be used to bind user's sessions to ip with 'limit' option, with
+  <p>authcache can be used to bind a user's sessions to an IP with the 'limit' option. With
   <pre>
-  autchcache ip,user,pass,limit 120
+  authcache ip,user,pass,limit 120
   auth cache strong</pre>
-  user will not be able to use more than a single IP during cache time (120 sec).
+  the user will not be able to use more than a single IP during the cache time (120 sec).
   </p>
-		<li><A NAME="USERS">How to create user list</A>
+		<li><A NAME="USERS">How to create a user list</A>
 <p>
-Userslist is created with 'users' command.
+The user list is created with the 'users' command.
 <pre>
 users USERDESC ...
 </pre>
-With a single command it's possible to define few users, or you
-can use few 'users' commands. USERDESC is user description. Description
-consists of three semicolon delimited parts - login, password type and
+With a single command, it's possible to define a few users, or you
+can use multiple 'users' commands. USERDESC is a user description. The description
+consists of three semicolon-delimited parts - login, password type, and
 <pre>
 users admin:CL:bigsecret test:CL:password test1:CL:password1
 users "test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49."
 users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63
 </pre>
-Please note the usage of quotation sign: it's required to comment out $ sign
-overwise used as a file inclusion macro.
-Next password types are available:
+Please note the usage of quotation marks: they're required to escape the $ sign,
+which is otherwise used as a file inclusion macro.
+The following password types are available:
 <ul>
 	<li>No password type: use system authentication.
 	<li>CL - cleartext password
-	<li>CR - crypt password, only MD5 crypt passwords are supported
+	<li>CR - crypt password; only MD5 crypt passwords are supported
 	<li>NT - NT-hashed (MD4) passwords in hex, as used in pwdump or SAMBA
 </ul>
 NT and crypt passwords can be used to import accounts from Windows/SAMBA or
-Unix. For Windows you can use pwdump family of utilities.
-It's convenient to store accounts apart and include account file with $ macro.
-Because for included files newlines are treated as a space, it's possible to
-use atandard passwd file format:
+Unix. For Windows, you can use the pwdump family of utilities.
+It's convenient to store accounts separately and include an account file with the $ macro.
+Because for included files, newlines are treated as spaces, it's possible to
+use a standard passwd file format:
 <pre>
 users $/etc/.3proxypasswd
 </pre>
@@ -631,48 +631,48 @@ or
 <pre>
 users $"c:\Program Files\3proxy\passwords"
 </pre>
-It's possible to create NT and crypt passwords with mycrypt utility included
-in distribution.
-<br>Userlist is system-wide. To manage user access to specific service use ACLs.
+It's possible to create NT and crypt passwords with the mycrypt utility included
+in the distribution.
+<br>The user list is system-wide. To manage user access to a specific service, use ACLs.
 </p>
 		<li><A NAME="ACL">How to limit user access to resources</A>
 <p>
-Commands allow, deny and flush are used to manage ACLs:
+The commands allow, deny, and flush are used to manage ACLs:
 <p><font face="courier">
 allow &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt; &lt;weekdaylist&gt; &lt;timeperiodlist&gt;
-<br>deny &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;  &lt;weekdaylist&gt; &lt;timeperiodlist&gt;
+<br>deny &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;weekdaylist&gt; &lt;timeperiodlist&gt;
 <br>flush
 </font>
 </p>
-'flush' command is used to finish with existing ACL and to start new one.
+The 'flush' command is used to finish with the existing ACL and start a new one.
 It's required to have different ACLs for different services.
-'allow' is used to allow connection and 'deny' to deny connection. 'allow'
-command can be extended by 'parent' command to manage redirections (see <A href="#REDIR">How to manage redirections</A>)). If ACL
-is empty it allow everything. If ACL is not empty, first matching ACL entry
-is searched for user request and ACL action (allow or deny) performed. If
-no matching record found, connection is denied and user will be asked to
-re-authenticate (requested for username/password). To prevent this request
-add 'deny *' to the end of list.
+'allow' is used to allow a connection, and 'deny' to deny a connection. The 'allow'
+command can be extended by the 'parent' command to manage redirections (see <A href="#REDIR">How to manage redirections</A>). If the ACL
+is empty, it allows everything. If the ACL is not empty, the first matching ACL entry
+is searched for the user request, and the ACL action (allow or deny) is performed. If
+no matching record is found, the connection is denied, and the user will be asked to
+re-authenticate (prompted for username/password). To prevent this prompt,
+add 'deny *' to the end of the list.
 <ul>
-	<li>&lt;userlist&gt; - comma delimited list of users
-	<li>&lt;sourcelist&gt; - comma delimited list of source (client) networks. 
-		Networks can be defined as single IP address or in CIDR form
-		xxx.yyy.zzz.mmm/l, where l - is the length of network mask
+	<li>&lt;userlist&gt; - comma-delimited list of users
+	<li>&lt;sourcelist&gt; - comma-delimited list of source (client) networks.
+		Networks can be defined as a single IP address or in CIDR form
+		xxx.yyy.zzz.mmm/l, where l is the length of the network mask
 		(a number of non-zero bits). 192.168.1.0/24
-		means network with 255.255.255.0 mask.
-	<li>&lt;targetlist&gt; - comma delimited list of target (server) networks.
-		In 3proxy 0.6 and above it's allowed to use hostnames with wildmasks
-		in targetlist. Wildmask may only present in the begginning or at the
-		end of the hostname, e.g. 
+		means a network with a 255.255.255.0 mask.
+	<li>&lt;targetlist&gt; - comma-delimited list of target (server) networks.
+		In 3proxy 0.6 and above, it's allowed to use hostnames with wildmasks
+		in the targetlist. A wildmask may only appear at the beginning or at the
+		end of the hostname, e.g.,
 		192.168.0.0/16,www.example.com,*wrongsite.com,*wrongcontent*.
-	<li>&lt;targetportlist&gt; - comma delimited list of ports. I
-		It's possible to define port ranges with -, e.g. 80,1024-65535
+	<li>&lt;targetportlist&gt; - comma-delimited list of ports.
+		It's possible to define port ranges with -, e.g., 80,1024-65535
 		means port 80 and all unprivileged ports.
-	<li>&lt;commandlist&gt; - the list of allowed actions
-<br>		CONNECT	- establish outgoing TCP connection. e.g. POP3 or SOCKSv5
-<br>		BIND - allow incoming TCP connection (SOCKSv5)
-<br>		UDPASSOC - create UDP association (SOCKSv5)
-<br>		ICMPASSOC - create ICMP association (not implemented)
+	<li>&lt;commandlist&gt; - the list of allowed actions:
+<br>		CONNECT	- establish an outgoing TCP connection, e.g., POP3 or SOCKSv5
+<br>		BIND - allow an incoming TCP connection (SOCKSv5)
+<br>		UDPASSOC - create a UDP association (SOCKSv5)
+<br>		ICMPASSOC - create an ICMP association (not implemented)
 <br>		HTTP_GET - HTTP GET request (HTTP proxy)
 <br>		HTTP_PUT - HTTP PUT request (HTTP proxy)
 <br>		HTTP_POST - HTTP POST request (HTTP proxy)
@@ -680,45 +680,45 @@ add 'deny *' to the end of list.
 <br>		HTTP_CONNECT - HTTP CONNECT, aka HTTPS request (HTTP proxy)
 <br>		HTTP_OTHER - another HTTP request (HTTP proxy)
 <br>		HTTP - any HTTP request except HTTP_CONNECT (HTTP proxy)
-<br>		HTTPS - alias to HTTP_CONNECT (HTTP proxy)
+<br>		HTTPS - alias for HTTP_CONNECT (HTTP proxy)
 <br>		FTP_GET - FTP get request (http, ftp proxy)
 <br>		FTP_PUT - FTP put request (ftp proxy)
 <br>		FTP_LIST - FTP list request (http, ftp proxy)
 <br>		FTP - any FTP request
 <br>		ADMIN - administration interface access
 <p>
-	<li>&lt;weeksdays&gt; - week days numbers or periods (0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday).
-	<li>&lt;timeperiodlists&gt; - a list of time periods in HH:MM:SS-HH:MM:SS format. For example,
+	<li>&lt;weekdays&gt; - weekday numbers or periods (0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday).
+	<li>&lt;timeperiodlist&gt; - a list of time periods in HH:MM:SS-HH:MM:SS format. For example,
 		00:00:00-08:00:00,17:00:00-24:00:00 lists non-working hours.
-		
+
 </ul>
-* in ACL means &quot;any&quot;.
-Usage examples could be found in 3proxy.cfg.sample.
+* in an ACL means &quot;any&quot;.
+Usage examples can be found in 3proxy.cfg.sample.
 </p>
 		<li><A NAME="REDIR">How to manage redirections</A>
 <p>
-Redirections are usefull to e.g. forward requests from specific clients
-to different servers or proxy server. Additionally, redirections are usefull
-to convert proxy interface from ont format to another, e.g. requests from
-SOCKS proxy can be redirected to parent HTTP proxy, or SOCKSv5 client can be
-redirected to SOCKSv4 proxy.
-<br>Because 3proxy understand "transparent" web request, it can be used as an
-intermediate software between HTTP proxy and NAT server for transparent HTTP
-forwarding, because it can convert "Web server" request issued by client to
-"proxy request" required by proxy server. A simplest redirection is:
+Redirections are useful to, e.g., forward requests from specific clients
+to different servers or proxy servers. Additionally, redirections are useful
+to convert the proxy interface from one format to another, e.g., requests from
+a SOCKS proxy can be redirected to a parent HTTP proxy, or a SOCKSv5 client can be
+redirected to a SOCKSv4 proxy.
+<br>Because 3proxy understands "transparent" web requests, it can be used as an
+intermediate software between an HTTP proxy and a NAT server for transparent HTTP
+forwarding, because it can convert a "Web server" request issued by a client to a
+"proxy request" required by a proxy server. A simple redirection is:
 <pre>
 auth iponly
 allow *
 parent 1000 http 192.168.1.1 3128
 proxy
 </pre>
-All trafiic of HTTP proxy is redirected to parent proxy 192.168.1.1 port 3128.
-<br>If port number is '0', IP address from 'parent' is used as external address
+All traffic of the HTTP proxy is redirected to the parent proxy 192.168.1.1 port 3128.
+<br>If the port number is '0', the IP address from 'parent' is used as the external address
 for this connection (that is like -eIP, but only for connections matching
 'allow').
-<br>Special case of redirection are local redirections. In this case both IP is
-0.0.0.0 and port is 0. It's only usseful with SOCKS service. In this case no
-new connection is established, but request is parsed by corresponding local
+<br>A special case of redirection is local redirections. In this case, both the IP is
+0.0.0.0 and the port is 0. It's only useful with the SOCKS service. In this case, no
+new connection is established, but the request is parsed by the corresponding local
 service. E.g.:
 <pre>
 auth iponly
@@ -730,25 +730,25 @@ allow * * * 110
 parent 1000 pop3 0.0.0.0 0
 socks
 </pre>
-In this case all SOCKS traffic with destination port 80 is forwarded to local
-'proxy' service, destination port 21 to 'ftppr' and 110 to 'pop3pr'. There is
-no need to run these services expicitly. Local redirections are usefull if
-you want to see and control via ACLs protocol specific parameters, e.g.
-filenames requests thorugh FTP while clients are using SOCKS.
+In this case, all SOCKS traffic with destination port 80 is forwarded to the local
+'proxy' service, destination port 21 to 'ftppr', and 110 to 'pop3pr'. There is
+no need to run these services explicitly. Local redirections are useful if
+you want to see and control via ACLs protocol-specific parameters, e.g.,
+filenames requested through FTP while clients are using SOCKS.
 </p>
-    <li><a name="SOCKSREDIR">Как управлять локальными перенаправлениями</a>
+    <li><a name="SOCKSREDIR">How to manage local redirections</a>
 <p>
 <p><i>Q: What is it for?</i></p>
-A: To have control based on request and to have URLs and another protocol specific parameters to be logged.
+A: To have control based on the request and to have URLs and other protocol-specific parameters logged.
 
-<p><i>Q: What are restrictions?</i></p>
-A: It's hard to redirect services for non-default ports; Internet Explorer supports only SOCKSv4 with no password authentication (Internet Explorer sends username, but not password), for SOCKSv5 only cleartext password authentication is supported.
+<p><i>Q: What are the restrictions?</i></p>
+A: It's hard to redirect services for non-default ports; Internet Explorer supports only SOCKSv4 with no password authentication (Internet Explorer sends the username, but not the password); for SOCKSv5, only cleartext password authentication is supported.
 
-<p><i>Q: What are advantages?</i></p>
-A: You need only to setup SOCKS proxy in browser settings. You can use socksifier, i.e. FreeCAP or SocksCAP with application which is not proxy aware.
+<p><i>Q: What are the advantages?</i></p>
+A: You only need to set up a SOCKS proxy in browser settings. You can use a socksifier, e.g., FreeCAP or SocksCAP, with an application that is not proxy-aware.
 
-<p><i>Q: How to setup?</i></p>
-A: You should specify parent proxy with IP of 0.0.0.0 and port 0. Examples:
+<p><i>Q: How to set it up?</i></p>
+A: You should specify a parent proxy with an IP of 0.0.0.0 and port 0. Examples:
 <pre>
 auth iponly
 allow * * * 80,8080-8088
@@ -761,19 +761,19 @@ allow * * * 80,8080-8088
 allow * * * 21,2121
 parent 1000 ftp 0.0.0.0 0
 allow * * * 21,2121
-#redirect ports 21 and 2121 to local 
+#redirect ports 21 and 2121 to local
 #ftp proxy
 
 
 allow *
-#allow rest of connections directly
+#allow the rest of connections directly
 
 socks
-#now let socks server to start
+#now let the socks server start
 </pre>
 
-<p><i>Q: How it affects different ACL rules</i></p>
-A: After local redirections rules are applied again to protocol-level request. Redirection rule itself is skipped. It makes it possible to redirect request again on the external proxy depending on request itself.
+<p><i>Q: How does it affect different ACL rules?</i></p>
+A: After local redirections, rules are applied again to the protocol-level request. The redirection rule itself is skipped. This makes it possible to redirect the request again to an external proxy depending on the request itself.
 <pre>
 allow * * * 80,8080-8088
 parent 1000 http 0.0.0.0 0
@@ -783,33 +783,32 @@ allow * * $c:\3proxy\local.nets 80,8080-8088
 #allow direct access to local.nets networks
 allow * * * 80,8080-8088
 parent 1000 http proxy.3proxy.org 3128
-#use parent caching proxy for rest of the networks
+#use parent caching proxy for the rest of the networks
 
 allow *
-#allow direct connections for rest of socks
+#allow direct connections for the rest of socks
 #requests
 </pre>
 
-		<li><A NAME="ROUNDROBIN">How to balance traffic between few external channgels?</A>
+		<li><A NAME="ROUNDROBIN">How to balance traffic between multiple external channels?</A>
 <p>
-Proxy itself doesn't manage network level routing. The only way to control
-outgoing channel is to select external interface. It's possible to make
-external interface (what is usually selected with 'external' command or
-'-e' option) random by using local redirection with external port 0.
+The proxy itself doesn't manage network-level routing. The only way to control
+the outgoing channel is to select the external interface. It's possible to make
+the external interface (what is usually selected with the 'external' command or
+'-e' option) random by using local redirection with an external port of 0.
 <pre>
 auth iponly
 allow *
 parent 500 http 10.1.1.101 0
 parent 500 http 10.2.1.102 0
 </pre>
-Now external interface is randomly selected with 0.5 probability between
+Now the external interface is randomly selected with 0.5 probability between
 10.1.1.101 and 10.2.1.102. To work as expected, different default routes
-must between 2 interfaces.
-used
+must be used between the 2 interfaces.
 <p>
-If both interface addresses are in same network, e.g. 10.1.1.101 and 10.1.1.102
-and you want to select random gateway between 10.1.1.1 and 10.1.1.2, you must
-control it by using routing table, in case there is no default gateway route
+If both interface addresses are in the same network, e.g., 10.1.1.101 and 10.1.1.102,
+and you want to select a random gateway between 10.1.1.1 and 10.1.1.2, you must
+control it by using the routing table, in case there is no default gateway route
 for Windows:
 <pre>
  route add -p 10.1.1.1 10.1.1.101
@@ -817,33 +816,33 @@ for Windows:
  route add -p 0.0.0.0 mask 0.0.0.0 192.168.1.1
  route add -p 0.0.0.0 mask 0.0.0.0 192.168.1.2
 </pre>
-If you have no second address yet, just add it. Under Linux/Unix it's better
+If you don't have a second address yet, just add it. Under Linux/Unix, it's better
 to use source routing.
 </p>
 		<li><A NAME="CHAIN">How to manage proxy chains</A>
 <p>
-parent command may also be used to build a proxy chains. In this case
-few 'parent' commands are used for single 'allow' rule with different
-weights (first argument of parent command). Chain may contain any number
-of proxy servers, but it should be noted that every hope significantly
-reduces productivity. It's possible to mix different types of proxy within
-single chain: HTTPS (HTTP connect), SOCKS4, SOCKS5. Weight different from
-1000 is used to build random chains. if weight W is below 1000, this proxy
-will be used as a next chain hop with probability of W/1000. That is, if
-the weight is 250 probability this proxy will be used for the next hope is
-25%. 'parent' records with common weight of 1000 establish a group, one of
-these record will be used for the hop with probability according to weight.
-Warning: each group must have a weight even of 1000. As follows, common
-weight of all 'parent' records must also be even of 1000. If common weight
-of 'parent' records in te chain is 3000, chain has 3 hops and must be formed
+The parent command may also be used to build proxy chains. In this case,
+multiple 'parent' commands are used for a single 'allow' rule with different
+weights (the first argument of the parent command). A chain may contain any number
+of proxy servers, but it should be noted that every hop significantly
+reduces performance. It's possible to mix different types of proxies within a
+single chain: HTTPS (HTTP connect), SOCKS4, SOCKS5. A weight different from
+1000 is used to build random chains. If weight W is below 1000, this proxy
+will be used as the next chain hop with a probability of W/1000. That is, if
+the weight is 250, the probability that this proxy will be used for the next hop is
+25%. 'parent' records with a combined weight of 1000 establish a group; one of
+these records will be used for the hop with a probability according to the weight.
+Warning: each group must have a weight that is a multiple of 1000. As follows, the combined
+weight of all 'parent' records must also be a multiple of 1000. If the combined weight
+of 'parent' records in the chain is 3000, the chain has 3 hops and must be formed
 of 3 groups. Example:
 <pre>
 allow *
 parent 500 socks5 192.168.1.1 1080
 parent 500 connect 192.168.10.1 3128
 </pre>
-In this case we have 1 parent proxy (1 hop) which is randomely choosen between
-2 hosts: 192.168.1.1 and 192.168.10.1. 2 records form a single group.
+In this case, we have 1 parent proxy (1 hop) which is randomly chosen between
+2 hosts: 192.168.1.1 and 192.168.10.1. The 2 records form a single group.
 <pre>
 allow * * * 80
 parent 1000 socks5 192.168.10.1 1080
@@ -851,33 +850,33 @@ parent 1000 connect 192.168.20.1 3128
 parent 300 socks4 192.168.30.1 1080
 parent 700 socks5 192.168.40.1 1080
 </pre>
-In this case we have 3 groups (3 hops in the chain). First hop is 192.168.10.1,
-second hop is 192.168.20.1 and 3rd one is either 192.168.30.1 with probability
-of 30% or 192.168.40.1 with probability of 70%.
+In this case, we have 3 groups (3 hops in the chain). The first hop is 192.168.10.1,
+the second hop is 192.168.20.1, and the 3rd one is either 192.168.30.1 with a probability
+of 30% or 192.168.40.1 with a probability of 70%.
 </p>
 
 		<li><A NAME="BANDLIM">How to limit bandwidth</A>
 <p>
-3proxy supports bandwidth filters. To manage filters bandlimin/bandlimout and
-nobandlimin/nobandlimout. 'in' means incoming and 'out' - outgoing traffic.
+3proxy supports bandwidth filters. Use the bandlimin/bandlimout and
+nobandlimin/nobandlimout commands to manage filters. 'in' means incoming and 'out' means outgoing traffic.
 <p><font face="courier">
 bandlimin &lt;bitrate&gt; &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
 <br>nobandlimin &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
 </font>
 </p>
 Commands are applied to all services. Imagine bandwidth filters as a series of
-pipes.  Bitrate is a pipe's width and ACLs controls the flow thorugh this pipe.
+pipes. Bitrate is a pipe's width, and ACLs control the flow through this pipe.
 <pre>
   bandlimin 57600 * 192.168.10.16
   bandlimin 57600 * 192.168.10.17
   bandlimin 57600 * 192.168.10.18
   bandlimin 57600 * 192.168.10.19
 </pre>
-Create 4 separete pipes for 4 client with emulation of modem connection.
+Create 4 separate pipes for 4 clients with emulation of a modem connection.
 <pre>
   bandlimin 57600 * 192.168.10.16/30
 </pre>
-Create single pipe for all 4 clients. That is 4 clients share modem connection.
+Create a single pipe for all 4 clients. That is, 4 clients share a modem connection.
 In this example:
 <pre>
   nobandlimin * * * 110
@@ -889,7 +888,7 @@ limitation.
 		<li><A NAME="TRAFLIM">How to limit traffic amount</A>
 <p>
 <p><font face="courier">
-counter &lt;filename&gt; &lt;type&gt; &lt;reportpath&gt;  
+counter &lt;filename&gt; &lt;type&gt; &lt;reportpath&gt;
 <br>countin &lt;number&gt; &lt;type&gt; &lt;amount&gt; &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
 <br>nocountin &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
 <br>countout &lt;number&gt; &lt;type&gt; &lt;amount&gt; &lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt; &lt;commandlist&gt;
@@ -897,20 +896,20 @@ counter &lt;filename&gt; &lt;type&gt; &lt;reportpath&gt;
 </font>
 </p>
 <p>
-You can set traffic limit per day (D), week (W), month (M), year (Y) or
-absolute ('N'), as specified by 'type' argument of counterin command.
-Traffic information is stored in binary file specified by 'filename' argument.
-countersutil utility can be used to manage this file.
-reportpath specifies location of text reports, type parameter of 'counter'
-command controls how often text reports are created. amount is amount of
-allowed traffic in Megabytes (MB). nocountin allows you to set exclusions.
+You can set a traffic limit per day (D), week (W), month (M), year (Y), or
+absolute ('N'), as specified by the 'type' argument of the counterin command.
+Traffic information is stored in a binary file specified by the 'filename' argument.
+The countersutil utility can be used to manage this file.
+The reportpath specifies the location of text reports; the type parameter of the 'counter'
+command controls how often text reports are created. The amount is the amount of
+allowed traffic in megabytes (MB). nocountin allows you to set exclusions.
 </p>
   <li><a name="TRAF"><i>How to fix incorrect traffic accounting</i></a>
 
-  <p>3proxy accounts protocol level traffic. Provider counts channel or IP-level traffic with network and transport headers. In additions, 3proxy doesn't counts DNS resolutions, pings, floods, scans, etc. It makes approx. 10% of difference. That's why you should have 15% reserve if you use 3proxy to limit your traffic. If difference with your provider is significantly above 10% you should look for traffic avoiding proxy server, for example connections through NAT, traffic originated from the host with proxy installed, traffic from server applications, etc.
+  <p>3proxy accounts for protocol-level traffic. Providers count channel- or IP-level traffic with network and transport headers. In addition, 3proxy does not count DNS resolutions, pings, floods, scans, etc. This accounts for approximately a 10% difference. That is why you should have a 15% reserve if you use 3proxy to limit your traffic. If the difference with your provider is significantly above 10%, you should look for traffic bypassing the proxy server, for example connections through NAT, traffic originating from the host with the proxy installed, traffic from server applications, etc.
   <li><a name="NSCACHING"><i>How to configure name resolution and DNS caching</i></a>
   <p>
-  For name resolution and caching use commands nserver, nscache / nscache6 and nsrecord.
+  For name resolution and caching, use the commands nserver, nscache / nscache6, and nsrecord.
   <pre>
   nserver 192.168.1.2
   nserver 192.168.1.3:5353/tcp</pre>
@@ -920,52 +919,52 @@ allowed traffic in Megabytes (MB). nocountin allows you to set exclusions.
   <pre>
   nscache 65535
   nscache6 65535</pre>
-  sets name cache size for IPv4 and IPv6. Name cache must be large enouth, if presents.
-  name cache is only used if nserver is configured.
+  sets name cache size for IPv4 and IPv6. The name cache must be large enough, if present.
+  The name cache is only used if nserver is configured.
   <pre>
   nsrecord server.mycompany.example.com 192.168.1.1
   nsrecord www.porno.com 127.0.0.2
   ...
   deny * * 127.0.0.2</pre>
-  adds static nsrecords. Also, static nsrecords are used for dnspr, unless -s option is specified.
-  Since 0.8 version, parent proxy may be configured for dnspr.
+  adds static nsrecords. Also, static nsrecords are used for dnspr, unless the -s option is specified.
+  Since version 0.8, a parent proxy may be configured for dnspr.
 </p>
   <li><a name="IPV6"><i>How to use IPv6</i></a>
   <p>
-  IPv6 is supported since 0.8. Please note, some proxy protolos, e.g. SOCKSv4,
-  do not  support IPv6. SOCKSv5 supports IPv6 with special request type (must be
-  implemented by client).
+  IPv6 is supported since version 0.8. Please note that some proxy protocols, e.g., SOCKSv4,
+  do not support IPv6. SOCKSv5 supports IPv6 with a special request type (which must be
+  implemented by the client).
   <br>
   3proxy supports proxying from IPv4 and IPv6 networks to IPv4,
-  IPv6 and mixed networks. IPv6 address may be used in
-  internal, external, parent commands, ACLs, -i and -e options,etc.
-  external command and -e options may be given twice for each service - once with IPv4
-  and once with IPv6 address. internal can be given only once, to bind to all IPv4 and
-  IPv6 addresses use [0:0:0:0:0:0:0:0] or [::]. 
+  IPv6, and mixed networks. An IPv6 address may be used in
+  internal, external, and parent commands, ACLs, -i and -e options, etc.
+  The external command and -e options may be given twice for each serviceтАФonce with an IPv4
+  and once with an IPv6 address. internal can be given only once; to bind to all IPv4 and
+  IPv6 addresses, use [0:0:0:0:0:0:0:0] or [::].
   <br>
-  Any service may be configured with -4, -46, -64, -6 options to specify decied
-  priority for name to IPv4/IPv6 address resolution (IPv4 only, IPv4 priority,
+  Any service may be configured with -4, -46, -64, or -6 options to specify the desired
+  priority for name-to-IPv4/IPv6 address resolution (IPv4 only, IPv4 priority,
   IPv6 priority, IPv6 only).
   </p>	
   <li><a name="CONNBACK"><i>How to use connect back</i></a>
   <p>
-  In example, users needs access from external network to proxy server located
-  on the host 192.168.1.2. This host can not be accessed from external network,
-  but it has access to external network with with external address 1.1.1.1.
-  Also, user has access to the host 2.2.2.2 (IP address may be dynamic) with
-  hostname host.dyndns.example.org via external network. User needs 2 instances
-  of 3proxy, first one on the host 192.168.1.2 with config
+  For example, a user needs access from an external network to a proxy server located
+  on the host 192.168.1.2. This host cannot be accessed from the external network,
+  but it has access to the external network with an external address 1.1.1.1.
+  Also, the user has access to the host 2.2.2.2 (IP address may be dynamic) with
+  hostname host.dyndns.example.org via the external network. The user needs 2 instances
+  of 3proxy, the first one on the host 192.168.1.2 with the config
   <pre>
   users user:CL:password
   auth strong
   allow user
   proxy -rhost.dyndns.example.org:1234</pre>
-  second one on the host.dyndns.example.org (2.2.2.2) with config
+  and the second one on host.dyndns.example.org (2.2.2.2) with the config
   <pre>
   auth iponly
   allow * * 1.1.1.1
   tcppm -R0.0.0.0:1234 3128 1.1.1.1 3128</pre>
-  For browser settings proxy is host.dyndns.example.org:3128.
+  For browser settings, the proxy is host.dyndns.example.org:3128.
   </p>	
 	</ul>
 
@@ -973,26 +972,26 @@ allowed traffic in Megabytes (MB). nocountin allows you to set exclusions.
 	<li><A NAME="CLIENT">Client configuration</A>
 <p>
 <hr>
-	<li><A NAME="ADMIN">Administering and information analisys</A>
+	<li><A NAME="ADMIN">Administering and information analysis</A>
 <p>
 	<ul>
 		<li><A NAME="NEWVERSION">How to obtain latest 3proxy version</A>
 <p>
-Latest version of 3proxy may be obtained
+The latest version of 3proxy may be obtained
 <A HREF="https://3proxy.org/">here</A>.
-New version may have changes and incompatibilities with previous one in files
-format or commands. Please, read CHANGELOG file and another documentation
-before installing new version.
+A new version may have changes and incompatibilities with the previous one in file
+formats or commands. Please read the CHANGELOG file and other documentation
+before installing a new version.
 </p>
 		<li><A NAME="NTSERVICE">How to control 3proxy service under Windows NT/2000/XP</A>
 <p>
-If installed as system service, 3proxy understands Windows service commands
-for START, STOP, PAUSE and RESUME. If service is PAUSEd, no new connections
-are accepted while older connections are processed. Currently there is no
-support for dynamic configuration change, so, you have to restart service
+If installed as a system service, 3proxy understands Windows service commands
+for START, STOP, PAUSE, and RESUME. If the service is PAUSEd, no new connections
+are accepted while older connections are processed. Currently, there is no
+support for dynamic configuration changes, so you have to restart the service
 completely if you have changed any configuration.
 
-You can control 3proxy service via "Services" administration ot via "net" command:
+You can control the 3proxy service via "Services" administration or via the "net" command:
 <pre>
 	net start 3proxy
 	net stop 3proxy
@@ -1003,8 +1002,8 @@ You can control 3proxy service via "Services" administration ot via "net" comman
 		<li><A NAME="ERRORS">Log error codes reference</A>
 <p>
 	<ul>
-		<li>0 - Operation successfully complited (connection
-			was closed by one of peers)
+		<li>0 - Operation successfully completed (connection
+			was closed by one of the peers)
 		<li>1-9 - AUTHENTICATION ERRORS
 		<li>1 - Access denied by ACL (deny)
 		<li>2 - Redirection (should not appear)
@@ -1063,10 +1062,10 @@ You can control 3proxy service via "Services" administration ot via "net" comman
 </p>
 	</ul>
 <hr>
-	<li><A NAME="QUEST">How To ask quiestion not in How To?</A>
+	<li><A NAME="QUEST">How to ask a question not in How To?</A>
 <p>
 	Ask it in <A HREF="https://github.com/z3APA3A/3proxy/issues">Github</A>.
-	Don't try to ask something before reading this document.
+	Please read this document before asking a question.
  </ul>
 
 </ul>

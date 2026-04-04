@@ -6,9 +6,9 @@
  Common structure:
 .br
  Configuration file is a text file 3proxy reads configuration from. Each line
-of the file is a command executed immediately, as it was given from
-console. Sequence of commands is important. Configuration file as actually a
-script for 3proxy executable.
+of the file is a command executed immediately, as if it were given from the
+console. The sequence of commands is important. The configuration file is actually a
+script for the 3proxy executable.
 Each line of the file is treated as a blank (space or tab) separated
 command line. Additional space characters are ignored. 
 Think about 3proxy as "application level router" with console interface.
@@ -16,16 +16,16 @@ Think about 3proxy as "application level router" with console interface.
 .br
  Comments:
 .br
- Any string beginning with space character or \'#\' character is comment. It\'s
-ignored. <LF>s are ignored. <CR> is end of command.
+ Any line beginning with a space character or \'#\' character is a comment. It\'s
+ignored. <LF>s are ignored. <CR> is the end of a command.
 
 .br
  Quotation:
 .br
- Quotation character is " (double quote). Quotation must be used to quote
-spaces or another special characters. To use quotation character inside
-quotation character must be dubbed (BASIC convention). For example to use
-HELLO "WORLD" as an argument you should use it as "HELLO ""WORLD""".
+ The quotation character is " (double quote). Quotation must be used to quote
+spaces or other special characters. To use a quotation character inside
+a quoted string, the character must be doubled (BASIC convention). For example, to use
+HELLO "WORLD" as an argument, you should write it as "HELLO ""WORLD""".
 Good practice is to quote any argument you use.
 
 .br
@@ -37,7 +37,7 @@ to file, for example $/usr/local/etc/3proxy/conf.incl or
 required in last example because path contains space character. 
 For included file <CR> (end of line characters) is treated as space character
 (arguments delimiter instead of end of command delimiter). 
-Thus, include files are only useful to store long signle-line commands
+Thus, include files are only useful to store long single-line commands
 (like userlist, network lists, etc).
 To use dollar sign somewhere in argument it must be quoted. 
 Recursion is not allowed.
@@ -120,7 +120,7 @@ disable NTLM authentication (required if passwords are stored in Unix crypt form
 enable NTLMv1 authentication.
 .br
 .B -g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY)
-delay GRACE_DELAY  milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second. Useful to minimize polling
+delay GRACE_DELAY milliseconds before polling if average polling size is below GRACE_TRAFF bytes and GRACE_NUM read operations in a single direction are detected within 1 second. Useful to minimize polling
 .B -s
  (for admin) secure, allow only secure operations, currently only traffic counters
 view without ability to reset.
@@ -142,7 +142,7 @@ Never ask for username/password
 (for proxy) anonymous proxy (random client information reported)
 .br
 .B -a2
-(for proxy) generate Via: and X-Forwared-For: instead of Forwarded:
+(for proxy) generate Via: and X-Forwarded-For: instead of Forwarded:
 .br
 .B -6
 Only resolve IPv6 addresses. IPv4 addresses are packed in IPv6 in IPV6_V6ONLY compatible way.
@@ -167,17 +167,17 @@ options for proxy-to-client (oc), proxy-to-server (os), proxy listening (ol), co
 Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
 .br
 .B -DiINTERFACE, -DeINTERFACE
-bind internal interface / external inteface to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE supported by system. You may need to run as root or to have CAP_NET_RAW capability in order to bind to interface, depending on system, so this option may require root privileges and can be incompatible with some configuraton commands like chroot and setuid (and daemon if setcap is used).
+bind internal interface / external interface to given INTERFACE (e.g. eth0) if SO_BINDTODEVICE is supported by the system. You may need to run as root or have CAP_NET_RAW capability in order to bind to an interface, depending on the system, so this option may require root privileges and can be incompatible with some configuration commands like chroot and setuid (and daemon if setcap is used).
 .br
 .B -e
-External address. IP address of interface proxy should initiate connections
+External address. IP address of the interface the proxy should initiate connections
 from. External IP must be specified if you need incoming connections.
-By default system will deside which address to use in accordance
-with routing table.
+By default the system will decide which address to use in accordance
+with the routing table.
 .br
 .B -i
-Internal address. IP address proxy accepts connections to.
-By default connection to any interface is accepted. 
+Internal address. IP address the proxy accepts connections to.
+By default, connections to any interface are accepted. 
 .br
 .B -N
 (for socks) External NAT address 3proxy reports to client for BIND and UDPASSOC
@@ -298,7 +298,7 @@ with space and all time based elemnts are in local time zone.
 .br
   %m Month number
 .br
-  %o Month abbriviature
+  %o Month abbreviation
 .br
   %d Day
 .br
@@ -308,17 +308,17 @@ with space and all time based elemnts are in local time zone.
 .br
   %S Second
 .br
-  %t Timstamp (in seconds since 01-Jan-1970)
+  %t Timestamp (in seconds since 01-Jan-1970)
 .br
   %. milliseconds
 .br
-  %z timeZone (from Grinvitch)
+  %z time zone (from Greenwich)
 .br
   %D request duration (in milliseconds)
 .br
-  %b average send rate per request (in Bytes per second) this speed is typically below connection speed shown by download manager.
+  %b average send rate per request (in bytes per second); this speed is typically below the connection speed shown by the download manager.
 .br
-  %B average receive rate per request (in Bytes per second) this speed is typically below connection speed shown by download manager.
+  %B average receive rate per request (in bytes per second); this speed is typically below the connection speed shown by the download manager.
 .br
   %U Username
 .br
@@ -354,9 +354,9 @@ with space and all time based elemnts are in local time zone.
 .br
   %T service specific Text
 .br
-  %N1-N2T (N1 and N2 are positive numbers) log only fields from N1 thorugh N2 of service specific text
+  %N1-N2T (N1 and N2 are positive numbers) log only fields from N1 through N2 of service-specific text
 .br
- in the case of ODBC logging logformat specifies SQL statement, for exmample:
+ In the case of ODBC logging, logformat specifies an SQL statement, for example:
 .br
  logformat "-\'+_Linsert into log (l_date, l_user, l_service, l_in, l_out, l_descr) values (\'%d-%m-%Y %H:%M:%S\', \'%U\', \'%N\', %I, %O, \'%T\')"
 
@@ -441,8 +441,8 @@ performed over TCP.
 <cachesize>
 .br
  Cache <cachesize> records for name resolution (nscache for IPv4,
-nscache6 for IPv6). Cachesize usually should be large enougth
-(for example 65536).
+nscache6 for IPv6). The cache size should usually be large enough
+(for example, 65536).
 
 .br
 .B nsrecord
@@ -457,8 +457,8 @@ command to set up UDL for dialing.
 .br
 .B fakeresolve
 .br
- All names are resolved to 127.0.0.2 address. Usefull if all requests are
-redirected to parent proxy with http, socks4+, connect+ or socks5+.
+ All names are resolved to the 127.0.0.2 address. Useful if all requests are
+redirected to a parent proxy with http, socks4+, connect+ or socks5+.
 
 .br
 .B dialer
@@ -491,8 +491,8 @@ External or -e can be given twice: once with IPv4 and once with IPv6 address.
 .B maxconn
 <number>
 .br
- sets maximum number of simulationeous connections to each service
-started after this command on network level. Default is 100.
+ sets the maximum number of simultaneous connections to each service
+started after this command at the network level. Default is 100.
 .br
  To limit clients, use connlim instead. maxconn will silently ignore
 new connections, while connlim will report back to the client that
@@ -507,17 +507,17 @@ the connection limit has been reached.
 .br
 .B service
 .br
- (depricated). Indicates 3proxy to behave as Windows 95/98/NT/2000/XP
-service, no effect for Unix. Not required for 3proxy 0.6 and above. If
-you upgraded from previous version of 3proxy use --remove and --install
-to reinstall service.
+ (deprecated). Indicates that 3proxy should behave as a Windows 95/98/NT/2000/XP
+service; has no effect under Unix. Not required for 3proxy 0.6 and above. If
+you upgraded from a previous version of 3proxy, use --remove and --install
+to reinstall the service.
 
 .br
 .B daemon
 .br
- Should be specified to close console. Do not use \'daemon\' with \'service\'.
-At least under FreeBSD \'daemon\' should preceed any proxy service
-and log commands to avoid sockets problem. Always place it in the beginning
+ Should be specified to close the console. Do not use \'daemon\' with \'service\'.
+At least under FreeBSD, \'daemon\' should precede any proxy service
+and log commands to avoid socket problems. Always place it in the beginning
 of the configuration file.
 
 .br
@@ -528,8 +528,8 @@ of the configuration file.
 .br
  none - no authentication or authorization required.
 .br
- Note: is auth is none any ip based limitation, redirection, etc will not work. 
-This is default authentication type
+ Note: if auth is none, any IP-based limitation, redirection, etc. will not work.
+This is the default authentication type
 .br
  iponly - authentication by access control list with username ignored.
  Appropriate for most cases
@@ -538,11 +538,11 @@ This is default authentication type
 authorization by ACLs. Useful for e.g. SOCKSv4 proxy and icqpr (icqpr set UIN /
 AOL screen name as a username)
 .br
- dnsname - authentication by DNS hostnname with authorization by ACLs.
-DNS hostname is resolved via PTR (reverse) record and validated (resolved
-name must resolve to same IP address). It\'s recommended to use authcache by
-ip for this authentication.
-NB: there is no any password check, name may be spoofed.
+ dnsname - authentication by DNS hostname with authorization by ACLs.
+The DNS hostname is resolved via a PTR (reverse) record and validated (the resolved
+name must resolve to the same IP address). It\'s recommended to use authcache by
+IP for this authentication.
+NB: there is no password check; the name may be spoofed.
 .br
  strong - username/password authentication required. It will work with
 SOCKSv5, FTP, POP3 and HTTP proxy. 
@@ -554,23 +554,23 @@ SOCKSv5, FTP, POP3 and HTTP proxy.
  Plugins may add additional authentication types.
 
 .br
- It\'s possible to use few authentication types in the same commands. E.g.
+ It\'s possible to use multiple authentication types in the same command. E.g.
 .br
  auth iponly strong
 .br
- In this case \'strong\' authentication will be used only in case resource
-access can not be performed with \'iponly\' authentication, that is username is
-required in ACL. It\'s usefull to protect access to some resources with
-password allowing passwordless access to another resources, or to use
-IP-based authentication for dedicated laptops and request username/password for
+ In this case, \'strong\' authentication will be used only if resource
+access cannot be performed with \'iponly\' authentication, that is, a username is
+required in the ACL. It\'s useful to protect access to some resources with
+a password while allowing passwordless access to other resources, or to use
+IP-based authentication for dedicated laptops and request a username/password for
 shared ones.
 
 .br
 .B authcache
 <cachtype> <cachtime>
 .br
- Cache authentication information to given amount of time (cachetime) in seconds.
-Cahtype is one of:
+ Cache authentication information for a given amount of time (cachetime) in seconds.
+Cachetype is one of:
 .br
  ip - after successful authentication all connections during caching time
 from same IP are assigned to the same user, username is not requested.
@@ -603,10 +603,10 @@ Use auth type \'cache\' for cached authentication
 allowed. Usernames are case sensitive (if used with authtype nbname
 username must be in uppercase). Source and target lists may contain
 IP addresses (W.X.Y.Z), ranges A.B.C.D - W.X.Y.Z (since 0.8) or CIDRs (W.X.Y.Z/L). 
-Since 0.6, targetlist may also contain host names,
-instead of addresses. It\'s possible to use wildmask in
-the begginning and in the the end of hostname, e.g. *badsite.com or *badcontent*.
-Hostname is only checked if hostname presents in request.
+Since 0.6, the targetlist may also contain host names,
+instead of addresses. It\'s possible to use a wildmask in
+the beginning and at the end of the hostname, e.g. *badsite.com or *badcontent*.
+The hostname is only checked if a hostname is present in the request.
 Targetportlist may contain ports (X) or port ranges lists (X-Y). For any field *
 sign means ANY. If access list is empty it\'s assumed to be
 .br
@@ -657,14 +657,14 @@ to appropriate interface only or to use ip filters.
  FTP_LIST FTP list request
 .br
  FTP_DATA FTP data connection. Note: FTP_DATA requires access to dynamic
-non-ptivileged (1024-65535) ports on remote side.
+non-privileged (1024-65535) ports on the remote side.
 .br
  FTP matches any FTP/FTP Data request
 .br
  ADMIN access to administration interface
 
 .br
- Weeksdays are week days numbers or periods, 0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday.
+ Weekdays are week day numbers or periods, 0 or 7 means Sunday, 1 is Monday, 1-5 means Monday through Friday.
 .br
  Timeperiodlists is a list of time
 periods in HH:MM:SS-HH:MM:SS format. For example, 00:00:00-08:00:00,17:00:00-24:00:00 lists non-working hours.
@@ -678,9 +678,9 @@ build proxy chain. Proxies may be grouped. Proxy inside the
 group is selected randomly. If few groups are specified one proxy
 is randomly picked from each group and chain of proxies is created
 (that is second proxy connected through first one and so on).
-Weight is used to group proxies. Weigt is a number between 1 and 1000.
-Weights are summed and proxies are grouped together untill weight of
-group is 1000. That is:
+Weight is used to group proxies. Weight is a number between 1 and 1000.
+Weights are summed and proxies are grouped together until the weight of
+the group is 1000. That is:
 .br
  allow *
 .br
@@ -708,7 +708,7 @@ with probability of 0.7) for outgoing web connections. Chains are only applied t
 .br
  type is one of:
 .br
- extip does not actully redirect request, it sets external address for this request to <ip>. It can be chained with another parent types. It's usefaul to set external IP based on ACL or make it random.
+ extip does not actually redirect the request; it sets the external address for this request to <ip>. It can be chained with another parent type. It's useful to set the external IP based on ACL or make it random.
 .br
  tcp simply redirect connection. TCP is always last in chain. This type of proxy is a simple TCP redirection, it does not support parent authentication.
 .br
@@ -732,8 +732,8 @@ if used with different service, it works as tcp redirection.
  socks5+ parent is SOCKSv5 proxy with name resolution
 .br
  socks4b parent is SOCKS4b (broken SOCKSv4 implementation with shortened
-server reply. I never saw this kind ofservers byt they say there are).
-Normally you should not use this option. Do not mess this option with
+server reply; I never saw this kind of server, but they say there are some).
+Normally you should not use this option. Do not confuse this option with
 SOCKSv4a (socks4+).
 .br
  socks5b parent is SOCKS5b (broken SOCKSv5 implementation with shortened
@@ -759,18 +759,18 @@ locally redirects to
 locally redirects to
 .B pop3p
 .B http
-locally redurects to
+locally redirects to
 .B proxy
 .B admin
-locally redirects to admin -s service.
+locally redirects to the admin -s service.
 
 .br
- Main purpose of local redirections is to have requested resource
-(URL or POP3 username) logged and protocol-specific filters to be applied.
-In case of local redirection ACLs are revied twice: first, by SOCKS proxy up to \'parent\'
-command and then with gateway service connection is
-redirected (HTTP, FTP or POP3) after \'parent\' command. It means,
-additional \'allow\' command is required for redirected requests, for
+ Main purpose of local redirections is to have the requested resource
+(URL or POP3 username) logged and protocol-specific filters applied.
+In case of local redirection, ACLs are reviewed twice: first, by the SOCKS proxy up to the \'parent\'
+command and then by the gateway service the connection is
+redirected to (HTTP, FTP or POP3) after the \'parent\' command. It means
+an additional \'allow\' command is required for redirected requests, for
 example:
 .br
  allow * * * 80
@@ -786,7 +786,7 @@ local HTTP proxy parses requests and allows only GET and POST requests.
 .br
  parent 1000 http 1.2.3.4 0
 .br
- Changes external address for given connection to 1.2.3.4 (an equivalent to -e1.2.3.4)
+ Changes the external address for a given connection to 1.2.3.4 (equivalent to -e1.2.3.4)
 .br
  Optional username and password are used to authenticate on parent
 proxy. Username of \'*\' means username must be supplied by user.
@@ -843,15 +843,17 @@ noforce allows to keep previously authenticated connections.
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
 <weekdayslist> <timeperiodslist>
 .br
- bandlim sets bandwith limitation filter to <rate> bps (bits per second)
-If you want to specife bytes per second - multiply your value to 8.
-bandlim rules act in a same manner as allow/deny rules except
+ bandlim sets a bandwidth limitation filter to <rate> bps (bits per second).
+If you want to specify bytes per second, multiply your value by 8.
+bandlim rules act in the same manner as allow/deny rules, except for
 one thing: bandwidth limiting is applied to all services, not to some
 specific service. 
-bandlimin and nobandlimin applies to incoming traffic
-bandlimout and nobandlimout applies to outgoing traffic
-If tou want to ratelimit your clients with IPs 192.168.10.16/30 (4
-addresses) to 57600 bps you have to specify 4 rules like
+bandlimin and nobandlimin apply to incoming traffic
+.br
+bandlimout and nobandlimout apply to outgoing traffic
+.br
+If you want to ratelimit your clients with IPs 192.168.10.16/30 (4
+addresses) to 57600 bps, you have to specify 4 rules like
 .br
  bandlimin 57600 * 192.168.10.16
 .br
@@ -861,12 +863,12 @@ addresses) to 57600 bps you have to specify 4 rules like
 .br
  bandlimin 57600 * 192.168.10.19
 .br
- and every of you clients will have 56K channel. If you specify
+ and each of your clients will have a 56K channel. If you specify
 .br
  bandlimin 57600 * 192.168.10.16/30
 .br
- you will have 56K channel shared between all clients.
-if you want, for example, to limit all speed ecept access to POP3 you can use
+ you will have a 56K channel shared between all clients.
+If you want, for example, to limit all speed except access to POP3, you can use
 .br
  nobandlimin * * * 110
 .br
@@ -891,17 +893,17 @@ connlim limits a number of parallel connections.
 .br
  connlim 20 0 * 127.0.0.1
 .br
- allows 20 simulationeous connections for 127.0.0.1.
+ allows 20 simultaneous connections for 127.0.0.1.
 .br
- Like with bandlimin, if individual limit is required per client, separate
-rule mustbe added for every client. Like with nobanlimin, noconnlim adds an
+ Like with bandlimin, if an individual limit is required per client, a separate
+rule must be added for every client. Like with nobandlimin, noconnlim adds an
 exception.
 
 
 
 .br
 .B counter
-<filename> <reporttype> <repotname>
+<filename> <reporttype> <reportname>
 .br
 .B countin
 <number> <type> <limit> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
@@ -928,29 +930,29 @@ exception.
 <weekdayslist> <timeperiodslist>
 .br
 
- counter, countin, nocountin, countout, noucountout, countall,
-nocountall commands are used to set traffic limit
-in MB for period of time (day, week or month). Filename is a path
+ counter, countin, nocountin, countout, nocountout, countall,
+nocountall commands are used to set a traffic limit
+in MB for a period of time (day, week or month). Filename is a path
 to a special file where traffic information is permanently stored.
-number is sequential number of record in this file. If number is 0
-this counter is not preserved in counter file (that is
-if proxy restarted all counters with 0 are flushed) overwise it
-should be unique sequential number which points to position of
-the couter within the file.
+The number is the sequential number of the record in this file. If the number is 0,
+this counter is not preserved in the counter file (that is,
+if the proxy is restarted, all counters with 0 are flushed); otherwise, it
+should be a unique sequential number which points to the position of
+the counter within the file.
 Type specifies a type of counter. Type is one of:
 .br
- H - counter is resetted hourly
+ H - counter is reset hourly
 .br
- D - counter is resetted daily
+ D - counter is reset daily
 .br
- W - counter is resetted weekly
+ W - counter is reset weekly
 .br
- M - counter is resetted monthely
+ M - counter is reset monthly
 .br
- reporttype/repotname may be used to generate traffic reports.
-Reporttype is one of D,W,M,H(hourly) and repotname specifies filename
-template for reports. Report is text file with counter values in
-format:
+ reporttype/reportname may be used to generate traffic reports.
+Reporttype is one of D, W, M, H (hourly) and reportname specifies the filename
+template for reports. The report is a text file with counter values in
+the format:
 .br
  <COUNTERNUMBER> <TRAF>
 .br
@@ -976,13 +978,13 @@ username[:pwtype:password] ...
 .br
  users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63
 .br
- Note: double quotes are requiered because password contains $ sign.	
+ Note: double quotes are required because the password contains a $ sign.	
 
 .br
 .B flush
 .br
- empty active access list. Access list must be flushed avery time you creating
-new access list for new service. For example:
+ empty the active access list. The access list must be flushed every time you create a
+new access list for a new service. For example:
 .br
  allow *
 .br
@@ -1043,14 +1045,14 @@ for all threads.
 .B stacksize
 <value_to_add_to_default_stack_size>
 .br
- Change default size for threads stack. May be required in some situation,
-e.g. with non-default plugins, on on some platforms (some FreeBSD version
-may require adjusting stack size due to invalid defined value in system
-header files, this value is also oftent reqruied to be changed for ODBC and
-PAM support on Linux. If you experience 3proxy
+ Change the default size for thread stacks. May be required in some situations,
+e.g. with non-default plugins, or on some platforms (some FreeBSD versions
+may require adjusting the stack size due to an incorrectly defined value in system
+header files; this value is also often required to be changed for ODBC and
+PAM support on Linux). If you experience 3proxy
 crash on request processing, try to set some positive value. You may start with
-stacksize 65536 
-and then find the minimal value for service to work. If you experience
+stacksize 65536
+and then find the minimal value for the service to work. If you experience
 memory shortage, you can try to experiment with negative values.
 
 .SH PLUGINS
@@ -1070,9 +1072,9 @@ as
 .B filtermaxsize
 <max_size_of_data_to_filter>
 .br
- If Content-length (or another data length) is greater than given value, no
-data filtering will be performed thorugh filtering plugins to avoid data
-corruption and/or Content-Length chaging. Default is 1MB (1048576).
+ If Content-length (or another data length) is greater than the given value, no
+data filtering will be performed through filtering plugins to avoid data
+corruption and/or Content-Length changing. Default is 1MB (1048576).
 
 .SH BUGS
 Report all bugs to
