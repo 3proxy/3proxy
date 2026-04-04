@@ -5,16 +5,14 @@
   <li><a href="#COMPILE">Компиляция</a>
   <ul>
     <li><a href="#MSVC">Как скомпилировать 3proxy Visual C++</a>
-    <li><a href="#INTL">Как скомпилировать 3proxy Intel C Compiler под Windows</a>
-    <li><a href="#GCCWIN">Как скомпилировать 3proxy GCC под Windows</a>
+    <li><a href="#CMAKE">Как скомпилировать 3proxy с помощью CMake</a>
     <li><a href="#GCCUNIX">Как скомпилировать 3proxy GCC под Unix/Linux</a>
-    <li><a href="#CCCUNIX">Как скомпилировать 3proxy Compaq C Compiler под Unix/Linux</a>
   </ul>
   <li><a href="#INSTALL">Установка и удаление 3proxy</a>
   <ul>
-    <li><a href="#INSTNT">Как установить/удалить 3proxy под Windows 95/98/ME/NT/2000/XP как службу</a>
-    <li><a href="#INST95">Как установить/удалить 3proxy под Windows 95/98/ME</a>
+    <li><a href="#INSTNT">Как установить/удалить 3proxy под Windows NT/2000/XP/2003 как службу</a>
     <li><a href="#INSTUNIX">Как установить/удалить 3proxy под Unix/Linux</a>
+    <li><a href="#INSTDOCKER">Как использовать 3proxy с Docker</a>
   </ul>
   <li><a href="#SERVER">Конфигурация сервера</a>
   <ul>
@@ -73,63 +71,69 @@
     <li><a name="MSVC"><i>Как скомпилировать 3proxy Visual C++</i></a>
     <p>
     Извлеките файлы из архива 3proxy.tgz (например, с помощью WinZip).
-    Используйте команду nmake /f Makefile.msvc.
+    Для 64-битной Windows используйте:
+    <pre>
+    nmake /f Makefile.msvc64</pre>
+    Для Windows ARM64 используйте:
+    <pre>
+    nmake /f Makefile.msvcARM64</pre>
+    Исполняемые файлы будут помещены в каталог <code>bin/</code>.
     </p>
-    <li><a name="INTL"><i>Как скомпилировать 3proxy Intel C Compiler под Windows</i></a>
+    <li><a name="CMAKE"><i>Как скомпилировать 3proxy с помощью CMake</i></a>
     <p>
-    См. <a href="#MSVC">Как скомпилировать 3proxy Visual C++</a>. 
-    Используйте Makefile.intl вместо Makefile.msvc
-    </p>
-    <li><a name="GCCWIN"><i>Как скомпилировать 3proxy GCC под Windows</i></a></li>
-    <p>
-    Извлеките файлы из архива 3proxy.tgz (например, с помощью WinZip или, при наличии
-    Cygwin, tar -xzf 3proxy.tgz).
-    Используйте команду make -f Makefile.win. Если по каким-то причинам вы хотите использовать
-    библиотеку POSIX-эмуляции CygWin - используйте make -f Makefile.unix.
-    При использовании CygWin, функции, специфичные для Windows (такие, как запуск в
-    качестве службы) будут недоступны.
+    CMake предоставляет кроссплатформенную систему сборки. Работает на Windows (MSVC, MinGW), Linux, macOS и BSD.
+    <br>Базовые шаги сборки:
+    <pre>
+    mkdir build
+    cd build
+    cmake ..
+    cmake --build .</pre>
+    На Windows с Visual Studio можно также сгенерировать файл решения:
+    <pre>
+    cmake -G "Visual Studio 17 2022" -A x64 ..
+    cmake --build . --config Release</pre>
+    Опциональные функции можно включить через параметры cmake:
+    <pre>
+    cmake -D3PROXY_USE_OPENSSL=ON -D3PROXY_USE_PCRE2=ON ..</pre>
+    Доступные опции: 3PROXY_USE_OPENSSL, 3PROXY_USE_PCRE2, 3PROXY_USE_PAM, 3PROXY_USE_ODBC.
+    <br>Исполняемые файлы будут помещены в каталог <code>build/bin/</code>.
     </p>
     <li><a name="GCCUNIX"><i>Как скомпилировать 3proxy GCC под Unix/Linux</i></a></li>
     <p>
-    Используйте make -f Makefile.unix. Должен использоваться GNU make, на
-    некоторых системах необходимо использовать gmake вместо make. Под Linux
-    необходимо использовать Makefile.Linux, под Solaris - Makefile.Solaris-* (в
-    зависимости от используемого компилятора). Компиляция проверена в FreeBSD/i386,
-    OpenBSD/i386, NetBSD/i386, RH Linux/Alpha, Debian/i386, Gentoo/i386, Gentoo/PPC,
-    Solaris 10, но должно собираться в любых версиях *BSD/Linux/Solaris.
-    В других системах может потребоваться модификация make-файла и/или исходных текстов.
-    Для компиляции с поддержкой ODBC необходимо убрать -DNOODBC из флагов
-    компиляции и добавить -lodbc (или другую ODBC-библиотеку) к флагам линковщика.
-    </p>
-	<li><a name="CCCUNIX"><i>Как скомпилировать 3proxy Compaq C Compiler под Unix/Linux</i></a></li>
-	<p>
-	Используйте make -f Makefile.ccc. Компиляция проверена в RH Linux 7.1/Alpha.
-    В других системах может потребоваться модификация файла и/или исходных текстов.
+    Для Linux используйте:
+    <pre>
+    ln -sf Makefile.Linux Makefile
+    make</pre>
+    Для FreeBSD используйте:
+    <pre>
+    ln -sf Makefile.FreeBSD Makefile
+    make</pre>
+    Для других Unix-подобных систем используйте Makefile.unix. На BSD-производных системах
+    убедитесь, что используете GNU make; иногда он называется gmake вместо make.
+    <br>Компиляция проверена на FreeBSD, NetBSD, OpenBSD, Linux, Solaris и macOS.
+    <br>Для поддержки ODBC необходимо установить Unix ODBC, убрать -DNOODBC из флагов
+    компиляции и добавить ODBC-библиотеку к флагам линковщика.
+    <br>Исполняемые файлы будут помещены в каталог <code>bin/</code>.
     </p>
   </ul>
 <hr>
 <li><a name="INSTALL"><b>Установка и удаление 3proxy</b></a>
 <p>
 <ul>
-  <li><a name="INSTNT"><i>Как установить/удалить 3proxy под Windows 95/98/ME/NT/2000/XP/2003 как службу</i></a>
+  <li><a name="INSTNT"><i>Как установить/удалить 3proxy под Windows NT/2000/XP/2003 как службу</i></a>
   <p>
-  Извлеките файлы из архива 3proxy.zip в любой каталог 
+  Извлеките файлы из архива 3proxy.zip в любой каталог
   (например, c:\Program Files\3proxy). Если необходимо, создайте каталог для
   хранения файлов журналов. Создайте файл конфигурации 3proxy.cfg в
   каталоге 3proxy (см. раздел <a href="#SERVER">Конфигурация сервера</a>).
-  Если используется версия более ранняя, чем 0.6, добавьте строку
-  <pre>
-  service</pre>
-  в файл 3proxy.cfg. Откройте командную строку (cmd.exe).
+  Откройте командную строку (cmd.exe).
   Перейдите в каталог с 3proxy и дайте команду 3proxy.exe --install:
   <pre>
   D:\>C:
   C:\>cd C:\Program Files\3proxy
   C:\Program Files\3proxy>3proxy.exe --install</pre>
   Сервис должен быть установлен и запущен. Если сервис не запускается,
-  проверьте содержимое файла журнала,
-  попробуйте удалить строку service из 3proxy.cfg, запустить 3proxy.exe вручную
-  и проанализировать сообщения об ошибках.
+  попробуйте запустить 3proxy.exe вручную и проанализировать сообщения об ошибках.
   </p><p>
   Для удаления 3proxy необходимо остановить сервис и дать
   команду 3proxy.exe --remove:
@@ -139,43 +143,68 @@
   C:\Program Files\3proxy>net stop 3proxy
   C:\Program Files\3proxy>3proxy.exe --remove</pre>
   после чего каталог 3proxy можно удалить.
-  <p>
-  Установка в качестве системной службы под Windows 9x поддерживается с версии 0.5
-  </p>
-  <li><a name="INST95"><i>Как установить/удалить 3proxy под Windows 95/98/ME</i></a>
-  <p>
-  Извлеките файлы из архива 3proxy.zip в любой каталог 
-  (например, c:\Program Files\3proxy). Если необходимо, создайте каталог для
-  хранения файлов журналов. Создайте файл конфигурации 3proxy.cfg в
-  каталоге 3proxy (См. раздел <a href="#SERVER">Конфигурация сервера</a>).
-  В файле конфигурации удалите строку
-  <pre>
-  service</pre>
-  и добавьте строку
-  <pre>
-  daemon</pre>
-  Создайте ярлык для 3proxy.exe и поместите его в автозагрузку либо с помощью
-  редактора реестра regedit.exe добавьте в разделе
-  <br>HKLM\Software\Microsoft\Windows\CurrentVersion\Run</br>
-  строковый параметр 
-  <br>3proxy = "c:\Program Files\3proxy.exe" "C:\Program Files\3proxy.cfg"<br>
-  Использование кавычек при наличии в пути пробела обязательно.
-  Перезагрузитесь.
-  Если сервер не запускается,
-  проверьте содержимое файла журнала,
-  попробуйте удалить строку daemon из 3proxy.cfg, запустить 3proxy.exe вручную
-  и проанализировать сообщения об ошибках.
   </p>
   <li><a name="INSTUNIX"><i>Как установить/удалить 3proxy под Unix/Linux</i></a>
   <p>
-  Скомпилируйте 3proxy (см. раздел <a href="#COMPILE">Компиляция</a>). Скопируйте
-  исполняемые файлы в подходящий каталог (например, /usr/local/3proxy/sbin для
-  серверных приложений или /usr/local/3proxy/bin для клиентских утилит).
-  Создайте файл /usr/local/etc/3proxy.cfg. 
-  (См. раздел <a href="#SERVER">Конфигурация сервера</a>).
-  Изменить расположение файла конфигурации можно, задав параметр при вызове
-  3proxy или изменив путь в файле 3proxy.c до компиляции.
-  Добавьте вызов 3proxy в скрипты начальной инициализации.
+  <b>С помощью Makefile:</b>
+  <br>Скомпилируйте 3proxy (см. раздел <a href="#COMPILE">Компиляция</a>), затем выполните:
+  <pre>
+  sudo make install</pre>
+  Это установит исполняемые файлы в <code>/usr/local/3proxy/sbin/</code>,
+  конфигурацию в <code>/etc/3proxy/</code> и настроит chroot-каталоги.
+  Файл конфигурации по умолчанию: <code>/etc/3proxy/3proxy.cfg</code>.
+  </p>
+  <p>
+  <b>С помощью CMake:</b>
+  <pre>
+  mkdir build && cd build
+  cmake ..
+  cmake --build .
+  sudo cmake --install .</pre>
+  </p>
+  <p>
+  <b>С помощью готовых пакетов из GitHub:</b>
+  <br>Скачайте .deb или .rpm пакеты со страницы <a href="https://github.com/3proxy/3proxy/releases">GitHub Releases</a>.
+  <br>Для Debian/Ubuntu:
+  <pre>
+  sudo dpkg -i 3proxy_*.deb</pre>
+  Для RHEL/CentOS/Fedora:
+  <pre>
+  sudo rpm -i 3proxy-*.rpm</pre>
+  </p>
+  <p>
+  Добавьте 3proxy в скрипты автозапуска или используйте systemd:
+  <pre>
+  sudo systemctl enable 3proxy
+  sudo systemctl start 3proxy</pre>
+  </p>
+  <li><a name="INSTDOCKER"><i>Как использовать 3proxy с Docker</i></a>
+  <p>
+  <b>Использование готовых образов из GitHub Container Registry:</b>
+  <pre>
+  docker pull ghcr.io/3proxy/3proxy:latest</pre>
+  </p>
+  <p>
+  <b>Сборка Docker-образов:</b>
+  <br>Предоставляются два Dockerfile:
+  <ul>
+  <li><code>Dockerfile.minimal</code> - минимальная статическая сборка без плагинов, конфигурация из stdin:
+  <pre>
+  docker build -f Dockerfile.minimal -t 3proxy.minimal .
+  docker run -i -p 3129:3129 --name 3proxy 3proxy.minimal</pre>
+  Затем введите конфигурацию, завершив командой "end".
+  </li>
+  <li><code>Dockerfile.full</code> - полная сборка с плагинами (SSL, PCRE, Transparent):
+  <pre>
+  docker build -f Dockerfile.full -t 3proxy.full .
+  docker run -p 3129:3129 -v /path/to/config:/usr/local/3proxy/conf 3proxy.full</pre>
+  Файл конфигурации должен находиться по пути <code>/path/to/config/3proxy.cfg</code>.
+  </li>
+  </ul>
+  </p>
+  <p>
+  По умолчанию 3proxy работает в chroot-окружении с uid/gid 65535. Используйте <code>nserver</code> в конфигурации для DNS-разрешения в chroot.
+  Для запуска без chroot монтируйте конфигурацию в <code>/etc/3proxy</code>.
   </p>
 </ul>
 <hr>
