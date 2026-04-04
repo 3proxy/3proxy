@@ -19,7 +19,7 @@ outgoing and reverse TCP connections and UDP portmapping.
 Inetd mode. Standalone service only.
 .TP
 .B -d
-Daemonise. Detach service from console and run in the background.
+Daemonize. Detach service from console and run in the background.
 .TP
 .B -t
 Be silenT. Do not log start/stop/accept error records.
@@ -28,19 +28,19 @@ Be silenT. Do not log start/stop/accept error records.
 Never ask for username authentication
 .TP
 .B -e
-External address. IP address of interface proxy should initiate connections
+External address. IP address of the interface the proxy should initiate connections
 from. External IP must be specified if you need incoming connections.
-By default system will deside which address to use in accordance
-with routing table.
+By default, the system will decide which address to use in accordance
+with the routing table.
 .TP
 .B -N
-External NAT address 3proxy reports to client for BIND and UDPASSOC
-By default external address is reported. It's only useful in the case
-of IP-IP NAT (will not work for PAT)
+External NAT address 3proxy reports to client for BIND and UDPASSOC.
+By default, the external address is reported. It's only useful in the case
+of IP-IP NAT (will not work for PAT).
 .TP
 .B -i
-Internal address. IP address proxy accepts connections to.
-By default connection to any interface is accepted. It\'s usually unsafe.
+Internal address. IP address the proxy accepts connections to.
+By default, connections to any interface are accepted. It\'s usually unsafe.
 .TP
 .B -p
 Port. Port proxy listens for incoming connections. Default is 1080.
@@ -58,7 +58,7 @@ syslog is used for logging.
 Increase or decrease stack size. You may want to try something like -S8192 if you experience 3proxy
 crashes.
 .SH CLIENTS
-You should use client with SOCKS support or use some socksification support
+You should use a client with SOCKS support or use some socksification support
 (for example
 .I SocksCAP
 or
@@ -67,9 +67,9 @@ Configure client to use
 .I internal_ip
 and
 .IR port .
-SOCKS allows to use almost any application protocol without limitation. This
-implementation also allows to open priviledged port on server (if socks has
-sufficient privileges). If you need to control access use
+SOCKS allows you to use almost any application protocol without limitation. This
+implementation also allows you to open privileged ports on the server (if socks has
+sufficient privileges). If you need to control access, use
 .BR 3proxy (8)
 instead.
 .SH BUGS
