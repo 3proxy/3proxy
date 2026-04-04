@@ -55,6 +55,9 @@ Recursion is not allowed.
 .B pop3p
 [options]
 .br
+.B smtpp
+[options]
+.br
 .B ftppr
 [options]
 .br
@@ -256,13 +259,17 @@ alternate config file. Think twice before using it.
 .br
  LOGTYPE is one of:
 .br
-  M Monthly
+  c Minutely
 .br
-  W Weekly (starting from Sunday)
+  H Hourly
 .br
   D Daily
 .br
-  H Hourly
+  W Weekly (starting from Sunday)
+.br
+  M Monthly
+.br
+  Y Annually
 .br
  if logfile is not specified logging goes to stdout. You can specify individual logging options for gateway by using -l
 option in gateway configuration.
@@ -370,6 +377,14 @@ It may be useful to prevent information about long-lasting downloads on server
 shutdown.
 
 .br
+.B delimchar
+<char>
+.br
+ Sets the delimiter character used to separate username from hostname in proxy
+authentication strings (e.g. for FTP, POP3 proxies). Default is \'@\'. For example,
+to use \'#\' instead: delimchar #. This allows usernames to contain the \'@\' character.
+
+.br
 .B archiver
 <ext> <commandline>
 .br
@@ -402,6 +417,14 @@ can use %A as produced archive name and %F as filename.
  default timeouts 1 5 30 60 180 1800 15 60 15 5
 
 .br
+.B maxseg
+<value>
+.br
+ Sets TCP maximum segment size (MSS) for outgoing connections. This can be used
+to work around path MTU discovery issues or to optimize traffic for specific
+network conditions.
+
+.br
 .B radius 
 <NAS_SECRET> <radius_server_1[:port][/local_address_1]> <radius_server_2[:port][/local_address_2]>
 .br
@@ -428,11 +451,18 @@ Use authcache to speedup authentication. RADIUS feature is currently experimenta
 .B nserver
 <ipaddr>[:port][/tcp]
 .br
- Nameserver to use for name resolutions. If none specified 
+ Nameserver to use for name resolutions. If none specified
 system routines for name resolution is
 used. Optional port number may be specified.
 If optional /tcp is added to IP address, name resolution is
 performed over TCP.
+
+.br
+.B authnserver
+<ipaddr>[:port][/tcp]
+.br
+ Nameserver to use for DNS-based authentication (e.g. dnsname auth type).
+If not specified, nserver is used. The syntax is the same as for nserver.
 
 .br
 .B nscache
@@ -599,10 +629,14 @@ Use auth type \'cache\' for cached authentication
 <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
 <weekdayslist> <timeperiodslist>
 .br
+.B redirect
+<ip> <port> <userlist> <sourcelist> <targetlist> <targetportlist> <operationlist>
+<weekdayslist> <timeperiodslist>
+.br
  Access control entries. All lists are comma-separated, no spaces are
 allowed. Usernames are case sensitive (if used with authtype nbname
 username must be in uppercase). Source and target lists may contain
-IP addresses (W.X.Y.Z), ranges A.B.C.D - W.X.Y.Z (since 0.8) or CIDRs (W.X.Y.Z/L). 
+IP addresses (W.X.Y.Z), ranges A.B.C.D - W.X.Y.Z (since 0.8) or CIDRs (W.X.Y.Z/L).
 Since 0.6, the targetlist may also contain host names,
 instead of addresses. It\'s possible to use a wildmask in
 the beginning and at the end of the hostname, e.g. *badsite.com or *badcontent*.
@@ -791,6 +825,12 @@ local HTTP proxy parses requests and allows only GET and POST requests.
  Optional username and password are used to authenticate on parent
 proxy. Username of \'*\' means username must be supplied by user.
 
+.br
+.B parentretries
+<number>
+.br
+ Number of retries to connect to parent proxy. Default is 1.
+
 
 .br
 .B nolog
@@ -971,6 +1011,8 @@ username[:pwtype:password] ...
  CR - password is crypt-style password
 .br
  NT - password is NT password (in hex)
+.br
+ LM - password is LM password (in hex)
 .br
  example:
 .br
