@@ -79,7 +79,7 @@ jobs:
        nmake /F Makefile.msvc64 clean
     - name: make with CMake POSIX
       if: ${{ ! startsWith(matrix.target, 'windows') }}
-      run: mkdir build && cd build && cmake .. && make
+      run: mkdir build && cd build && cmake .. && cmake --build .
     - name: make with CMake Win
       if: ${{ startsWith(matrix.target, 'windows') }}
       shell: cmd
@@ -90,4 +90,4 @@ jobs:
        set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
        cmake ..
        dir
-       "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe" 3proxy.sln
+       cmake --build .
