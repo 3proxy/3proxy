@@ -72,8 +72,8 @@ INSTALL_OBJS	= bin/3proxy \
 		  
 
 INSTALL_CFG	 = scripts/3proxy.cfg.chroot
-INSTALL_CFG_OBJS = scripts/3proxy.cfg \
-		   scripts/add3proxyuser.sh
+INSTALL_CFG_INCHROOT = scripts/3proxy.cfg.inchroot
+INSTALL_CFG_OBJS = scripts/add3proxyuser.sh
 
 INSTALL_CFG_OBJS2 = counters bandlimiters
 
@@ -117,6 +117,7 @@ install-etc-default-config: install-chroot-dir
 	   ln -s $(CHROOTREL)/conf $(INSTALL_CFG_DEST); \
 	   $(INSTALL_BIN) $(INSTALL_CFG) $(ETCDIR)/3proxy.cfg; \
 	   $(INSTALL_BIN) $(INSTALL_CFG_OBJS) $(INSTALL_CFG_DEST); \
+	   $(INSTALL_BIN) $(INSTALL_CFG_INCHROOT) $(INSTALL_CFG_DEST)/3proxy.cfg; \
 	fi
 
 install-etc: install-etc-dir install-etc-default-config
