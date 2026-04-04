@@ -5,15 +5,14 @@
 	<li><A HREF="#COMPILE">Compilation</A>
 	<ul>
 		<li><A HREF="#MSVC">How to compile 3proxy with Visual C++</A>
-		<li><A HREF="#INTL">How to compile 3proxy with Intel C Compiler under Windows</A>
-		<li><A HREF="#GCCWIN">How to compile 3proxy with GCC under Windows</A>
+		<li><A HREF="#CMAKE">How to compile 3proxy with CMake</A>
 		<li><A HREF="#GCCUNIX">How to compile 3proxy with GCC under Unix/Linux</A>
 	</ul>
 	<li><A HREF="#INSTALL">Proxy server installation and removal</A>
 	<ul>
 		<li><A HREF="#INSTNT">How to install/remove 3proxy under Windows NT/2000/XP</A>
-		<li><A HREF="#INST95">How to install/remove 3proxy under Windows 95/98/ME</A>
 		<li><A HREF="#INSTUNIX">How to install/remove 3proxy under Unix/Linux</A>
+		<li><A HREF="#INSTDOCKER">How to use 3proxy with Docker</A>
 	</ul>
 	<li><A HREF="#SERVER">Server configuration</A>
 	<ul>
@@ -66,35 +65,56 @@
 		<li><A NAME="MSVC">How to compile 3proxy with Visual C++</A>
 <p>
 Extract source code files from 3proxy.tgz (with WinZip or another utility).
-Use nmake /f Makefile.msvc command
+For 64-bit Windows use:
+<pre>
+nmake /f Makefile.msvc64
+</pre>
+For ARM64 Windows use:
+<pre>
+nmake /f Makefile.msvcARM64
+</pre>
+Binaries will be placed in the <code>bin/</code> directory.
 </p>
-		<li><A NAME="INTL">How to compile 3proxy with Intel C Compiler under Windows</A>
+		<li><A NAME="CMAKE">How to compile 3proxy with CMake</A>
 <p>
-See <A HREF="#MSVC">How to compile 3proxy with Visual C++</A>
-Use Makefile.intl instead of Makefile.msvc
-</p>
-		<li><A NAME="GCCWIN">How to compile 3proxy with GCC under Windows</A></li>
-<p>
-Extract source files from 3proxy.tgz (for example with tar -xzf 3proxy.tgz command if you have tar installed)
-Use make -f Makefile.win command. 
-If you want to use POSIX emulation Cygwin library (normally you shouldn't) - use make -f Makefile.unix instead.
-Windows specific things (like installing as service) will not be available if compiled with Cygwin emulation.
+CMake provides a cross-platform build system. It works on Windows (MSVC, MinGW), Linux, macOS, and BSD.
+<br>Basic build steps:
+<pre>
+mkdir build
+cd build
+cmake ..
+cmake --build .
+</pre>
+On Windows with Visual Studio, you can also generate a solution file:
+<pre>
+cmake -G "Visual Studio 17 2022" -A x64 ..
+cmake --build . --config Release
+</pre>
+Optional features can be controlled with cmake options:
+<pre>
+cmake -D3PROXY_USE_OPENSSL=ON -D3PROXY_USE_PCRE2=ON ..
+</pre>
+Available options: 3PROXY_USE_OPENSSL, 3PROXY_USE_PCRE2, 3PROXY_USE_PAM, 3PROXY_USE_ODBC.
+<br>Binaries will be placed in the <code>build/bin/</code> directory.
 </p>
 		<li><A NAME="GCCUNIX">How to compile 3proxy with GCC under Unix/Linux</A></li>
 <p>
-Use
+For Linux, use:
 <pre>
-make -f Makefile.Linux
+ln -sf Makefile.Linux Makefile
+make
 </pre>
-for Linux or Cygwin, Makefile.Solaris* (depending on compiler version) for Solaris
-and Makefile.unix for different Unix-like OSes. On BSD-derived systems, make
+For FreeBSD, use:
+<pre>
+ln -sf Makefile.FreeBSD Makefile
+make
+</pre>
+For other Unix-like systems, use Makefile.unix. On BSD-derived systems, make
 sure to use GNU make; sometimes it's called gmake instead of make.
-<br>Compilation is tested under FreeBSD/i386, NetBSD/i386, OpenBSD/i386,
-RH Linux/Alpha, Debian/i386, Gentoo/i386, Gentoo/PPC, Solaris/x86, but you
-shouldn't have problems under different Solaris, BSD, or Linux-compatible systems.
-For different systems, you may be required to patch the Makefile or even the source code.
-If you want to use ODBC support, make sure to install ODBC for Unix, remove the -DNOODBC
-option from the makefile compiler options, and add the ODBC library to the linker variable.
+<br>Compilation is tested under FreeBSD, NetBSD, OpenBSD, Linux, Solaris, and macOS.
+<br>For ODBC support, install Unix ODBC libraries, remove -DNOODBC from the makefile,
+and add the ODBC library to the linker variable.
+<br>Binaries will be placed in the <code>bin/</code> directory.
 </p>
 	</ul>
 <hr>
@@ -106,11 +126,7 @@ option from the makefile compiler options, and add the ODBC library to the linke
 Unpack 3proxy.zip to any directory, for example
 c:\Program Files\3proxy. If needed, create a directory for storing log files,
 ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (see <A HREF="#SERVER">Server configuration</A>).
-If you use 3proxy before version 0.6, add the
-<pre>
-service
-</pre>
-string into 3proxy.cfg. Now, start a command prompt (cmd.exe).
+Now, start a command prompt (cmd.exe).
 Change to the 3proxy installation directory and run 3proxy.exe --install:
 <pre>
 D:\>C:
@@ -118,8 +134,7 @@ C:\>cd C:\Program Files\3proxy
 C:\Program Files\3proxy>3proxy.exe --install
 </pre>
 Now, you should have the 3proxy service installed and running. If the service is not
-started, remove the "service" string from 3proxy.cfg, run 3proxy.exe manually
-and correct all errors.
+started, run 3proxy.exe manually and correct all errors.
 </p><p>
 To remove 3proxy, run 3proxy --remove:
 <pre>
@@ -130,39 +145,74 @@ C:\Program Files\3proxy>3proxy.exe --remove
 </pre>
 Now you can simply remove the 3proxy installation directory.
 </p>
-		<li><A NAME="INST95">How to install/remove 3proxy under Windows 95/98/ME</A>
-<p>
-Unpack 3proxy.zip to any directory, for example
-c:\Program Files\3proxy. If needed, create a directory for storing log files,
-ODBC sources, etc. Create 3proxy.cfg in the 3proxy installation directory (see <A HREF="#SERVER">Server configuration</A>).
-Remove the string
-<pre>
-service
-</pre>
-from 3proxy.cfg and add
-<pre>
-daemon
-</pre>
-if you want 3proxy to run in the background.
-Create a shortcut for 3proxy.exe and place it in the autostart folder or add
-it to the registry with regedit.exe:
-<br>HKLM\Software\Microsoft\Windows\CurrentVersion\Run</br>
-Type: String
-<br>3proxy = "c:\Program Files\3proxy.exe" "C:\Program Files\3proxy.cfg"<br>
-You must use quotes if the path contains spaces. If necessary, restart Windows.
-If the service is not started, check the log. Remove the "daemon" command from 3proxy.cfg,
-start 3proxy.exe manually and correct all errors.
-</p>
 		<li><A NAME="INSTUNIX">How to install/remove 3proxy under Unix/Linux</A>
 <p>
-Compile 3proxy (see <A HREF="#COMPILE">Compilation</A>). Copy
-executables to any appropriate location (for example, /usr/local/3proxy/sbin
-for servers and /usr/local/3proxy/bin for utilities).
-Create /usr/local/etc/3proxy.cfg.
-(see <A HREF="#SERVER">Server configuration</A>).
-You can change the default configuration file location by specifying the configuration file
-in the 3proxy command line.
-Add 3proxy to the system startup scripts.
+<b>Using Makefile:</b>
+<br>Compile 3proxy (see <A HREF="#COMPILE">Compilation</A>) then run:
+<pre>
+sudo make install
+</pre>
+This installs binaries to <code>/usr/local/3proxy/sbin/</code>, configuration to <code>/etc/3proxy/</code>,
+and sets up chroot directories. Default configuration file is <code>/etc/3proxy/3proxy.cfg</code>.
+</p>
+<p>
+<b>Using CMake:</b>
+<pre>
+mkdir build && cd build
+cmake ..
+cmake --build .
+sudo cmake --install .
+</pre>
+</p>
+<p>
+<b>Using pre-built packages from GitHub:</b>
+<br>Download .deb or .rpm packages from <a href="https://github.com/3proxy/3proxy/releases">GitHub Releases</a>.
+<br>For Debian/Ubuntu:
+<pre>
+sudo dpkg -i 3proxy_*.deb
+</pre>
+For RHEL/CentOS/Fedora:
+<pre>
+sudo rpm -i 3proxy-*.rpm
+</pre>
+</p>
+<p>
+Add 3proxy to the system startup scripts or use systemd:
+<pre>
+sudo systemctl enable 3proxy
+sudo systemctl start 3proxy
+</pre>
+</p>
+		<li><A NAME="INSTDOCKER">How to use 3proxy with Docker</A>
+<p>
+<b>Using pre-built images from GitHub Container Registry:</b>
+<pre>
+docker pull ghcr.io/3proxy/3proxy:latest
+</pre>
+</p>
+<p>
+<b>Building Docker images:</b>
+<br>Two Dockerfiles are provided:
+<ul>
+<li><code>Dockerfile.minimal</code> - minimal static build, no plugins, configuration from stdin:
+<pre>
+docker build -f Dockerfile.minimal -t 3proxy.minimal .
+docker run -i -p 3129:3129 --name 3proxy 3proxy.minimal
+</pre>
+Then enter configuration followed by "end" command.
+</li>
+<li><code>Dockerfile.full</code> - full build with plugins (SSL, PCRE, Transparent):
+<pre>
+docker build -f Dockerfile.full -t 3proxy.full .
+docker run -p 3129:3129 -v /path/to/config:/usr/local/3proxy/conf 3proxy.full
+</pre>
+The configuration file must be placed at <code>/path/to/config/3proxy.cfg</code>.
+</li>
+</ul>
+</p>
+<p>
+By default, 3proxy runs in chroot environment with uid/gid 65535. Use <code>nserver</code> in config for DNS resolution in chroot.
+For non-chroot execution, mount config to <code>/etc/3proxy</code>.
 </p>
 	</ul>
 <hr>
