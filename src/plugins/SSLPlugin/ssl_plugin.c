@@ -249,7 +249,6 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 {
     int err = 0;
     ssl_conn *conn;
-    unsigned long ul;
 
     *errSSL = NULL;
 
@@ -322,8 +321,6 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
     int err = 0;
     X509 *cert;
     ssl_conn *conn;
-    unsigned long ul;
-    
 
     *errSSL = NULL;
 
@@ -391,7 +388,6 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
  SSL_CONN ServerConn;
  char *errSSL=NULL;
- unsigned long ul;
 
  ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF, cert, &errSSL);
  if ( ServerConn == NULL) {
@@ -1068,9 +1064,7 @@ struct vermap{
 };
 
 int string_to_version(unsigned char *ver){
-    struct vermap *v;
     int i;
-    int res;
     for (i=0; versions[i].sver; i++){
 	if(!strcasecmp(versions[i].sver, (char *)ver)) return versions[i].iver;
     }
