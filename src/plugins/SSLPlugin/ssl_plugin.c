@@ -33,7 +33,6 @@ static struct pluginlink * pl;
 static struct alpn client_alpn_protos;
 
 static int ssl_loaded = 0;
-static int ssl_connect_timeout = 0;
 static char *certcache = NULL;
 static char *srvcert = NULL;
 static char *srvkey = NULL;
@@ -64,8 +63,8 @@ static char * client_sni = NULL;
 static int client_mode = 0;
 
 typedef struct _ssl_conn {
-	struct SSL_CTX *ctx;
-	struct SSL *ssl;
+	SSL_CTX *ctx;
+	SSL *ssl;
 } ssl_conn;
 
 
@@ -246,6 +245,147 @@ static int ssl_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
 	return ret;
 }
 
+SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, SSL_CERT *server_cert, char **errSSL)
+{
+    int err = 0;
+    ssl_conn *conn;
+    unsigned long ul;
+
+    *errSSL = NULL;
+
+    conn = (ssl_conn *)malloc(sizeof(ssl_conn));
+    if ( conn == NULL ){
+	return NULL;
+    }
+    conn->ctx = NULL;
+    conn->ssl = SSL_new(config->srv_ctx);
+    if ( conn->ssl == NULL ) {
+	free(conn);
+	return NULL;
+    }
+    if(hostname && *hostname && config->client_verify){
+        X509_VERIFY_PARAM *param;
+        
+        param = SSL_get0_param(conn->ssl);
+        X509_VERIFY_PARAM_set1_host(param, hostname, strlen(hostname));
+    }
+
+    if(!SSL_set_fd(conn->ssl, s)){
+	ssl_conn_free(conn);
+	*errSSL = getSSLErr();
+	return NULL;
+    }
+    if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
+
+
+    do {
+	struct pollfd fds[1] = {{}};
+	int sslerr;
+
+	err = SSL_connect(conn->ssl);
+	if (err != -1) break;
+	sslerr  = SSL_get_error(conn->ssl, err);
+	if(sslerr == SSL_ERROR_WANT_READ){
+	    fds[0].fd = s;
+	    fds[0].events = POLLIN;
+	}
+	else if(sslerr == SSL_ERROR_WANT_WRITE){
+	    fds[0].fd = s;
+	    fds[0].events = POLLOUT;
+	}
+	else break;
+	if(sso._poll(sso.state, fds, 1, pl->conf->timeouts[CONNECT_TO]*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+    } while (err == -1);
+
+    if ( err != 1 ) {
+	*errSSL = getSSLErr();
+	ssl_conn_free(conn);
+	return NULL;
+    }
+
+    if(server_cert){
+        X509 *cert;
+        cert = SSL_get_peer_certificate(conn->ssl);     
+        if(!cert) {
+	ssl_conn_free(conn);
+	return NULL;
+        }
+
+        *server_cert = cert;
+    }
+
+    return conn;
+}
+
+
+SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_key, char** errSSL){
+    int err = 0;
+    X509 *cert;
+    ssl_conn *conn;
+    unsigned long ul;
+    
+
+    *errSSL = NULL;
+
+    conn = (ssl_conn *)malloc(sizeof(ssl_conn));
+    if ( conn == NULL )
+	return NULL;
+
+    conn->ctx = NULL;
+    conn->ssl = NULL;
+    if(!config->cli_ctx){
+        conn->ctx = ssl_cli_ctx(config, server_cert, server_key, errSSL);
+        if(!conn->ctx){
+	ssl_conn_free(conn);
+	return NULL;
+        }
+    }
+
+    conn->ssl = SSL_new(config->cli_ctx?config->cli_ctx : conn->ctx);
+    if ( conn->ssl == NULL ) {
+	*errSSL = getSSLErr();
+	if(conn->ctx)SSL_CTX_free(conn->ctx);
+	free(conn);
+	return NULL;
+    }
+
+    SSL_set_fd(conn->ssl, s);
+
+    do {
+	struct pollfd fds[1] = {{}};
+	int sslerr;
+
+	err = SSL_accept(conn->ssl);
+	if (err != -1) break;
+	sslerr  = SSL_get_error(conn->ssl, err);
+	if(sslerr == SSL_ERROR_WANT_READ){
+	    fds[0].fd = s;
+	    fds[0].events = POLLIN;
+	}
+	else if(sslerr == SSL_ERROR_WANT_WRITE){
+	    fds[0].fd = s;
+	    fds[0].events = POLLOUT;
+	}
+	else break;
+	if(sso._poll(sso.state, fds, 1, pl->conf->timeouts[CONNECT_TO]*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+    } while (err == -1);
+
+
+    if ( err != 1 ) {
+	*errSSL = getSSLErr();
+	ssl_conn_free(conn);
+	return NULL;
+    }
+
+    cert = SSL_get_peer_certificate(conn->ssl);     
+
+    if ( cert != NULL )
+	X509_free(cert);
+
+    return conn;
+}
+
+
 #define PCONF (((struct SSLstate *)param->sostate)->config)
 
 SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
@@ -253,12 +393,6 @@ SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
  char *errSSL=NULL;
  unsigned long ul;
 
- if(ssl_connect_timeout){
-	ul = ((unsigned long)ssl_connect_timeout)*1000;
-	setsockopt(param->remsock, SOL_SOCKET, SO_RCVTIMEO, (char *)&ul, 4);
-	ul = ((unsigned long)ssl_connect_timeout)*1000;
-	setsockopt(param->remsock, SOL_SOCKET, SO_SNDTIMEO, (char *)&ul, 4);
- }
  ServerConn = ssl_handshake_to_server(param->remsock, (char *)param->hostname, PCONF, cert, &errSSL);
  if ( ServerConn == NULL) {
 	if(ServerConn) ssl_conn_free(ServerConn);
@@ -1046,8 +1180,6 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 	h_nocli(0, NULL);
 
 	pl = pluginlink;
-
-	ssl_connect_timeout = 0;
 
 	free(certcache);
 	certcache = NULL;

@@ -153,7 +153,7 @@ void * ftpprchild(struct clientparam* param) {
 
 			if(sscanf((char *)buf+5, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) {RETURN(828);}
 			*SAPORT(&param->sincr) = htons((unsigned short)((b5<<8)^b6));
-			if(connectwithpoll(param, clidatasock, (struct sockaddr *)&param->sincr, SASIZE(&param->sincr),CONNECT_TO)) {
+			if(connectwithpoll(param, clidatasock, (struct sockaddr *)&param->sincr, SASIZE(&param->sincr),conf.timeouts[CONNECT_TO])) {
 				param->srv->so._closesocket(param->sostate, clidatasock);
 				clidatasock = INVALID_SOCKET;
 				RETURN(826);
