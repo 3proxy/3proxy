@@ -509,53 +509,80 @@ if(NOT WIN32)
     install(FILES scripts/add3proxyuser.sh DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-# Install service files (systemd or init.d)
+# Install service files (systemd, init.d, or rc.d)
 if(NOT WIN32)
-    # Check for systemd
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(SYSTEMD QUIET systemd)
-    endif()
+    if(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|Darwin|OpenBSD|NetBSD")
+        # BSD/macOS - install rc.d script
+        set(RCD_DIR "/usr/local/etc/rc.d")
 
-    if(SYSTEMD_FOUND)
-        # systemd is available - install systemd service
-        # Get systemd unit directory
-        pkg_get_variable(SYSTEMD_UNIT_DIR systemd systemdsystemunitdir)
-        if(NOT SYSTEMD_UNIT_DIR)
-            # Fallback to common location
-            set(SYSTEMD_UNIT_DIR "/lib/systemd/system")
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/rc.d/3proxy.in
+            ${CMAKE_CURRENT_BINARY_DIR}/3proxy.rc
+            @ONLY
+        )
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.rc
+            DESTINATION ${RCD_DIR}
+            RENAME 3proxy
+            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        )
+
+        message(STATUS "  rc.d: YES (${RCD_DIR})")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Linux - check for systemd
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(SYSTEMD QUIET systemd)
         endif()
 
-        # Configure and install systemd service file
-        configure_file(
-            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/3proxy.service.in
-            ${CMAKE_CURRENT_BINARY_DIR}/3proxy.service
-            @ONLY
-        )
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.service
-            DESTINATION ${SYSTEMD_UNIT_DIR}
-        )
+        if(SYSTEMD_FOUND)
+            # systemd is available - install systemd service
+            # Get systemd unit directory
+            pkg_get_variable(SYSTEMD_UNIT_DIR systemd systemdsystemunitdir)
+            if(NOT SYSTEMD_UNIT_DIR)
+                # Fallback to common location
+                set(SYSTEMD_UNIT_DIR "/lib/systemd/system")
+            endif()
 
-        # Install tmpfiles.d configuration for runtime directory
-        configure_file(
-            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/3proxy.tmpfiles.in
-            ${CMAKE_CURRENT_BINARY_DIR}/3proxy.conf
-            @ONLY
-        )
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.conf
-            DESTINATION /usr/lib/tmpfiles.d
-        )
+            # Configure and install systemd service file
+            configure_file(
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/3proxy.service.in
+                ${CMAKE_CURRENT_BINARY_DIR}/3proxy.service
+                @ONLY
+            )
+            install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.service
+                DESTINATION ${SYSTEMD_UNIT_DIR}
+            )
 
-        message(STATUS "  systemd: YES (${SYSTEMD_UNIT_DIR})")
+            # Install tmpfiles.d configuration for runtime directory
+            configure_file(
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/3proxy.tmpfiles.in
+                ${CMAKE_CURRENT_BINARY_DIR}/3proxy.conf
+                @ONLY
+            )
+            install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.conf
+                DESTINATION /usr/lib/tmpfiles.d
+            )
+
+            message(STATUS "  systemd: YES (${SYSTEMD_UNIT_DIR})")
+        else()
+            # No systemd - install init.d script
+            install(FILES scripts/init.d/3proxy.sh
+                DESTINATION /etc/init.d
+                RENAME 3proxy
+                PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+            )
+
+            message(STATUS "  systemd: NO (using init.d)")
+        endif()
     else()
-        # No systemd - install init.d script
+        # Other Unix - install init.d script
         install(FILES scripts/init.d/3proxy.sh
             DESTINATION /etc/init.d
             RENAME 3proxy
             PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
         )
 
-        message(STATUS "  systemd: NO (using init.d)")
+        message(STATUS "  init.d: YES (/etc/init.d)")
     endif()
 endif()
 
