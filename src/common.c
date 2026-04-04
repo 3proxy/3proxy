@@ -608,7 +608,7 @@ int doconnect(struct clientparam * param){
 	}
 	
 	if(param->operation >= 256 || (param->operation & CONNECT)){
-		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),CONNECT_TO)) {
+		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),conf.timeouts[CONNECT_TO])) {
 			return 13;
 		}
 	}
