@@ -1,41 +1,58 @@
 <h3>3proxy SSL/TLS плагин</h3>
 
-Плагин можно использовать для перехвата и дешифровки SSL/TLS трафика и для шифрования трафика прокси-сервера
+Плагин можно использовать для перехвата и дешифровки SSL/TLS трафика, для шифрования трафика прокси-сервера и аутентификации с помощью клиентских сертификатов.
 
-<h4>Для транспаретной перехватки трафика (mitm):</h4>
+<h4>Для прозрачного перехвата трафика (MITM):</h4>
 
-<br>ssl_mitm - подменять сертификаты для сервисов стартованных ниже. Не безопасно использовать без ssl_client_verify.
-<br>ssl_nomitm - не подменять сертификаты для сервисов стартованных ниже.
+<br>ssl_mitm - подменять сертификаты для сервисов, запущенных ниже. Использование без ssl_client_verify небезопасно.
+<br>ssl_nomitm - не подменять сертификаты для сервисов, запущенных ниже.
 
+<h4>Для защиты трафика прокси-сервера (https:// proxy):</h4>
 
-<h4>Для защиты трафика прокси-сервера (например https:// proxy) - начиная с 0.9.5</h4>
-ssl_serv - включает TLS для соединений к сервисам ниже
-<br>ssl_noserv - отключает TLS для соединений к сервисам ниже
+ssl_serv (или ssl_server) - требовать TLS-соединение от клиентов для сервисов, запущенных ниже
+<br>ssl_noserv (или ssl_noserver) - не требовать TLS-соединение от клиентов для сервисов, запущенных ниже
 
-Параметры:
-<br>ssl_server_cert /path/to/cert - сертификат сервера, не должен быть самоподписаным, имя CN должно содержаться в альтернативных именах - используется для ssl_serv
-<br>ssl_server_key /path/to/key - ключ сертификата сервера для ssl_server_cert или сгенерированного сертификата ssl_mitm
-<br>ssl_client_ciphersuites ciphersuites_list - наборы шифрова TLS для TLS 1.3, пример ssl_client_ciphersuites TLS_AES_128_GCM_SHA256
-<br>ssl_server_ciphersuites ciphersuites_list - наборы шифрова TLS для TLS 1.3
-<br>ssl_client_cipher_list ciphersuites_list - наборы шифрова TLS для TLS 1.2 и ниже, пример ssl_client_cipher_list ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305
-<br>ssl_server_cipher_list ciphersuites_list - наборы шифрова TLS для TLS 1.2 и ниже
-<br>ssl_client_min_proto_version tls_version - минимальная версия TLS клиента (например ssl_client_min_proto_version TLSv1.2)
-<br>ssl_server_min_proto_version tls_version - минимальная версия TLS сервера
-<br>ssl_client_max_proto_version tls_version - максимальная версия TLS клиента
-<br>ssl_server_max_proto_version tls_version - максимальная версия TLS сервера
-<br>ssl_client_verify - проверять сертификат сервера назначения (используется с ssl_mitm)
-<br>ssl_client_no_verify - не проверять сертификат сервера назначения
-<br>ssl_server_ca_file /path/to/cafile - CA сертификат для ssl_mitm
-<br>ssl_server_ca_key /path/to/cakey - ключ CA сертификата  ssl_server_ca_file mitm
-<br>ssl_client_ca_file, ssl_client_ca_dir, ssl_client_ca_store - расположения корневых сертификатов ssl_client_verify
-<br>ssl_certcache /path/to/cache/ - расположение кеша сгенерированных сертификатов ssl_mitm. Кеш может содержать
-файлы 3proxy.pem, 3proxy.key server.key, которые используются как ssl_server_ca_file,
-ssl_server_ca_key и ssl_server_key соответственно если они не заданы. Если server.key не задан,
+<h4>Для использования TLS при соединении к вышестоящему серверу:</h4>
+
+ssl_cli (или ssl_client) - устанавливать TLS-соединение к вышестоящему серверу для сервисов, запущенных ниже
+<br>ssl_nocli (или ssl_noclient) - не устанавливать TLS-соединение к вышестоящему серверу для сервисов, запущенных ниже
+
+<h4>Параметры:</h4>
+
+<br><b>ssl_server_cert</b> /path/to/cert - сертификат сервера (не должен быть самоподписанным, должен содержать альтернативные имена) для ssl_serv
+<br><b>ssl_server_key</b> /path/to/key - ключ сертификата сервера для ssl_server_cert или сгенерированного MITM-сертификата
+<br><b>ssl_client_cert</b> /path/to/cert - клиентский сертификат для аутентификации на вышестоящем сервере (используется с ssl_cli)
+<br><b>ssl_client_key</b> /path/to/key - ключ клиентского сертификата для ssl_client_cert
+<br><b>ssl_client_ciphersuites</b> ciphersuites_list - наборы шифров TLS для TLS 1.3 (клиент), пример: ssl_client_ciphersuites TLS_AES_128_GCM_SHA256
+<br><b>ssl_server_ciphersuites</b> ciphersuites_list - наборы шифров TLS для TLS 1.3 (сервер)
+<br><b>ssl_client_cipher_list</b> ciphers_list - наборы шифров TLS для TLS 1.2 и ниже (клиент), пример: ssl_client_cipher_list ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305
+<br><b>ssl_server_cipher_list</b> ciphers_list - наборы шифров TLS для TLS 1.2 и ниже (сервер)
+<br><b>ssl_client_min_proto_version</b> tls_version - минимальная версия TLS клиента (например, ssl_client_min_proto_version TLSv1.2)
+<br><b>ssl_server_min_proto_version</b> tls_version - минимальная версия TLS сервера
+<br><b>ssl_client_max_proto_version</b> tls_version - максимальная версия TLS клиента
+<br><b>ssl_server_max_proto_version</b> tls_version - максимальная версия TLS сервера
+<br><b>ssl_client_verify</b> - проверять сертификат вышестоящего сервера (используется с ssl_mitm или ssl_cli)
+<br><b>ssl_client_no_verify</b> - не проверять сертификат вышестоящего сервера (по умолчанию)
+<br><b>ssl_server_verify</b> - требовать клиентский сертификат (mTLS) для ssl_serv
+<br><b>ssl_server_no_verify</b> - не требовать клиентский сертификат (по умолчанию)
+<br><b>ssl_server_ca_file</b> /path/to/cafile - файл CA-сертификата для MITM
+<br><b>ssl_server_ca_key</b> /path/to/cakey - ключ CA-сертификата ssl_server_ca_file для MITM
+<br><b>ssl_server_ca_dir</b> /path/to/cadir - директория CA-сертификатов для ssl_server_verify
+<br><b>ssl_server_ca_store</b> /path/to/castore - хранилище CA-сертификатов для ssl_server_verify (OpenSSL 3.0+)
+<br><b>ssl_client_ca_file</b> /path/to/cafile - файл CA-сертификатов для ssl_client_verify
+<br><b>ssl_client_ca_dir</b> /path/to/cadir - директория CA-сертификатов для ssl_client_verify
+<br><b>ssl_client_ca_store</b> /path/to/castore - хранилище CA-сертификатов для ssl_client_verify (OpenSSL 3.0+)
+<br><b>ssl_client_sni</b> hostname - SNI-имя хоста для отправки вышестоящему серверу (переопределяет запрошенное имя хоста)
+<br><b>ssl_client_alpn</b> протокол1 протокол2 ... - ALPN-протоколы для согласования с вышестоящим сервером (например, ssl_client_alpn h2 http/1.1)
+<br><b>ssl_client_mode</b> режим - когда устанавливать TLS-соединение: 0 - при подключении (по умолчанию), 1 - после аутентификации, 2 - перед передачей данных
+<br><b>ssl_certcache</b> /path/to/cache/ - расположение кеша сгенерированных MITM-сертификатов. Кеш может содержать
+файлы 3proxy.pem, 3proxy.key, server.key, которые используются как ssl_server_ca_file,
+ssl_server_ca_key и ssl_server_key соответственно, если они не заданы. Если server.key не задан,
 3proxy.key используется для генерации серверного сертификата.
 
-<h4>Пример mitm:</h4>
+<h4>Пример MITM:</h4>
 <pre>
-plugin /path/to/SslPlugin.dll ssl_plugin
+plugin /path/to/SSLPlugin.so ssl_plugin
 ssl_server_ca_file /path/to/cafile
 ssl_server_ca_key /path/to/cakey
 ssl_mitm
@@ -43,9 +60,9 @@ proxy -p3128
 ssl_nomitm
 proxy -p3129
 </pre>
-Перехватывается трафик в прокси на порту 3128
+Перехватывается трафик в прокси на порту 3128.
 
-<h4>Пример конфигурации https:// прокси (curl -x https://...):</h4>
+<h4>Пример конфигурации https:// прокси:</h4>
 <pre>
 plugin /path/to/SSLPlugin.so ssl_plugin
 ssl_server_cert path_to_cert
@@ -55,7 +72,30 @@ proxy -p33128
 ssl_noserv
 proxy -p3128
 </pre>
-На порту 33128 создается https:// прокси (не путать с CONNECT прокси aka HTTPS over HTTP прокси), на порту 3128
-создается http:// прокси (может пропуска в т.ч. и HTTPS коннекты)
+На порту 33128 создается https:// прокси, на порту 3128 - http:// прокси.
+
+<h4>Пример TLS-клиента (соединение к вышестоящему серверу через TLS):</h4>
+<pre>
+plugin /path/to/SSLPlugin.so ssl_plugin
+ssl_client_cert /path/to/client.crt
+ssl_client_key /path/to/client.key
+ssl_client_verify
+ssl_client_ca_file /path/to/ca.crt
+ssl_cli
+proxy -p3128
+</pre>
+Создается HTTP-прокси, который соединяется с вышестоящими серверами через TLS с аутентификацией по клиентскому сертификату.
+
+<h4>Пример mTLS (требование клиентского сертификата):</h4>
+<pre>
+plugin /path/to/SSLPlugin.so ssl_plugin
+ssl_server_cert /path/to/server.crt
+ssl_server_key /path/to/server.key
+ssl_server_ca_file /path/to/ca.crt
+ssl_server_verify
+ssl_serv
+proxy -p3128
+</pre>
+Создается https:// прокси, требующий аутентификацию по клиентскому сертификату.
 
 &copy; Vladimir Dubrovin, License: BSD style
