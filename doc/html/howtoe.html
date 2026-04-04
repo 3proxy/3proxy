@@ -536,22 +536,43 @@ proxy -p8080 -i192.168.2.1
     to extract hostnames from TLS to use in ACLs in combination with SOCKS or HTTP(s) proxy and/or the Transparent plugin. It can also be used to require TLS or mTLS between services. The TLS handshake contains no
     port information; if tlspr is used as a standalone service, the destination port may be either detected with the Transparent plugin or configured with the -P option (default 443).
   </p><p>
-    The -c option is used to specify the level of TLS check:
+    <b>Options:</b>
 </p><pre>
-0 (default) - allow non-TLS traffic
-1 - require TLS, only check client HELLO packet
-2 - require TLS, check both client and server HELLO
-3 - require TLS, check that the server sends a certificate (not compatible with TLS 1.3)
-4 - require mutual TLS, check that the server sends a certificate request and the client sends a certificate (not compatible with TLS 1.3)
+-P &lt;port&gt;  - destination port (default: 443)
+-c &lt;level&gt; - TLS check level:
+  0 (default) - allow non-TLS traffic
+  1 - require TLS, only check client HELLO packet
+  2 - require TLS, check both client and server HELLO
+  3 - require TLS, check that the server sends a certificate (not compatible with TLS 1.3)
+  4 - require mutual TLS, check that the server sends a certificate request and the client sends a certificate (not compatible with TLS 1.3)
 </pre>
 <p>
-Configuration examples:
-1. Port 1443 may be used to redirect traffic to destination port 143. SNI is used to find the destination host.
-<pre>
+<b>SNI Break (DPI Bypass):</b>
+<br>tlspr can be used as a parent with the "tls" type to implement SNI splitting for DPI bypass (similar to NoDPI/GoodByeDPI).
+The client sends the first part of the TLS ClientHello, tlspr splits it at the SNI extension and sends it in two TCP packets,
+which can bypass some DPI systems that look for blocked hostnames in TLS handshakes.
+<br>To enable SNI break, use <code>parent ... tls 0.0.0.0 0</code> and the <code>-s</code> option on the listening service with TCP_NODELAY:
+</p><pre>
+auth iponly
+allow *
+parent 1000 tls 0.0.0.0 0
+allow *
+proxy -s -i127.0.0.1 -ocTCP_NODELAY -osTCP_NODELAY -p1443
+</pre>
+<p>
+TCP_NODELAY is required to prevent the kernel from merging the split packets.
+</p>
+<p>
+<b>Configuration examples:</b>
+</p>
+<p>
+1. Standalone SNI proxy on port 1443 redirecting to destination port 443:
+</p><pre>
 tlspr -p1443 -P443 -c1
 </pre>
-2. Used as a parent TLS proxy to detect the destination hostname from TLS in socks:
-<pre>
+<p>
+2. Using tlspr as parent in SOCKS to detect destination hostname from TLS (even when client connects by IP):
+</p><pre>
 allow * * * 80
 parent 1000 http 0.0.0.0 0
 allow * * * * CONNECT
@@ -559,6 +580,17 @@ parent 1000 tls 0.0.0.0 0
 deny * * some.not.allowed.host
 allow *
 socks
+</pre>
+<p>
+3. Using tlspr with HTTP proxy for TLS hostname-based ACL:
+</p><pre>
+allow * * * 80
+parent 1000 http 0.0.0.0 0
+allow * * * 443
+parent 1000 tls 0.0.0.0 0
+deny * * blocked.example.com
+allow *
+proxy
 </pre>
   </p>
 		<li><A NAME="AUTH">How to limit service access</A>
