@@ -1,0 +1,25 @@
+nscache 65536
+nserver 8.8.8.8
+nserver 8.8.4.4
+
+config /conf/3proxy.cfg
+monitor /conf/3proxy.cfg
+
+log /logs/3proxy-%y%m%d.log D
+rotate 60
+counter /count/3proxy.3cf
+
+users $/conf/passwd
+
+include /conf/counters
+include /conf/bandlimiters
+
+auth strong
+deny * * 127.0.0.1
+allow *
+proxy -n
+socks
+flush
+allow admin
+
+admin -p8080
