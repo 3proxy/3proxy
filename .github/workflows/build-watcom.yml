@@ -33,6 +33,13 @@ jobs:
       shell: cmd
       run: |
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
+       nmake /F Makefile.watcom
+    - name: Get artifact
+      uses: actions/upload-artifact@v4
+      with:
+       name: "3proxy-${{ env.RELEASE }}-lite.zip"
+       path: dist/
+       run: |
        mkdir dist
        mkdir dist\3proxy
        mkdir dist\3proxy\bin
@@ -61,9 +68,3 @@ jobs:
        copy doc\html\man3\*.* dist\3proxy\doc\html\man3\
        copy doc\devel\*.rtf dist\3proxy\doc\devel\
        copy copying authors README rus.3ps dist\3proxy\
-       nmake /F Makefile.watcom
-    - name: Get artifact
-      uses: actions/upload-artifact@v4
-      with:
-       name: "3proxy-${{ env.RELEASE }}-x64.zip"
-       path: dist/
