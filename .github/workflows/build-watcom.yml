@@ -34,23 +34,35 @@ jobs:
       run: |
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
        nmake /F Makefile.watcom
+       mkdir release
+       mkdir release\3proxy\
+       mkdir release\3proxy\bin
+       mkdir release\3proxy\cfg
+       mkdir release\3proxy\cfg\sql
+       mkdir release\3proxy\doc
+       mkdir release\3proxy\doc\ru
+       mkdir release\3proxy\doc\html
+       mkdir release\3proxy\doc\html\plugins
+       mkdir release\3proxy\doc\html\man3
+       mkdir release\3proxy\doc\html\man8
+       mkdir release\3proxy\doc\devel
+       copy /Y c:\vcpkg\installed\x64-windows\bin\pcre2-8.dll release\3proxy\bin
+       copy /Y c:\vcpkg\installed\x64-windows\bin\*crypto*.dll release\3proxy\bin
+       copy /Y c:\vcpkg\installed\x64-windows\bin\*ssl*.dll release\3proxy\bin
+       copy bin\3proxy.exe release\3proxy\bin\
+       copy bin\*.dll release\3proxy\bin\
+       copy bin\mycrypt.exe  release\3proxy\bin\
+       copy cfg\*.* release\3proxy\cfg\
+       copy cfg\sql\*.*  release\3proxy\cfg\sql\
+       copy doc\ru\*.*  release\3proxy\doc\ru\
+       copy doc\html\*.* release\3proxy\doc\html\
+       copy doc\html\plugins\*.* release\3proxy\doc\html\plugins\
+       copy doc\html\man8\*.* release\3proxy\doc\html\man8\
+       copy doc\html\man3\*.* release\3proxy\doc\html\man3\
+       copy doc\devel\*.rtf release\3proxy\doc\devel\
+       copy copying authors README rus.3ps release\3proxy\
     - name: Get artifact
       uses: actions/upload-artifact@v4
       with:
-       name: "3proxy-${{ env.RELEASE }}-light.zip"
-       path: |
-        ../3proxy/bin64/3proxy.exe
-        ../3proxy/bin64/*.dll
-        ../3proxy/bin64/mycrypt.exe
-        ../3proxy/cfg/*.*
-        ../3proxy/cfg/sql/*.*
-        ../3proxy/doc/ru/*.*
-        ../3proxy/doc/html/*.*
-        ../3proxy/doc/html/plugins/*.*
-        ../3proxy/doc/html/man8/*.*
-        ../3proxy/doc/html/man3/*.*
-        ../3proxy/doc/devel/*.rtf
-        ../3proxy/copying
-        ../3proxy/authors
-        ../3proxy/README
-        ../3proxy/rus.3ps
+       name: "3proxy-${{ env.RELEASE }}-x64.zip"
+       path: release/
