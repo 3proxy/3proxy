@@ -48,5 +48,24 @@ jobs:
        set "LIB=%LIB%;c:/vcpkg/installed/x86-windows/lib"
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x86-windows/include"
        nmake /F Makefile.msvc
-       zip 3proxy-%RELEASE%.zip bin/3proxy.exe bin/*.dll bin/mycrypt.exe %COMMONFILES%
-       nmake /F Makefile.msvc clean
+       cp c:/vcpkg/installed/x86-windows/*.dll bin/
+    - name: Get artifact
+      uses: actions/upload-artifact@v4
+      with:
+       name: "3proxy-${{ env.RELEASE }}.zip"
+       path: |
+        bin/3proxy.exe
+        bin/*.dll
+        bin/mycrypt.exe
+        cfg/*.*
+        cfg/sql/*.*
+        doc/ru/*.*
+        doc/html/*.*
+        doc/html/plugins/*.*
+        doc/html/man8/*.*
+        doc/html/man3/*.*
+        doc/devel/*.rtf
+        copying
+        authors
+        README
+        rus.3ps
