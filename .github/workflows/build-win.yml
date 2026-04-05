@@ -24,7 +24,8 @@ jobs:
        echo BUILDDATE=BUILDDATE=\"$NOW\" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo RELEASE=$RELEASE>>$env:GITHUB_ENV | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo VERSION=VERSION=\"3proxy-$RELEASE\" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-       echo ${{ vars.BUILDDATE }} ${{ vars.RELEASE }} ${{ vars.VERSION }}
+    - name: echo variables
+      run: echo \"${{ vars.BUILDDATE }}\" \"${{ vars.RELEASE }}\" \"${{ vars.VERSION }}\"
     - name: install packages
       run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-openssl
 #    - name: make Windows
