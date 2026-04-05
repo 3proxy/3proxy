@@ -62,7 +62,7 @@ jobs:
        copy doc\devel\*.rtf dist\3proxy\doc\devel\
        copy copying dist\3proxy\
        copy authors dist\3proxy\
-       copy READMEdist\3proxy\
+       copy README dist\3proxy\
        copy rus.3ps dist\3proxy\
     - name: Get artifact
       uses: actions/upload-artifact@v4

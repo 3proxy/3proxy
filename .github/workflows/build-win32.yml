@@ -42,35 +42,41 @@ jobs:
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x86-windows/include"
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
        nmake /F Makefile.msvc
-       mkdir release
-       mkdir release\3proxy\
-       mkdir release\3proxy\bin
-       mkdir release\3proxy\cfg
-       mkdir release\3proxy\cfg\sql
-       mkdir release\3proxy\doc
-       mkdir release\3proxy\doc\ru
-       mkdir release\3proxy\doc\html
-       mkdir release\3proxy\doc\html\plugins
-       mkdir release\3proxy\doc\html\man3
-       mkdir release\3proxy\doc\html\man8
-       mkdir release\3proxy\doc\devel
-       copy /Y c:\vcpkg\installed\x64-windows\bin\pcre2-8.dll release\3proxy\bin
-       copy /Y c:\vcpkg\installed\x64-windows\bin\*crypto*.dll release\3proxy\bin
-       copy /Y c:\vcpkg\installed\x64-windows\bin\*ssl*.dll release\3proxy\bin
-       copy bin\3proxy.exe release\3proxy\bin\
-       copy bin\*.dll release\3proxy\bin\
-       copy bin\mycrypt.exe  release\3proxy\bin\
-       copy cfg\*.* release\3proxy\cfg\
-       copy cfg\sql\*.*  release\3proxy\cfg\sql\
-       copy doc\ru\*.*  release\3proxy\doc\ru\
-       copy doc\html\*.* release\3proxy\doc\html\
-       copy doc\html\plugins\*.* release\3proxy\doc\html\plugins\
-       copy doc\html\man8\*.* release\3proxy\doc\html\man8\
-       copy doc\html\man3\*.* release\3proxy\doc\html\man3\
-       copy doc\devel\*.rtf release\3proxy\doc\devel\
-       copy copying authors README rus.3ps release\3proxy\
+    - name: make dist dir
+      shell: cmd
+      run: |
+       mkdir dist
+       mkdir dist\3proxy
+       mkdir dist\3proxy\bin
+       mkdir dist\3proxy\cfg
+       mkdir dist\3proxy\cfg\sql
+       mkdir dist\3proxy\doc
+       mkdir dist\3proxy\doc\ru
+       mkdir dist\3proxy\doc\html
+       mkdir dist\3proxy\doc\html\plugins
+       mkdir dist\3proxy\doc\html\man3
+       mkdir dist\3proxy\doc\html\man8
+       mkdir dist\3proxy\doc\devel
+       copy bin\3proxy.exe dist\3proxy\bin\
+       copy bin\*.dll dist\3proxy\bin\
+       copy bin\mycrypt.exe  dist\3proxy\bin\
+       copy cfg\*.* dist\3proxy\cfg\
+       copy cfg\sql\*.*  dist\3proxy\cfg\sql\
+       copy doc\ru\*.*  dist\3proxy\doc\ru\
+       copy doc\html\*.* dist\3proxy\doc\html\
+       copy doc\html\plugins\*.* dist\3proxy\doc\html\plugins\
+       copy doc\html\man8\*.* dist\3proxy\doc\html\man8\
+       copy doc\html\man3\*.* dist\3proxy\doc\html\man3\
+       copy doc\devel\*.rtf dist\3proxy\doc\devel\
+       copy copying dist\3proxy\
+       copy authors dist\3proxy\
+       copy README dist\3proxy\
+       copy rus.3ps dist\3proxy\
+       copy /Y c:\vcpkg\installed\x86-windows\bin\pcre2-8.dll dist\3proxy\bin
+       copy /Y c:\vcpkg\installed\x86-windows\bin\*crypto*.dll dist\3proxy\bin
+       copy /Y c:\vcpkg\installed\x86-windows\bin\*ssl*.dll dist\3proxy\bin
     - name: Get artifact
       uses: actions/upload-artifact@v4
       with:
-       name: "3proxy-${{ env.RELEASE }}-x64.zip"
-       path: release/
+       name: "3proxy-${{ env.RELEASE }}.zip"
+       path: dist/
