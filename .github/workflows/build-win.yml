@@ -17,6 +17,14 @@ jobs:
     - uses: actions/checkout@v4
 #    - name: configure
 #      run: ./configure
+    - name: set date
+      run: |
+       $NOW = Get-Date -Format "yyMMddHHmmss"
+       $RELEASE = Get-Content -Path "RELEASE"
+       echo BUILDDATE=BUILDDATE=\"$NOW\">>$env:GITHUB_ENV
+       echo RELEASE=$RELEASE>>$env:GITHUB_ENV
+       echo VERSION=VERSION=\"3proxy-$RELEASE\">>$env:GITHUB_ENV
+       echo ${{ vars.BUILDDATE }} ${{ vars.RELEASE }} ${{ vars.VERSION }}
     - name: install packages
       run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-openssl
 #    - name: make Windows
