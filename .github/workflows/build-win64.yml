@@ -49,9 +49,9 @@ jobs:
        echo 2
     - name: Get artifact
       uses: actions/upload-artifact@v4
-       with: |
+       with:
         name: 3proxy-{{ env.RELEASE }}-x64.zip
-        path:
+        path: |
          bin64/3proxy.exe
          bin64/*.dll
          bin64/mycrypt.exe
