@@ -34,13 +34,13 @@ Devel branch - 3proxy 10 (don't use it)
 * To build in Linux
 
 With Makefile:
-<pre>
+
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
 ln -s Makefile.Linux Makefile
 make
 sudo make install
-</pre>
+
 
 Default configuration (for Linux/Unix):
 3proxy uses 2 configuration files:
@@ -61,44 +61,44 @@ or modify /etc/3proxy/conf/ files directly.
 
 
 With CMake:
-<pre>
+
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
 mkdir build && cd build
 cmake ..
 cmake --build .
 sudo cmake --install .
-</pre>
+
 
 CMake does not use chroot configuration, config file is /etc/3proxy/3proxy.cfg
 
 * For MacOS X / FreeBSD / *BSD
 
 With Makefile:
-<pre>
+
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
 ln -s Makefile.FreeBSD Makefile
 make
-</pre>
+
 
 (binaries are in bin/ directory)
 
 With CMake (recommended):
-<pre>
+
 git clone https://github.com/z3apa3a/3proxy
 cd 3proxy
 mkdir build && cd build
 cmake ..
 cmake --build .
 sudo cmake --install .
-</pre>
+
 
 This installs binaries to /usr/local/bin/, configuration to /etc/3proxy/,
 plugins to /usr/local/lib/3proxy/, rc scripts to rc.d for BSD and launchd plist to /Library/LaunchDaemons/ for MacOS.
 
 Service management on macOS:
-<pre>
+
 # Load and start service
 sudo launchctl load /Library/LaunchDaemons/org.3proxy.3proxy.plist
 
@@ -110,7 +110,7 @@ sudo launchctl start org.3proxy.3proxy
 
 # Unload and disable service
 sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
-</pre>
+
 
  Features:
   1. General
