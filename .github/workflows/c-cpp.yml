@@ -2,10 +2,10 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "test-ci" ]
     paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp.yml' ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "test-ci" ]
     paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp.yml' ]
 
 jobs:
