@@ -49,7 +49,6 @@ jobs:
        mkdir dist\3proxy\doc\html\man3
        mkdir dist\3proxy\doc\html\man8
        mkdir dist\3proxy\doc\devel
-       dir
        copy bin\3proxy.exe dist\3proxy\bin\
        copy bin\*.dll dist\3proxy\bin\
        copy bin\mycrypt.exe  dist\3proxy\bin\
@@ -61,7 +60,10 @@ jobs:
        copy doc\html\man8\*.* dist\3proxy\doc\html\man8\
        copy doc\html\man3\*.* dist\3proxy\doc\html\man3\
        copy doc\devel\*.rtf dist\3proxy\doc\devel\
-       copy copying authors README rus.3ps dist\3proxy\
+       copy copying dist\3proxy\
+       copy authors dist\3proxy\
+       copy READMEdist\3proxy\
+       copy rus.3ps dist\3proxy\
     - name: Get artifact
       uses: actions/upload-artifact@v4
       with:
