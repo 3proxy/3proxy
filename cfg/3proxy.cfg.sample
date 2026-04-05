@@ -137,14 +137,6 @@ dnspr
 # this is just an alternative form fo giving external and internal address
 # allows you to read this addresses from files
 
-auth strong
-# We want to protect internal interface
-deny * * 127.0.0.1,192.168.1.1
-# and llow HTTP and HTTPS traffic.
-allow * * * 80-88,8080-8088 HTTP
-allow * * * 443,8443 HTTPS
-proxy -n
-
 auth none
 # pop3p will be used without any authentication. It's bad choice
 # because it's possible to use pop3p to access any port
@@ -159,16 +151,6 @@ tcppm 25 mail.my.provider 25
 # association for period of time association will only be set for 1 packet.
 # It's very userfull for services like DNS but not for some massive services
 # like multimedia streams or online games.
-
-auth strong
-flush
-allow 3APA3A,test
-maxconn 20
-socks
-# for socks we will use password authentication and different access control -
-# we flush previously configured ACL list and create new one to allow users
-# test and 3APA3A to connect from any location
-
 
 auth strong
 flush
@@ -197,5 +179,23 @@ admin
 #setgid 65535
 #setuid 65535
 # now we needn't any root rights. We can chroot and setgid/setuid.
+
+
+auth strong
+flush
+# We want to protect internal interface
+deny * * 127.0.0.1,192.168.1.1
+# and llow HTTP and HTTPS traffic.
+allow * * * 80-88,8080-8088 HTTP
+allow * * * 443,8443 HTTPS
+proxy -n
+
+flush
+allow 3APA3A,test
+maxconn 20
+socks
+# for socks we will use password authentication and different access control -
+# we flush previously configured ACL list and create new one to allow users
+# test and 3APA3A to connect from any location
 
 
