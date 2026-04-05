@@ -28,7 +28,6 @@ jobs:
        echo "VERSION=VERSION=\"$RELEASE\"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "BUILDDATE=BUILDDATE=\"$NOW\"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: echo variables
-      env
       shell: cmd
       run: echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
     - name: install packages
