@@ -33,7 +33,7 @@ TYPECOMMAND = type
 COMPATLIBS =
 MAKEFILE = Makefile.watcom
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin
-VERFILE = $(VERFILE)
+VERFILE = 3proxy.res $(VERFILE)
 VERSION = $(VERSION)
 VERSIONDEP = 3proxy.res $(VERSIONDEP)
 BUILDDATE = $(BUILDDATE)
@@ -65,12 +65,6 @@ allplugins:
 	copy Makefile plugins\StringsPlugin
 	copy Makefile.var plugins\StringsPlugin
 	cd plugins\StringsPlugin
-	nmake
-	del *.obj *.idb
-	cd ../../
-	copy Makefile plugins\PCREPlugin
-	copy Makefile.var plugins\PCREPlugin
-	cd plugins\PCREPlugin
 	nmake
 	del *.obj *.idb
 	cd ../../

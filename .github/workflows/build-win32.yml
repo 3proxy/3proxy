@@ -50,18 +50,18 @@ jobs:
       with:
        name: "3proxy-${{ env.RELEASE }}.zip"
        path: |
-        bin/3proxy.exe
-        bin/*.dll
-        bin/mycrypt.exe
-        cfg/*.*
-        cfg/sql/*.*
-        doc/ru/*.*
-        doc/html/*.*
-        doc/html/plugins/*.*
-        doc/html/man8/*.*
-        doc/html/man3/*.*
-        doc/devel/*.rtf
-        copying
-        authors
-        README
-        rus.3ps
+        ../3proxy/bin64/3proxy.exe
+        ../3proxy/bin64/*.dll
+        ../3proxy/bin64/mycrypt.exe
+        ../3proxy/cfg/*.*
+        ../3proxy/cfg/sql/*.*
+        ../3proxy/doc/ru/*.*
+        ../3proxy/doc/html/*.*
+        ../3proxy/doc/html/plugins/*.*
+        ../3proxy/doc/html/man8/*.*
+        ../3proxy/doc/html/man3/*.*
+        ../3proxy/doc/devel/*.rtf
+        ../3proxy/copying
+        ../3proxy/authors
+        ../3proxy/README
+        ../3proxy/rus.3ps
