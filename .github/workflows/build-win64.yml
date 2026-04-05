@@ -28,7 +28,6 @@ jobs:
        echo "VERSION=VERSION=`"$RELEASE`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "BUILDDATE=BUILDDATE=`"$NOW`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "COMMONFILES=cfg/*.* cfg/sql/*.* doc/ru/*.* doc/html/*.* doc/html/plugins/*.* doc/html/man8/*.* doc/html/man3/*.* doc/devel/*.rtf copying authors README rus.3ps" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-       echo "COMMONFILES2=3proxy/rus.3ps 3proxy/cfg/*.* 3proxy/cfg/sql/*.* 3proxy/doc/ru/*.* 3proxy/doc/html/*.* 3proxy/doc/html/plugins/*.* 3proxy/doc/html/man8/*.* 3proxy/doc/html/man3/*.* 3proxy/copying 3proxy/authors 3proxy/README"  | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: echo variables
       shell: cmd
       run: echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
@@ -55,4 +54,5 @@ jobs:
        set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
        set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
        nmake /F Makefile.msvc64
+       zip 3proxy-%RELEASE%-x64.zip bin64/3proxy.exe bin64/*.dll bin64/mycrypt.exe %COMMONFILES%
        nmake /F Makefile.msvc64 clean

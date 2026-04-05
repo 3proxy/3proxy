@@ -28,7 +28,6 @@ jobs:
        echo "VERSION=VERSION=`"$RELEASE`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "BUILDDATE=BUILDDATE=`"$NOW`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "COMMONFILES=cfg/*.* cfg/sql/*.* doc/ru/*.* doc/html/*.* doc/html/plugins/*.* doc/html/man8/*.* doc/html/man3/*.* doc/devel/*.rtf copying authors README rus.3ps" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-       echo "COMMONFILES2=3proxy/rus.3ps 3proxy/cfg/*.* 3proxy/cfg/sql/*.* 3proxy/doc/ru/*.* 3proxy/doc/html/*.* 3proxy/doc/html/plugins/*.* 3proxy/doc/html/man8/*.* 3proxy/doc/html/man3/*.* 3proxy/copying 3proxy/authors 3proxy/README"  | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: install packages
       run: vcpkg install pcre2:x86-windows openssl:x86-windows
     - name: echo variables
@@ -37,14 +36,6 @@ jobs:
        echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
        dir "c:\program files\openssl\lib\VC"
        dir "c:\vcpkg\installed"
-#    - name: make Windows
-#      run: make -f Makefile.win
-#      env:
-#       LDFLAGS: '-L "c:/msys64/mingw64/lib"'
-#       CFLAGS: '-I "c:/msys64/mingw64/include"'
-#    - name: make clean Windows
-#      if: ${{ startsWith(matrix.target, 'windows') }}
-#      run: make -f Makefile.win clean
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v3
     - name: make Windows MSVC
@@ -54,7 +45,8 @@ jobs:
        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
        D:
        cd "D:/a/3proxy/3proxy"
-       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x86/MT;c:/vcpkg/installed/x86-windows/lib"
-       set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x86-windows/include"
+       set "LIB=%LIB%;c:/vcpkg/installed/x86-windows/lib"
+       set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x86-windows/include"
        nmake /F Makefile.msvc
+       zip 3proxy-%RELEASE%.zip bin/3proxy.exe bin/*.dll bin/mycrypt.exe %COMMONFILES%
        nmake /F Makefile.msvc clean
