@@ -33,10 +33,10 @@ jobs:
       shell: cmd
       run: |
        echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
-       dir "c:\program files\openssl\lib\VC\"
-       dir "c:\vcpkg\installed\"
+       dir "c:\program files\openssl\lib\VC"
+       dir "c:\vcpkg"
     - name: install packages
-      run: vcpkg install pcre2:x86-windows
+      run: vcpkg install pcre2:x86-windows openssl:x86-windows
 #    - name: make Windows
 #      run: make -f Makefile.win
 #      env:
