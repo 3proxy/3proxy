@@ -49,22 +49,21 @@ jobs:
        echo 2
     - name: Get artifact
       uses: actions/upload-artifact@v4
-       with:
-        name: 3proxy-{{ env.RELEASE }}-x64.zip
-        path: |
-         bin64/3proxy.exe
-         bin64/*.dll
-         bin64/mycrypt.exe
-         cfg/*.*
-         cfg/sql/*.*
-         doc/ru/*.*
-         doc/html/*.*
-         doc/html/plugins/*.*
-         doc/html/man8/*.*
-         doc/html/man3/*.*
-         doc/devel/*.rtf
-         copying
-         authors
-         README
-         rus.3ps
-
+      with:
+       name: 3proxy-{{ env.RELEASE }}-x64.zip
+       path: |
+        bin64/3proxy.exe
+        bin64/*.dll
+        bin64/mycrypt.exe
+        cfg/*.*
+        cfg/sql/*.*
+        doc/ru/*.*
+        doc/html/*.*
+        doc/html/plugins/*.*
+        doc/html/man8/*.*
+        doc/html/man3/*.*
+        doc/devel/*.rtf
+        copying
+        authors
+        README
+        rus.3ps
