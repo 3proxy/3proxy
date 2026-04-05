@@ -46,6 +46,25 @@ jobs:
        set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
        set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
        nmake /F Makefile.msvc64
-       c:\msys64\usr\bin\zip 3proxy-%RELEASE%-x64.zip bin64/3proxy.exe bin64/*.dll bin64/mycrypt.exe %COMMONFILES%
-       nmake /F Makefile.msvc64 clean
        echo 2
+    - name: Get artifact
+      uses: actions/upload-artifact@v4
+       with: |
+        name: 3proxy-{{ env.RELEASE }}-x64.zip
+        path:
+         bin64/3proxy.exe
+         bin64/*.dll
+         bin64/mycrypt.exe
+         cfg/*.*
+         cfg/sql/*.*
+         doc/ru/*.*
+         doc/html/*.*
+         doc/html/plugins/*.*
+         doc/html/man8/*.*
+         doc/html/man3/*.*
+         doc/devel/*.rtf
+         copying
+         authors
+         README
+         rus.3ps
+
