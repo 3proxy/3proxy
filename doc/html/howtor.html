@@ -33,6 +33,8 @@
     <li><a href="#NAMES">Как разрешать имена на родительском прокси?</a></li>
     <li><a href="#ISFTP">Как настроить FTP прокси?</a></li>
     <li><a href="#TLSPR">Как настроить SNI proxy (tlspr)</a></li>
+    <li><a href="#SSLPLUGIN">Как настроить TLS/SSL с помощью SSLPlugin (https прокси, mTLS)</a></li>
+    <li><a href="#CERTIFICATES">Как создать CA и сертификаты для SSLPlugin</a></li>
     <li><a href="#AUTH">Как ограничить доступ к службе</a>
     <li><a href="#USERS">Как создать список пользователей</a>
     <li><a href="#ACL">Как ограничить доступ пользователей к ресурсам</a>
@@ -646,6 +648,194 @@ allow *
 proxy
 </pre>
   </p>
+
+  <li><a name="SSLPLUGIN"><i>Как настроить TLS/SSL с помощью SSLPlugin (https прокси, mTLS)</i></a>
+<p>
+SSLPlugin обеспечивает поддержку TLS/SSL для 3proxy. Он может использоваться для:
+<ul>
+<li>Создания https:// прокси (TLS-шифрованное соединение между клиентом и прокси)</li>
+<li>Реализации MITM для инспекции TLS-трафика</li>
+<li>Соединения с вышестоящими серверами через TLS с аутентификацией по клиентскому сертификату</li>
+<li>Требования аутентификации по клиентскому сертификату (mTLS)</li>
+</ul>
+</p>
+<p>
+<b>Создание https:// прокси:</b>
+<br>Для создания https:// прокси требуется сертификат и ключ сервера. Сертификат не должен быть самоподписанным
+и должен содержать альтернативные имена (SAN) для имени хоста/IP прокси.
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_cert /etc/3proxy/certs/server.crt
+ssl_server_key /etc/3proxy/certs/server.key
+ssl_serv
+proxy -p3129
+ssl_noserv
+proxy -p3128
+</pre>
+<p>
+Создаётся https:// прокси на порту 3129 и http:// прокси на порту 3128.
+Настройте клиенты на использование https://proxy-host:3129/ в качестве URL прокси.
+</p>
+<p>
+<b>Аутентификация по клиентскому сертификату (mTLS):</b>
+<br>Чтобы требовать от клиентов аутентификацию по сертификату, используйте ssl_server_verify и укажите CA-сертификат:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_cert /etc/3proxy/certs/server.crt
+ssl_server_key /etc/3proxy/certs/server.key
+ssl_server_ca_file /etc/3proxy/certs/ca.crt
+ssl_server_verify
+ssl_serv
+proxy -p3129
+</pre>
+<p>
+Только клиенты с действительным сертификатом, подписанным CA, смогут подключиться.
+</p>
+<p>
+<b>MITM для инспекции TLS-трафика:</b>
+<br>Для перехвата и расшифровки TLS-трафика требуется CA-сертификат для генерации подделанных серверных сертификатов:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_ca_file /etc/3proxy/certs/ca.crt
+ssl_server_ca_key /etc/3proxy/certs/ca.key
+ssl_client_verify
+ssl_client_ca_file /etc/ssl/certs/ca-certificates.crt
+ssl_mitm
+proxy -p3128
+ssl_nomitm
+proxy -p3129
+</pre>
+<p>
+CA-сертификат должен быть доверенным для клиентов. ssl_client_verify обеспечивает проверку реальных серверных сертификатов.
+Без ssl_client_verify прокси уязвим для MITM-атак.
+</p>
+<p>
+<b>TLS-клиент (соединение с вышестоящим сервером через TLS):</b>
+<br>Для соединения с вышестоящими серверами через TLS с аутентификацией по клиентскому сертификату:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_client_cert /etc/3proxy/certs/client.crt
+ssl_client_key /etc/3proxy/certs/client.key
+ssl_client_verify
+ssl_client_ca_file /etc/ssl/certs/ca-certificates.crt
+ssl_cli
+proxy -p3128
+</pre>
+  <li><a name="CERTIFICATES"><i>Как создать CA и сертификаты для SSLPlugin</i></a>
+<p>
+<b>Создание удостоверяющего центра (CA):</b>
+<br>Для MITM или mTLS требуется CA. Сгенерируйте закрытый ключ CA и сертификат:
+</p><pre>
+# Генерация закрытого ключа CA
+openssl genrsa -out ca.key 4096
+
+# Генерация сертификата CA (действителен 10 лет)
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+    -subj "/C=RU/ST=Region/L=City/O=MyOrg/CN=My CA" \
+    -out ca.crt
+</pre>
+<p>
+Для MITM импортируйте ca.crt в браузеры/ОС клиентов как доверенный корневой CA.
+</p>
+<p>
+<b>Создание серверного сертификата для https:// прокси:</b>
+<br>Серверный сертификат должен иметь правильные альтернативные имена (SAN):
+</p><pre>
+# Генерация закрытого ключа сервера
+openssl genrsa -out server.key 2048
+
+# Создание запроса на подпись сертификата (CSR)
+openssl req -new -key server.key \
+    -subj "/C=RU/ST=Region/L=City/O=MyOrg/CN=proxy.example.com" \
+    -out server.csr
+
+# Создание файла расширений для SAN
+cat > server.ext << 'EOF'
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = proxy.example.com
+DNS.2 = proxy
+IP.1 = 192.168.1.100
+EOF
+
+# Подписание сертификата CA
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out server.crt -days 365 -sha256 \
+    -extfile server.ext
+</pre>
+<p>
+Для публичного https:// прокси используйте CA вроде Let's Encrypt вместо самоподписанного.
+</p>
+<p>
+<b>Создание клиентского сертификата для mTLS:</b>
+</p><pre>
+# Генерация закрытого ключа клиента
+openssl genrsa -out client1.key 2048
+
+# Создание CSR
+openssl req -new -key client1.key \
+    -subj "/C=RU/ST=Region/L=City/O=MyOrg/CN=client1" \
+    -out client1.csr
+
+# Создание файла расширений
+cat > client.ext << 'EOF'
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment
+extendedKeyUsage = clientAuth
+EOF
+
+# Подписание CA
+openssl x509 -req -in client1.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out client1.crt -days 365 -sha256 \
+    -extfile client.ext
+
+# Создание PKCS#12 для импорта в браузер
+openssl pkcs12 -export -out client1.p12 \
+    -inkey client1.key -in client1.crt -certfile ca.crt
+</pre>
+<p>
+Импортируйте client1.p12 в хранилище сертификатов браузера или ОС клиента.
+</p>
+<p>
+<b>Скрипт быстрой настройки для разработки/тестирования:</b>
+</p><pre>
+#!/bin/sh
+# Создаёт CA, серверный и клиентский сертификаты для тестирования SSLPlugin
+
+# CA
+openssl genrsa -out ca.key 4096
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+    -subj "/CN=3proxy CA" -out ca.crt
+
+# Сервер
+openssl genrsa -out server.key 2048
+openssl req -new -key server.key -subj "/CN=localhost" -out server.csr
+cat > server.ext << 'EOF'
+basicConstraints=CA:FALSE
+keyUsage = keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:localhost,DNS:proxy,IP:127.0.0.1
+EOF
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out server.crt -days 365 -sha256 -extfile server.ext
+
+# Клиент
+openssl genrsa -out client.key 2048
+openssl req -new -key client.key -subj "/CN=client" -out client.csr
+cat > client.ext << 'EOF'
+basicConstraints=CA:FALSE
+extendedKeyUsage = clientAuth
+EOF
+openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out client.crt -days 365 -sha256 -extfile client.ext
+openssl pkcs12 -export -out client.p12 -passout pass: \
+    -inkey client.key -in client.crt -certfile ca.crt
+</pre>
 
   <li><a name="AUTH"><i>Как ограничить доступ к службе</i></a>
   <p>

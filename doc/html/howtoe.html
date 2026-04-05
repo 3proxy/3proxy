@@ -33,6 +33,8 @@
 		<li><a href="#NAMES">How to resolve names through a parent proxy</a></li>
 		<li><a href="#ISFTP">How to set up an FTP proxy</a></li>
 		<li><a href="#TLSPR">How to set up an SNI proxy (tlspr)</a></li>
+		<li><a href="#SSLPLUGIN">How to set up TLS/SSL with SSLPlugin (https proxy, mTLS)</a></li>
+		<li><a href="#CERTIFICATES">How to create CA and certificates for SSLPlugin</a></li>
 		<li><A HREF="#AUTH">How to limit service access</A>
 		<li><A HREF="#USERS">How to create a user list</A>
 		<li><A HREF="#ACL">How to limit user access to resources</A>
@@ -639,6 +641,193 @@ allow *
 proxy
 </pre>
   </p>
+		<li><a name="SSLPLUGIN"><i>How to set up TLS/SSL with SSLPlugin (https proxy, mTLS)</i></a>
+<p>
+SSLPlugin provides TLS/SSL support for 3proxy. It can be used to:
+<ul>
+<li>Create an https:// proxy (TLS-encrypted connection between client and proxy)</li>
+<li>Implement MITM for TLS traffic inspection</li>
+<li>Connect to upstream servers via TLS with client certificate authentication</li>
+<li>Require client certificate authentication (mTLS)</li>
+</ul>
+</p>
+<p>
+<b>Creating an https:// proxy:</b>
+<br>To create an https:// proxy, you need a server certificate and key. The certificate must not be self-signed
+and should contain Subject Alternative Names (SAN) for the proxy hostname/IP.
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_cert /etc/3proxy/certs/server.crt
+ssl_server_key /etc/3proxy/certs/server.key
+ssl_serv
+proxy -p3129
+ssl_noserv
+proxy -p3128
+</pre>
+<p>
+This creates an https:// proxy on port 3129 and an http:// proxy on port 3128.
+Configure clients to use https://proxy-host:3129/ as the proxy URL.
+</p>
+<p>
+<b>Client certificate authentication (mTLS):</b>
+<br>To require clients to authenticate with a certificate, use ssl_server_verify and provide the CA certificate:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_cert /etc/3proxy/certs/server.crt
+ssl_server_key /etc/3proxy/certs/server.key
+ssl_server_ca_file /etc/3proxy/certs/ca.crt
+ssl_server_verify
+ssl_serv
+proxy -p3129
+</pre>
+<p>
+Only clients with a valid certificate signed by the CA can connect.
+</p>
+<p>
+<b>MITM for TLS traffic inspection:</b>
+<br>To intercept and decrypt TLS traffic, you need a CA certificate to generate spoofed server certificates:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_ca_file /etc/3proxy/certs/ca.crt
+ssl_server_ca_key /etc/3proxy/certs/ca.key
+ssl_client_verify
+ssl_client_ca_file /etc/ssl/certs/ca-certificates.crt
+ssl_mitm
+proxy -p3128
+ssl_nomitm
+proxy -p3129
+</pre>
+<p>
+The CA certificate must be trusted by clients. ssl_client_verify ensures the real server certificates are validated.
+Without ssl_client_verify, the proxy is vulnerable to MITM attacks.
+</p>
+<p>
+<b>TLS client (connect to upstream via TLS):</b>
+<br>To connect to upstream servers via TLS with client certificate authentication:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_client_cert /etc/3proxy/certs/client.crt
+ssl_client_key /etc/3proxy/certs/client.key
+ssl_client_verify
+ssl_client_ca_file /etc/ssl/certs/ca-certificates.crt
+ssl_cli
+proxy -p3128
+</pre>
+		<li><a name="CERTIFICATES"><i>How to create CA and certificates for SSLPlugin</i></a>
+<p>
+<b>Creating a Certificate Authority (CA):</b>
+<br>For MITM or mTLS, you need a CA. Generate a CA private key and certificate:
+</p><pre>
+# Generate CA private key
+openssl genrsa -out ca.key 4096
+
+# Generate CA certificate (valid for 10 years)
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+    -subj "/C=US/ST=State/L=City/O=MyOrg/CN=My CA" \
+    -out ca.crt
+</pre>
+<p>
+For MITM, import ca.crt into client browsers/OS as a trusted root CA.
+</p>
+<p>
+<b>Creating a server certificate for https:// proxy:</b>
+<br>The server certificate must have proper Subject Alternative Names (SAN):
+</p><pre>
+# Generate server private key
+openssl genrsa -out server.key 2048
+
+# Create a certificate signing request (CSR)
+openssl req -new -key server.key \
+    -subj "/C=US/ST=State/L=City/O=MyOrg/CN=proxy.example.com" \
+    -out server.csr
+
+# Create extensions file for SAN
+cat > server.ext << 'EOF'
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = proxy.example.com
+DNS.2 = proxy
+IP.1 = 192.168.1.100
+EOF
+
+# Sign the certificate with CA
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out server.crt -days 365 -sha256 \
+    -extfile server.ext
+</pre>
+<p>
+For a public https:// proxy, use a CA like Let's Encrypt instead of self-signed.
+</p>
+<p>
+<b>Creating a client certificate for mTLS:</b>
+</p><pre>
+# Generate client private key
+openssl genrsa -out client1.key 2048
+
+# Create CSR
+openssl req -new -key client1.key \
+    -subj "/C=US/ST=State/L=City/O=MyOrg/CN=client1" \
+    -out client1.csr
+
+# Create extensions file
+cat > client.ext << 'EOF'
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment
+extendedKeyUsage = clientAuth
+EOF
+
+# Sign with CA
+openssl x509 -req -in client1.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out client1.crt -days 365 -sha256 \
+    -extfile client.ext
+
+# Create PKCS#12 bundle for browser import
+openssl pkcs12 -export -out client1.p12 \
+    -inkey client1.key -in client1.crt -certfile ca.crt
+</pre>
+<p>
+Import client1.p12 into the client browser or OS certificate store.
+</p>
+<p>
+<b>Quick setup script for development/testing:</b>
+</p><pre>
+#!/bin/sh
+# Creates CA, server, and client certificates for SSLPlugin testing
+
+# CA
+openssl genrsa -out ca.key 4096
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+    -subj "/CN=3proxy CA" -out ca.crt
+
+# Server
+openssl genrsa -out server.key 2048
+openssl req -new -key server.key -subj "/CN=localhost" -out server.csr
+cat > server.ext << 'EOF'
+basicConstraints=CA:FALSE
+keyUsage = keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:localhost,DNS:proxy,IP:127.0.0.1
+EOF
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out server.crt -days 365 -sha256 -extfile server.ext
+
+# Client
+openssl genrsa -out client.key 2048
+openssl req -new -key client.key -subj "/CN=client" -out client.csr
+cat > client.ext << 'EOF'
+basicConstraints=CA:FALSE
+extendedKeyUsage = clientAuth
+EOF
+openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key \
+    -CAcreateserial -out client.crt -days 365 -sha256 -extfile client.ext
+openssl pkcs12 -export -out client.p12 -passout pass: \
+    -inkey client.key -in client.crt -certfile ca.crt
+</pre>
 		<li><A NAME="AUTH">How to limit service access</A>
 <p>
 First, always specify the internal interface to accept incoming connections with the
