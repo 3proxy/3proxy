@@ -39,12 +39,8 @@ jobs:
        D:
        cd "D:/a/3proxy/3proxy"
        mkdir bin64
-       set "LIB=%LIB%;c:/vcpkg/installed/x64-windows/lib"
-       set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows/include"
-       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
-       nmake /F Makefile.msvc64
        mkdir release
-       mkdir release\3proxy\
+       mkdir release\3proxy
        mkdir release\3proxy\bin64
        mkdir release\3proxy\cfg
        mkdir release\3proxy\cfg\sql
@@ -70,6 +66,10 @@ jobs:
        copy doc\html\man3\*.* release\3proxy\doc\html\man3\
        copy doc\devel\*.rtf release\3proxy\doc\devel\
        copy copying authors README rus.3ps release\3proxy\
+       set "LIB=%LIB%;c:/vcpkg/installed/x64-windows/lib"
+       set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows/include"
+       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
+       nmake /F Makefile.msvc64
     - name: Get artifact
       uses: actions/upload-artifact@v4
       with:
