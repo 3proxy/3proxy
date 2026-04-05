@@ -1,0 +1,232 @@
+<!-- Creator     : groff version 1.24.1 -->
+<html>
+<head>
+
+</head>
+<body>
+
+<h1 align="center">socks</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#OPTIONS">OPTIONS</a><br>
+<a href="#CLIENTS">CLIENTS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>socks</b> -
+SOCKS 4/4.5/5 gateway service</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>socks</b>
+[<b>-d</b>] [<b>-l</b>[[<i>@</i>]<i>logfile</i>]]
+[<b>-p</b><i>port</i>] [<b>-i</b><i>internal_ip</i>]
+[<b>-e</b><i>external_ip</i>]</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>socks</b> is
+SOCKS server. It supports SOCKSv4, SOCKSv4.5 (extension to
+v4 for server side name resolution) and SOCKSv5. SOCKSv5
+specification allows both outgoing and reverse TCP
+connections and UDP portmapping.</p>
+
+<h2>OPTIONS
+<a name="OPTIONS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-I</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Inetd mode. Standalone service
+only.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-d</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Daemonize. Detach service from
+console and run in the background.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-t</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Be silenT. Do not log
+start/stop/accept error records.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-u</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Never ask for username
+authentication</p> </td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-e</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">External address. IP address of
+the interface the proxy should initiate connections from.
+External IP must be specified if you need incoming
+connections. By default, the system will decide which
+address to use in accordance with the routing table.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-N</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">External NAT address 3proxy
+reports to client for BIND and UDPASSOC. By default, the
+external address is reported. It&rsquo;s only useful in the
+case of IP-IP NAT (will not work for PAT).</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-i</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Internal address. IP address the
+proxy accepts connections to. By default, connections to any
+interface are accepted. It&acute;s usually unsafe.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-p</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Port. Port proxy listens for
+incoming connections. Default is 1080.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-l</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Log. By default logging is to
+stdout. If <i>logfile</i> is specified logging is to file.
+Under Unix, if &acute;<i>@</i>&acute; preceeds
+<i>logfile</i>, syslog is used for logging.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-S</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Increase or decrease stack size.
+You may want to try something like -S8192 if you experience
+3proxy crashes.</p></td></tr>
+</table>
+
+<h2>CLIENTS
+<a name="CLIENTS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">You should use a
+client with SOCKS support or use some socksification support
+(for example <i>SocksCAP</i> or <i>FreeCAP</i>). Configure
+client to use <i>internal_ip</i> and <i>port</i>. SOCKS
+allows you to use almost any application protocol without
+limitation. This implementation also allows you to open
+privileged ports on the server (if socks has sufficient
+privileges). If you need to control access, use
+<b>3proxy</b>(8) instead.</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">Report all bugs
+to <b>3proxy@3proxy.org</b></p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+proxy(8), ftppr(8), pop3p(8), tcppm(8), udppm(8),
+syslogd(8), <br>
+https://3proxy.org/</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy is
+designed by Vladimir 3APA3A Dubrovin
+(<i>3proxy@3proxy.org</i>)</p>
+<hr>
+</body>
+</html>

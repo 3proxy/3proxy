@@ -52,8 +52,6 @@ src/mycrypt
 src/dighosts
 *.ld.so
 *.dSYM
-doc/html/man3/
-doc/html/man8/
 *.var
 verfile.sh
 /Makefile

@@ -1,0 +1,221 @@
+<!-- Creator     : groff version 1.24.1 -->
+<html>
+<head>
+
+</head>
+<body>
+
+<h1 align="center">3proxy</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#OPTIONS">OPTIONS</a><br>
+<a href="#SIGNALS">SIGNALS</a><br>
+<a href="#FILES">FILES</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#TRIVIA">TRIVIA</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>3proxy</b> -
+3[APA3A] tiny proxy server, or trivial proxy server, or free
+proxy server</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>3proxy</b>
+[<i>config_file</i>] <b><br>
+3proxy</b> [<i>--install</i>] <b><br>
+3proxy</b> [<i>--remove</i>]</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>3proxy</b> is
+a universal proxy server. It can be used to provide internal
+users with fully controllable access to external resources
+or to provide external users with access to internal
+resources. 3proxy is not developed to replace
+<b>squid</b>(8), but it can extend the functionality of an
+existing caching proxy. It can be used to route requests
+between different types of clients and proxy servers. Think
+about it as application level gateway with configuration
+like hardware router has for network layer. It can establish
+multiple gateways with HTTP and HTTPS proxy with FTP over
+HTTP support, SOCKS v4, v4.5 and v5, POP3 proxy, UDP and TCP
+portmappers. Each gateway is started from the configuration
+file like an independent service <b>proxy</b>(8)
+<b>socks</b>(8) <b>pop3p</b>(8) <b>tcppm</b>(8)
+<b>udppm</b>(8) <b>ftppr</b>(8) <b>dnspr</b> but
+<b>3proxy</b> is not a kind of wrapper or superserver for
+these daemons. It just has the same code compiled in, but
+provides much more functionality. SOCKSv5 implementation
+allows you to use 3proxy with any UDP or TCP based client
+applications designed without proxy support (with
+<i>SocksCAP</i>, <i>FreeCAP</i> or another client-side
+redirector under Windows or with a socksification library
+under Unix). So you can play your favourite games, listen to
+music, exchange files and messages and even accept incoming
+connections behind a proxy server.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><i>dnspr</i>
+does not exist as an independent service. It&rsquo;s a DNS
+caching proxy (it requires <i>nscache</i> and <i>nserver</i>
+to be set in the configuration. Only A-records are cached.
+Please note that this caching is mostly a &rsquo;hack&rsquo;
+and has nothing to do with a real DNS server, but it works
+perfectly for SOHO networks.</p>
+
+<p style="margin-left:6%; margin-top: 1em">3proxy supports
+access control lists (ACL) like network router. Source and
+destination networks and destination port can be specified.
+In addition, usernames and gateway action (for example GET
+or POST) can be used in ACLs. In order to filter request on
+username basis user must be authenticated somehow. There are
+few authentication types including password authentication
+and authentication by NetBIOS name for Windows clients
+(it&acute;s very like ident authentication). Depending on
+ACL action request can be allowed, denied or redirected to
+another host or to another proxy server or even to a chain
+of proxy servers.</p>
+
+<p style="margin-left:6%; margin-top: 1em">It supports
+different types of logging: to logfiles, <b>syslog</b>(3)
+(only under Unix) or to an ODBC database. Logging format is
+tunable to provide compatibility with existing log file
+parsers. It makes it possible to use 3proxy with IIS, ISA,
+Apache or Squid log parsers.</p>
+
+<h2>OPTIONS
+<a name="OPTIONS"></a>
+</h2>
+
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>config_file</b></p>
+
+<p style="margin-left:15%;">Name of config file. See
+<b>3proxy.cfg</b>(3) for configuration file format. Under
+Windows, if config_file is not specified, <b>3proxy</b>
+looks for a file named <i>3proxy.cfg</i> in the default
+location (in the same directory as the executable file and
+in the current directory). Under Unix, if no config file is
+specified, 3proxy reads configuration from stdin. It makes
+it possible to use the 3proxy.cfg file as an executable
+script just by setting +x mode and adding <br>
+#!/usr/local/3proxy/3proxy <br>
+as a first line in 3proxy.cfg</p>
+
+<p style="margin-left:6%;"><b>--install</b></p>
+
+<p style="margin-left:15%;">(Windows NT family only)
+install <b>3proxy</b> as a system service</p>
+
+<p style="margin-left:6%;"><b>--remove</b></p>
+
+<p style="margin-left:15%;">(Windows NT family only) remove
+<b>3proxy</b> from system services</p>
+
+<h2>SIGNALS
+<a name="SIGNALS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">Under Unix there
+are a few signals <b>3proxy</b> catches. See <b>kill</b>(1).
+<b><br>
+SIGTERM</b></p>
+
+<p style="margin-left:15%;">clean up connections and
+exit</p>
+
+<p style="margin-left:6%;"><b>SIGPAUSE</b></p>
+
+<p style="margin-left:15%;">stop accepting new connections,
+on second signal - start and re-read configuration</p>
+
+<p style="margin-left:6%;"><b>SIGCONT</b></p>
+
+<p style="margin-left:15%;">start to accept new
+connections</p>
+
+<p style="margin-left:6%;"><b>SIGUSR1</b></p>
+
+<p style="margin-left:15%;">reload configuration</p>
+
+<p style="margin-left:6%; margin-top: 1em">Under Windows,
+if <b>3proxy</b> is installed as a service you can use
+standard service management to start, stop, pause and
+continue the 3proxy service, for example: <b><br>
+net start 3proxy <br>
+net stop 3proxy <br>
+net pause 3proxy <br>
+net continue 3proxy</b></p>
+
+<p style="margin-left:6%; margin-top: 1em">Web admin
+service can also be used to reload configuration. Use wget
+to automate this task.</p>
+
+<h2>FILES
+<a name="FILES"></a>
+</h2>
+
+
+
+<p style="margin-left:6%; margin-top: 1em"><i>/usr/local/3proxy/3proxy.cfg
+(3proxy.cfg)</i></p>
+
+<p style="margin-left:15%;"><b>3proxy</b> configuration
+file</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">Report all bugs
+to <b>3proxy@3proxy.org</b></p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy.cfg(3),
+proxy(8), ftppr(8), socks(8), pop3p(8), tcppm(8), udppm(8),
+kill(1), syslogd(8), <br>
+https://3proxy.org/</p>
+
+<h2>TRIVIA
+<a name="TRIVIA"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3APA3A is
+pronounced as ``zaraza&acute;&acute;.</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy is
+designed by Vladimir 3APA3A Dubrovin
+(<i>3proxy@3proxy.org</i>)</p>
+<hr>
+</body>
+</html>
