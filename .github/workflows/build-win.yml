@@ -30,8 +30,9 @@ jobs:
        BUILDDATE: ${{ vars.BUILDDATE }}
        RELEASE: ${{ vars.RELEASE }}
        VERSION: ${{ vars.VERSION }}
+       NOW: ${{ vars.NOW }}
       shell: cmd
-      run: echo \"%BUILDDATE%\" \"%RELEASE%\" \"%VERSION%\"
+      run: echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
     - name: install packages
       run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-openssl
 #    - name: make Windows
