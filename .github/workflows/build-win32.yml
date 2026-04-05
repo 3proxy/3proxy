@@ -3,7 +3,7 @@ name: C/C++ CI
 on:
   push:
     branches: [ "test-ci" ]
-    paths: [ 'RELEASE', '.github/workflows/build-win.yml' ]
+    paths: [ 'RELEASE', '.github/workflows/build-win32.yml' ]
 
 jobs:
   ci:
@@ -33,10 +33,10 @@ jobs:
       shell: cmd
       run: |
        echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
-       dir c:\program files\openssl\lib\VC\
-       dir c:\vcpkg\installed/
+       dir "c:\program files\openssl\lib\VC\"
+       dir "c:\vcpkg\installed\"
     - name: install packages
-      run: vcpkg install pcre2:x86-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-i686-pcre2 mingw-w64-i686-openssl
+      run: vcpkg install pcre2:x86-windows
 #    - name: make Windows
 #      run: make -f Makefile.win
 #      env:

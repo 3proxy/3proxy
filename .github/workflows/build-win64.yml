@@ -3,7 +3,7 @@ name: C/C++ CI
 on:
   push:
     branches: [ "test-ci" ]
-    paths: [ 'RELEASE', '.github/workflows/build-win.yml' ]
+    paths: [ 'RELEASE', '.github/workflows/build-win64.yml' ]
 
 jobs:
   ci:
@@ -33,7 +33,7 @@ jobs:
       shell: cmd
       run: echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
     - name: install packages
-      run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-openssl
+      run: vcpkg install pcre2:x64-windows
 #    - name: make Windows
 #      run: make -f Makefile.win
 #      env:
