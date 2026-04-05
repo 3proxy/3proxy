@@ -34,7 +34,7 @@ jobs:
       run: |
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
        nmake /F Makefile.watcom
-    - name make dist dir
+    - name: make dist dir
       shell: cmd
       run: |
        mkdir dist
