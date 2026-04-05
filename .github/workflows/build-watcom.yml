@@ -33,9 +33,8 @@ jobs:
       shell: cmd
       run: |
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
-       nmake /F Makefile.watcom
        mkdir release
-       mkdir release\3proxy\
+       mkdir release\3proxy
        mkdir release\3proxy\bin
        mkdir release\3proxy\cfg
        mkdir release\3proxy\cfg\sql
@@ -46,6 +45,7 @@ jobs:
        mkdir release\3proxy\doc\html\man3
        mkdir release\3proxy\doc\html\man8
        mkdir release\3proxy\doc\devel
+       dir
        copy /Y c:\vcpkg\installed\x64-windows\bin\pcre2-8.dll release\3proxy\bin
        copy /Y c:\vcpkg\installed\x64-windows\bin\*crypto*.dll release\3proxy\bin
        copy /Y c:\vcpkg\installed\x64-windows\bin\*ssl*.dll release\3proxy\bin
@@ -61,6 +61,7 @@ jobs:
        copy doc\html\man3\*.* release\3proxy\doc\html\man3\
        copy doc\devel\*.rtf release\3proxy\doc\devel\
        copy copying authors README rus.3ps release\3proxy\
+       nmake /F Makefile.watcom
     - name: Get artifact
       uses: actions/upload-artifact@v4
       with:
