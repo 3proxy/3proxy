@@ -27,12 +27,8 @@ jobs:
        echo "RELEASE=$RELEASE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "VERSION=VERSION=`"$RELEASE`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "BUILDDATE=BUILDDATE=`"$NOW`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-       echo "COMMONFILES=cfg/*.* cfg/sql/*.* doc/ru/*.* doc/html/*.* doc/html/plugins/*.* doc/html/man8/*.* doc/html/man3/*.* doc/devel/*.rtf copying authors README rus.3ps" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-    - name: echo variables
-      shell: cmd
-      run: echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
     - name: install packages
-      run: vcpkg install pcre2:x64-windows
+      run: vcpkg install pcre2:x64-windows openssl:x64-windows
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v3
     - name: make Windows MSVC
@@ -43,12 +39,12 @@ jobs:
        D:
        cd "D:/a/3proxy/3proxy"
        mkdir bin64
-       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
-       set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
+       set "LIB=%LIB%;c:/vcpkg/installed/x64-windows/lib"
+       set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows/include"
+       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
        nmake /F Makefile.msvc64
        dir c:\vcpkg\installed\x64-windows\bin\
        copy /Y c:\vcpkg\installed\x64-windows\bin\*.dll bin64
-       echo 2
     - name: Get artifact
       uses: actions/upload-artifact@v4
       with:
