@@ -48,3 +48,4 @@ jobs:
        nmake /F Makefile.msvc64
        c:\msys64\usr\bin\zip 3proxy-%RELEASE%-x64.zip bin64/3proxy.exe bin64/*.dll bin64/mycrypt.exe %COMMONFILES%
        nmake /F Makefile.msvc64 clean
+       echo 1
