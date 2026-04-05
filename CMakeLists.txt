@@ -509,10 +509,22 @@ if(NOT WIN32)
     install(FILES scripts/add3proxyuser.sh DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-# Install service files (systemd, init.d, or rc.d)
+# Install service files (systemd, launchd, init.d, or rc.d)
 if(NOT WIN32)
-    if(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|Darwin|OpenBSD|NetBSD")
-        # BSD/macOS - install rc.d script
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        # macOS - install launchd plist
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/org.3proxy.3proxy.plist.in
+            ${CMAKE_CURRENT_BINARY_DIR}/org.3proxy.3proxy.plist
+            @ONLY
+        )
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.3proxy.3proxy.plist
+            DESTINATION /Library/LaunchDaemons
+        )
+
+        message(STATUS "  launchd: YES (/Library/LaunchDaemons)")
+    elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|OpenBSD|NetBSD")
+        # BSD - install rc.d script
         set(RCD_DIR "/usr/local/etc/rc.d")
 
         configure_file(
@@ -566,7 +578,12 @@ if(NOT WIN32)
             message(STATUS "  systemd: YES (${SYSTEMD_UNIT_DIR})")
         else()
             # No systemd - install init.d script
-            install(FILES scripts/init.d/3proxy.sh
+            configure_file(
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/init.d/3proxy.in
+                ${CMAKE_CURRENT_BINARY_DIR}/3proxy.init
+                @ONLY
+            )
+            install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.init
                 DESTINATION /etc/init.d
                 RENAME 3proxy
                 PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
@@ -576,7 +593,12 @@ if(NOT WIN32)
         endif()
     else()
         # Other Unix - install init.d script
-        install(FILES scripts/init.d/3proxy.sh
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripts/init.d/3proxy.in
+            ${CMAKE_CURRENT_BINARY_DIR}/3proxy.init
+            @ONLY
+        )
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.init
             DESTINATION /etc/init.d
             RENAME 3proxy
             PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
@@ -584,6 +606,18 @@ if(NOT WIN32)
 
         message(STATUS "  init.d: YES (/etc/init.d)")
     endif()
+
+    # Create proxy user and group during installation
+    install(FILES scripts/postinstall.sh
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+    )
+    install(CODE "
+        execute_process(
+            COMMAND ${CMAKE_INSTALL_FULL_BINDIR}/postinstall.sh
+            RESULT_VARIABLE POSTINSTALL_RESULT
+        )
+    ")
 endif()
 
 # Install man pages
