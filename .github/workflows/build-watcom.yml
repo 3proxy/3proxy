@@ -39,7 +39,7 @@ jobs:
       with:
        name: "3proxy-${{ env.RELEASE }}-lite.zip"
        path: dist/
-       run: |
+      run: |
        mkdir dist
        mkdir dist\3proxy
        mkdir dist\3proxy\bin
