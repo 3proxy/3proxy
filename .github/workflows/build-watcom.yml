@@ -50,9 +50,6 @@ jobs:
        mkdir dist\3proxy\doc\html\man8
        mkdir dist\3proxy\doc\devel
        dir
-       copy /Y c:\vcpkg\installed\x64-windows\bin\pcre2-8.dll dist\3proxy\bin
-       copy /Y c:\vcpkg\installed\x64-windows\bin\*crypto*.dll dist\3proxy\bin
-       copy /Y c:\vcpkg\installed\x64-windows\bin\*ssl*.dll dist\3proxy\bin
        copy bin\3proxy.exe dist\3proxy\bin\
        copy bin\*.dll dist\3proxy\bin\
        copy bin\mycrypt.exe  dist\3proxy\bin\
