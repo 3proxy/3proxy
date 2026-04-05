@@ -3,7 +3,7 @@ name: C/C++ CI
 on:
   push:
     branches: [ "test-ci" ]
-    paths: [ 'RELEASE', '.github/workflows/build-win64.yml' ]
+    paths: [ 'RELEASE', '.github/workflows/build-watcom.yml' ]
 
 jobs:
   ci:
@@ -17,6 +17,8 @@ jobs:
     - uses: actions/checkout@v4
 #    - name: configure
 #      run: ./configure
+    - name: Setup Open Watcom
+      uses: open-watcom/setup-watcom@v0
     - name: set date
       run: |
        $NOW = Get-Date -Format "yyMMddHHmmss"
@@ -27,34 +29,19 @@ jobs:
        echo "RELEASE=$RELEASE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "VERSION=VERSION=`"$RELEASE`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "BUILDDATE=BUILDDATE=`"$NOW`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-    - name: install packages
-      run: vcpkg install pcre2:x64-windows openssl:x64-windows
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v3
-    - name: make Windows MSVC
-      if: ${{ startsWith(matrix.target, 'windows') }}
+    - name: make Watcom
       shell: cmd
       run: |
-       call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-       D:
-       cd "D:/a/3proxy/3proxy"
-       mkdir bin64
-       set "LIB=%LIB%;c:/vcpkg/installed/x64-windows/lib"
-       set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows/include"
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
-       nmake /F Makefile.msvc64
-       dir c:\vcpkg\installed\x64-windows\bin\
-       copy /Y c:\vcpkg\installed\x64-windows\bin\pcre2-8.dll bin64
-       copy /Y c:\vcpkg\installed\x64-windows\bin\*crypto*.dll bin64
-       copy /Y c:\vcpkg\installed\x64-windows\bin\*ssl*.dll bin64
+       nmake /F Makefile.watcom
     - name: Get artifact
       uses: actions/upload-artifact@v4
       with:
-       name: "3proxy-${{ env.RELEASE }}-x64.zip"
+       name: "3proxy-${{ env.RELEASE }}-light.zip"
        path: |
-        bin64/3proxy.exe
-        bin64/*.dll
-        bin64/mycrypt.exe
+        bin/3proxy.exe
+        bin/*.dll
+        bin/mycrypt.exe
         cfg/*.*
         cfg/sql/*.*
         doc/ru/*.*
