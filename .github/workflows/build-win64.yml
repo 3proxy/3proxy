@@ -33,14 +33,6 @@ jobs:
       run: echo builddate:%BUILDDATE% release:%RELEASE% version:%VERSION% now:%NOW%
     - name: install packages
       run: vcpkg install pcre2:x64-windows
-#    - name: make Windows
-#      run: make -f Makefile.win
-#      env:
-#       LDFLAGS: '-L "c:/msys64/mingw64/lib"'
-#       CFLAGS: '-I "c:/msys64/mingw64/include"'
-#    - name: make clean Windows
-#      if: ${{ startsWith(matrix.target, 'windows') }}
-#      run: make -f Makefile.win clean
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v3
     - name: make Windows MSVC
