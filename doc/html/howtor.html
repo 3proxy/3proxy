@@ -12,6 +12,7 @@
   <ul>
     <li><a href="#INSTNT">Как установить/удалить 3proxy под Windows NT/2000/XP/2003 как службу</a>
     <li><a href="#INSTUNIX">Как установить/удалить 3proxy под Unix/Linux</a>
+    <li><a href="#INSTMACOS">Как установить/удалить 3proxy под macOS</a>
     <li><a href="#INSTDOCKER">Как использовать 3proxy с Docker</a>
   </ul>
   <li><a href="#SERVER">Конфигурация сервера</a>
@@ -177,6 +178,48 @@
   <pre>
   sudo systemctl enable 3proxy
   sudo systemctl start 3proxy</pre>
+  </p>
+  <li><a name="INSTMACOS"><i>Как установить/удалить 3proxy под macOS</i></a>
+  <p>
+  <b>С помощью CMake (рекомендуется):</b>
+  <pre>
+  mkdir build && cd build
+  cmake ..
+  cmake --build .
+  sudo cmake --install .</pre>
+  Это установит:
+  <ul>
+  <li>Исполняемые файлы в <code>/usr/local/bin/</code></li>
+  <li>Конфигурацию в <code>/etc/3proxy/</code></li>
+  <li>Плагины в <code>/usr/local/lib/3proxy/</code></li>
+  <li>Launchd plist в <code>/Library/LaunchDaemons/org.3proxy.3proxy.plist</code></li>
+  </ul>
+  </p>
+  <p>
+  <b>С помощью Makefile:</b>
+  <pre>
+  ln -sf Makefile.FreeBSD Makefile
+  make
+  sudo make install</pre>
+  Это установит исполняемые файлы в <code>/usr/local/3proxy/bin/</code> и конфигурацию в <code>/usr/local/etc/3proxy/</code>.
+  </p>
+  <p>
+  <b>Управление службой через launchd:</b>
+  <br>После установки через cmake службой можно управлять с помощью launchctl:
+  <pre>
+  # Загрузить и запустить службу
+  sudo launchctl load /Library/LaunchDaemons/org.3proxy.3proxy.plist
+
+  # Остановить службу
+  sudo launchctl stop org.3proxy.3proxy
+
+  # Запустить службу
+  sudo launchctl start org.3proxy.3proxy
+
+  # Выгрузить и отключить службу
+  sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist</pre>
+  Служба запускается от имени пользователя <code>proxy</code> (создаётся при установке).
+  Файл конфигурации: <code>/etc/3proxy/3proxy.cfg</code>
   </p>
   <li><a name="INSTDOCKER"><i>Как использовать 3proxy с Docker</i></a>
   <p>

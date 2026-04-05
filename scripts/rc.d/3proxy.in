@@ -13,6 +13,7 @@ command="@CMAKE_INSTALL_FULL_BINDIR@/3proxy"
 pidfile="/var/run/3proxy/${name}.pid"
 command_args="${3proxy_config:-/etc/3proxy/3proxy.cfg}"
 required_files="${3proxy_config:-/etc/3proxy/3proxy.cfg}"
+command_user="proxy:proxy"
 
 start_precmd="3proxy_precmd"
 
@@ -20,6 +21,7 @@ start_precmd="3proxy_precmd"
 {
     if [ ! -d /var/run/3proxy ]; then
         mkdir -p /var/run/3proxy
+        chown proxy:proxy /var/run/3proxy
     fi
 }
 

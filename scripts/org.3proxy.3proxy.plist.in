@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.3proxy.3proxy</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>@CMAKE_INSTALL_FULL_BINDIR@/3proxy</string>
+        <string>/etc/3proxy/3proxy.cfg</string>
+    </array>
+    <key>UserName</key>
+    <string>proxy</string>
+    <key>GroupName</key>
+    <string>proxy</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/3proxy.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/3proxy.log</string>
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>65536</integer>
+    </dict>
+    <key>HardResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>65536</integer>
+    </dict>
+</dict>
+</plist>

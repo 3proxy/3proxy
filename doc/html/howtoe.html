@@ -12,6 +12,7 @@
 	<ul>
 		<li><A HREF="#INSTNT">How to install/remove 3proxy under Windows NT/2000/XP</A>
 		<li><A HREF="#INSTUNIX">How to install/remove 3proxy under Unix/Linux</A>
+		<li><A HREF="#INSTMACOS">How to install/remove 3proxy under macOS</A>
 		<li><A HREF="#INSTDOCKER">How to use 3proxy with Docker</A>
 	</ul>
 	<li><A HREF="#SERVER">Server configuration</A>
@@ -182,6 +183,51 @@ Add 3proxy to the system startup scripts or use systemd:
 sudo systemctl enable 3proxy
 sudo systemctl start 3proxy
 </pre>
+</p>
+		<li><A NAME="INSTMACOS">How to install/remove 3proxy under macOS</A>
+<p>
+<b>Using CMake (recommended):</b>
+<pre>
+mkdir build && cd build
+cmake ..
+cmake --build .
+sudo cmake --install .
+</pre>
+This installs:
+<ul>
+<li>Binaries to <code>/usr/local/bin/</code></li>
+<li>Configuration to <code>/etc/3proxy/</code></li>
+<li>Plugins to <code>/usr/local/lib/3proxy/</code></li>
+<li>Launchd plist to <code>/Library/LaunchDaemons/org.3proxy.3proxy.plist</code></li>
+</ul>
+</p>
+<p>
+<b>Using Makefile:</b>
+<pre>
+ln -sf Makefile.FreeBSD Makefile
+make
+sudo make install
+</pre>
+This installs binaries to <code>/usr/local/3proxy/bin/</code> and configuration to <code>/usr/local/etc/3proxy/</code>.
+</p>
+<p>
+<b>Service management with launchd:</b>
+<br>After installation via cmake, the service can be managed with launchctl:
+<pre>
+# Load and start the service
+sudo launchctl load /Library/LaunchDaemons/org.3proxy.3proxy.plist
+
+# Stop the service
+sudo launchctl stop org.3proxy.3proxy
+
+# Start the service
+sudo launchctl start org.3proxy.3proxy
+
+# Unload and disable the service
+sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
+</pre>
+The service runs as user <code>proxy</code> (created during installation).
+Configuration file: <code>/etc/3proxy/3proxy.cfg</code>
 </p>
 		<li><A NAME="INSTDOCKER">How to use 3proxy with Docker</A>
 <p>

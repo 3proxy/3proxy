@@ -4,6 +4,9 @@ Documentation=man:3proxy(1)
 After=network.target
 
 [Service]
+Type=simple
+User=proxy
+Group=proxy
 Environment=CONFIGFILE=/etc/3proxy/3proxy.cfg
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/3proxy ${CONFIGFILE}
 ExecReload=/bin/kill -SIGUSR1 $MAINPID
@@ -13,6 +16,7 @@ RestartSec=60s
 LimitNOFILE=65536
 LimitNPROC=32768
 RuntimeDirectory=3proxy
+RuntimeDirectoryMode=0755
 
 [Install]
 WantedBy=multi-user.target

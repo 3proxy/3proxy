@@ -1,0 +1,109 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          3proxy
+# Required-Start:    $network $local_fs
+# Required-Stop:     $network $local_fs
+# Should-Start:
+# Should-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop 3proxy
+# Description:       Start/stop 3proxy, tiny proxy server
+### END INIT INFO
+# chkconfig: 2345 20 80
+# description: 3proxy tiny proxy server
+
+DAEMON=@CMAKE_INSTALL_FULL_BINDIR@/3proxy
+CONFIGFILE=/etc/3proxy/3proxy.cfg
+PIDFILE=/var/run/3proxy/3proxy.pid
+USER=proxy
+GROUP=proxy
+
+# Source function library if available
+if [ -f /etc/init.d/functions ]; then
+    . /etc/init.d/functions
+fi
+
+case "$1" in
+   start)
+       echo -n "Starting 3Proxy: "
+
+       if [ ! -d /var/run/3proxy ]; then
+           mkdir -p /var/run/3proxy
+           chown $USER:$GROUP /var/run/3proxy 2>/dev/null || true
+       fi
+
+       if command -v start-stop-daemon >/dev/null 2>&1; then
+           # Debian/Ubuntu style
+           start-stop-daemon --start --quiet --pidfile $PIDFILE \
+               --chuid $USER:$GROUP --exec $DAEMON -- $CONFIGFILE
+       elif [ -f /etc/init.d/functions ]; then
+           # RedHat/CentOS style
+           daemon --user=$USER $DAEMON $CONFIGFILE
+       else
+           # Fallback
+           su -s /bin/sh $USER -c "$DAEMON $CONFIGFILE"
+       fi
+
+       RETVAL=$?
+       echo
+       [ $RETVAL = 0 ] && touch /var/lock/subsys/3proxy
+       ;;
+
+   stop)
+       echo -n "Stopping 3Proxy: "
+
+       if command -v start-stop-daemon >/dev/null 2>&1; then
+           # Debian/Ubuntu style
+           start-stop-daemon --stop --quiet --pidfile $PIDFILE
+       elif [ -f /etc/init.d/functions ]; then
+           # RedHat/CentOS style
+           killproc -p $PIDFILE $DAEMON
+       else
+           # Fallback
+           if [ -f $PIDFILE ]; then
+               kill `cat $PIDFILE` 2>/dev/null
+           else
+               killall 3proxy 2>/dev/null
+           fi
+       fi
+
+       RETVAL=$?
+       echo
+       [ $RETVAL = 0 ] && rm -f /var/lock/subsys/3proxy
+       ;;
+
+   restart|reload)
+       echo -n "Reloading 3Proxy: "
+       if [ -f $PIDFILE ]; then
+           kill -s USR1 `cat $PIDFILE` 2>/dev/null
+           RETVAL=$?
+       else
+           echo "PID file not found, cannot reload"
+           RETVAL=1
+       fi
+       echo
+       ;;
+
+   status)
+       if command -v status >/dev/null 2>&1; then
+           status -p $PIDFILE $DAEMON
+       elif [ -f $PIDFILE ]; then
+           if kill -0 `cat $PIDFILE` 2>/dev/null; then
+               echo "3proxy is running (pid `cat $PIDFILE`)"
+               RETVAL=0
+           else
+               echo "3proxy is dead but pid file exists"
+               RETVAL=1
+           fi
+       else
+           echo "3proxy is not running"
+           RETVAL=3
+       fi
+       ;;
+
+   *)
+       echo "Usage: $0 {start|stop|restart|reload|status}"
+       exit 1
+esac
+exit ${RETVAL:-0}
