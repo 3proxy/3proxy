@@ -1,0 +1,1011 @@
+<!-- Creator     : groff version 1.24.1 -->
+<html>
+<head>
+
+</head>
+<body>
+
+<h1 align="center">3proxy.cfg</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#PLUGINS">PLUGINS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#TRIVIA">TRIVIA</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>3proxy.cfg</b>
+3proxy configuration file</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">Common
+structure: <br>
+Configuration file is a text file 3proxy reads configuration
+from. Each line of the file is a command executed
+immediately, as if it were given from the console. The
+sequence of commands is important. The configuration file is
+actually a script for the 3proxy executable. Each line of
+the file is treated as a blank (space or tab) separated
+command line. Additional space characters are ignored. Think
+about 3proxy as &quot;application level router&quot; with
+console interface.</p>
+
+<p style="margin-left:6%; margin-top: 1em">Comments: <br>
+Any line beginning with a space character or &acute;#&acute;
+character is a comment. It&acute;s ignored. &lt;LF&gt;s are
+ignored. &lt;CR&gt; is the end of a command.</p>
+
+<p style="margin-left:6%; margin-top: 1em">Quotation: <br>
+The quotation character is &quot; (double quote). Quotation
+must be used to quote spaces or other special characters. To
+use a quotation character inside a quoted string, the
+character must be doubled (BASIC convention). For example,
+to use HELLO &quot;WORLD&quot; as an argument, you should
+write it as &quot;HELLO &quot;&quot;WORLD&quot;&quot;&quot;.
+Good practice is to quote any argument you use.</p>
+
+<p style="margin-left:6%; margin-top: 1em">File inclusion:
+<br>
+You can include file by using $FILENAME macro (replace
+FILENAME with a path to file, for example
+$/usr/local/etc/3proxy/conf.incl or <br>
+$&quot;c:\\Program Files\3proxy\include.cfg&quot; Quotation
+is required in last example because path contains space
+character. For included file &lt;CR&gt; (end of line
+characters) is treated as space character (arguments
+delimiter instead of end of command delimiter). Thus,
+include files are only useful to store long single-line
+commands (like userlist, network lists, etc). To use dollar
+sign somewhere in argument it must be quoted. Recursion is
+not allowed.</p>
+
+<p style="margin-left:6%; margin-top: 1em">Next commands
+start gateway services:</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>proxy</b>
+[options] <b><br>
+socks</b> [options] <b><br>
+pop3p</b> [options] <b><br>
+smtpp</b> [options] <b><br>
+ftppr</b> [options] <b><br>
+admin</b> [options] <b><br>
+dnspr</b> [options] <b><br>
+tcppm</b> [options] &lt;SRCPORT&gt; &lt;DSTADDR&gt;
+&lt;DSTPORT&gt; <b><br>
+udppm</b> [options] &lt;SRCPORT&gt; &lt;DSTADDR&gt;
+&lt;DSTPORT&gt; <br>
+Descriptions: <b><br>
+proxy</b> HTTP/HTTPS proxy (default port 3128) <b><br>
+socks</b> SOCKS 4/4.5/5 proxy (default port 1080) <b><br>
+tlspr</b> SNI proxy (destination address is taken from TLS
+handshake), may be used to redirect any TLS-based traffic
+<b><br>
+auto</b> Proxy with protocol autoselection between proxy /
+socks / tlspr <b><br>
+pop3p</b> POP3 proxy (default port 110) <b><br>
+smtpp</b> SMTP proxy (default port 25) <b><br>
+ftppr</b> FTP proxy (default port 21) <b><br>
+admin</b> Web interface (default port 80) <b><br>
+dnspr</b> caching DNS proxy (default port 53) <b><br>
+tcppm</b> TCP portmapper <b><br>
+udppm</b> UDP portmapper</p>
+
+<p style="margin-left:6%; margin-top: 1em">Options: <b><br>
+-pNUMBER</b> change default server port to NUMBER <b><br>
+-n</b> disable NTLM authentication (required if passwords
+are stored in Unix crypt format). <b><br>
+-n1</b> enable NTLMv1 authentication. <b><br>
+-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY)</b> delay GRACE_DELAY
+milliseconds before polling if average polling size is below
+GRACE_TRAFF bytes and GRACE_NUM read operations in a single
+direction are detected within 1 second. Useful to minimize
+polling <b>-s</b> <br>
+(for admin) secure, allow only secure operations, currently
+only traffic counters view without ability to reset. <br>
+(for dnspr) simple, do not use resolver and 3proxy cache,
+always use external DNS server. <br>
+(for udppm) singlepacket, expect only one packet from both
+client and server <b><br>
+-u</b> Never ask for username/password <b><br>
+-u2</b> (for socks) require username/password in
+authentication methods <b><br>
+-a</b> (for proxy) anonymous proxy (no information about
+client reported) <b><br>
+-a1</b> (for proxy) anonymous proxy (random client
+information reported) <b><br>
+-a2</b> (for proxy) generate Via: and X-Forwarded-For:
+instead of Forwarded: <b><br>
+-6</b> Only resolve IPv6 addresses. IPv4 addresses are
+packed in IPv6 in IPV6_V6ONLY compatible way. <b><br>
+-4</b> Only resolve IPv4 addresses <b><br>
+-46</b> Resolve IPv6 addresses if IPv4 address is not
+resolvable <b><br>
+-64</b> Resolve IPv4 addresses if IPv6 address is not
+resolvable <b><br>
+-RHOST:port</b> listen on given local HOST:port for incoming
+connections instead of making remote outgoing connection.
+Can be used with another 3proxy service running -r option
+for connect back functionality. Most commonly used with
+tcppm. HOST can be given as IP or hostname, useful in case
+of dynamic DNS. <b><br>
+-rHOST:port</b> connect to given remote HOST:port instead of
+listening local connection on -p or default port. Can be
+used with another 3proxy service running -R option for
+connect back functionality. Most commonly used with proxy or
+socks. HOST can be given as IP or hostname, useful in case
+of dynamic DNS. <b><br>
+-ocOPTIONS, -osOPTIONS, -olOPTIONS, -orOPTIONS,
+-oROPTIONS</b> options for proxy-to-client (oc),
+proxy-to-server (os), proxy listening (ol), connect back
+client (or), connect back listening (oR) sockets. Options
+like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK,
+TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR,
+SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT,
+SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
+<b><br>
+-DiINTERFACE, -DeINTERFACE</b> bind internal interface /
+external interface to given INTERFACE (e.g. eth0) if
+SO_BINDTODEVICE is supported by the system. You may need to
+run as root or have CAP_NET_RAW capability in order to bind
+to an interface, depending on the system, so this option may
+require root privileges and can be incompatible with some
+configuration commands like chroot and setuid (and daemon if
+setcap is used). <b><br>
+-e</b> External address. IP address of the interface the
+proxy should initiate connections from. External IP must be
+specified if you need incoming connections. By default the
+system will decide which address to use in accordance with
+the routing table. <b><br>
+-i</b> Internal address. IP address the proxy accepts
+connections to. By default, connections to any interface are
+accepted. <b><br>
+-N</b> (for socks) External NAT address 3proxy reports to
+client for BIND and UDPASSOC By default external address is
+reported. It&rsquo;s only useful in the case of IP-IP NAT
+(will not work for PAT) <br>
+Also, all options mentioned for <b>proxy</b>(8)
+<b>socks</b>(8) <b>pop3p</b>(8) <b>tcppm</b>(8)
+<b>udppm</b>(8) <b>ftppr</b>(8) <br>
+are also supported. <br>
+Portmapping services listen at SRCPORT and connect to
+DSTADDR:DSTPORT HTTP and SOCKS proxies are standard. <br>
+POP3 proxy must be configured as POP3 server and requires
+username in the form of: pop3username@pop3server. If POP3
+proxy access must be authenticated, you can specify username
+as proxy_username:proxy_password:POP3_username@pop3server
+<br>
+DNS proxy resolves any types of records but only hostnames
+are cached. It requires nserver/nscache to be configured. If
+nserver is configured as TCP, redirections are applied on
+connection, so parent proxy may be used to resolve names to
+IP. <br>
+FTP proxy can be used as FTP server in any FTP client or
+configured as FTP proxy on a client with FTP proxy support.
+Username format is one of <br>
+FTPuser@FTPServer <br>
+FTPuser:FTPpassword@FTPserver <br>
+proxyuser:proxypassword:FTPuser:FTPpassword@FTPserver <br>
+Please note, if you use FTP client interface for FTP proxy
+do not add FTPpassword and FTPServer to username, because
+FTP client does it for you. That is, if you use 3proxy with
+authentication use proxyuser:proxypassword:FTPuser as FTP
+username, otherwise do not change original FTP user name</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>include</b>
+&lt;path&gt; <br>
+Include config file</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>config</b>
+&lt;path&gt; <br>
+Path to configuration file to use on 3proxy restart or to
+save configuration.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>writable</b>
+<br>
+ReOpens configuration file for write access via Web
+interface, and rereads it. Usually should be first command
+on config file but in combination with config it can be used
+anywhere to open alternate config file. Think twice before
+using it.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>end</b> <br>
+End of configuration</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>log</b>
+[[@|&amp;]logfile] [&lt;LOGTYPE&gt;] <br>
+sets logfile for all gateways <br>
+@ (for Unix) use syslog, filename is used as ident name <br>
+&amp; use ODBC, filename consists of comma-delimited
+datasource,username,password (username and password are
+optional) <br>
+radius - use RADIUS for logging <br>
+LOGTYPE is one of: <br>
+c Minutely <br>
+H Hourly <br>
+D Daily <br>
+W Weekly (starting from Sunday) <br>
+M Monthly <br>
+Y Annually <br>
+if logfile is not specified logging goes to stdout. You can
+specify individual logging options for gateway by using -l
+option in gateway configuration. <br>
+log command supports same format specifications for filename
+template as &quot;logformat&quot; (if filename contains
+&acute;%&acute; sign it&acute;s believed to be template). As
+with &quot;logformat&quot; filename must begin with
+&acute;L&acute; or &acute;G&acute; to specify Local or
+Grinwitch time zone for all time-based format
+specificators.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>rotate</b>
+&lt;n&gt; <br>
+how many archived log files to keep</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>logformat</b>
+&lt;format&gt; <br>
+Format for log record. First symbol in format must be L
+(local time) or G (absolute Grinwitch time). It can be
+preceeded with -XXX+Y where XXX is list of characters to be
+filtered in user input (any non-printable characters are
+filtered too in this case) and Y is replacement character.
+For example, &quot;-,%+ L&quot; in the beginning of
+logformat means comma and percent are replaced with space
+and all time based elemnts are in local time zone. <br>
+You can use:</p>
+
+<p style="margin-left:6%; margin-top: 1em">%y Year in 2
+digit format <br>
+%Y Year in 4 digit format <br>
+%m Month number <br>
+%o Month abbreviation <br>
+%d Day <br>
+%H Hour <br>
+%M Minute <br>
+%S Second <br>
+%t Timestamp (in seconds since 01-Jan-1970) <br>
+%. milliseconds <br>
+%z time zone (from Greenwich) <br>
+%D request duration (in milliseconds) <br>
+%b average send rate per request (in bytes per second); this
+speed is typically below the connection speed shown by the
+download manager. <br>
+%B average receive rate per request (in bytes per second);
+this speed is typically below the connection speed shown by
+the download manager. <br>
+%U Username <br>
+%N service Name <br>
+%p service Port <br>
+%E Error code <br>
+%C Client IP <br>
+%c Client port <br>
+%R Remote IP <br>
+%r Remote port <br>
+%i Internal IP used to accept client connection <br>
+%e External IP used to establish connection <br>
+%Q Requested IP <br>
+%q Requested port <br>
+%n requested hostname <br>
+%I bytes In <br>
+%O bytes Out <br>
+%h Hops (redirections) count <br>
+%T service specific Text <br>
+%N1-N2T (N1 and N2 are positive numbers) log only fields
+from N1 through N2 of service-specific text <br>
+In the case of ODBC logging, logformat specifies an SQL
+statement, for example: <br>
+logformat &quot;-&acute;+_Linsert into log (l_date, l_user,
+l_service, l_in, l_out, l_descr) values (&acute;%d-%m-%Y
+%H:%M:%S&acute;, &acute;%U&acute;, &acute;%N&acute;, %I, %O,
+&acute;%T&acute;)&quot;</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>logdump</b>
+&lt;in_traffic_limit&gt; &lt;out_traffic_limit&gt; <br>
+Immediately creates additional log records if given amount
+of incoming/outgoing traffic is achieved for connection,
+without waiting for connection to finish. It may be useful
+to prevent information about long-lasting downloads on
+server shutdown.</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>delimchar</b>
+&lt;char&gt; <br>
+Sets the delimiter character used to separate username from
+hostname in proxy authentication strings (e.g. for FTP, POP3
+proxies). Default is &acute;@&acute;. For example, to use
+&acute;#&acute; instead: delimchar #. This allows usernames
+to contain the &acute;@&acute; character.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>archiver</b>
+&lt;ext&gt; &lt;commandline&gt; <br>
+Archiver to use for log files. &lt;ext&gt; is file extension
+produced by archiver. Filename will be last argument to
+archiver, optionally you can use %A as produced archive name
+and %F as filename.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>timeouts</b>
+&lt;BYTE_SHORT&gt; &lt;BYTE_LONG&gt; &lt;STRING_SHORT&gt;
+&lt;STRING_LONG&gt; &lt;CONNECTION_SHORT&gt;
+&lt;CONNECTION_LONG&gt; &lt;DNS&gt; &lt;CHAIN&gt;
+&lt;CONNECT&gt; &lt;CONNECTBACK&gt; <br>
+Sets timeout values, defaults 1, 5, 30, 60, 180, 1800, 15,
+60, 15, 5. <br>
+BYTE_SHORT short timeout for single byte, is usually used
+for receiving single byte from stream. <br>
+BYTE_LONG long timeout for single byte, is usually used for
+receiving first byte in frame (for example first byte in
+socks request). <br>
+STRING_SHORT short timeout, for character string within
+stream (for example to wait between 2 HTTP headers) <br>
+STRING_LONG long timeout, for first string in stream (for
+example to wait for HTTP request). <br>
+CONNECTION_SHORT inactivity timeout for short connections
+(HTTP, POP3, etc). <br>
+CONNECTION_LONG inactivity timeout for long connection
+(SOCKS, portmappers, etc). <br>
+DNS timeout for DNS request before requesting next server
+<br>
+CHAIN timeout for reading data from chained connection <br>
+default timeouts 1 5 30 60 180 1800 15 60 15 5</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>maxseg</b>
+&lt;value&gt; <br>
+Sets TCP maximum segment size (MSS) for outgoing
+connections. This can be used to work around path MTU
+discovery issues or to optimize traffic for specific network
+conditions.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>radius</b>
+&lt;NAS_SECRET&gt;
+&lt;radius_server_1[:port][/local_address_1]&gt;
+&lt;radius_server_2[:port][/local_address_2]&gt; <br>
+Configures RADIUS servers to be used for logging and
+authentication (log and auth types must be set to radius).
+port and local address to use with given server may be
+specified. <br>
+Attributes within request: User-Name, Password: (username
+and password if presented by client), Service Type:
+Authenticate-Only, NAS-Port-Type: NAS-Port-Virtual,
+NAS-Port-ID: (proxy service port, e.g. 1080),
+NAS-IPv6-Address / NAS-IP-Address: (proxy interface accessed
+by client), NAS-Identifier: (text identifing proxy, e.g.
+PROXY or SOCKSv5), Framed-IPv6-Address / Framed-IP-Address:
+(IP address of the client), Called-Station-ID: (requested
+Hostname, if presents), Login-Service: (type of request,
+e.g. 1001 - SOCKS CONNECT, 1010 - HTTP GET, 1013 - HTTP
+CONNECT), Login-TCP-Port: (requested port), Login-IPv6-Host
+/ Login-IP-Host: (requested IP). <br>
+Supported reply attributes for authentication:
+Framed-IP-Address / Framed-IPv6-Address (IP to assign to
+user), Reply-Message. Use authcache to speedup
+authentication. RADIUS feature is currently
+experimental.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>nserver</b>
+&lt;ipaddr&gt;[:port][/tcp] <br>
+Nameserver to use for name resolutions. If none specified
+system routines for name resolution is used. Optional port
+number may be specified. If optional /tcp is added to IP
+address, name resolution is performed over TCP.</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>authnserver</b>
+&lt;ipaddr&gt;[:port][/tcp] <br>
+Nameserver to use for DNS-based authentication (e.g. dnsname
+auth type). If not specified, nserver is used. The syntax is
+the same as for nserver.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>nscache</b>
+&lt;cachesize&gt; <b>nscache6</b> &lt;cachesize&gt; <br>
+Cache &lt;cachesize&gt; records for name resolution (nscache
+for IPv4, nscache6 for IPv6). The cache size should usually
+be large enough (for example, 65536).</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>nsrecord</b>
+&lt;hostname&gt; &lt;hostaddr&gt; <br>
+Adds static record to nscache. nscache must be enabled. If
+0.0.0.0 is used as a hostaddr host will never resolve, it
+can be used to blacklist something or together with
+<b>dialer</b> command to set up UDL for dialing.</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>fakeresolve</b>
+<br>
+All names are resolved to the 127.0.0.2 address. Useful if
+all requests are redirected to a parent proxy with http,
+socks4+, connect+ or socks5+.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>dialer</b>
+&lt;progname&gt; <br>
+Execute progname if external name can&acute;t be resolved.
+Hint: if you use nscache, dialer may not work, because names
+will be resolved through cache. In this case you can use
+something like http://dial.right.now/ from browser to set up
+connection.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>internal</b>
+&lt;ipaddr&gt; <br>
+sets ip address of internal interface. This IP address will
+be used to bind gateways. Alternatively you can use -i
+option for individual gateways. Since 0.8 version, IPv6
+address may be used.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>external</b>
+&lt;ipaddr&gt; <br>
+sets ip address of external interface. This IP address will
+be source address for all connections made by proxy.
+Alternatively you can use -e option to specify individual
+address for gateway. Since 0.8 version External or -e can be
+given twice: once with IPv4 and once with IPv6 address.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>maxconn</b>
+&lt;number&gt; <br>
+sets the maximum number of simultaneous connections to each
+service started after this command at the network level.
+Default is 100. <br>
+To limit clients, use connlim instead. maxconn will silently
+ignore new connections, while connlim will report back to
+the client that the connection limit has been reached.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>backlog</b>
+<br>
+sets the listening socket backlog of new connections.
+Default is 1 + maxconn/8. Maximum value is capped by kernel
+tunable somaxconn.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>service</b>
+<br>
+(deprecated). Indicates that 3proxy should behave as a
+Windows 95/98/NT/2000/XP service; has no effect under Unix.
+Not required for 3proxy 0.6 and above. If you upgraded from
+a previous version of 3proxy, use --remove and --install to
+reinstall the service.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>daemon</b>
+<br>
+Should be specified to close the console. Do not use
+&acute;daemon&acute; with &acute;service&acute;. At least
+under FreeBSD, &acute;daemon&acute; should precede any proxy
+service and log commands to avoid socket problems. Always
+place it in the beginning of the configuration file.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>auth</b>
+&lt;authtype&gt; [...] <br>
+Type of user authorization. Currently supported: <br>
+none - no authentication or authorization required. <br>
+Note: if auth is none, any IP-based limitation, redirection,
+etc. will not work. This is the default authentication type
+<br>
+iponly - authentication by access control list with username
+ignored. <br>
+Appropriate for most cases <br>
+useronly - authentication by username without checking for
+any password with authorization by ACLs. Useful for e.g.
+SOCKSv4 proxy and icqpr (icqpr set UIN / AOL screen name as
+a username) <br>
+dnsname - authentication by DNS hostname with authorization
+by ACLs. The DNS hostname is resolved via a PTR (reverse)
+record and validated (the resolved name must resolve to the
+same IP address). It&acute;s recommended to use authcache by
+IP for this authentication. NB: there is no password check;
+the name may be spoofed. <br>
+strong - username/password authentication required. It will
+work with SOCKSv5, FTP, POP3 and HTTP proxy. <br>
+cache - cached authentication, may be used with
+&acute;authcache&acute;. <br>
+radius - authentication with RADIUS. <br>
+Plugins may add additional authentication types.</p>
+
+<p style="margin-left:6%; margin-top: 1em">It&acute;s
+possible to use multiple authentication types in the same
+command. E.g. <br>
+auth iponly strong <br>
+In this case, &acute;strong&acute; authentication will be
+used only if resource access cannot be performed with
+&acute;iponly&acute; authentication, that is, a username is
+required in the ACL. It&acute;s useful to protect access to
+some resources with a password while allowing passwordless
+access to other resources, or to use IP-based authentication
+for dedicated laptops and request a username/password for
+shared ones.</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>authcache</b>
+&lt;cachtype&gt; &lt;cachtime&gt; <br>
+Cache authentication information for a given amount of time
+(cachetime) in seconds. Cachetype is one of: <br>
+ip - after successful authentication all connections during
+caching time from same IP are assigned to the same user,
+username is not requested. <br>
+ip,user username is requested and all connections from the
+same IP are assigned to the same user without actual
+authentication. <br>
+user - same as above, but IP is not checked. <br>
+user,password - both username and password are checked
+against cached ones. <br>
+limit - limit user to use only one ip, &acute;ip&acute; and
+&acute;user&acute; are required <br>
+acl - only use cached auth if user access service with same
+ACL <br>
+ext - cache external IP <br>
+Use auth type &acute;cache&acute; for cached
+authentication</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>allow</b>
+&lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;
+&lt;targetportlist&gt; &lt;operationlist&gt;
+&lt;weekdayslist&gt; &lt;timeperiodslist&gt; <b><br>
+deny</b> &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <b><br>
+redirect</b> &lt;ip&gt; &lt;port&gt; &lt;userlist&gt;
+&lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <br>
+Access control entries. All lists are comma-separated, no
+spaces are allowed. Usernames are case sensitive (if used
+with authtype nbname username must be in uppercase). Source
+and target lists may contain IP addresses (W.X.Y.Z), ranges
+A.B.C.D - W.X.Y.Z (since 0.8) or CIDRs (W.X.Y.Z/L). Since
+0.6, the targetlist may also contain host names, instead of
+addresses. It&acute;s possible to use a wildmask in the
+beginning and at the end of the hostname, e.g. *badsite.com
+or *badcontent*. The hostname is only checked if a hostname
+is present in the request. Targetportlist may contain ports
+(X) or port ranges lists (X-Y). For any field * sign means
+ANY. If access list is empty it&acute;s assumed to be <br>
+allow * <br>
+If access list is not empty last item in access list is
+assumed to be <br>
+deny * <br>
+You may want explicitly add deny * to the end of access list
+to prevent HTTP proxy from requesting user&acute;s password.
+Access lists are checked after user have requested any
+resource. If you want 3proxy to reject connections from
+specific addresses immediately without any conditions you
+should either bind proxy to appropriate interface only or to
+use ip filters.</p>
+
+<p style="margin-left:6%; margin-top: 1em">Operation is one
+of: <br>
+CONNECT establish outgoing TCP connection <br>
+BIND bind TCP port for listening <br>
+UDPASSOC make UDP association <br>
+ICMPASSOC make ICMP association (for future use) <br>
+HTTP_GET HTTP GET request <br>
+HTTP_PUT HTTP PUT request <br>
+HTTP_POST HTTP POST request <br>
+HTTP_HEAD HTTP HEAD request <br>
+HTTP_CONNECT HTTP CONNECT request <br>
+HTTP_OTHER over HTTP request <br>
+HTTP matches any HTTP request except HTTP_CONNECT <br>
+HTTPS same as HTTP_CONNECT <br>
+FTP_GET FTP get request <br>
+FTP_PUT FTP put request <br>
+FTP_LIST FTP list request <br>
+FTP_DATA FTP data connection. Note: FTP_DATA requires access
+to dynamic non-privileged (1024-65535) ports on the remote
+side. <br>
+FTP matches any FTP/FTP Data request <br>
+ADMIN access to administration interface</p>
+
+<p style="margin-left:6%; margin-top: 1em">Weekdays are
+week day numbers or periods, 0 or 7 means Sunday, 1 is
+Monday, 1-5 means Monday through Friday. <br>
+Timeperiodlists is a list of time periods in
+HH:MM:SS-HH:MM:SS format. For example,
+00:00:00-08:00:00,17:00:00-24:00:00 lists non-working
+hours.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>parent</b>
+&lt;weight&gt; &lt;type&gt; &lt;ip&gt; &lt;port&gt;
+&lt;username&gt; &lt;password&gt; <br>
+this command must follow &quot;allow&quot; rule. It extends
+last allow rule to build proxy chain. Proxies may be
+grouped. Proxy inside the group is selected randomly. If few
+groups are specified one proxy is randomly picked from each
+group and chain of proxies is created (that is second proxy
+connected through first one and so on). Weight is used to
+group proxies. Weight is a number between 1 and 1000.
+Weights are summed and proxies are grouped together until
+the weight of the group is 1000. That is: <br>
+allow * <br>
+parent 500 socks5 192.168.10.1 1080 <br>
+parent 500 connect 192.168.10.1 3128 <br>
+makes 3proxy to randomly choose between 2 proxies for all
+outgoing connections. These 2 proxies form 1 group
+(summarized weight is 1000). <br>
+allow * * * 80 <br>
+parent 1000 socks5 192.168.10.1 1080 <br>
+parent 1000 connect 192.168.20.1 3128 <br>
+parent 300 socks4 192.168.30.1 1080 <br>
+parent 700 socks5 192.168.40.1 1080 <br>
+creates chain of 3 proxies: 192.168.10.1, 192.168.20.1 and
+third is (192.168.30.1 with probability of 0.3 or
+192.168.40.1 with probability of 0.7) for outgoing web
+connections. Chains are only applied to new connections,
+pipelined (keep-alive) requests in the same connection use
+the same chain.</p>
+
+<p style="margin-left:6%; margin-top: 1em">type is one of:
+<br>
+extip does not actually redirect the request; it sets the
+external address for this request to &lt;ip&gt;. It can be
+chained with another parent type. It&rsquo;s useful to set
+the external IP based on ACL or make it random. <br>
+tcp simply redirect connection. TCP is always last in chain.
+This type of proxy is a simple TCP redirection, it does not
+support parent authentication. <br>
+http redirect to HTTP proxy. HTTP is always the last chain.
+It should only be used with http (proxy) service, if used
+with different service, it works as tcp redirection. <br>
+pop3 redirect to POP3 proxy (only local redirection is
+supported, can only be used as a first hop in chaining) <br>
+ftp redirect to FTP proxy (only local redirection is
+supported, can only be used as a first hop in chaining) <br>
+connect parent is HTTP CONNECT method proxy <br>
+connect+ parent is HTTP CONNECT proxy with name resolution
+(hostname is used instead of IP if available) <br>
+socks4 parent is SOCKSv4 proxy <br>
+socks4+ parent is SOCKSv4 proxy with name resolution
+(SOCKSv4a) <br>
+socks5 parent is SOCKSv5 proxy <br>
+socks5+ parent is SOCKSv5 proxy with name resolution <br>
+socks4b parent is SOCKS4b (broken SOCKSv4 implementation
+with shortened server reply; I never saw this kind of
+server, but they say there are some). Normally you should
+not use this option. Do not confuse this option with
+SOCKSv4a (socks4+). <br>
+socks5b parent is SOCKS5b (broken SOCKSv5 implementation
+with shortened server reply. I think you will never find it
+useful). Never use this option unless you know exactly you
+need it. <br>
+admin redirect request to local &acute;admin&acute; service
+(with -s parameter). <br>
+Use &quot;+&quot; proxy only with &quot;fakeresolve&quot;
+option</p>
+
+<p style="margin-left:6%; margin-top: 1em">IP and port are
+ip addres and port of parent proxy server. If IP is zero, ip
+is taken from original request, only port is changed. If
+port is zero, it&acute;s taken from original request, only
+IP is changed. If both IP and port are zero - it&acute;s a
+special case of local redirection, it works only with
+<b>socks</b> proxy. In case of local redirection request is
+redirected to different service, <b>ftp</b> locally
+redirects to <b>ftppr pop3</b> locally redirects to <b>pop3p
+http</b> locally redirects to <b>proxy admin</b> locally
+redirects to the admin -s service.</p>
+
+<p style="margin-left:6%; margin-top: 1em">Main purpose of
+local redirections is to have the requested resource (URL or
+POP3 username) logged and protocol-specific filters applied.
+In case of local redirection, ACLs are reviewed twice:
+first, by the SOCKS proxy up to the &acute;parent&acute;
+command and then by the gateway service the connection is
+redirected to (HTTP, FTP or POP3) after the
+&acute;parent&acute; command. It means an additional
+&acute;allow&acute; command is required for redirected
+requests, for example: <br>
+allow * * * 80 <br>
+parent 1000 http 0.0.0.0 0 <br>
+allow * * * 80 HTTP_GET,HTTP_POST <br>
+socks <br>
+redirects all SOCKS requests with target port 80 to local
+HTTP proxy, local HTTP proxy parses requests and allows only
+GET and POST requests. <br>
+parent 1000 http 1.2.3.4 0 <br>
+Changes the external address for a given connection to
+1.2.3.4 (equivalent to -e1.2.3.4) <br>
+Optional username and password are used to authenticate on
+parent proxy. Username of &acute;*&acute; means username
+must be supplied by user.</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>parentretries</b>
+&lt;number&gt; <br>
+Number of retries to connect to parent proxy. Default is
+1.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>nolog</b>
+&lt;n&gt; <br>
+extends last allow or deny command to prevent logging, e.g.
+<br>
+allow * * 192.168.1.1 <br>
+nolog</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>weight</b>
+&lt;n&gt; <br>
+extends last allow or deny command to set weight for this
+request <br>
+allow * * 192.168.1.1 <br>
+weight 100 <br>
+Weight may be used for different purposes.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>force <br>
+noforce</b> <br>
+If force is specified for service, configuration reload will
+require all current sessions of this service to be
+re-authenticated. If ACL is changed or user account is
+removed, old connections which do not match current are
+closed. noforce allows to keep previously authenticated
+connections.</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>bandlimin</b>
+&lt;rate&gt; &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <b><br>
+nobandlimin</b> &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <b><br>
+bandlimout</b> &lt;rate&gt; &lt;userlist&gt;
+&lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <b><br>
+nobandlimout</b> &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <br>
+bandlim sets a bandwidth limitation filter to &lt;rate&gt;
+bps (bits per second). If you want to specify bytes per
+second, multiply your value by 8. bandlim rules act in the
+same manner as allow/deny rules, except for one thing:
+bandwidth limiting is applied to all services, not to some
+specific service. bandlimin and nobandlimin apply to
+incoming traffic <br>
+bandlimout and nobandlimout apply to outgoing traffic <br>
+If you want to ratelimit your clients with IPs
+192.168.10.16/30 (4 addresses) to 57600 bps, you have to
+specify 4 rules like <br>
+bandlimin 57600 * 192.168.10.16 <br>
+bandlimin 57600 * 192.168.10.17 <br>
+bandlimin 57600 * 192.168.10.18 <br>
+bandlimin 57600 * 192.168.10.19 <br>
+and each of your clients will have a 56K channel. If you
+specify <br>
+bandlimin 57600 * 192.168.10.16/30 <br>
+you will have a 56K channel shared between all clients. If
+you want, for example, to limit all speed except access to
+POP3, you can use <br>
+nobandlimin * * * 110 <br>
+before the rest of bandlim rules.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>connlim</b>
+&lt;rate&gt; &lt;period&gt; &lt;userlist&gt;
+&lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <b><br>
+noconnlim</b> &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <br>
+connlim sets connections rate limit per time period for
+traffic pattern controlled by ACL. Period is in seconds. If
+period is 0, connlim limits a number of parallel
+connections. <br>
+connlim 100 60 * 127.0.0.1 <br>
+allows 100 connections per minute for 127.0.0.1. <br>
+connlim 20 0 * 127.0.0.1 <br>
+allows 20 simultaneous connections for 127.0.0.1. <br>
+Like with bandlimin, if an individual limit is required per
+client, a separate rule must be added for every client. Like
+with nobandlimin, noconnlim adds an exception.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>counter</b>
+&lt;filename&gt; &lt;reporttype&gt; &lt;reportname&gt;
+<b><br>
+countin</b> &lt;number&gt; &lt;type&gt; &lt;limit&gt;
+&lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;
+&lt;targetportlist&gt; &lt;operationlist&gt;
+&lt;weekdayslist&gt; &lt;timeperiodslist&gt; <b><br>
+nocountin</b> &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <b><br>
+countout</b> &lt;number&gt; &lt;type&gt; &lt;limit&gt;
+&lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;
+&lt;targetportlist&gt; &lt;operationlist&gt;
+&lt;weekdayslist&gt; &lt;timeperiodslist&gt; <b><br>
+nocountout</b> &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt; <b><br>
+countall</b> &lt;number&gt; &lt;type&gt; &lt;limit&gt;
+&lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;
+&lt;targetportlist&gt; &lt;operationlist&gt;
+&lt;weekdayslist&gt; &lt;timeperiodslist&gt; <b><br>
+nocountall</b> &lt;userlist&gt; &lt;sourcelist&gt;
+&lt;targetlist&gt; &lt;targetportlist&gt;
+&lt;operationlist&gt; &lt;weekdayslist&gt;
+&lt;timeperiodslist&gt;</p>
+
+<p style="margin-left:6%; margin-top: 1em">counter,
+countin, nocountin, countout, nocountout, countall,
+nocountall commands are used to set a traffic limit in MB
+for a period of time (day, week or month). Filename is a
+path to a special file where traffic information is
+permanently stored. The number is the sequential number of
+the record in this file. If the number is 0, this counter is
+not preserved in the counter file (that is, if the proxy is
+restarted, all counters with 0 are flushed); otherwise, it
+should be a unique sequential number which points to the
+position of the counter within the file. Type specifies a
+type of counter. Type is one of: <br>
+H - counter is reset hourly <br>
+D - counter is reset daily <br>
+W - counter is reset weekly <br>
+M - counter is reset monthly <br>
+reporttype/reportname may be used to generate traffic
+reports. Reporttype is one of D, W, M, H (hourly) and
+reportname specifies the filename template for reports. The
+report is a text file with counter values in the format:
+<br>
+&lt;COUNTERNUMBER&gt; &lt;TRAF&gt; <br>
+The rest of parameters is identical to
+bandlim/nobandlim.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>users</b>
+username[:pwtype:password] ... <br>
+pwtype is one of: <br>
+none (empty) - use system authentication <br>
+CL - password is cleartext <br>
+CR - password is crypt-style password <br>
+NT - password is NT password (in hex) <br>
+LM - password is LM password (in hex) <br>
+example: <br>
+users test1:CL:password1
+&quot;test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49.&quot; <br>
+users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63</p>
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="6%"></td>
+
+
+<p>Note: double quotes are required because the password
+contains a $ sign.</p></td>
+<td width="88%"></td>
+<td width="6%">
+</td></tr>
+</table>
+
+<p style="margin-left:6%; margin-top: 1em"><b>flush</b>
+<br>
+empty the active access list. The access list must be
+flushed every time you create a new access list for a new
+service. For example: <br>
+allow * <br>
+pop3p <br>
+flush <br>
+allow * 192.168.1.0/24 <br>
+socks <br>
+sets different ACLs for <b>pop3p</b> and <b>socks</b></p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>system</b>
+&lt;command&gt; <br>
+execute system command</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>pidfile</b>
+&lt;filename&gt; <br>
+write pid of current process to file. It can be used to
+manipulate 3proxy with signals under Unix. Currently next
+signals are available:</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>monitor</b>
+&lt;filename&gt; <br>
+If file monitored changes in modification time or size,
+3proxy reloads configuration within one minute. Any number
+of files may be monitored.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>setuid</b>
+&lt;uid&gt; <br>
+calls setuid(uid), uid can be numeric or since 0.9 username.
+Unix only. Warning: under some Linux kernels setuid() works
+for current thread only. It makes it impossible to suid for
+all threads.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>setgid</b>
+&lt;gid&gt; <br>
+calls setgid(gid), gid can be numeric or since 0.9
+groupname. Unix only.</p>
+
+<p style="margin-left:6%; margin-top: 1em"><b>chroot</b>
+&lt;path&gt; [&lt;uid&gt;] [&lt;gid&gt;] <br>
+calls chroot(path) and sets gid/uid. Unix only. uid/gid
+supported since 0.9, can be numeric or
+username/groupname</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>stacksize</b>
+&lt;value_to_add_to_default_stack_size&gt; <br>
+Change the default size for thread stacks. May be required
+in some situations, e.g. with non-default plugins, or on
+some platforms (some FreeBSD versions may require adjusting
+the stack size due to an incorrectly defined value in system
+header files; this value is also often required to be
+changed for ODBC and PAM support on Linux). If you
+experience 3proxy crash on request processing, try to set
+some positive value. You may start with stacksize 65536 and
+then find the minimal value for the service to work. If you
+experience memory shortage, you can try to experiment with
+negative values.</p>
+
+<h2>PLUGINS
+<a name="PLUGINS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>plugin</b>
+&lt;path_to_shared_library&gt; &lt;function_to_call&gt;
+[&lt;arg1&gt; ...] <br>
+Loads specified library and calls given export function with
+given arguments, as <br>
+int functions_to_call(struct pluginlink * pl, int argc, char
+* argv[]); <br>
+function_to_call must return 0 in case of success, value
+&gt; 0 to indicate error.</p>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>filtermaxsize</b>
+&lt;max_size_of_data_to_filter&gt; <br>
+If Content-length (or another data length) is greater than
+the given value, no data filtering will be performed through
+filtering plugins to avoid data corruption and/or
+Content-Length changing. Default is 1MB (1048576).</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">Report all bugs
+to <b>3proxy@3proxy.org</b></p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+proxy(8), ftppr(8), socks(8), pop3p(8), tcppm(8), udppm(8),
+syslogd(8), <br>
+https://3proxy.org/</p>
+
+<h2>TRIVIA
+<a name="TRIVIA"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3APA3A is
+pronounced as ``zaraza&acute;&acute;.</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy is
+designed by Vladimir 3APA3A Dubrovin
+(<i>3proxy@3proxy.org</i>)</p>
+<hr>
+</body>
+</html>

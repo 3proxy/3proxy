@@ -1,0 +1,225 @@
+<!-- Creator     : groff version 1.24.1 -->
+<html>
+<head>
+
+</head>
+<body>
+
+<h1 align="center">udppm</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#OPTIONS">OPTIONS</a><br>
+<a href="#ARGUMENTS">ARGUMENTS</a><br>
+<a href="#CLIENTS">CLIENTS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>udppm</b> -
+UDP port mapper</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em"><b>udppm</b>
+[<b>-ds</b>] [<b>-l</b>[[<i>@</i>]<i>logfile</i>]]
+[<b>-i</b><i>internal_ip</i>] [<b>-e</b><i>external_ip</i>]
+<i>local_port remote_host remote_port</i></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:6%; margin-top: 1em"><i><b>udppm</b></i>
+forwards datagrams from local to remote UDP port</p>
+
+<h2>OPTIONS
+<a name="OPTIONS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-I</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Inetd mode. Standalone service
+only.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-d</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Daemonize. Detach service from
+console and run in the background.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-t</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Be silenT. Do not log
+start/stop/accept error records.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-e</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">External address. IP address of
+the interface the proxy should initiate datagrams from. By
+default, the system will decide which address to use in
+accordance with the routing table.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-i</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Internal address. IP address the
+proxy accepts datagrams to. By default, connections to any
+interface are accepted. It&acute;s usually unsafe.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-l</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Log. By default logging is to
+stdout. If <i>logfile</i> is specified logging is to file.
+Under Unix, if &acute;<i>@</i>&acute; precedes
+<i>logfile</i>, syslog is used for logging.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-s</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Single packet. By default, only
+one client can use the udppm service, but if -s is
+specified, only one packet will be forwarded between client
+and server. This allows the service to be shared between
+multiple clients for single-packet services (for example,
+name lookups).</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-S</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Increase or decrease stack size.
+You may want to try something like -S8192 if you experience
+3proxy crashes.</p></td></tr>
+</table>
+
+<h2>ARGUMENTS
+<a name="ARGUMENTS"></a>
+</h2>
+
+
+
+<p style="margin-left:6%; margin-top: 1em"><i>local_port</i></p>
+
+<p style="margin-left:15%;">- port udppm accepts datagrams
+on</p>
+
+<p style="margin-left:6%;"><i>remote_host</i></p>
+
+<p style="margin-left:15%;">- IP address of the host
+datagrams are forwarded to</p>
+
+<p style="margin-left:6%;"><i>remote_port</i></p>
+
+<p style="margin-left:15%;">- remote port datagrams are
+forwarded to</p>
+
+<h2>CLIENTS
+<a name="CLIENTS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">Any UDP-based
+application can be used as a client. Use <i>internal_ip</i>
+and <i>local_port</i> as the destination in the client
+application. All datagrams are forwarded to
+<i>remote_host</i>:<i>remote_port</i></p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">Report all bugs
+to <b>3proxy@3proxy.org</b></p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+proxy(8), ftppr(8), socks(8), pop3p(8), udppm(8),
+syslogd(8), <br>
+https://3proxy.org/</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:6%; margin-top: 1em">3proxy is
+designed by Vladimir 3APA3A Dubrovin
+(<i>3proxy@3proxy.org</i>)</p>
+<hr>
+</body>
+</html>
