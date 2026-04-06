@@ -1,0 +1,71 @@
+name: Build Win32 3proxy-lite with Watcom
+
+on:
+  push:
+    branches: [ "master" ]
+    paths: [ 'RELEASE', '.github/workflows/build-watcom.yml' ]
+
+jobs:
+  ci:
+    name: "${{ matrix.target }}"
+    strategy:
+      matrix:
+        target:
+          - windows-2022
+    runs-on: ${{ matrix.target }}
+    steps:
+    - uses: actions/checkout@v4
+#    - name: configure
+#      run: ./configure
+    - name: Setup Open Watcom
+      uses: open-watcom/setup-watcom@v0
+    - name: set date
+      run: |
+       $NOW = Get-Date -Format "yyMMddHHmmss"
+       echo "now: $NOW"
+       $RELEASE = Get-Content -Path "RELEASE" -Raw
+       echo "release: $RELEASE"
+       echo "NOW=$NOW" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+       echo "RELEASE=$RELEASE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+       echo "VERSION=VERSION=`"$RELEASE`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+       echo "BUILDDATE=BUILDDATE=`"$NOW`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    - name: make Watcom
+      shell: cmd
+      run: |
+       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
+       nmake /F Makefile.watcom
+    - name: make dist dir
+      shell: cmd
+      run: |
+       mkdir dist
+       mkdir dist\3proxy
+       mkdir dist\3proxy\bin
+       mkdir dist\3proxy\cfg
+       mkdir dist\3proxy\cfg\sql
+       mkdir dist\3proxy\doc
+       mkdir dist\3proxy\doc\ru
+       mkdir dist\3proxy\doc\html
+       mkdir dist\3proxy\doc\html\plugins
+       mkdir dist\3proxy\doc\html\man3
+       mkdir dist\3proxy\doc\html\man8
+       mkdir dist\3proxy\doc\devel
+       copy bin\3proxy.exe dist\3proxy\bin\
+       copy bin\*.dll dist\3proxy\bin\
+       copy bin\mycrypt.exe  dist\3proxy\bin\
+       copy cfg\*.* dist\3proxy\cfg\
+       copy cfg\sql\*.*  dist\3proxy\cfg\sql\
+       copy doc\ru\*.*  dist\3proxy\doc\ru\
+       copy doc\html\*.* dist\3proxy\doc\html\
+       copy doc\html\plugins\*.* dist\3proxy\doc\html\plugins\
+       copy doc\html\man8\*.* dist\3proxy\doc\html\man8\
+       copy doc\html\man3\*.* dist\3proxy\doc\html\man3\
+       copy doc\devel\*.rtf dist\3proxy\doc\devel\
+       copy copying dist\3proxy\
+       copy authors dist\3proxy\
+       copy README dist\3proxy\
+       copy rus.3ps dist\3proxy\
+    - name: Get artifact
+      uses: actions/upload-artifact@v4
+      with:
+       name: "3proxy-${{ env.RELEASE }}-lite"
+       path: dist/

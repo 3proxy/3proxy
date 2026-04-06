@@ -6,14 +6,19 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c $(VERSION) $(BUILDDATE)
+CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c
+!IFDEF RELEASE
+VERSION=/D VERSION=\"3proxy-$(RELEASE)\"
+!ENDIF
+!IFDEF NOW
+BUILDDATE=/D BUILDDATE=\"$(NOW)\"
+!ENDIF
 COUT = /Fo
 LN = link
-LDFLAGS =  /nologo /subsystem:console /incremental:no /machine:I386
+LDFLAGS =  /nologo /subsystem:console /incremental:no
 DLFLAGS = /DLL
 DLSUFFICS = .dll
 LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib Crypt32.lib  libcrypto.lib libssl.lib
-LIBSOLD = libeay32MT.lib ssleay32MT.lib
 LIBSPREFIX = 
 LIBSSUFFIX = .lib
 LIBEXT = .lib                                                                                               

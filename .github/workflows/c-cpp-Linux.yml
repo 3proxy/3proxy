@@ -1,0 +1,34 @@
+name: C/C++ CI Linux
+
+on:
+  push:
+    branches: [ "master" ]
+    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+  pull_request:
+    branches: [ "master" ]
+    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+
+jobs:
+  ci:
+    name: "${{ matrix.target }}"
+    strategy:
+      matrix:
+        target:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+    runs-on: ${{ matrix.target }}
+    steps:
+    - uses: actions/checkout@v4
+#    - name: configure
+#      run: ./configure
+    - name: Linux libraries
+      if: ${{ startsWith(matrix.target, 'ubuntu') }}
+      run: sudo apt install libssl-dev libpam-dev libpcre2-dev
+    - name: make
+      run: make -f Makefile.Linux
+    - name: mkdir
+      run: mkdir ~/3proxy
+    - name: make install
+      run: make -f Makefile.Linux DESTDIR=~/3proxy install
+    - name: make clean Linux
+      run: make -f Makefile.Linux clean

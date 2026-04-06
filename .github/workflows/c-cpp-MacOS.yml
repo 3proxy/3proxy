@@ -1,0 +1,31 @@
+name: C/C++ CI MacOS
+
+on:
+  push:
+    branches: [ "master" ]
+    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
+  pull_request:
+    branches: [ "master" ]
+    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
+
+jobs:
+  ci:
+    name: "${{ matrix.target }}"
+    strategy:
+      matrix:
+        target:
+          - macos-15
+    runs-on: ${{ matrix.target }}
+    steps:
+    - uses: actions/checkout@v4
+#    - name: configure
+#      run: ./configure
+    - name: Mac libraries
+      run: brew install pcre2
+    - name: make MacOS
+      run: make -f Makefile.FreeBSD
+      env:
+       LDFLAGS: "-L/usr/local/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/openssl/lib"
+       CFLAGS: "-I/usr/local/include -I/opt/homebrew/include -I/usr/local/opt/openssl/include -I/opt/homebrew/opt/openssl/include"
+    - name: make clean MacOS
+      run: make -f Makefile.FreeBSD clean
