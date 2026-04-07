@@ -195,7 +195,7 @@ SOCKET ftpdata(struct clientparam *param){
 	rem = param->remsock;
 	param->remsock = INVALID_SOCKET;
 	param->req = param->sinsr;
-	*SAPORT(&param->req) = *SAPORT(&param->sinsr) = htons((unsigned short)((b5<<8)^b6));
+	*SAPORT(&param->req) = *SAPORT(&param->sinsr) = htons((uint16_t)((b5<<8)^b6));
 	*SAPORT(&param->sinsl) = 0;
 	i = param->operation;
 	param->operation = FTP_DATA;

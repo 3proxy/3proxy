@@ -17,16 +17,6 @@
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
 
-struct udpmap {
-	struct udpmap *next;
-	time_t updated;
-	SOCKET s;
-	int single;
-	unsigned long cliip;
-	unsigned short cliport;
-};
-
-
 void * udppmchild(struct clientparam* param) {
  unsigned char *buf = NULL;
  int res, i;
@@ -34,7 +24,6 @@ void * udppmchild(struct clientparam* param) {
  SASIZETYPE size;
  unsigned long ul = 1;
 #endif
- struct udpmap *udpmappings = NULL;
  struct pollfd fds[256];
 
 

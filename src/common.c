@@ -417,7 +417,7 @@ int ceparseargs(const char *str){
 
 int parsehost(int family, unsigned char *host, struct sockaddr *sa){
 	char *sp=NULL,*se=NULL;
-	unsigned short port=0;
+	uint16_t port=0;
 	int ret = 0;
 
 	if(!host) return 2;
@@ -436,7 +436,7 @@ int parsehost(int family, unsigned char *host, struct sockaddr *sa){
 	return ret;
 }
 
-int parsehostname(char *hostname, struct clientparam *param, unsigned short port){
+int parsehostname(char *hostname, struct clientparam *param, uint16_t port){
 	char *sp=NULL,*se=NULL;
 	int ret = 0;
 
@@ -498,7 +498,7 @@ int parseusername(char *username, struct clientparam *param, int extpasswd){
 	return 0;
 }
 
-int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port){
+int parseconnusername(char *username, struct clientparam *param, int extpasswd, uint16_t port){
 	char *sb, *se;
 	if(!username || !*username) return 1;
         if ((sb=strchr(username, conf.delimchar)) == NULL){
@@ -625,7 +625,7 @@ int doconnect(struct clientparam * param){
  return 0;
 }
 
-int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask) {
+int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask) {
 	unsigned d1, d2, d3, d4, m;
 	int res;
 	if ((res = sscanf((char *)s, "%u.%u.%u.%u/%u", &d1, &d2, &d3, &d4, &m)) < 4) return 0;
@@ -658,8 +658,8 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 #endif
 
 #ifdef NOIPV6
-unsigned long getip(unsigned char *name){
-	unsigned long retval;
+uint32_t getip(unsigned char *name){
+	uint32_t retval;
 	int i;
 	int ndots = 0;
 	struct hostent *hp=NULL;
@@ -701,7 +701,7 @@ unsigned long getip(unsigned char *name){
 		system(conf.demanddialprog);
 		hp=gethostbyname((char *)name);
 	}
-	retval = hp?*(unsigned long *)hp->h_addr:0;
+	retval = hp?*(uint32_t *)hp->h_addr:0;
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
 	pthread_mutex_unlock(&gethostbyname_mutex);
 #endif
@@ -744,7 +744,7 @@ int afdetect(unsigned char *name){
 
 }
 
-unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa){
+uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
 	int detect;
 	struct addrinfo *ai, hint;

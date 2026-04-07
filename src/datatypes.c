@@ -44,7 +44,7 @@ static void pr_traffic(struct node *node, CBFUNC cbf, void*cb){
 
 static void pr_port(struct node *node, CBFUNC cbf, void*cb){
 	char buf[8];
-	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%hu", ntohs(*(unsigned short*)node->value)));
+	if(node->value)(*cbf)(cb, buf, sprintf(buf, "%hu", (unsigned short)ntohs(*(uint16_t*)node->value)));
 }
 
 static void pr_datetime(struct node *node, CBFUNC cbf, void*cb){

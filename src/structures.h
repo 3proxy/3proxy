@@ -198,7 +198,7 @@ struct srvparam;
 typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char *);
 typedef int (*AUTHFUNC)(struct clientparam * param);
 typedef void * (*REDIRECTFUNC)(struct clientparam * param);
-typedef unsigned long (*RESOLVFUNC)(int af, unsigned char *name, unsigned char *value);
+typedef uint32_t (*RESOLVFUNC)(int af, unsigned char *name, unsigned char *value);
 typedef unsigned (*BANDLIMFUNC)(struct clientparam * param, unsigned nbytesin, unsigned nbytesout);
 typedef void (*TRAFCOUNTFUNC)(struct clientparam * param);
 typedef void * (*EXTENDFUNC) (struct node *node);
@@ -241,8 +241,8 @@ struct iplist {
 
 struct portlist {
 	struct portlist * next;
-	unsigned short startport;
-	unsigned short endport;
+	uint16_t startport;
+	uint16_t endport;
 };
 
 struct userlist {
@@ -536,7 +536,7 @@ struct srvparam {
 	unsigned char * logformat;
 	unsigned char * logtarget;
 	unsigned char * nonprintable;
-	unsigned short targetport;
+	uint16_t targetport;
 	unsigned char replace;
 	time_t time_start;
 };
@@ -732,7 +732,7 @@ struct symbol {
 
 struct proxydef {
 	PROXYFUNC pf;
-	unsigned short port;
+	uint16_t port;
 	int isudp;
 	int service;
 	char * helpmessage;
@@ -780,8 +780,8 @@ struct pluginlink {
 	int (*myinet_ntop)(int af, void *src, char *dst, socklen_t size);
 	int (*dobuf)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 	int (*dobuf2)(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
-	int (*scanaddr)(const unsigned char *s, unsigned long * ip, unsigned long * mask);
-	unsigned long (*getip46)(int family, unsigned char *name,  struct sockaddr *sa);
+	int (*scanaddr)(const unsigned char *s, uint32_t * ip, uint32_t * mask);
+	uint32_t (*getip46)(int family, unsigned char *name,  struct sockaddr *sa);
 	int (*sockmap)(struct clientparam * param, int timeo, int usesplice);
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);
 	int (*alwaysauth)(struct clientparam * param);
@@ -807,9 +807,9 @@ struct pluginlink {
 	struct proxydef * childdef;
 	int (*start_proxy_thread)(struct child * chp);
 	void (*freeparam)(struct clientparam * param);
-	int (*parsehostname)(char *hostname, struct clientparam *param, unsigned short port);
+	int (*parsehostname)(char *hostname, struct clientparam *param, uint16_t port);
 	int (*parseusername)(char *username, struct clientparam *param, int extpasswd);
-	int (*parseconnusername)(char *username, struct clientparam *param, int extpasswd, unsigned short port);
+	int (*parseconnusername)(char *username, struct clientparam *param, int extpasswd, uint16_t port);
 	struct sockfuncs *so;
 	unsigned char * (*dologname) (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 };

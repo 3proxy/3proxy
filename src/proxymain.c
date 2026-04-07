@@ -573,7 +573,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  else {
 #endif
 #ifndef NOPORTMAP
-	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv.intsa) = htons((unsigned short)atoi(argv[i])))==0 || (srv.targetport = htons((unsigned short)atoi(argv[i+2])))==0) {
+	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv.intsa) = htons((uint16_t)atoi(argv[i])))==0 || (srv.targetport = htons((uint16_t)atoi(argv[i+2])))==0) {
 #ifndef STDMAIN
 		haveerror = 1;
 		pushthreadinit();

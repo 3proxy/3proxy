@@ -610,7 +610,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 			if(!vendor && attr[0] == PW_VENDOR_SPECIFIC) {
 				if (attr[1] < 6 || count < 6) RETURN(4);
 				vendorlen = attr[1]-6;
-				vendor = htonl(*((int*)(attr +2)));
+				vendor = htonl(*((uint32_t *)(attr +2)));
 				count -= 6;
 				attr += 6;
 				continue;

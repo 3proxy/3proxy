@@ -17,7 +17,7 @@
 
 
 void * dnsprchild(struct clientparam* param) {
- unsigned long ip = 0;
+ uint32_t ip = 0;
  unsigned char *bbuf;
  unsigned char *buf, *s1, *s2;
  char * host = NULL;
@@ -26,7 +26,7 @@ void * dnsprchild(struct clientparam* param) {
  int res, i;
  int len;
  unsigned type=0;
- unsigned ttl;
+ uint32_t ttl;
  unsigned char addr[16];
 #ifdef _WIN32
 	unsigned long ul = 1;
@@ -109,7 +109,7 @@ void * dnsprchild(struct clientparam* param) {
 	unsigned a, b, c, d;
 	sscanf(host, "%u.%u.%u.%u", &a, &b, &c, &d);
 	ip = htonl((d<<24) ^ (c<<16) ^ (b<<8) ^ a);
-	if(*SAFAMILY(&param->sincl) == AF_INET &&  ip == *(unsigned long*)SAADDR(&param->sincl)){
+	if(*SAFAMILY(&param->sincl) == AF_INET &&  ip == *(uint32_t *)SAADDR(&param->sincl)){
 		buf[2] = 0x85;
 		buf[3] = 0x80;
 		buf[6] = 0;

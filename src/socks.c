@@ -37,7 +37,7 @@ void * sockschild(struct clientparam* param) {
  SOCKET s;
  unsigned size;
  SASIZETYPE sasize;
- unsigned short port = 0;
+ uint16_t port = 0;
  unsigned char * buf=NULL;
  unsigned char c;
  unsigned char command=0;
@@ -102,7 +102,7 @@ void * sockschild(struct clientparam* param) {
 	buf[0] = (unsigned char) res;
 	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	buf[1] = (unsigned char) res;
-	port = *(unsigned short*)buf;
+	port = *(uint16_t*)buf;
 	c = 1;
  }
  
@@ -162,7 +162,7 @@ void * sockschild(struct clientparam* param) {
 	 buf[0] = (unsigned char) res;
 	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	 buf[1] = (unsigned char) res;
-	 port = *(unsigned short*)buf;
+	 port = *(uint16_t*)buf;
 
  }
  else {

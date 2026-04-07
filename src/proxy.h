@@ -195,15 +195,15 @@ void trafcountfunc(struct clientparam *param);
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout);
 int handleredirect(struct clientparam * param, struct ace * acentry);
 
-int scanaddr(const unsigned char *s, unsigned long * ip, unsigned long * mask);
+int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
 extern struct nserver nservers[MAXNSERVERS];
 extern struct nserver authnserver;
-unsigned long getip(unsigned char *name);
-unsigned long getip46(int family, unsigned char *name,  struct sockaddr *sa);
+uint32_t getip(unsigned char *name);
+uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa);
 int afdetect(unsigned char *name);
-unsigned long myresolver(int, unsigned char *, unsigned char *);
-unsigned long fakeresolver (int, unsigned char *, unsigned char*);
+uint32_t myresolver(int, unsigned char *, unsigned char *);
+uint32_t fakeresolver (int, unsigned char *, unsigned char*);
 int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
@@ -248,13 +248,13 @@ struct hashtable;
 void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* value, time_t expires);
 
 int parsehost(int family, unsigned char *host, struct sockaddr *sa);
-int parsehostname(char *hostname, struct clientparam *param, unsigned short port);
+int parsehostname(char *hostname, struct clientparam *param, uint16_t port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
-int parseconnusername(char *username, struct clientparam *param, int extpasswd, unsigned short port);
+int parseconnusername(char *username, struct clientparam *param, int extpasswd, uint16_t port);
 int ACLmatches(struct ace* acentry, struct clientparam * param);
 int checkACL(struct clientparam * param);
 extern int havelog;
-unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth);
+uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth);
 
 struct ace * copyacl (struct ace *ac);
 struct auth * copyauth (struct auth *);

@@ -305,7 +305,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				if(!ha) return 0;
 			}
 			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
-				unsigned short port = *SAPORT(&param->sinsr);
+				uint16_t port = *SAPORT(&param->sinsr);
 				param->sinsr = cur->addr;
 				*SAPORT(&param->sinsr) = port;
 			}
@@ -943,7 +943,7 @@ int dnsauth(struct clientparam * param){
 		sprintf(s, "ip6.arpa");
 	}
 	else {
-		u = ntohl(*(unsigned long *)SAADDR(&param->sincr));
+		u = ntohl(*(uint32_t *)SAADDR(&param->sincr));
 
 		sprintf(buf, "%u.%u.%u.%u.in-addr.arpa", 
 			((u&0x000000FF)),
@@ -1155,7 +1155,7 @@ void hashadd(struct hashtable *ht, const unsigned char* name, unsigned char* val
 	pthread_mutex_unlock(&hash_mutex);
 }
 
-unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsigned char* value, unsigned *ttl){
+uint32_t hashresolv(struct hashtable *ht, const unsigned char* name, unsigned char* value, uint32_t *ttl){
 	unsigned char hash[sizeof(unsigned)*4];
         struct hashentry ** hep;
 	struct hashentry *he;
@@ -1176,7 +1176,7 @@ unsigned long hashresolv(struct hashtable *ht, const unsigned char* name, unsign
 			ht->hashempty = he;
 		}
 		else if(!memcmp(hash, he->hash, sizeof(unsigned)*4)){
-			if(ttl) *ttl = (unsigned)(he->expires - conf.time);
+			if(ttl) *ttl = (uint32_t)(he->expires - conf.time);
 			memcpy(value, he->value, ht->recsize);
 			pthread_mutex_unlock(&hash_mutex);
 			return 1;
@@ -1191,10 +1191,10 @@ struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0}
 struct nserver authnserver;
 
 
-unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, unsigned *retttl, struct clientparam* param, int makeauth){
+uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth){
 
 	int i,n;
-	unsigned long retval;
+	uint32_t retval;
 
 	if((af == AF_INET) && (retval = hashresolv(&dns_table, name, value, retttl))) {
 		return retval;
@@ -1208,7 +1208,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 		unsigned char b[4098], *buf, *s1, *s2;
 		int j, k, len, flen;
 		SOCKET sock;
-		unsigned ttl;
+		uint32_t ttl;
 #ifndef NOIPV6
 		struct sockaddr_in6 addr;
 		struct sockaddr_in6 *sinsr, *sinsl;
@@ -1343,7 +1343,7 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 					k+= (12 + flen);
 					continue; 		/* we need A IPv4 */
 				}
-				ttl = ntohl(*(unsigned long *)(buf + k + 6));
+				ttl = ntohl(*(uint32_t *)(buf + k + 6));
 				memcpy(value, buf + k + 12, af == AF_INET6? 16:4);
 				if(ttl < 0 || ttl > (3600*12)) ttl = 3600*12;
 				if(!ttl) ttl = 1;
@@ -1373,11 +1373,11 @@ unsigned long udpresolve(int af, unsigned char * name, unsigned char * value, un
 	return 0;
 }
 
-unsigned long myresolver(int af, unsigned char * name, unsigned char * value){
+uint32_t myresolver(int af, unsigned char * name, unsigned char * value){
  return udpresolve(af, name, value, NULL, NULL, 0);
 }
 
-unsigned long fakeresolver (int af, unsigned char *name, unsigned char * value){
+uint32_t fakeresolver (int af, unsigned char *name, unsigned char * value){
  memset(value, 0, af == AF_INET6? 16 : 4);
  if(af == AF_INET6){
 	memset(value, 0, 16);
