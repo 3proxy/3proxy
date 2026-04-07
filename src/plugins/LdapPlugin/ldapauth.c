@@ -61,7 +61,7 @@ int savecounters(void)
  unsigned char *tmpbuf,pat_file[]="%s%s.lc";
 
 
- /* timetoexit !=0 - áóäåì çàâåðøàòüñÿ.*/
+ /* timetoexit !=0 - Ð±ÑƒÐ´ÐµÐ¼ Ð·Ð°Ð²ÐµÑ€ÑˆÐ°Ñ‚ÑŒÑÑ.*/
  while (tc != NULL) 
   {
     tcd = tc;
@@ -72,7 +72,7 @@ int savecounters(void)
       sprintf(tmpbuf,pat_file,ldap_dircount,tcd->ace->users->user);
       f=fopen(tmpbuf,"w+b");
       fseek(f,0,SEEK_SET);
-      fprintf(f,"%"PRINTF_INT64_MODIFIER"u %lu %lu\n",tcd->traf64,
+      fprintf(f,"%"PRIu64" %lu %lu\n",tcd->traf64,
 					(unsigned long)tcd->cleared,(unsigned long)tcd->updated);
 
       fclose(f);
@@ -387,7 +387,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
 		
                fseek(f,0,SEEK_SET);
                fgets(buf, 256, f); 
-  	       sscanf(buf,"%"PRINTF_INT64_MODIFIER"u %lu %lu\n",&rcounter.traf64, 
+  	       sscanf(buf,"%"SCNu64" %lu %lu\n",&rcounter.traf64, 
 				&rcounter.cleared, &rcounter.updated);
 
 

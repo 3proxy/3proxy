@@ -6,7 +6,7 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRINTF_INT64_MODIFIER=\"I64\"" /Fp"proxy.pch" /FD /c
+CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRId64=\"I64d\"" /D "PRIu64=\"I64u\"" /D "SCNu64=\"I64u\"" /D "PRIx64=\"I64x\"" /Fp"proxy.pch" /FD /c
 !IFDEF RELEASE
 VERSION=/D VERSION=\"3proxy-$(RELEASE)\"
 !ENDIF

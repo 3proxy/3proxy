@@ -15,8 +15,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
-#ifndef PRINTF_INT64_MODIFIER
-#define PRINTF_INT64_MODIFIER "ll"
+#ifndef PRId64
+#include <inttypes.h>
 #endif
 #ifdef  __cplusplus
 extern "C" {

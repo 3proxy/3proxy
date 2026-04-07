@@ -718,7 +718,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		defparam.clisock = sock;
 
 	if(!srv.silent && !iscbc){
-		sprintf((char *)buf, "Accepting connections [%"PRINTF_INT64_MODIFIER"u/%"PRINTF_INT64_MODIFIER"u]", (uint64_t)getpid(), (uint64_t)pthread_self());
+		sprintf((char *)buf, "Accepting connections [%"PRIu64"/%"PRIu64"]", (uint64_t)getpid(), (uint64_t)pthread_self());
 		dolog(&defparam, buf);
 	}
  }

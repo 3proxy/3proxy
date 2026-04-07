@@ -77,7 +77,6 @@ if(WIN32)
         _WIN32
         _MBCS
         _CONSOLE
-        PRINTF_INT64_MODIFIER="I64"
     )
 
     if(COMPILER_IS_MSVC)

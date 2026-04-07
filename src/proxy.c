@@ -455,7 +455,7 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf((char *)sb, "%"PRINTF_INT64_MODIFIER"u",&contentlength64);
+		sscanf((char *)sb, "%"SCNu64"",&contentlength64);
 		if(param->maxtrafout64 && (param->maxtrafout64 < param->statscli64 || contentlength64 > param->maxtrafout64 - param->statscli64)){
 			RETURN(10);
 		}
@@ -537,7 +537,7 @@ for(;;){
 	contentlength64 = param->cliinbuf;
 	param->nolongdatfilter = 1;
   }
-  sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
+  sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"\r\n", contentlength64);
  }
 
 #endif
@@ -911,7 +911,7 @@ for(;;){
 		if(!sb)continue;
 		++sb;
 		while(isspace(*sb))sb++;
-		sscanf((char *)sb, "%"PRINTF_INT64_MODIFIER"u", &contentlength64);
+		sscanf((char *)sb, "%"SCNu64"", &contentlength64);
 		hascontent = 1;
 		if(param->unsafefilter && param->ndatfilterssrv > 0) {
 			hascontent = 2;
@@ -989,7 +989,7 @@ for(;;){
 	}
 	if(action != PASS) RETURN(517);
 	contentlength64 = param->srvinbuf;
-	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRINTF_INT64_MODIFIER"u\r\n", contentlength64);
+	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"\r\n", contentlength64);
 	hascontent = 1;
   }
  }
@@ -1036,7 +1036,7 @@ for(;;){
 			}
 			smallbuf[i] = 0;
 			contentlength64 = 0;
-			sscanf((char *)smallbuf, "%"PRINTF_INT64_MODIFIER"x", &contentlength64);
+			sscanf((char *)smallbuf, "%"SCNx64"", &contentlength64);
 			if(contentlength64 == 0) {
 				param->chunked = 2;
 			}
