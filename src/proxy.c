@@ -527,7 +527,7 @@ for(;;){
  }
  else if(param->ndatfilterscli > 0 && contentlength64 > 0){
   uint64_t newlen64;
-  newlen64 = sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
+  newlen64 = (uint64_t) sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
   if(newlen64 == contentlength64) {
 	action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, 0, (int *)&param->cliinbuf);
 	if(action == HANDLED){

@@ -87,7 +87,7 @@ int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
 	return (int)*param->clibuf;
 }
 
-int sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec){
+unsigned long sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec){
 	int len;
 
 	if(!param->clibuf) return 0;
@@ -107,7 +107,7 @@ int sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec
 	return param->cliinbuf;
 }
 
-int sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec){
+unsigned long sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec){
 	int len;
 
 	if(!param->srvbuf) return 0;

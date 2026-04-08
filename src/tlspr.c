@@ -38,13 +38,9 @@ int readtls(struct clientparam *param, int direction, unsigned char *buf, int bu
 #define PROTOLEN (32)
 
 
-int parsehello(int type, unsigned char *hello, int len, char *sni, int * snipos, int *lv, char * proto){
-    int hlen;
+int parsehello(int type, unsigned char *hello, unsigned len, char *sni, int * snipos, int *lv, char * proto){
     unsigned offset;
-    int slen;
-    int cslen;
-    int elen;
-    int snllen, snlen, alpnlen;
+    unsigned hlen, slen, cslen, elen, snllen, snlen, alpnlen;
     int snifound=0;
     
     if(len < 64) return -1;
@@ -74,7 +70,7 @@ int parsehello(int type, unsigned char *hello, int len, char *sni, int * snipos,
     offset += 2;
     if(elen+offset != len) return -9;
     while(elen > 1){
-	int xlen;
+	unsigned xlen;
 	xlen = size16(hello+offset+2);
 	if(xlen+4 > elen) return -10;
 	if(type == 1 && hello[offset] == 0 && hello[offset+1] == 0){
@@ -112,8 +108,8 @@ int parsehello(int type, unsigned char *hello, int len, char *sni, int * snipos,
     return snifound;
 }
 
-int tlstobufcli(struct clientparam *param, int offset){
-    int len, newlen;
+int tlstobufcli(struct clientparam *param){
+    unsigned long  len, newlen;
     if(!param->clibuf){
 	if(!(param->clibuf = myalloc(SRVBUFSIZE))) return -1;
         param->clibufsize = SRVBUFSIZE;
@@ -139,11 +135,11 @@ int tlstobufcli(struct clientparam *param, int offset){
 	    if(param->cliinbuf <= newlen) return -5;
 	}
     }
-    return len;
+    return (int)len;
 }
 
-int tlstobufsrv(struct clientparam *param, int offset){
-    int len, newlen;
+int tlstobufsrv(struct clientparam *param){
+    unsigned long len, newlen;
 
     if(param->cliinbuf != param->clioffset){
 	len = socksend(param, param->remsock, param->clibuf+param->clioffset,param->cliinbuf-param->clioffset, conf.timeouts[STRING_S]);
@@ -157,20 +153,20 @@ int tlstobufsrv(struct clientparam *param, int offset){
 	param->srvbufsize = SRVBUFSIZE;
 	param->srvoffset = param->srvinbuf = 0;
     }
-    len = sockfillbuffsrv(param, offset+5, conf.timeouts[STRING_S]);
-    if(len < offset+5) return -3;
-    if(param->srvbuf[offset+1] != 3) {
+    len = sockfillbuffsrv(param, 5, conf.timeouts[STRING_S]);
+    if(len < 5) return -3;
+    if(param->srvbuf[1] != 3) {
 	return -4;
     }
     else {
-	len = offset + 5 + size16(param->srvbuf+offset+3);
+	len = 5 + size16(param->srvbuf+3);
 	if(len > param->srvbufsize) return -5;
 	for(newlen=param->srvinbuf; newlen < len; newlen=param->srvinbuf){
 	    sockfillbuffsrv(param, len, conf.timeouts[STRING_S]);
 	    if(param->srvinbuf <= newlen) return -6;
 	}
     }
-    return len-offset;
+    return (int)len;
 }
 
 void * tlsprchild(struct clientparam* param) {
@@ -181,13 +177,13 @@ void * tlsprchild(struct clientparam* param) {
  char proto[PROTOLEN]="-";
  int snipos = 0;
  
- res = tlstobufcli(param, 0);
+ res = tlstobufcli(param);
  if(res <= 0 || param->clibuf[0] != 22){
      if(param->srv->requirecert)RETURN(300-res);
  }
  else {
     lv = param->clibuf[2];
-    res = parsehello(1, param->clibuf, res, sni, &snipos, &lv, proto);
+    res = parsehello(1, param->clibuf, (unsigned)res, sni, &snipos, &lv, proto);
     if(res > 0){
 	if(param->hostname){
 	    myfree(param->hostname);
@@ -225,20 +221,20 @@ void * tlsprchild(struct clientparam* param) {
  }
  
  if(param->srv->requirecert > 1){
-    res = tlstobufsrv(param, 0);
+    res = tlstobufsrv(param);
     if(res <= 0 || param->srvbuf[0] != 22) RETURN(340-res);
     lv = param->srvbuf[2];
-    res = parsehello(2, param->srvbuf, res, sni, &snipos, &lv, proto);
+    res = parsehello(2, param->srvbuf, (unsigned)res, sni, &snipos, &lv, proto);
     if (res < 0) RETURN(350-res);
  }
  if(param->srv->requirecert > 2){
-    int srvcert=0, clicert=0, reqcert=0, len, rlen, done;
+    int srvcert=0, clicert=0, reqcert=0, len, done;
     if(lv > 3) RETURN(370);
     for(done=0;!done;) {
 	len = param->srvinbuf;
 	if(socksend(param, param->clisock, param->srvbuf,len, conf.timeouts[STRING_S]) != len) RETURN(371);
 	param->srvinbuf = 0;
-	res = tlstobufsrv(param, 0);
+	res = tlstobufsrv(param);
 	if(res <= 0) RETURN(380-res);
 	if(param->srvbuf[0]!= 22) break;
 	switch(param->srvbuf[5]){
@@ -260,7 +256,7 @@ void * tlsprchild(struct clientparam* param) {
     if(param->srv->requirecert > 3){
 	if(!reqcert) RETURN(374);
     	for(done=0;!done;) {
-	    res = tlstobufcli(param, 0);
+	    res = tlstobufcli(param);
 	    if(res <= 0) RETURN(390-res);
 	    len = res;
 	    if(param->clibuf[0]!= 22) break;

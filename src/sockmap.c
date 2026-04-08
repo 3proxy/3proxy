@@ -60,7 +60,8 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  int res;
  SASIZETYPE sasize;
  int needaction = 0;
- int graceclinum=0, gracesrvnum=0, graceclitraf=0, gracesrvtraf=0, gracetime=0;
+ int graceclinum=0, gracesrvnum=0, graceclitraf=0, gracesrvtraf=0;
+ time_t gracetime = 0;
 
 #ifdef WITHSPLICE
  uint64_t inclientpipe = 0, inserverpipe = 0;

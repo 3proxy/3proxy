@@ -164,8 +164,8 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);
 int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec);
-int sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec);
-int sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec);
+unsigned long sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec);
+unsigned long sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec);
 
 int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
 

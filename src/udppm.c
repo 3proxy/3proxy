@@ -24,7 +24,6 @@ void * udppmchild(struct clientparam* param) {
  SASIZETYPE size;
  unsigned long ul = 1;
 #endif
- struct pollfd fds[256];
 
 
  if(!param->hostname && parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) RETURN(100);

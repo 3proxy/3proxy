@@ -415,7 +415,6 @@ static int WINAPI fp_poll(void *state, struct pollfd *fds, unsigned int nfds, in
  struct fp_stream *fps = NULL;
  int res;
  unsigned i;
- int to;
 
  for(i = 0; i<nfds; i++){
 	res = searchsocket(fds[i].fd, &fps);

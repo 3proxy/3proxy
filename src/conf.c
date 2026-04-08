@@ -1348,13 +1348,14 @@ static int h_ace(int argc, unsigned char **argv){
 					sizeof(struct counter_header) + (tl->number - 1) * sizeof(struct counter_record),
 					SEEK_SET);
 				memset(&crecord, 0, sizeof(struct counter_record));
-				read(conf.counterd, &crecord, sizeof(struct counter_record));
-				tl->traf64 = crecord.traf64;
-				tl->cleared = crecord.cleared;
-				tl->updated = crecord.updated;
-				if(tl->cleared < 0 || tl->cleared >=  MAX_COUNTER_TIME || tl->updated < 0 || tl->updated >=  MAX_COUNTER_TIME){
-					fprintf(stderr, "Invalid, incompatible or corrupted counter file.\n");
-					return(6);
+				if(read(conf.counterd, &crecord, sizeof(struct counter_record)) == sizeof(struct counter_record)){
+				    tl->traf64 = crecord.traf64;
+				    tl->cleared = crecord.cleared;
+				    tl->updated = crecord.updated;
+				    if(tl->cleared < 0 || tl->cleared >=  MAX_COUNTER_TIME || tl->updated < 0 || tl->updated >=  MAX_COUNTER_TIME){
+					    fprintf(stderr, "Invalid, incompatible or corrupted counter file.\n");
+					    return(6);
+				    }
 				}
 			}
 		}
@@ -1575,7 +1576,7 @@ static int h_chroot(int argc, unsigned char **argv){
 		fprintf(stderr, "Unable to set uid %d", (int)uid);
 		return(5);
 	}
-	chdir("/");
+	if(chdir("/")){}
 	return 0;
 }
 #endif
