@@ -3,10 +3,10 @@ name: C/C++ CI Windows
 on:
   push:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.msvc', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
   pull_request:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.msvc', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
 
 jobs:
   ci:

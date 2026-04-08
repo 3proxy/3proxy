@@ -3,10 +3,10 @@ name: C/C++ CI MacOS
 on:
   push:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.FreeBSD', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
   pull_request:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.FreeBSD', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
 
 jobs:
   ci:

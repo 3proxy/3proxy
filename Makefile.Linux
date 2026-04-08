@@ -99,7 +99,6 @@ install-bin:
 	$(INSTALL_BIN) -d $(BINDIR)
 	$(INSTALL_BIN) -s $(INSTALL_OBJS) $(BINDIR)
 	$(INSTALL_BIN) -s bin/*.ld.so $(CHROOTDIR)/libexec
-	chmod -R a-w $(CHROOTDIR)/libexec
 
 install-etc-dir:
 	$(INSTALL_BIN) -d $(ETCDIR)

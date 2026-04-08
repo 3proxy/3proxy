@@ -3,10 +3,10 @@ name: C/C++ CI Linux
 on:
   push:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.Linux', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
   pull_request:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.Linux', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
 
 jobs:
   ci:

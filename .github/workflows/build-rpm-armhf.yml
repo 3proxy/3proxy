@@ -1,0 +1,72 @@
+name: RPM build arm
+
+on:
+  push:
+    branches: [ "master" ]
+    paths: [ 'RELEASE', '.github/workflows/build-rpm-armhf.yml' ]
+
+jobs:
+  ci:
+    name: "${{ matrix.target }}"
+    strategy:
+      matrix:
+        target:
+          - ubuntu-latest
+    runs-on: ${{ matrix.target }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: env
+      run: |
+       pwd
+       echo "RELEASE=$(cat RELEASE)" >> $GITHUB_ENV
+       echo "VERSION=$(date +%y%m%d%H%M%S)" >> $GITHUB_ENV
+       echo "MAJOR=$(cat RELEASE | cut -d "-" -f 1)" >> $GITHUB_ENV
+       echo "SUBMAJOR=$(cat RELEASE | cut -d "-" -f 2)" >> $GITHUB_ENV
+       echo "MINOR=$(cat RELEASE | cut -d "-" -f 3)" >> $GITHUB_ENV
+    - name: Linux libraries
+      run: |
+       sudo apt update
+       sudo dpkg --add-architecture armhf
+       echo "Types: deb" > ~/ubuntu.sources
+       echo "URIs: http://archive.ubuntu.com/ubuntu/" >> ~/ubuntu.sources 
+       echo "Suites: noble noble-updates noble-backports" >> ~/ubuntu.sources 
+       echo "Components: main restricted universe multiverse" >> ~/ubuntu.sources 
+       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> ~/ubuntu.sources 
+       echo "Architectures: amd64" >> ~/ubuntu.sources 
+       echo "" >> ~/ubuntu.sources 
+       echo "Types: deb" >> ~/ubuntu.sources 
+       echo "URIs: http://security.ubuntu.com/ubuntu/" >> ~/ubuntu.sources 
+       echo "Suites: noble-security" >> ~/ubuntu.sources 
+       echo "Components: main restricted universe multiverse" >> ~/ubuntu.sources 
+       echo "Architectures: amd64" >> ~/ubuntu.sources 
+       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> ~/ubuntu.sources 
+       echo "" >> ~/ubuntu.sources 
+       echo "Types: deb" >>~/ubuntu.sources 
+       echo "URIs: http://ports.ubuntu.com/ubuntu-ports/" >>~/ubuntu.sources
+       echo "Suites: noble noble-updates" >>~/ubuntu.sources
+       echo "Components: main restricted universe multiverse" >>~/ubuntu.sources
+       echo "Architectures: armhf" >>~/ubuntu.sources
+       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >>~/ubuntu.sources
+       sudo cp ~/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources
+       sudo apt update
+       sudo apt install libssl-dev:armhf libpam0g:armhf libpam0g-dev:armhf libpcre2-dev:armhf rpm crossbuild-essential-armhf
+    - name: make rpmbuild dir
+      run: mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+    - name: configure rpm env
+      run: |
+       tar -czf ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz --transform "s,^,3proxy-$RELEASE/," .
+       ln -s ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
+       cp scripts/rh/3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
+    - name: rpmbuild
+      run: |
+       ret=`pwd`
+       cd ~/rpmbuild/SPECS
+       rpmbuild -ba --define "PAMLIB pam0g" --define "_arch arm" --define "cross yes" --target=arm-linux-gnueabi 3proxy-$RELEASE.spec
+       cd $ret
+       mv ~/rpmbuild/RPMS/arm/3proxy-$RELEASE-1.arm.rpm 3proxy-$RELEASE.arm.rpm
+    - name: Get artifact
+      uses: actions/upload-artifact@v4
+      with:
+       name: "3proxy-${{ env.RELEASE }}-arm.rpm"
+       path: "*.rpm"
+

@@ -3,10 +3,10 @@ name: C/C++ CI cmake
 on:
   push:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
+    paths: [ '**.c', '**.h', '**.cmake', 'CMakeLists.txt', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
   pull_request:
     branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.**', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
+    paths: [ '**.c', '**.h', '**.cmake', 'CMakeLists.txt', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
 
 jobs:
   ci:

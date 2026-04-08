@@ -1,6 +1,6 @@
 Name:           3proxy
 Version:        0.9.5
-Release:        1
+Release:        1%{?dist}
 Summary:        3proxy tiny proxy server
 License:        GPL/LGPL/Apache/BSD
 URL:            https://3proxy.org/
@@ -13,11 +13,15 @@ Source:		https://github.com/%{packager}/%{name}/archive/%{version}.tar.gz
 3proxy is lightweight yet powerful proxy server
 
 %prep
-%setup -q -n %{name}-%{version}
+%setup -q
 ln -s Makefile.Linux Makefile
 
 %build
-make
+%if "%{?PAMLIB}" != ""
+    make PAMLIB=%{?PAMLIB}
+%else
+    make
+%endif
 
 %install
 make DESTDIR=%buildroot install
@@ -44,33 +48,9 @@ make clean
 %config(noreplace) /usr/local/3proxy/conf/add3proxyuser.sh
 %config(noreplace) /usr/local/3proxy/conf/bandlimiters
 %config(noreplace) /usr/local/3proxy/conf/counters
-/usr/local/3proxy/libexec/PCREPlugin.ld.so
-/usr/local/3proxy/libexec/StringsPlugin.ld.so
-/usr/local/3proxy/libexec/TrafficPlugin.ld.so
-/usr/local/3proxy/libexec/TransparentPlugin.ld.so
-%if "%{_arch}" == "arm"
-/usr/share/man/man3/3proxy.cfg.3
-/usr/share/man/man8/3proxy.8
-/usr/share/man/man8/ftppr.8
-/usr/share/man/man8/pop3p.8
-/usr/share/man/man8/proxy.8
-/usr/share/man/man8/smtpp.8
-/usr/share/man/man8/socks.8
-/usr/share/man/man8/tcppm.8
-/usr/share/man/man8/udppm.8
-/usr/share/man/man8/tlspr.8
-%else
-/usr/share/man/man3/3proxy.cfg.3.gz
-/usr/share/man/man8/3proxy.8.gz
-/usr/share/man/man8/ftppr.8.gz
-/usr/share/man/man8/pop3p.8.gz
-/usr/share/man/man8/proxy.8.gz
-/usr/share/man/man8/smtpp.8.gz
-/usr/share/man/man8/socks.8.gz
-/usr/share/man/man8/tcppm.8.gz
-/usr/share/man/man8/udppm.8.gz
-/usr/share/man/man8/tlspr.8.gz
-%endif
+/usr/local/3proxy/libexec/*.ld.so
+/usr/share/man/man3/*
+/usr/share/man/man8/*
 /var/log/3proxy
 
 %doc doc/*
