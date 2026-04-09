@@ -6,7 +6,7 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /Ox /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "NORADIUS" /D"WATCOM" /D "MSVC"  /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRId64=\"I64d\"" /D "PRIu64=\"I64u\"" /D "SCNu64=\"I64u\"" /D "PRIx64=\"I64x\"" /c $(VERSION) $(BUILDDATE)
+CFLAGS = /nologo /Ox /MT /D "NOIPV6" /D "NODEBUG" /D "NOODBC" /D "NORADIUS" /D"WATCOM" /D "MSVC"  /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRId64=\"I64d\"" /D "PRIu64=\"I64u\"" /D "SCNu64=\"I64u\"" /D "SCNx64=\"I64x\"" /D "SCNd64=\"I64d\"" /D "PRIx64=\"I64x\"" /c $(VERSION) $(BUILDDATE)
 COUT = /Fo
 LN = link
 LDFLAGS = /nologo /subsystem:console /incremental:no 
@@ -59,12 +59,6 @@ allplugins:
 	copy Makefile plugins\StringsPlugin
 	copy Makefile.var plugins\StringsPlugin
 	cd plugins\StringsPlugin
-	nmake
-	del *.obj *.idb
-	cd ../../
-	copy Makefile plugins\PCREPlugin
-	copy Makefile.var plugins\PCREPlugin
-	cd plugins\PCREPlugin
 	nmake
 	del *.obj *.idb
 	cd ../../

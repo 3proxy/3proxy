@@ -6,13 +6,9 @@
 
 BUILDDIR = ../bin/
 CC = cl
-CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /D "PRId64=\"I64d\"" /D "PRIu64=\"I64u\"" /D "SCNu64=\"I64u\"" /D "PRIx64=\"I64x\"" /Fp"proxy.pch" /FD /c
-!IFDEF RELEASE
-VERSION=/D VERSION=\"3proxy-$(RELEASE)\"
-!ENDIF
-!IFDEF NOW
-BUILDDATE=/D BUILDDATE=\"$(NOW)\"
-!ENDIF
+VERSION = $(VERSION)
+BUILDDATE = $(BUILDDATE)
+CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /Fp"proxy.pch" /FD /c $(BUILDDATE) $(VERSION) 
 COUT = /Fo
 LN = link
 LDFLAGS =  /nologo /subsystem:console /incremental:no
@@ -33,9 +29,7 @@ COMPATLIBS =
 MAKEFILE = Makefile.msvc
 PLUGINS = utf8tocp1251 WindowsAuthentication TrafficPlugin StringsPlugin FilePlugin SSLPlugin PCREPlugin
 VERFILE = 3proxy.res $(VERFILE)
-VERSION = $(VERSION)
 VERSIONDEP = 3proxy.res $(VERSIONDEP)
-BUILDDATE = $(BUILDDATE)
 AFTERCLEAN = if exist src\*.res (del src\*.res) && if exist src\*.err (del src\*.err)
 
 include Makefile.inc

@@ -1,8 +1,8 @@
-name: RPM build arm
+name: RPM/DEB build armhf
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "test-ci" ]
     paths: [ 'RELEASE', '.github/workflows/build-rpm-armhf.yml' ]
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
           - ubuntu-latest
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: env
       run: |
        pwd
@@ -49,24 +49,56 @@ jobs:
        echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >>~/ubuntu.sources
        sudo cp ~/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources
        sudo apt update
-       sudo apt install libssl-dev:armhf libpam0g:armhf libpam0g-dev:armhf libpcre2-dev:armhf rpm crossbuild-essential-armhf
-    - name: make rpmbuild dir
-      run: mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+       sudo apt install libssl3t64:armhf openssl:armhf libssl-dev:armhf libpam0g:armhf libpam0g-dev:armhf libpcre2-dev:armhf rpm crossbuild-essential-armhf build-essential debhelper
     - name: configure rpm env
       run: |
+       mkdir ~/debian
+       mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
        tar -czf ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz --transform "s,^,3proxy-$RELEASE/," .
        ln -s ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
        cp scripts/rh/3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
+       cp ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/debian/3proxy_$RELEASE.orig.tar.gz
     - name: rpmbuild
       run: |
        ret=`pwd`
        cd ~/rpmbuild/SPECS
+       PATH=/usr/arm-linux-gnueabihf/bin:$PATH
+       export PATH=$PATH
+       CC=arm-linux-gnueabihf-gcc
+       export CC=$CC
+       export RPATH=/usr/arm-linux-gnueabihf/lib:$RPATH
+       export LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH
        rpmbuild -ba --define "PAMLIB pam0g" --define "_arch arm" --define "cross yes" --target=arm-linux-gnueabi 3proxy-$RELEASE.spec
        cd $ret
        mv ~/rpmbuild/RPMS/arm/3proxy-$RELEASE-1.arm.rpm 3proxy-$RELEASE.arm.rpm
     - name: Get artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
        name: "3proxy-${{ env.RELEASE }}-arm.rpm"
        path: "*.rpm"
-
+    - name: debbuild
+      run: |
+        ret=`pwd`
+        cd ~/debian/
+        tar xzf 3proxy_$RELEASE.orig.tar.gz
+        cd 3proxy-$RELEASE
+        echo "3proxy ($RELEASE-$VERSION) buster; urgency=medium" >debian/changelog
+        echo " " >>debian/changelog
+        echo "  *3proxy $RELEASE build" >>debian/changelog
+        echo " " >>debian/changelog
+        echo " -- z3APA3A <3apa3a@3proxy.org>  "`date "+%a, %d %b %Y %H:%M:%S %z"` >>debian/changelog
+        echo "">>debian/changelog
+        PATH=/usr/arm-linux-gnueabihf/bin:$PATH
+        export PATH=$PATH
+        CC=arm-linux-gnueabihf-gcc
+        export CC=$CC
+        export RPATH=/usr/arm-linux-gnueabihf/lib:$RPATH
+        export LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH
+        dpkg-buildpackage
+        cd $ret
+        cp ~/debian/3proxy_$RELEASE-"$VERSION"_armhf.deb ./3proxy-$RELEASE.arm.deb
+    - name: Get artifact deb
+      uses: actions/upload-artifact@v6
+      with:
+       name: "3proxy-${{ env.RELEASE }}-arm.deb"
+       path: "*.deb"

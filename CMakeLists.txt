@@ -485,19 +485,15 @@ install(TARGETS 3proxy mycrypt proxy socks pop3p smtpp ftppr tcppm udppm tlspr
 )
 
 # Install plugins
+file(GLOB PLUGINFILES "${PLUGIN_OUTPUT_DIR}/*${PLUGIN_SUFFIX}")
 if(WIN32)
     install(FILES
-        ${PLUGIN_OUTPUT_DIR}/utf8tocp1251${PLUGIN_SUFFIX}
-        ${PLUGIN_OUTPUT_DIR}/WindowsAuthentication${PLUGIN_SUFFIX}
-        ${PLUGIN_OUTPUT_DIR}/TrafficPlugin${PLUGIN_SUFFIX}
-        ${PLUGIN_OUTPUT_DIR}/StringsPlugin${PLUGIN_SUFFIX}
+        ${PLUGINFILES}
         DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 else()
     install(FILES
-        ${PLUGIN_OUTPUT_DIR}/StringsPlugin${PLUGIN_SUFFIX}
-        ${PLUGIN_OUTPUT_DIR}/TrafficPlugin${PLUGIN_SUFFIX}
-        ${PLUGIN_OUTPUT_DIR}/TransparentPlugin${PLUGIN_SUFFIX}
+        ${PLUGINFILES}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/3proxy
     )
 endif()

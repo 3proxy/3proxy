@@ -17,7 +17,7 @@ jobs:
           - windows-2022
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: install Windows libraries
       run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-openssl
     - name: make Windows

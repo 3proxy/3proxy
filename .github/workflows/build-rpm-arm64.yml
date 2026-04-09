@@ -1,8 +1,8 @@
-name: RPM build arm
+name: RPM/DEB build aarch64
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "test-ci" ]
     paths: [ 'RELEASE', '.github/workflows/build-rpm-arm64.yml' ]
 
 jobs:
@@ -11,10 +11,10 @@ jobs:
     strategy:
       matrix:
         target:
-          - ubuntu-latest
+          - ubuntu-24.04-arm
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: env
       run: |
        pwd
@@ -23,49 +23,49 @@ jobs:
        echo "MAJOR=$(cat RELEASE | cut -d "-" -f 1)" >> $GITHUB_ENV
        echo "SUBMAJOR=$(cat RELEASE | cut -d "-" -f 2)" >> $GITHUB_ENV
        echo "MINOR=$(cat RELEASE | cut -d "-" -f 3)" >> $GITHUB_ENV
+    - name: echo env
+      run: echo "release $RELEASE version $VERSION major $MAJOR submajor $SUBMAJOR minor $MINOR"
     - name: Linux libraries
       run: |
        sudo apt update
-       sudo dpkg --add-architecture arm64
-       echo "Types: deb" > ~/ubuntu.sources
-       echo "URIs: http://archive.ubuntu.com/ubuntu/" >> ~/ubuntu.sources 
-       echo "Suites: noble noble-updates noble-backports" >> ~/ubuntu.sources 
-       echo "Components: main restricted universe multiverse" >> ~/ubuntu.sources 
-       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> ~/ubuntu.sources 
-       echo "Architectures: amd64" >> ~/ubuntu.sources 
-       echo "" >> ~/ubuntu.sources 
-       echo "Types: deb" >> ~/ubuntu.sources 
-       echo "URIs: http://security.ubuntu.com/ubuntu/" >> ~/ubuntu.sources 
-       echo "Suites: noble-security" >> ~/ubuntu.sources 
-       echo "Components: main restricted universe multiverse" >> ~/ubuntu.sources 
-       echo "Architectures: amd64" >> ~/ubuntu.sources 
-       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> ~/ubuntu.sources 
-       echo "" >> ~/ubuntu.sources 
-       echo "Types: deb" >>~/ubuntu.sources 
-       echo "URIs: http://ports.ubuntu.com/ubuntu-ports/" >>~/ubuntu.sources
-       echo "Suites: noble noble-updates" >>~/ubuntu.sources
-       echo "Components: main restricted universe multiverse" >>~/ubuntu.sources
-       echo "Architectures: arm64" >>~/ubuntu.sources
-       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >>~/ubuntu.sources
-       sudo cp ~/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources
-       sudo apt update
-       sudo apt install libssl-dev:arm64 libpam0g:arm64 libpam0g-dev:arm64 libpcre2-dev:arm64 rpm crossbuild-essential-arm64
-    - name: make rpmbuild dir
-      run: mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+       sudo apt install libssl-dev libpam-dev libpcre2-dev rpm build-essential debhelper
     - name: configure rpm env
       run: |
+       mkdir ~/debian
+       mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
        tar -czf ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz --transform "s,^,3proxy-$RELEASE/," .
        ln -s ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
        cp scripts/rh/3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
+       cp ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/debian/3proxy_$RELEASE.orig.tar.gz
     - name: rpmbuild
       run: |
        ret=`pwd`
        cd ~/rpmbuild/SPECS
-       rpmbuild -ba --define "PAMLIB pam0g" --define "_arch aarch64" --define "cross yes" --target=aarch64-linux-gnueabi 3proxy-$RELEASE.spec
+       rpmbuild -ba 3proxy-$RELEASE.spec
        cd $ret
        mv ~/rpmbuild/RPMS/aarch64/3proxy-$RELEASE-1.aarch64.rpm 3proxy-$RELEASE.arm64.rpm
-    - name: Get artifact
-      uses: actions/upload-artifact@v4
+    - name: Get artifact arp
+      uses: actions/upload-artifact@v6
       with:
        name: "3proxy-${{ env.RELEASE }}-arm64.rpm"
        path: "*.rpm"
+    - name: debbuild
+      run: |
+        ret=`pwd`
+        cd ~/debian/
+        tar xzf 3proxy_$RELEASE.orig.tar.gz
+        cd 3proxy-$RELEASE
+        echo "3proxy ($RELEASE-$VERSION) buster; urgency=medium" >debian/changelog
+        echo " " >>debian/changelog
+        echo "  *3proxy $RELEASE build" >>debian/changelog
+        echo " " >>debian/changelog
+        echo " -- z3APA3A <3apa3a@3proxy.org>  "`date "+%a, %d %b %Y %H:%M:%S %z"` >>debian/changelog
+        echo "">>debian/changelog
+        dpkg-buildpackage
+        cd $ret
+        cp ~/debian/3proxy_$RELEASE-"$VERSION"_arm64.deb ./3proxy-$RELEASE.arm64.deb
+    - name: Get artifact deb
+      uses: actions/upload-artifact@v6
+      with:
+       name: "3proxy-${{ env.RELEASE }}-arm64.deb"
+       path: "*.deb"

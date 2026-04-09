@@ -1,8 +1,8 @@
-name: RPM build x86-64
+name: RPM/DEB build x86-64
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "test-ci" ]
     paths: [ 'RELEASE', '.github/workflows/build-rpm-x86-64.yml' ]
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
           - ubuntu-latest
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: env
       run: |
        pwd
@@ -28,14 +28,15 @@ jobs:
     - name: Linux libraries
       run: |
        sudo apt update
-       sudo apt install libssl-dev libpam-dev libpcre2-dev rpm
-    - name: make rpmbuild dir
-      run: mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-    - name: configure rpm env
+       sudo apt install libssl-dev libpam-dev libpcre2-dev rpm build-essential debhelper
+    - name: configure rpm/deb env
       run: |
+       mkdir ~/debian
+       mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
        tar -czf ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz --transform "s,^,3proxy-$RELEASE/," .
        ln -s ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
        cp scripts/rh/3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
+       cp ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/debian/3proxy_$RELEASE.orig.tar.gz
     - name: rpmbuild
       run: |
        ret=`pwd`
@@ -43,9 +44,29 @@ jobs:
        rpmbuild -ba 3proxy-$RELEASE.spec
        cd $ret
        mv ~/rpmbuild/RPMS/x86_64/3proxy-$RELEASE-1.x86_64.rpm 3proxy-$RELEASE.x86_64.rpm
-    - name: Get artifact
-      uses: actions/upload-artifact@v4
+    - name: Get artifact rpm
+      uses: actions/upload-artifact@v6
       with:
        name: "3proxy-${{ env.RELEASE }}-x86_64.rpm"
        path: "*.rpm"
+    - name: debbuild
+      run: |
+        ret=`pwd`
+        cd ~/debian/
+        tar xzf 3proxy_$RELEASE.orig.tar.gz
+        cd 3proxy-$RELEASE
+        echo "3proxy ($RELEASE-$VERSION) buster; urgency=medium" >debian/changelog
+        echo " " >>debian/changelog
+        echo "  *3proxy $RELEASE build" >>debian/changelog
+        echo " " >>debian/changelog
+        echo " -- z3APA3A <3apa3a@3proxy.org>  "`date "+%a, %d %b %Y %H:%M:%S %z"` >>debian/changelog
+        echo "">>debian/changelog
+        dpkg-buildpackage
+        cd $ret
+        cp ~/debian/3proxy_$RELEASE-"$VERSION"_amd64.deb ./3proxy-$RELEASE.x86_64.deb
+    - name: Get artifact deb
+      uses: actions/upload-artifact@v6
+      with:
+       name: "3proxy-${{ env.RELEASE }}-x86_64.deb"
+       path: "*.deb"
 

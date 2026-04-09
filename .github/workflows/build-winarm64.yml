@@ -14,19 +14,16 @@ jobs:
           - windows-2022
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 #    - name: configure
 #      run: ./configure
     - name: set date
       run: |
        $NOW = Get-Date -Format "yyMMddHHmmss"
-       echo "now: $NOW"
        $RELEASE = Get-Content -Path "RELEASE" -Raw
-       echo "release: $RELEASE"
-       echo "NOW=$NOW" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "RELEASE=$RELEASE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-       echo "VERSION=VERSION=`"$RELEASE`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-       echo "BUILDDATE=BUILDDATE=`"$NOW`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+       echo "VERSION=/D `"VERSION=\`"3proxy-$RELEASE\`"`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+       echo "BUILDDATE=/D `"BUILDDATE=\`"$NOW\`"`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: install packages
       run: vcpkg install pcre2:arm64-windows-static openssl:arm64-windows-static
     - name: Add msbuild to PATH
@@ -40,7 +37,7 @@ jobs:
        cd "D:/a/3proxy/3proxy"
        set "LIB=%LIB%;c:/vcpkg/installed/arm64-windows-static/lib"
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/arm64-windows-static/include"
-       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
+       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
        nmake /F Makefile.msvc
     - name: make dist dir
       shell: cmd
@@ -73,7 +70,7 @@ jobs:
        copy README dist\3proxy\
        copy rus.3ps dist\3proxy\
     - name: Get artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
        name: "3proxy-${{ env.RELEASE }}-arm64"
        path: dist/
