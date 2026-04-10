@@ -57,11 +57,11 @@ connections and UDP portmapping.</p>
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-I</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -69,11 +69,11 @@ connections and UDP portmapping.</p>
 only.</p> </td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-d</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -81,11 +81,11 @@ only.</p> </td></tr>
 console and run in the background.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-t</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -93,11 +93,11 @@ console and run in the background.</p></td></tr>
 start/stop/accept error records.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-u</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -105,11 +105,11 @@ start/stop/accept error records.</p></td></tr>
 authentication</p> </td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-e</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -120,25 +120,43 @@ connections. By default, the system will decide which
 address to use in accordance with the routing table.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
-<p style="margin-top: 1em"><b>-N</b></p></td>
-<td width="6%"></td>
+<p style="margin-top: 1em"><b>-Ne</b></p></td>
+<td width="5%"></td>
 <td width="85%">
 
 
 <p style="margin-top: 1em">External NAT address 3proxy
-reports to client for BIND and UDPASSOC. By default, the
-external address is reported. It&rsquo;s only useful in the
-case of IP-IP NAT (will not work for PAT).</p></td></tr>
+reports to client for CONNECT/BIND. This is external address
+of NAT between 3proxy and destination server. By default,
+the external address is reported. It&rsquo;s only useful in
+the case of IP-IP NAT and does not work with port
+translation.</p> </td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
+
+
+<p style="margin-top: 1em"><b>-Ni</b></p></td>
+<td width="5%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Internal NAT address 3proxy
+reports to client for UDPASSOC. This is external address of
+the NAT between 3proxy and the client, client uses to
+connect to 3proxy. By default, the internal address is
+reported. It&rsquo;s only useful in the case of IP-IP NAT
+and does not work with port translation.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-i</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -147,11 +165,11 @@ proxy accepts connections to. By default, connections to any
 interface are accepted. It&acute;s usually unsafe.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-p</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -159,11 +177,11 @@ interface are accepted. It&acute;s usually unsafe.</p></td></tr>
 incoming connections. Default is 1080.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-l</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 
@@ -173,11 +191,11 @@ Under Unix, if &acute;<i>@</i>&acute; preceeds
 <i>logfile</i>, syslog is used for logging.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="3%">
+<td width="4%">
 
 
 <p style="margin-top: 1em"><b>-S</b></p></td>
-<td width="6%"></td>
+<td width="5%"></td>
 <td width="85%">
 
 

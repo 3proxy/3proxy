@@ -274,7 +274,21 @@ CLEANRET:
 
 	sasize = sizeof(sin);
 	if(command != 3 && param->remsock != INVALID_SOCKET) param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&sin,  &sasize);
-	else param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin,  &sasize);
+	if(!SAISNULL(&param->srv->extNat)){
+	    uint16_t port;
+	    port = *SAPORT(&sin);
+	    sin = param->srv->extNat;
+	    *SAPORT(&sin) = port;
+	}
+	else {
+	    param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin,  &sasize);
+	    if(!SAISNULL(&param->srv->intNat)){
+		uint16_t port;
+		port = *SAPORT(&sin);
+		sin = param->srv->intNat;
+		*SAPORT(&sin) = port;
+	    }
+	}    
 #if SOCKSTRACE > 0
 myinet_ntop(*SAFAMILY(&sin), &sin, tracebuf, SASIZE(&sin));
 fprintf(stderr, "Sending confirmation to client with code %d for %s with %s:%hu\n",
@@ -518,7 +532,9 @@ struct proxydef childdef = {
 	1080,
 	0,
 	S_SOCKS,
-	"-N(EXTERNAL_IP) External NAT address to report to client for BIND\n"
+	"-Ne(EXTERNAL_IP) External NAT address (between 3proxy and destination server) to report to client for CONNECT / BIND\n"
+	"-Ni(INTERNAL_IP) Internal NAT address (between client and 3proxy) to report to client for UDPASSOC\n"
+	"NAT is required to map IP-to-IP without port translation\n"
 };
 #include "proxymain.c"
 #endif

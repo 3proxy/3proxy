@@ -9,4 +9,6 @@
 #define MINOR3PROXY 5
 #define SUBMINOR3PROXY 0
 #define RELEASE3PROXY "3proxy-0.9.5(" BUILDDATE ")\0"
+#ifndef YEAR3PROXY
 #define YEAR3PROXY "2026"
+#endif

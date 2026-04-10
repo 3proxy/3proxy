@@ -427,7 +427,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			break;
 		 case 'N':
-			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extNat);
+			if(argv[i][3] == 'e') getip46(46, (unsigned char *)argv[i]+3, (struct sockaddr *)&srv.extNat);
+			else if(argv[i][3] == 'i') getip46(46, (unsigned char *)argv[i]+3, (struct sockaddr *)&srv.intNat);
+			else getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extNat);
 			break;
 		 case 'p':
 			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));

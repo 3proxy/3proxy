@@ -33,10 +33,18 @@ from. External IP must be specified if you need incoming connections.
 By default, the system will decide which address to use in accordance
 with the routing table.
 .TP
-.B -N
-External NAT address 3proxy reports to client for BIND and UDPASSOC.
+.B -Ne
+External NAT address 3proxy reports to client for CONNECT/BIND.
+This is external address of NAT between 3proxy and destination server.
 By default, the external address is reported. It's only useful in the case
-of IP-IP NAT (will not work for PAT).
+of IP-IP NAT and does not work with port translation. 
+.TP
+.B -Ni
+Internal NAT address 3proxy reports to client for UDPASSOC.
+This is external address of the NAT between 3proxy and the client, client
+uses to connect to 3proxy.
+By default, the internal address is reported. It's only useful in the case
+of IP-IP NAT and does not work with port translation. 
 .TP
 .B -i
 Internal address. IP address the proxy accepts connections to.

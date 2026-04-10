@@ -515,10 +515,12 @@ struct srvparam {
 	struct sockaddr_in6 extsa6;
 	struct sockaddr_in6 extsa;
 	struct sockaddr_in6 extNat;
+	struct sockaddr_in6 intNat;
 #else
 	struct sockaddr_in intsa;
 	struct sockaddr_in extsa;
 	struct sockaddr_in extNat;
+	struct sockaddr_in intNat;
 #endif
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
