@@ -1480,9 +1480,15 @@ static int h_plugin(int argc, unsigned char **argv){
 #else	
 	void *hi, *fp;
 	hi = dlopen((char *)argv[1], RTLD_LAZY);
-	if(!hi) return 1;
+	if(!hi) {
+	    fprintf(stderr, "%s", dlerror());
+	    return 1;
+	}
 	fp = dlsym(hi, (char *)argv[2]);
-	if(!fp) return 2;
+	if(!fp) {
+	    fprintf(stderr, "%s", dlerror());
+	    return 2;
+	}
 	return (*(PLUGINFUNC)fp)(&pluginlink, argc - 2, (char **)argv + 2);
 #endif
 #endif
