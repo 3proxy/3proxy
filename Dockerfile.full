@@ -1,56 +1,66 @@
 # 3proxy.full is fully functional 3proxy build based on busybox:glibc
 #
+# Example are for podman, for docker change 'podman' to 'docker'
+#
 #to  build:
-# docker build -f Dockerfile.full -t 3proxy.full .
+# podman build -f Dockerfile.full -t 3proxy.full .
 #to run:
-# by default 3proxy uses safe chroot environment with chroot to /usr/local/3proxy with uid/gid 65535/65535 and expects
-# configuration file to be placed in /usr/local/etc/3proxy.
-# Paths in configuration file must be relative to /usr/local/3proxy, that is use /logs instead of 
-# /usr/local/3proxy/logs. nserver in chroot is required for DNS resolution. An example:
 #
 # echo nserver 8.8.8.8 >/path/to/local/config/directory/3proxy.cfg
 # echo proxy -p3129 >>/path/to/local/config/directory/3proxy.cfg
-# docker run -p 3129:3129 -v /path/to/local/config/directory:/usr/local/3proxy/conf -name 3proxy.full 3proxy.full
-#
-# /path/to/local/config/directory in this example must conrain 3proxy.cfg
-# if you need 3proxy to be executed without chroot with root permissions
-# replace /etc/3proxy/3proxy.cfg by e.g. mounting config
-# dir to /etc/3proxy ot by providing config file /etc/3proxy/3proxy.cfg
-# some plugins like SSLPLugin / pamauth also conflict with chroot and must
-# be started prior to chroot.
-# docker run -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy -name 3proxy.full 3proxy.full
+# podman run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy -name 3proxy.full 3proxy.full
 #
 # use "log" without pathname in config to log to stdout.
-# plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config).
+# plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config)
+# symlinked as /lib and /lib64 in both root and chroot configurations, so no need
+# to specify full path to plugin. SSLPlugin is supported.
+#
+# Since 0.9.6 image is distroless, no reason to use chroot, chroot
+# configuration is supported for compatility only.
 
 
-FROM gcc AS buildenv
+FROM docker.io/gcc AS buildenv
 COPY . 3proxy
 RUN cd 3proxy &&\
- apt update && apt install libssl-dev libpam-dev libpcre2-dev &&\
+ apt --assume-yes update && apt --assume-yes install libssl-dev libpcre2-dev &&\
  make -f Makefile.Linux &&\
  strip bin/3proxy &&\
- strip bin/StringsPlugin.ld.so &&\
- strip bin/TrafficPlugin.ld.so &&\
- strip bin/PCREPlugin.ld.so &&\
- strip bin/TransparentPlugin.ld.so &&\
- strip bin/SSLPlugin.ld.so &&\
- mkdir /usr/local/lib/3proxy &&\
- cp "/lib/`gcc -dumpmachine`"/libdl.so.* /usr/local/lib/3proxy/
+ mkdir /dist &&\
+ mkdir /dist/etc &&\
+ mkdir /dist/etc/3proxy &&\
+ mkdir /dist/bin &&\
+ mkdir /dist/usr &&\
+ mkdir /dist/usr/local &&\
+ mkdir /dist/usr/local/3proxy &&\
+ mkdir /dist/usr/local/3proxy/libexec &&\
+ mkdir /dist/usr/local/3proxy/conf &&\
+ cp bin/3proxy /dist/bin &&\
+ cp bin/*.so /dist/usr/local/3proxy/libexec &&\
+ cp scripts/3proxy.cfg.inchroot /dist/etc/3proxy/3proxy.cfg
+RUN cd /dist &&\
+ ln -s /usr/local/3proxy/libexec lib64 &&\
+ ln -s /usr/local/3proxy/libexec lib &&\
+ ln -s /usr/local/3proxy/libexec usr/lib &&\
+ ln -s /usr/local/3proxy/libexec usr/lib64 &&\
+ ln -s /usr/local/3proxy/libexec /dist/usr/local/3proxy/libexec/`gcc -dumpmachine` &&\
+ cp /lib64/ld-*.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libc.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libcrypto.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libssl.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libpcre2-8.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libz.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libzstd.so.* /dist/usr/local/3proxy/libexec
+RUN cd /dist/usr/local/3proxy/ &&\
+ ln -s libexec lib &&\
+ ln -s libexec lib64 &&\
+ mkdir usr
+RUN cd /dist/usr/local/3proxy/usr &&\
+ ln -s ../libexec lib &&\
+ ln -s ../libexec lib64 &&\
+ strip /dist/usr/local/3proxy/libexec/*.so &&\
+ ls -lR /dist
 
-FROM busybox:glibc
-COPY --from=buildenv /usr/local/lib/3proxy/libdl.so.* /lib/
-COPY --from=buildenv 3proxy/bin/3proxy /bin/
-COPY --from=buildenv 3proxy/bin/*.ld.so /usr/local/3proxy/libexec/
-RUN mkdir /usr/local/3proxy/logs &&\
- mkdir /usr/local/3proxy/conf &&\
- chown -R 65535:65535 /usr/local/3proxy &&\
- chmod -R 550  /usr/local/3proxy &&\
- chmod 750  /usr/local/3proxy/logs &&\
- chmod -R 555 /usr/local/3proxy/libexec &&\
- chown -R root /usr/local/3proxy/libexec &&\
- mkdir /etc/3proxy/ &&\
- echo chroot /usr/local/3proxy 65535 65535 >/etc/3proxy/3proxy.cfg &&\
- echo include /conf/3proxy.cfg >>/etc/3proxy/3proxy.cfg &&\
- chmod 440  /etc/3proxy/3proxy.cfg
+FROM scratch
+COPY --from=buildenv /dist /
 CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]
