@@ -63,12 +63,26 @@ int mutex_unlock(int *val)
 #endif
 
 int myinet_ntop(int af, void *src, char *dst, socklen_t size){
+#ifdef WITH_UN
+ if(af == AF_UNIX){
+	struct sockaddr_un *sun = (struct sockaddr_un *)src;
+	char *path = sun->sun_path;
+	char *basename = strrchr(path, '/');
+	if(basename) basename++;
+	else basename = path;
+	if(size > 0){
+		strncpy(dst, basename, (size > 40) ? 40 : size - 1);
+		dst[((size > 40) ? 40 : size - 1)] = 0;
+	}
+	return (int)strlen(dst);
+ }
+#endif
 #ifndef NOIPV6
  if(af != AF_INET6){
-#endif 
+#endif
 	unsigned u = ntohl(((struct in_addr *)src)->s_addr);
- 	return sprintf(dst, "%u.%u.%u.%u", 
-		((u&0xFF000000)>>24), 
+ 	return sprintf(dst, "%u.%u.%u.%u",
+		((u&0xFF000000)>>24),
 		((u&0x00FF0000)>>16),
 		((u&0x0000FF00)>>8),
 		((u&0x000000FF)));
@@ -77,7 +91,7 @@ int myinet_ntop(int af, void *src, char *dst, socklen_t size){
  *dst = 0;
  inet_ntop(af, src, dst, size);
  return (int)strlen(dst);
-#endif 
+#endif
 }
 
 char *rotations[] = {

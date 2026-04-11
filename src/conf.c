@@ -285,17 +285,26 @@ static int h_proxy(int argc, unsigned char ** argv){
 }
 
 static int h_internal(int argc, unsigned char ** argv){
-	getip46(46, argv[1], (struct sockaddr *)&conf.intsa);
+#ifdef WITH_UN
+	if(!strncmp((char *)argv[1], "unix:", 5)){
+		struct sockaddr_un *sun = (struct sockaddr_un *)&conf.intsa;
+		memset(sun, 0, sizeof(*sun));
+		sun->sun_family = AF_UNIX;
+		strncpy(sun->sun_path, (char *)argv[1] + 5, sizeof(sun->sun_path) - 1);
+	}
+	else
+#endif
+		getip46(46, argv[1], (struct sockaddr *)&conf.intsa);
 	return 0;
 }
 
 static int h_external(int argc, unsigned char ** argv){
 	int res;
 #ifndef NOIPV6
-	struct sockaddr_in6 sa6;
+	PROXYSOCKADDRTYPE sa6;
 	memset(&sa6, 0, sizeof(sa6));
 	res = getip46(46, argv[1], (struct sockaddr *)&sa6);
-	if(!res) return 1; 
+	if(!res) return 1;
 	if (*SAFAMILY(&sa6)==AF_INET) conf.extsa = sa6;
 	else conf.extsa6 = sa6;
 #else
@@ -687,11 +696,7 @@ static int h_nscache6(int argc, unsigned char **argv){
 }
 
 static int h_nsrecord(int argc, unsigned char **argv){
-#ifndef NOIPV6
-	struct sockaddr_in6 sa;
-#else
-	struct sockaddr_in sa;
-#endif
+	PROXYSOCKADDRTYPE sa;
 	memset(&sa, 0, sizeof(sa));
 	if(!getip46(46, argv[2], (struct sockaddr *)&sa)) return 1;
 
@@ -842,11 +847,7 @@ static int h_nolog(int argc, unsigned char **argv){
 }
 
 int scanipl(unsigned char *arg, struct iplist *dst){
-#ifndef NOIPV6
-	struct sockaddr_in6 sa;
-#else
-	struct sockaddr_in sa;
-#endif
+	PROXYSOCKADDRTYPE sa;
         char * slash, *dash;
 	int masklen, addrlen;
 	int res;
@@ -1397,21 +1398,6 @@ static int h_delimchar(int argc, unsigned char **argv){
 static int h_radius(int argc, unsigned char **argv){
 	uint16_t port;
 
-/*
-	int oldrad;
-#ifdef NOIPV6
-	struct  sockaddr_in bindaddr;
-#else
-	struct  sockaddr_in6 bindaddr;
-#endif
-
-	oldrad = nradservers;
-	nradservers = 0;
-	for(; oldrad; oldrad--){
-		if(radiuslist[oldrad].logsock >= 0) so._closesocket(radiuslist[oldrad].logsock);
-		radiuslist[oldrad].logsock = -1;
-	}
-*/
 	memset(radiuslist, 0, sizeof(radiuslist));
 	if(strlen((char *)argv[1]) > 63) argv[1][63] = 0;
 	strcpy(radiussecret, (char *)argv[1]);
@@ -1427,11 +1413,6 @@ static int h_radius(int argc, unsigned char **argv){
 		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
 		radiuslist[nradservers].logaddr = radiuslist[nradservers].authaddr;
  	        *SAPORT(&radiuslist[nradservers].logaddr) = htons(port+1);
-/*
-		bindaddr = radiuslist[nradservers].localaddr;
-		if ((radiuslist[nradservers].logsock = so._socket(SASOCK(&radiuslist[nradservers].logaddr), SOCK_DGRAM, 0)) < 0) return 2;
-		if (so._bind(radiuslist[nradservers].logsock, (struct sockaddr *)&bindaddr, SASIZE(&bindaddr))) return 3;
-*/
 	}
 	return 0;
 }

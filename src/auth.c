@@ -255,7 +255,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		if(!connected){
 			if(cur->type == R_EXTIP){
 				param->sinsl = cur->addr;
-				if(SAISNULL(&param->sinsl))param->sinsl = param->sincr;
+				if(SAISNULL(&param->sinsl) && (*SAFAMILY(&param->sincr) == AF_INET || *SAFAMILY(&param->sincr) == AF_INET6))param->sinsl = param->sincr;
 #ifndef NOIPV6
 				else if(cur->cidr && *SAFAMILY(&param->sinsl) == AF_INET6){
 					uint16_t c;
@@ -766,11 +766,8 @@ struct authcache {
 	char * username;
 	char * password;
 	time_t expires;
-#ifndef NOIPV6
-	struct sockaddr_in6 sa, sinsl;
-#else
-	struct sockaddr_in sa, sinsl;
-#endif
+	PROXYSOCKADDRTYPE sa;
+	PROXYSOCKADDRTYPE sinsl;
 	struct ace *acl;
 	struct authcache *next;
 } *authc = NULL;
@@ -1209,13 +1206,8 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 		int j, k, len, flen;
 		SOCKET sock;
 		uint32_t ttl;
-#ifndef NOIPV6
-		struct sockaddr_in6 addr;
-		struct sockaddr_in6 *sinsr, *sinsl;
-#else
-		struct sockaddr_in addr;
-		struct sockaddr_in *sinsr, *sinsl;
-#endif
+		PROXYSOCKADDRTYPE addr;
+		PROXYSOCKADDRTYPE *sinsr, *sinsl;
 		int usetcp = 0;
 		unsigned short serial = 1;
 

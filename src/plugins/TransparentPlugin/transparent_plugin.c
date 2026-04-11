@@ -58,8 +58,10 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 	return REJECT;
 #endif
 #else
-	param->req = param->sincl;
-	param->sincl = param->srv->intsa;
+	if(*SAFAMILY(&param->sincl) == AF_INET || *SAFAMILY(&param->sincl) == AF_INET6){
+	    param->req = param->sincl;
+	    param->sincl = param->srv->intsa;
+	}
 #endif
 	pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)addrbuf, sizeof(addrbuf));
 	if(param->hostname) pl->freefunc(param->hostname);

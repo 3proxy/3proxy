@@ -106,6 +106,9 @@ int
 #endif
 #endif
 
+#ifdef WITH_UN
+#include <sys/un.h>
+#endif
 
 #define ALLOW		0
 #define DENY		1
@@ -141,23 +144,52 @@ int
 #define DNSRESOLVE	0x00100000
 #define ADMIN		0x01000000
 
+#ifdef NO_UN
+#undef WITH_UN
+#endif
 
 #define SAFAMILY(sa) (&(((struct sockaddr_in *)sa)->sin_family))
 
-#ifndef NOIPV6
-#define SAPORT(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? &((struct sockaddr_in6 *)sa)->sin6_port : &((struct sockaddr_in *)sa)->sin_port)
-#define SAADDR(sa)  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
-#define SAADDRLEN(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
-#define SASOCK(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
-#define SASIZE(sa) (((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
-#define SAISNULL(sa) (!memcmp(((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr, NULLADDR,  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4))) 
+#ifdef WITH_UN
+#define	UN_SAPORT(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (uint16_t *)(((uint8_t *)(sa)) + sizeof(struct sockaddr_storage) - 2) :
+#define	UN_SAADDR(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (unsigned char *)((struct sockaddr_un *)sa)->sun_path :
+#define	UN_SAADDRLEN(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (int)sizeof(((struct sockaddr_un *)sa)->sun_path) :
+#define	UN_SASOCK(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? PF_UNIX :
+#define	UN_SASIZE(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? sizeof(struct sockaddr_un) :
+#define	UN_SAISNULL(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (*((struct sockaddr_un *)sa)->sun_path == 0) :
 #else
-#define SAPORT(sa)  (&((struct sockaddr_in *)sa)->sin_port)
-#define SAADDR(sa)  ((unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
-#define SAADDRLEN(sa) (4)
-#define SASOCK(sa) (PF_INET)
-#define SASIZE(sa) (sizeof(struct sockaddr_in))
-#define SAISNULL(sa) (((struct sockaddr_in *)sa)->sin_addr.s_addr == 0) 
+#define UN_SAPORT(sa)
+#define UN_SAADDR(sa)
+#define	UN_SAADDRLEN(sa)
+#define UN_SASOCK(sa)
+#define	UN_SASIZE(sa)
+#define UN_SAISNULL(sa)
+#endif
+
+#ifndef NOIPV6
+#define SAPORT(sa)  ( UN_SAPORT(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? &((struct sockaddr_in6 *)sa)->sin6_port : &((struct sockaddr_in *)sa)->sin_port)
+#define SAADDR(sa)  ( UN_SAADDR(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDRLEN(sa) ( UN_SAADDRLEN(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
+#define SASOCK(sa) ( UN_SASOCK(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
+#define SASIZE(sa) ( UN_SASIZE(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
+#define SAISNULL(sa) ( UN_SAISNULL(sa) !memcmp(((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr, NULLADDR,  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4))) 
+#else
+#define SAPORT(sa)  ( UN_SAPORT(sa) &((struct sockaddr_in *)sa)->sin_port)
+#define SAADDR(sa)  ( UN_SAADDR(sa) (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
+#define SAADDRLEN(sa) ( UN_SAADDRLEN(sa) 4)
+#define SASOCK(sa) ( UN_SASOCK(sa) PF_INET)
+#define SASIZE(sa) ( UN_SASIZE(sa) sizeof(struct sockaddr_in))
+#define SAISNULL(sa) ( UN_SAISNULL(sa) ((struct sockaddr_in *)sa)->sin_addr.s_addr == 0) 
+#endif
+
+#ifdef WITH_UN
+#define PROXYSOCKADDRTYPE struct sockaddr_storage
+#else
+#ifndef NOIPv6
+#define PROXYSOCKADDRTYPE struct sockaddr_in6
+#else
+#define PROXYSOCKADDRTYPE struct sockaddr_in
+#endif
 #endif
 
 extern char* NULLADDR;
@@ -230,13 +262,8 @@ struct auth {
 struct iplist {
 	struct iplist *next;
 	int family;
-#ifndef NOIPV6
-	struct in6_addr ip_from;
-	struct in6_addr ip_to;
-#else
-	struct in_addr ip_from;
-	struct in_addr ip_to;
-#endif
+	PROXYSOCKADDRTYPE ip_from;
+	PROXYSOCKADDRTYPE ip_to;
 };
 
 struct portlist {
@@ -299,11 +326,7 @@ extern struct redirdesc redirs[];
 struct chain {
 	struct chain * next;
 	int type;
-#ifndef NOIPV6
-	struct sockaddr_in6 addr;
-#else
-	struct sockaddr_in addr;
-#endif
+	PROXYSOCKADDRTYPE addr;
 	unsigned char * exthost;
 	unsigned char * extuser;
 	unsigned char * extpass;
@@ -384,11 +407,7 @@ struct trafcount {
 };
 
 struct nserver {
-#ifndef NOIPV6
-	struct sockaddr_in6 addr;
-#else
-	struct sockaddr_in addr;
-#endif
+	PROXYSOCKADDRTYPE addr;
 	int usetcp;
 };
 extern int numservers;
@@ -510,18 +529,11 @@ struct srvparam {
 #endif
 	unsigned bufsize;
 	unsigned logdumpsrv, logdumpcli;
+	PROXYSOCKADDRTYPE intsa, intNat, extNat;
 #ifndef NOIPV6
-	struct sockaddr_in6 intsa;
-	struct sockaddr_in6 extsa6;
-	struct sockaddr_in6 extsa;
-	struct sockaddr_in6 extNat;
-	struct sockaddr_in6 intNat;
-#else
-	struct sockaddr_in intsa;
-	struct sockaddr_in extsa;
-	struct sockaddr_in extNat;
-	struct sockaddr_in intNat;
+	PROXYSOCKADDRTYPE extsa6;
 #endif
+	PROXYSOCKADDRTYPE extsa;
 	pthread_mutex_t counter_mutex;
 	struct pollfd fds;
 	FILE *stdlog;
@@ -613,11 +625,8 @@ struct clientparam {
 	uint64_t
 			maxtrafin64,
 			maxtrafout64;
-#ifndef NOIPV6
-	struct sockaddr_in6	sincl, sincr, sinsl, sinsr, req;
-#else
-	struct sockaddr_in	sincl, sincr, sinsl, sinsr, req;
-#endif
+	PROXYSOCKADDRTYPE sincl, sincr;
+	PROXYSOCKADDRTYPE	sinsl, sinsr, req;
 
 	uint64_t	statscli64,
 			statssrv64;
@@ -662,14 +671,11 @@ struct extparam {
 	unsigned char *logname, **archiver;
 	ROTATION logtype, countertype;
 	char * counterfile;
+	PROXYSOCKADDRTYPE intsa;
 #ifndef NOIPV6
-	struct sockaddr_in6 intsa;
-	struct sockaddr_in6 extsa6;
-	struct sockaddr_in6 extsa;
-#else
-	struct sockaddr_in intsa;
-	struct sockaddr_in extsa;
+	PROXYSOCKADDRTYPE extsa6;
 #endif
+	PROXYSOCKADDRTYPE extsa;
 	struct passwords *pwl;
 	struct auth * authenticate;
 	AUTHFUNC authfunc;

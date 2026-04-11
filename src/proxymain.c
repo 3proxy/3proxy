@@ -252,11 +252,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  char *hostname=NULL;
  int opt = 1, isudp = 0, iscbl = 0, iscbc = 0;
  unsigned char *cbc_string = NULL, *cbl_string = NULL;
-#ifndef NOIPV6
- struct sockaddr_in6 cbsa;
-#else
- struct sockaddr_in cbsa;
-#endif
+ PROXYSOCKADDRTYPE cbsa;
  FILE *fp = NULL;
  struct linger lg;
  int nlog = 5000;
@@ -409,18 +405,27 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			break;
 		 case 'i':
+#ifdef WITH_UN
+			if(!strncmp((char *)argv[i]+2, "unix:", 5)){
+				struct sockaddr_un *sun = (struct sockaddr_un *)&srv.intsa;
+				memset(sun, 0, sizeof(*sun));
+				sun->sun_family = AF_UNIX;
+				strncpy(sun->sun_path, (char *)argv[i] + 7, sizeof(sun->sun_path) - 1);
+			}
+			else
+#endif
 			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.intsa);
 			break;
 		 case 'e':
 			{
 #ifndef NOIPV6
-				struct sockaddr_in6 sa6;
+				PROXYSOCKADDRTYPE sa6;
 				memset(&sa6, 0, sizeof(sa6));
 				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&sa6);
 				if(!error) {
 					if (*SAFAMILY(&sa6)==AF_INET) srv.extsa = sa6;
 					else srv.extsa6 = sa6;
-				} 
+				}
 #else
 				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extsa);
 #endif
@@ -654,6 +659,12 @@ int MODULEMAINFUNC (int argc, char** argv){
  if (!iscbc) {
 	if(srv.srvsock == INVALID_SOCKET){
 
+#ifdef WITH_UN
+		if(*SAFAMILY(&srv.intsa) == AF_UNIX){
+			sock=srv.so._socket(srv.so.state, PF_UNIX, SOCK_STREAM, 0);
+		}
+		else
+#endif
 		if(!isudp){
 			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
 		}
@@ -671,12 +682,17 @@ int MODULEMAINFUNC (int argc, char** argv){
 		fcntl(sock,F_SETFL,O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
 		srv.srvsock = sock;
+#ifdef WITH_UN
+		if(*SAFAMILY(&srv.intsa) != AF_UNIX)
+#endif
+		{
 		opt = 1;
 		if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
 #ifdef SO_REUSEPORT
 		opt = 1;
 		srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
+		}
 #if defined SO_BINDTODEVICE
 		if(srv.ibindtodevice && srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
 		    dolog(&defparam, (unsigned char *)"failed to bind device");
@@ -699,11 +715,17 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 #endif
 	}
+#ifdef WITH_UN
+	if(*SAFAMILY(&srv.intsa) == AF_UNIX){
+		struct sockaddr_un *sun = (struct sockaddr_un *)&srv.intsa;
+		unlink(sun->sun_path);
+	}
+#endif
 	size = sizeof(srv.intsa);
 	for(sleeptime = SLEEPTIME * 100; srv.so._bind(srv.so.state, sock, (struct sockaddr*)&srv.intsa, SASIZE(&srv.intsa))==-1; usleep(sleeptime)) {
 		sprintf((char *)buf, "bind(): %s", strerror(errno));
-		if(!srv.silent)dolog(&defparam, buf);	
-		sleeptime = (sleeptime<<1);	
+		if(!srv.silent)dolog(&defparam, buf);
+		sleeptime = (sleeptime<<1);
 		if(!sleeptime) {
 			srv.so._closesocket(srv.so.state, sock);
 			return -3;
@@ -716,7 +738,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 			return -4;
 		}
 	}
-	else 
+	else
 		defparam.clisock = sock;
 
 	if(!srv.silent && !iscbc){
@@ -869,6 +891,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			if(!srv.silent)dolog(&defparam, buf);
 			continue;
 		}
+#ifdef WITH_UN
+		if(*SAFAMILY(&defparam.sincl) == AF_UNIX) defparam.sincr = defparam.sincl;
+#endif
 #ifdef _WIN32
 		ioctlsocket(new_sock, FIONBIO, &ul);
 #else

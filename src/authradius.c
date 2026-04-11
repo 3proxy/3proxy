@@ -306,11 +306,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	int total_length;
 	int len;
 	int op;
-#ifdef NOIPV6
-	struct  sockaddr_in     saremote;
-#else
-	struct  sockaddr_in6     saremote;
-#endif
+	PROXYSOCKADDRTYPE     saremote;
 	struct pollfd fds[1];
 	char vector[AUTH_VECTOR_LEN];
 	radius_packet_t packet, rpacket;

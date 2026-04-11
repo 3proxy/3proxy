@@ -9,7 +9,7 @@ BUILDDIR = ../bin/
 CC ?= gcc
 
 # you may need -L/usr/pkg/lib for older NetBSD versions
-CFLAGS := -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL $(CFLAGS)
+CFLAGS := -g -O2 -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_UN $(CFLAGS)
 COUT = -o 
 LN ?= $(CC)
 LDFLAGS ?= -O2 -fno-strict-aliasing -pthread

@@ -44,11 +44,7 @@ void * sockschild(struct clientparam* param) {
  struct pollfd fds[3];
  int ver=0;
  int havepass = 0;
-#ifndef NOIPV6
- struct sockaddr_in6 sin = {AF_INET6};
-#else
- struct sockaddr_in sin = {AF_INET};
-#endif
+ PROXYSOCKADDRTYPE sin;
  int len;
 
 

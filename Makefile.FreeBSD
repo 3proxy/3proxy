@@ -7,7 +7,7 @@
 BUILDDIR = ../bin/
 CC ?= cc
 
-CFLAGS := -c -fno-strict-aliasing -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL $(CFLAGS)
+CFLAGS := -c -fno-strict-aliasing -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_UN  $(CFLAGS)
 COUT = -o 
 LN ?= ${CC}
 LDFLAGS += -pthread -fno-strict-aliasing 

@@ -2,7 +2,7 @@ name: C/C++ CI cmake
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "unix_socket" ]
     paths: [ '**.c', '**.h', '**.cmake', 'CMakeLists.txt', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
   pull_request:
     branches: [ "master" ]

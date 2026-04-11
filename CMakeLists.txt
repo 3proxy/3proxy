@@ -54,6 +54,7 @@ option(3PROXY_USE_SPLICE "Use Linux splice() for zero-copy (Linux only)" ON)
 option(3PROXY_USE_POLL "Use poll() instead of select() (Unix only)" ON)
 option(3PROXY_USE_WSAPOLL "Use WSAPoll instead of select() (Windows only)" ON)
 option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)
+option(3PROXY_USE_UNIX_SOCKETS "Enable Unix domain socket support (Unix only)" ON)
 
 # Output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -159,6 +160,10 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_compile_definitions(WITH_NETFILTER)
     endif()
 
+    if(3PROXY_USE_UNIX_SOCKETS)
+        add_compile_definitions(WITH_UN)
+    endif()
+
     set(DEFAULT_PLUGINS
         StringsPlugin
         TrafficPlugin
@@ -176,6 +181,10 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|Darwin|OpenBSD|NetBSD")
         add_compile_options(-fno-strict-aliasing)
     endif()
 
+    if(3PROXY_USE_UNIX_SOCKETS)
+        add_compile_definitions(WITH_UN)
+    endif()
+
     set(DEFAULT_PLUGINS
         StringsPlugin
         TrafficPlugin
@@ -186,6 +195,10 @@ else()
     # Generic Unix configuration
     if(COMPILER_IS_CLANG OR COMPILER_IS_GCC)
         add_compile_options(-fno-strict-aliasing)
+    endif()
+
+    if(3PROXY_USE_UNIX_SOCKETS)
+        add_compile_definitions(WITH_UN)
     endif()
 
     set(DEFAULT_PLUGINS
