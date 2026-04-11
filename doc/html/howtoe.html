@@ -49,6 +49,8 @@
 		<li><a href="#NSCACHING">How to configure name resolution and DNS caching</a>
 		<li><a href="#IPV6">How to use IPv6</a>
 		<li><a href="#CONNBACK">How to use connect back</a>
+		<li><a href="#HAPROXY">How to use HAProxy PROXY protocol</a>
+		<li><a href="#MAXSEG">How to set TCP maximum segment size (MSS)</a>
 	</ul>
 	<li><A HREF="#CLIENT">Client configuration</A>
 	<li><A HREF="#ADMIN">Administering and information analysis</A>
@@ -1278,7 +1280,54 @@ allowed traffic in megabytes (MB). nocountin allows you to set exclusions.
   allow * * 1.1.1.1
   tcppm -R0.0.0.0:1234 3128 1.1.1.1 3128</pre>
   For browser settings, the proxy is host.dyndns.example.org:3128.
-  </p>	
+  </p>
+  <li><a name="HAPROXY"><i>How to use HAProxy PROXY protocol</i></a>
+  <p>
+  3proxy supports HAProxy PROXY protocol v1 for both receiving and sending client
+  IP information. This is useful when 3proxy is behind a load balancer or when
+  passing client information to a parent proxy.
+  </p>
+  <p>
+  <b>Receiving PROXY protocol header:</b>
+  <br>Use the <code>-H</code> option to make 3proxy expect a PROXY protocol v1 header
+  on incoming connections. This allows 3proxy to receive the real client IP address
+  from HAProxy or another load balancer:
+  </p><pre>
+proxy -H -p3128
+socks -H -p1080
+</pre>
+  <p>
+  The PROXY protocol header must be sent before any protocol-specific data.
+  </p>
+  <p>
+  <b>Sending PROXY protocol header to parent proxy:</b>
+  <br>Use the <code>ha</code> parent type to send a PROXY protocol v1 header to
+  the parent proxy. This must be the last parent in the chain:
+  </p><pre>
+allow *
+parent 1000 ha
+parent 1000 socks5 parent.example.com 1080
+socks
+</pre>
+  <p>
+  This configuration sends the client IP information to the SOCKS5 parent proxy
+  via the PROXY protocol.
+  </p>
+  <li><a name="MAXSEG"><i>How to set TCP maximum segment size (MSS)</i></a>
+  <p>
+  Use the <code>maxseg</code> command to set the TCP maximum segment size (MSS)
+  for outgoing connections. This can be useful to work around path MTU discovery
+  issues or to optimize traffic for specific network conditions:
+  </p><pre>
+maxseg 1400
+proxy -p3128 -OcTCP_NODELAY,TCP_MAXSEG -OsTCP_NODELAY,TCP_MAXSEG
+</pre>
+  <p>
+  The value is specified in bytes. This setting uses the TCP_MAXSEG socket option
+  and may not be supported on all platforms. A typical use case is to reduce MSS
+  to avoid fragmentation in VPN tunnels or to work around MTU issues with certain
+  network paths.
+  </p>
 	</ul>
 
 <hr>

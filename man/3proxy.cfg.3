@@ -187,6 +187,12 @@ By default, connections to any interface are accepted.
 By default external address is reported. It's only useful in the case
 of IP-IP NAT (will not work for PAT)
 .br
+.B -H
+(for all services) Expect HAProxy PROXY protocol v1 header on incoming connection.
+This allows the proxy to receive real client IP address from HAProxy or other
+load balancer that supports the PROXY protocol. The header must be sent before
+any protocol-specific data.
+.br
  Also, all options mentioned for 
 .BR proxy (8)
 .BR socks (8)
@@ -776,7 +782,11 @@ unless you know exactly you need it.
 .br
  admin redirect request to local \'admin\' service (with -s parameter).
 .br
- Use "+" proxy only with "fakeresolve" option
+ha send HAProxy PROXY protocol v1 header to parent proxy. Must be the last
+in the proxy chain. Useful for passing client IP information to the parent proxy.
+Example: parent 1000 ha
+.br
+Use "+" proxy only with "fakeresolve" option
 .br
 
  IP and port are ip addres and port of parent proxy server.

@@ -176,7 +176,12 @@ accepted. <b><br>
 -N</b> (for socks) External NAT address 3proxy reports to
 client for BIND and UDPASSOC By default external address is
 reported. It&rsquo;s only useful in the case of IP-IP NAT
-(will not work for PAT) <br>
+(will not work for PAT) <b><br>
+-H</b> (for all services) Expect HAProxy PROXY protocol v1
+header on incoming connection. This allows the proxy to
+receive real client IP address from HAProxy or other load
+balancer that supports the PROXY protocol. The header must
+be sent before any protocol-specific data. <br>
 Also, all options mentioned for <b>proxy</b>(8)
 <b>socks</b>(8) <b>pop3p</b>(8) <b>tcppm</b>(8)
 <b>udppm</b>(8) <b>ftppr</b>(8) <br>
@@ -677,6 +682,10 @@ useful). Never use this option unless you know exactly you
 need it. <br>
 admin redirect request to local &acute;admin&acute; service
 (with -s parameter). <br>
+ha send HAProxy PROXY protocol v1 header to parent proxy.
+Must be the last in the proxy chain. Useful for passing
+client IP information to the parent proxy. Example: parent
+1000 ha <br>
 Use &quot;+&quot; proxy only with &quot;fakeresolve&quot;
 option</p>
 
