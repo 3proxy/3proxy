@@ -1845,7 +1845,6 @@ void freeconf(struct extparam *confp){
  struct ace *acl;
  struct filemon *fm;
  int counterd, archiverc;
- unsigned char *logname, *logtarget;
  unsigned char **archiver;
  unsigned char * logformat;
 
@@ -1882,12 +1881,6 @@ void freeconf(struct extparam *confp){
  pthread_mutex_unlock(&pwl_mutex);
 
 
-/*
- logtarget = confp->logtarget;
- confp->logtarget = NULL;
- logname = confp->logname;
- confp->logname = NULL;
-*/
  confp->logfunc = lognone;
  logformat = confp->logformat;
  confp->logformat = NULL;
@@ -1942,14 +1935,6 @@ void freeconf(struct extparam *confp){
  for(; fm; fm = (struct filemon *)itfree(fm, fm->next)){
 	if(fm->path) myfree(fm->path);
  }
-/*
- if(logtarget) {
-	myfree(logtarget);
- }
- if(logname) {
-	myfree(logname);
- }
-*/
  if(logformat) {
 	myfree(logformat);
  }
