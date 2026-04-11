@@ -32,19 +32,20 @@ TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.unix
 PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin
-OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
+OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d \\\\ | $(CC) -x c $(CFLAGS) -o testssl.o - 2>/dev/null && $(CC) $(LDFLAGS) -otestssl testssl.o -lcrypto -lssl 2>/dev/null && rm testssl testssl.o && echo true||echo false)
 ifeq ($(OPENSSL_CHECK), true)
     LIBS += -l crypto -l ssl
     PLUGINS += SSLPlugin
 endif
-PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
-ifeq ($(PAM_CHECK), true)
-    PLUGINS += PamAuth
-endif
-PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n\#include <pcre2.h>\\n int main(){return 0;}" | tr -d \\\\ | cc -x c $(CFLAGS) $(LDFLAGS) -l pcre2-8 -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n\#include <pcre2.h>\\n int main(){return 0;}" | tr -d \\\\ | $(CC) -x c $(CFLAGS) -o testpcre.o - 2>/dev/null && $(CC) -o testpcre testpcre.o $(LDFLAGS) -lpcre2-8 2>/dev/null && rm testpcre testpcre.o && echo true||echo false)
 ifeq ($(PCRE_CHECK), true)
     PLUGINS += PCREPlugin
 endif
+PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | tr -d \\\\ | $(CC) -x c $(CFLAGS) -o testpam.o - 2>/dev/null && $(CC) $(LDFLAGS) -o testpam testpam.o -lpam 2>/dev/null && rm testpam testpam.o && echo true||echo false)
+ifeq ($(PAM_CHECK), true)
+    PLUGINS += PamAuth
+endif
+
 include Makefile.inc
 
 install: all
