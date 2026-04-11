@@ -641,7 +641,7 @@ pthread_mutex_t gethostbyname_mutex;
 int ghbn_init = 0;
 #endif
 
-
+#ifndef NOSTDRESOLVE
 #ifdef GETHOSTBYNAME_R
 struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 	struct hostent *result;
@@ -655,6 +655,7 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 	return result;
 #endif
 }
+#endif
 #endif
 
 #ifdef NOIPV6
@@ -689,6 +690,7 @@ uint32_t getip(unsigned char *name){
 		if(conf.demanddialprog) system(conf.demanddialprog);
 		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
 	}
+#ifndef NOSTDRESOLVE
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
 	if(!ghbn_init){
 		pthread_mutex_init(&gethostbyname_mutex, NULL);
@@ -707,6 +709,9 @@ uint32_t getip(unsigned char *name){
 #endif
 #ifdef GETHOSTBYNAME_R
 #undef gethostbyname
+#endif
+#else
+	retval=0;
 #endif
 	return retval;
 }
