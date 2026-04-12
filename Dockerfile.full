@@ -8,7 +8,7 @@
 #
 # echo nserver 8.8.8.8 >/path/to/local/config/directory/3proxy.cfg
 # echo proxy -p3129 >>/path/to/local/config/directory/3proxy.cfg
-# podman run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy -name 3proxy.full 3proxy.full
+# podman run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy --name 3proxy.full 3proxy.full
 #
 # use "log" without pathname in config to log to stdout.
 # plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config)

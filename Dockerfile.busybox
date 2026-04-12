@@ -8,7 +8,7 @@
 #
 # echo nserver 8.8.8.8 >/path/to/local/config/directory/3proxy.cfg
 # echo proxy -p3129 >>/path/to/local/config/directory/3proxy.cfg
-# podman run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy -name 3proxy.busybox 3proxy.busybox
+# podman run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy --name 3proxy.busybox 3proxy.busybox
 #
 # use "log" without pathname in config to log to stdout.
 # plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config)
@@ -25,32 +25,33 @@ RUN cd 3proxy &&\
  apt --assume-yes update && apt --assume-yes install libssl-dev libpcre2-dev &&\
  make -f Makefile.Linux &&\
  strip bin/3proxy &&\
+ strip bin/*so &&\
  mkdir /dist &&\
  mkdir /dist/etc &&\
  mkdir /dist/etc/3proxy &&\
  mkdir /dist/bin &&\
  mkdir /dist/usr &&\
- mkdir /dist/lib &&\
  mkdir /dist/usr/local &&\
  mkdir /dist/usr/local/3proxy &&\
  mkdir /dist/usr/local/3proxy/conf &&\
+ mkdir /dist/usr/local/3proxy/libexec &&\
  cp bin/3proxy /dist/bin &&\
- cp bin/*.so /dist/lib &&\
+ cp bin/*.so /dist/usr/local/3proxy/libexec &&\
  cp scripts/3proxy.cfg.inchroot /dist/etc/3proxy/3proxy.cfg
 RUN cd /dist &&\
  ln -s /lib lib64 &&\
  ln -s /lib usr/lib &&\
  ln -s /lib usr/lib64 &&\
- cp /lib64/ld-*.so.* /dist/lib &&\
- cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/lib &&\
- cp "/lib/`gcc -dumpmachine`"/libcrypto.so.* /dist/lib &&\
- cp "/lib/`gcc -dumpmachine`"/libssl.so.* /dist/lib &&\
- cp "/lib/`gcc -dumpmachine`"/libpcre2-8.so.* /dist/lib &&\
- cp "/lib/`gcc -dumpmachine`"/libz.so.* /dist/lib &&\
- cp "/lib/`gcc -dumpmachine`"/libzstd.so.* /dist/lib &&\
+ cp /lib64/ld-*.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libcrypto.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libssl.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libpcre2-8.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libz.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libzstd.so.* /dist/usr/local/3proxy/libexec &&\
  ls -lR /dist
 
 FROM docker.io/busybox:glibc
 COPY --from=buildenv /dist /
-RUN cp -r lib /usr/local/3proxy/libexec && ln -sfn /usr/local/3proxy/libexec /lib && cd /usr/local/3proxy/ && ln -s libexec lib && ln -s libexec lib64 && mkdir usr && ln -s libexec usr/lib && ln -s libexec/lib64
+RUN ln -sf /usr/local/3proxy/libexec/* /lib/ && cd /usr/local/3proxy/ && ln -s libexec lib && ln -s libexec lib64 && mkdir usr && ln -s libexec usr/lib && ln -s libexec usr//lib64
 CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]
