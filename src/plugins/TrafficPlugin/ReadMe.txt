@@ -63,5 +63,5 @@ plugin "TrafficPlugin.dll" start debug
 /////////////////////////////////////////////////////////////////////////////
 Copyright:
  (c) Maslov Michael aka Flexx(rus) All rights reserved.
- Plugin was writen on Visual C++ 6.0 SP5
+ Plugin was written on Visual C++ 6.0 SP5
  Using structures.h from 3proxy distr.

@@ -10,6 +10,6 @@ if [ $2 ]; then
 else
 	echo usage: $0 username password [day_limit] [bandwidth]
 	echo "	"day_limit - traffic limit in MB per day
-	echo "	"bandwidth - bandwith in bits per second 1048576 = 1Mbps
+	echo "	"bandwidth - bandwidth in bits per second 1048576 = 1Mbps
 fi
 

@@ -1,8 +1,8 @@
-# 3proxy.full is fully functional 3proxy build based on busybox:glibc
+# 3proxy.full is fully functional distroless 3proxy build
 #
-# Example are for podman, for docker change 'podman' to 'docker'
+# Examples are for podman, for docker change 'podman' to 'docker'
 #
-#to  build:
+#to build:
 # podman build -f Dockerfile.full -t 3proxy.full .
 #to run:
 #
@@ -16,7 +16,7 @@
 # to specify full path to plugin. SSLPlugin is supported.
 #
 # Since 0.9.6 image is distroless, no reason to use chroot, chroot
-# configuration is supported for compatility only.
+# configuration is supported for compatibility only.
 
 
 FROM docker.io/gcc AS buildenv

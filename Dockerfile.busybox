@@ -1,0 +1,56 @@
+# 3proxy.full is fully functional 3proxy build based on busybox:glibc
+#
+# Examples are for podman, for docker change 'podman' to 'docker'
+#
+#to build:
+# podman build -f Dockerfile.busybox -t 3proxy.busybox .
+#to run:
+#
+# echo nserver 8.8.8.8 >/path/to/local/config/directory/3proxy.cfg
+# echo proxy -p3129 >>/path/to/local/config/directory/3proxy.cfg
+# podman run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy -name 3proxy.busybox 3proxy.busybox
+#
+# use "log" without pathname in config to log to stdout.
+# plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config)
+# symlinked as /lib and /lib64 in both root and chroot configurations, so no need
+# to specify full path to plugin. SSLPlugin is supported.
+#
+# Since 0.9.6 image is distroless, no reason to use chroot, chroot
+# configuration is supported for compatibility only.
+
+
+FROM docker.io/gcc AS buildenv
+COPY . 3proxy
+RUN cd 3proxy &&\
+ apt --assume-yes update && apt --assume-yes install libssl-dev libpcre2-dev &&\
+ make -f Makefile.Linux &&\
+ strip bin/3proxy &&\
+ mkdir /dist &&\
+ mkdir /dist/etc &&\
+ mkdir /dist/etc/3proxy &&\
+ mkdir /dist/bin &&\
+ mkdir /dist/usr &&\
+ mkdir /dist/lib &&\
+ mkdir /dist/usr/local &&\
+ mkdir /dist/usr/local/3proxy &&\
+ mkdir /dist/usr/local/3proxy/conf &&\
+ cp bin/3proxy /dist/bin &&\
+ cp bin/*.so /dist/lib &&\
+ cp scripts/3proxy.cfg.inchroot /dist/etc/3proxy/3proxy.cfg
+RUN cd /dist &&\
+ ln -s /lib lib64 &&\
+ ln -s /lib usr/lib &&\
+ ln -s /lib usr/lib64 &&\
+ cp /lib64/ld-*.so.* /dist/lib &&\
+ cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/lib &&\
+ cp "/lib/`gcc -dumpmachine`"/libcrypto.so.* /dist/lib &&\
+ cp "/lib/`gcc -dumpmachine`"/libssl.so.* /dist/lib &&\
+ cp "/lib/`gcc -dumpmachine`"/libpcre2-8.so.* /dist/lib &&\
+ cp "/lib/`gcc -dumpmachine`"/libz.so.* /dist/lib &&\
+ cp "/lib/`gcc -dumpmachine`"/libzstd.so.* /dist/lib &&\
+ ls -lR /dist
+
+FROM docker.io/busybox:glibc
+COPY --from=buildenv /dist /
+RUN ln -s /lib /usr/local/3proxy/libexec
+CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]
