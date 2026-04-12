@@ -287,10 +287,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 static int h_internal(int argc, unsigned char ** argv){
 #ifdef WITH_UN
 	if(!strncmp((char *)argv[1], "unix:", 5)){
-		struct sockaddr_un *sun = (struct sockaddr_un *)&conf.intsa;
-		memset(sun, 0, sizeof(*sun));
-		sun->sun_family = AF_UNIX;
-		strncpy(sun->sun_path, (char *)argv[1] + 5, sizeof(sun->sun_path) - 1);
+		make_un(argv[1] +5, (struct sockaddr_un *)&conf.intsa);
 	}
 	else
 #endif
@@ -776,7 +773,7 @@ struct redirdesc redirs[] = {
 static int h_parent(int argc, unsigned char **argv){
   struct ace *acl = NULL;
   struct chain *chains;
-  char * cidr;
+  char * cidr = NULL;
   int i;
 
 	acl = conf.acl;
@@ -807,9 +804,18 @@ static int h_parent(int argc, unsigned char **argv){
 		fprintf(stderr, "Chaining error: bad chain type (%s)\n", argv[2]);
 		return(4);
 	}
+#ifdef WITH_UN
+	if(!strncmp((char *)argv[3], "unix:", 5)){
+	    make_un(argv[3] + 5, (struct sockaddr_un*)&chains->addr);
+	}
+	else {
+#endif
 	cidr = strchr((char *)argv[3], '/');
 	if(cidr) *cidr = 0;
 	if(!getip46(46, argv[3], (struct sockaddr *)&chains->addr)) return (5);
+#ifdef WITH_UN
+	}
+#endif
 	chains->exthost = (unsigned char *)mystrdup((char *)argv[3]);
 	if(!chains->exthost) return 21;
 	if(cidr){

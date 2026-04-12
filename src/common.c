@@ -62,17 +62,34 @@ int mutex_unlock(int *val)
 }
 #endif
 
+#ifdef WITH_UN
+void make_un(const unsigned char *path, struct sockaddr_un * sun){
+        memset(sun, 0, sizeof(*sun));
+        sun->sun_family = AF_UNIX;
+        strncpy(sun->sun_path, (char *)path, sizeof(sun->sun_path) - 1);
+        if(*path == '@')*sun->sun_path = 0;
+}
+#endif
+
+
 int myinet_ntop(int af, void *src, char *dst, socklen_t size){
 #ifdef WITH_UN
  if(af == AF_UNIX){
 	struct sockaddr_un *sun = (struct sockaddr_un *)src;
+	int ephemeral = 0;
 	char *path = sun->sun_path;
-	char *basename = strrchr(path, '/');
+	char *basename;
+	if(!path[0] && path[1]){
+	    ephemeral = 1;
+	    *dst++ = '@';
+	    path++;
+	}
+	basename  = strrchr(path, '/');
 	if(basename) basename++;
 	else basename = path;
 	if(size > 0){
-		strncpy(dst, basename, (size > 40) ? 40 : size - 1);
-		dst[((size > 40) ? 40 : size - 1)] = 0;
+		strncpy(dst, basename, (size > 40) ? 40 : size - (ephemeral + 1));
+		dst[((size > 40) ? 40 : size - (ephemeral + 1))] = 0;
 	}
 	return (int)strlen(dst);
  }
@@ -538,14 +555,14 @@ int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa,
 		fcntl(sock,F_SETFL, O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
 		if(param?param->srv->so._connect(param->sostate, sock,sa,size) : so._connect(so.state, sock,sa,size)) {
-			if(errno != EAGAIN && errno != EINPROGRESS) return (13);
+			if(errno != EAGAIN && errno != EINPROGRESS) return 13;
 		}
 		if(!errno) return 0;
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sock;
 	        fds[0].events = POLLOUT;
 		if((param?param->srv->so._poll(param->sostate, fds, 1, to*1000):so._poll(so.state, fds, 1, to*1000)) <= 0 || !(fds[0].revents & POLLOUT) || (fds[0].revents & (POLLERR|POLLHUP))) {
-			return (13);
+			return 13;
 		}
 		return 0;
 }
@@ -575,8 +592,17 @@ int doconnect(struct clientparam * param){
 		memcpy(SAADDR(&param->sinsr), SAADDR(&param->req), SAADDRLEN(&param->req)); 
 	}
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
-	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->sinsr), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {return (11);}
+	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->sinsr), SOCK_STREAM, 
+#ifdef WITH_UN
+	    *SAFAMILY(&param->sinsr) == AF_UNIX? 0 :
+#endif
+	    IPPROTO_TCP
+	)) == INVALID_SOCKET) {return (11);}
 	if(SAISNULL(&param->sinsl)){
+#ifdef WITH_UN
+	    if(*SAFAMILY(&param->sinsr) == AF_UNIX) param->sinsl = param->sinsr;
+	    else 
+#endif
 #ifndef NOIPV6
 		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
 		else
@@ -616,6 +642,9 @@ int doconnect(struct clientparam * param){
 	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
 #endif
 	}
+#endif
+#ifdef WITH_UN
+	if(*SAFAMILY(&param->sinsl) != AF_UNIX)
 #endif
 	if(param->srv->so._bind(param->sostate, param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
 		return 12;

@@ -326,6 +326,10 @@ extern struct commands commandhandlers[];
 #define mapsocket(a,b) sockmap(a,b, 0)
 #endif
 
+#ifdef WITH_UN
+void make_un(const unsigned char *path, struct sockaddr_un * sun);
+#endif
+
 
 extern struct radserver {
 	PROXYSOCKADDRTYPE authaddr, logaddr, localaddr;

@@ -407,10 +407,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'i':
 #ifdef WITH_UN
 			if(!strncmp((char *)argv[i]+2, "unix:", 5)){
-				struct sockaddr_un *sun = (struct sockaddr_un *)&srv.intsa;
-				memset(sun, 0, sizeof(*sun));
-				sun->sun_family = AF_UNIX;
-				strncpy(sun->sun_path, (char *)argv[i] + 7, sizeof(sun->sun_path) - 1);
+				make_un((unsigned char *)argv[i] + 7, (struct sockaddr_un *)&srv.intsa);
 			}
 			else
 #endif
@@ -658,15 +655,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 
  if (!iscbc) {
 	if(srv.srvsock == INVALID_SOCKET){
-
-#ifdef WITH_UN
-		if(*SAFAMILY(&srv.intsa) == AF_UNIX){
-			sock=srv.so._socket(srv.so.state, PF_UNIX, SOCK_STREAM, 0);
-		}
-		else
-#endif
 		if(!isudp){
-			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_STREAM, IPPROTO_TCP);
+			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_STREAM,
+#ifdef WITH_UN
+        		    *SAFAMILY(&srv.intsa) == AF_UNIX? 0 :
+#endif
+			    IPPROTO_TCP
+			);
 		}
 		else {
 			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_DGRAM, IPPROTO_UDP);
@@ -718,7 +713,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef WITH_UN
 	if(*SAFAMILY(&srv.intsa) == AF_UNIX){
 		struct sockaddr_un *sun = (struct sockaddr_un *)&srv.intsa;
-		unlink(sun->sun_path);
+		if(*sun->sun_path)unlink(sun->sun_path);
 	}
 #endif
 	size = sizeof(srv.intsa);
@@ -1064,7 +1059,12 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 }
 
 void srvfree(struct srvparam * srv){
- if(srv->srvsock != INVALID_SOCKET) so._closesocket(srv->so.state, srv->srvsock);
+ if(srv->srvsock != INVALID_SOCKET) {
+    so._closesocket(srv->so.state, srv->srvsock);
+#ifdef WITH_UN
+    if(*SAFAMILY(&srv->intsa) == AF_UNIX && *SAADDR(&srv->intsa))unlink((char *)SAADDR(&srv->intsa));
+#endif
+ }
  srv->srvsock = INVALID_SOCKET;
  if(srv->cbsock != INVALID_SOCKET) so._closesocket(srv->so.state, srv->cbsock);
  srv->cbsock = INVALID_SOCKET;

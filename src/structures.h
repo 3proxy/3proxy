@@ -156,7 +156,7 @@ int
 #define	UN_SAADDRLEN(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (int)sizeof(((struct sockaddr_un *)sa)->sun_path) :
 #define	UN_SASOCK(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? PF_UNIX :
 #define	UN_SASIZE(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? sizeof(struct sockaddr_un) :
-#define	UN_SAISNULL(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (*((struct sockaddr_un *)sa)->sun_path == 0) :
+#define	UN_SAISNULL(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (((struct sockaddr_un *)sa)->sun_path[0] == 0 && ((struct sockaddr_un *)sa)->sun_path[1] == 0) :
 #else
 #define UN_SAPORT(sa)
 #define UN_SAADDR(sa)

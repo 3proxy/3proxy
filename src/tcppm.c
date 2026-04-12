@@ -16,7 +16,18 @@
 void * tcppmchild(struct clientparam* param) {
  int res;
 
- if(!param->hostname && parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) RETURN(100);
+ if(!param->hostname){ 
+#ifdef WITH_UN
+    if(!strncmp((char *)param->srv->target, "unix:", 5)){
+	make_un(param->srv->target + 5, (struct sockaddr_un *)&param->sinsr);
+	make_un(param->srv->target + 5, (struct sockaddr_un *)&param->req);
+	param->hostname = (unsigned char *)mystrdup((char *)param->srv->target);
+    } else
+#endif
+    if(
+	parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))
+    ) RETURN(100);
+ }
  param->operation = CONNECT;
  res = (*param->srv->authfunc)(param);
  if(res) {RETURN(res);}
