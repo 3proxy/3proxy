@@ -52,5 +52,5 @@ RUN cd /dist &&\
 
 FROM docker.io/busybox:glibc
 COPY --from=buildenv /dist /
-RUN ln -s /lib /usr/local/3proxy/libexec
+RUN cp -r lib /usr/local/3proxy/libexec && ln -sfn /usr/local/3proxy/libexec /lib && cd /usr/local/3proxy/ && ln -s libexec lib && ln -s libexec lib64 && mkdir usr && ln -s libexec usr/lib && ln -s libexec/lib64
 CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]
