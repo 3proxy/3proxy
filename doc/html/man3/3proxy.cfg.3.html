@@ -181,10 +181,15 @@ connections to. By default, connections to any interface are
 accepted. Unix domain sockets can be specified with
 <i>-iunix:/path/to/socket</i> syntax. On Linux, abstract
 sockets use <i>-iunix:@socketname</i> syntax. <b><br>
--N</b> (for socks) External NAT address 3proxy reports to
-client for BIND and UDPASSOC By default external address is
-reported. It&rsquo;s only useful in the case of IP-IP NAT
-(will not work for PAT) <b><br>
+-Ne</b> (for socks) External NAT address (between 3proxy and
+destination server) to report to client for CONNECT and
+BIND. By default external address is reported. It&rsquo;s
+only useful in the case of IP-IP NAT (will not work for
+PAT). <b><br>
+-Ni</b> (for socks) Internal NAT address (between client and
+3proxy) to report to client for UDPASSOC. By default
+internal address is reported. It&rsquo;s only useful in the
+case of IP-IP NAT (will not work for PAT). <b><br>
 -H</b> (for all services) Expect HAProxy PROXY protocol v1
 header on incoming connection. This allows the proxy to
 receive real client IP address from HAProxy or other load

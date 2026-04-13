@@ -193,10 +193,11 @@ syntax. On Linux, abstract sockets use
 .I -iunix:@socketname
 syntax. 
 .br
-.B -N
-(for socks) External NAT address 3proxy reports to client for BIND and UDPASSOC
-By default external address is reported. It's only useful in the case
-of IP-IP NAT (will not work for PAT)
+.B -Ne
+(for socks) External NAT address (between 3proxy and destination server) to report to client for CONNECT and BIND. By default external address is reported. It's only useful in the case of IP-IP NAT (will not work for PAT).
+.br
+.B -Ni
+(for socks) Internal NAT address (between client and 3proxy) to report to client for UDPASSOC. By default internal address is reported. It's only useful in the case of IP-IP NAT (will not work for PAT).
 .br
 .B -H
 (for all services) Expect HAProxy PROXY protocol v1 header on incoming connection.
