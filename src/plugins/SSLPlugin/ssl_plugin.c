@@ -759,6 +759,14 @@ static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 	return PASS;
 }
 
+static FILTER_ACTION ssl_parent(struct clientparam * param){
+	if(PCONF->cli && client_mode == 3) {
+	    if(docli(param)) {
+		return REJECT;
+	    }
+	}
+	return PASS;
+}
 
 static void ssl_filter_clear(void *state){
     struct clientparam *param;
@@ -1158,6 +1166,10 @@ static struct commands ssl_commandhandlers[] = {
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 };
 
+static struct symbol ssl_symbols[] = {
+        {NULL, "ssl_parent", (void *)&ssl_parent},
+};
+
 
 #ifdef WATCOM
 #pragma aux ssl_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
@@ -1221,6 +1233,8 @@ PLUGINAPI int PLUGINCALL ssl_plugin (struct pluginlink * pluginlink,
 		ssl_init();
 		ssl_commandhandlers[(sizeof(ssl_commandhandlers)/sizeof(struct commands))-1].next = pl->commandhandlers->next;
 		pl->commandhandlers->next = ssl_commandhandlers;
+		ssl_symbols[0].next = pl->symbols.next;
+		pl->symbols.next = ssl_symbols;
 	}
 
 	tcppmfunc = (PROXYFUNC)pl->findbyname("tcppm");	

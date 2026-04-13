@@ -326,6 +326,7 @@ extern struct redirdesc redirs[];
 struct chain {
 	struct chain * next;
 	int type;
+	int secure;
 	PROXYSOCKADDRTYPE addr;
 	unsigned char * exthost;
 	unsigned char * extuser;
@@ -415,7 +416,7 @@ extern int numservers;
 typedef void * (* PROXYFUNC)(struct clientparam *);
 
 typedef enum {
-	PASS,
+	PASS = 0,
 	CONTINUE,
 	HANDLED,
 	REJECT,

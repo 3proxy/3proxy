@@ -795,8 +795,13 @@ static int h_parent(int argc, unsigned char **argv){
 		return(3);
 	}
 	for(i = 0; redirs[i].name ; i++){
-	    if(!strcmp((char *)argv[2], redirs[i].name)) {
+	    int len;
+	    len = strlen(redirs[i].name);
+	    if(!strncmp((char *)argv[2], redirs[i].name, len)
+		&& (argv[2][len] == 0 || (argv[2][len] == 's' && argv[2][len+1] == 0))
+	    ) {
 		chains->type = redirs[i].redir;
+		if(argv[2][len] == 's') chains->secure = 1;
 		break;
 	    }
 	}

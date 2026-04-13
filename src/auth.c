@@ -8,6 +8,14 @@
 
 #include "proxy.h"
 
+static FILTER_ACTION (*ext_ssl_parent)(struct clientparam * param) = NULL;
+
+static FILTER_ACTION ssl_parent(struct clientparam * param){
+    if(ext_ssl_parent) return ext_ssl_parent(param);
+    ext_ssl_parent = pluginlink.findbyname("ssl_parent");
+    if(ext_ssl_parent) return ext_ssl_parent(param);
+    return REJECT;
+}
 
 int clientnegotiate(struct chain * redir, struct clientparam * param, struct sockaddr * addr, unsigned char * hostname){
 	unsigned char *buf;
@@ -32,6 +40,10 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			user = param->username;
 			pass = param->password;
 		}
+	}
+	if(redir->secure){
+	    res = ssl_parent(param);
+	    if(res != PASS) return res;
 	}
 	switch(redir->type){
 		case R_TCP:
