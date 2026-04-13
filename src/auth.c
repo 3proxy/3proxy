@@ -363,6 +363,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					param->extpassword = (unsigned char *)mystrdup((char *)((*cur->extuser == '*' && param->password)?param->password : cur->extpass));
 				}
 			}
+			if(redir->secure) return ssl_parent(param);
 			return 0;
 		}
 		connected = 1;
