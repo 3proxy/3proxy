@@ -44,7 +44,7 @@ ssl_cli (or ssl_client) - establish TLS connection to upstream server for servic
 <br><b>ssl_client_ca_store</b> /path/to/castore - CA store for ssl_client_verify (OpenSSL 3.0+)
 <br><b>ssl_client_sni</b> hostname - SNI hostname to send to upstream server (overrides the requested hostname)
 <br><b>ssl_client_alpn</b> protocol1 protocol2 ... - ALPN protocols to negotiate with upstream server (e.g., ssl_client_alpn h2 http/1.1)
-<br><b>ssl_client_mode</b> mode - when to establish TLS connection: 0 - on connect (default), 1 - after authentication, 2 - before data
+<br><b>ssl_client_mode</b> mode - when to establish TLS connection: 0 - on connect (default), 1 - after authentication, 2 - before data, 3 - only for secure parent types (ending with 's')
 <br><b>ssl_certcache</b> /path/to/cache/ - location for the generated MITM certificates cache, optional if ssl_server_ca_file / ssl_server_ca_key are configured.
 The cache may contain 3 files: 3proxy.pem - public
 self-signed certificates (used if ssl_server_ca_file is not configured),
@@ -88,6 +88,26 @@ ssl_cli
 proxy -p3128
 </pre>
 Creates an HTTP proxy that connects to upstream servers via TLS with client certificate authentication.
+
+<h4>Conditional TLS for parent proxy (ssl_client_mode 3):</h4>
+<pre>
+plugin /path/to/SSLPlugin.so ssl_plugin
+ssl_server_cert /path/to/server.crt
+ssl_server_key /path/to/key
+ssl_client_mode 3
+
+auth strong
+allow user1
+parent 1000 https parent1.example.com 443
+allow user2
+parent 1000 socks5 parent2.example.com 1080
+ssl_serv
+ssl_cli
+proxy -p3128
+ssl_noserv
+ssl_nocli
+</pre>
+Creates an HTTP proxy on port 3128 that uses TLS for client connections (ssl_serv). With ssl_client_mode 3, TLS handshake to parent proxy is performed only if the parent type ends with 's' (secure types). In this example, user1's traffic goes through an https parent proxy with TLS encryption, while user2's traffic goes through a regular socks5 parent without TLS. Secure parent types include: tcps, https, connects, connect+s, socks4s, socks5s, socks4+s, socks5+s, pop3s, smtps, ftps.
 
 <h4>mTLS example (require client certificate):</h4>
 <pre>

@@ -720,6 +720,29 @@ ssl_client_ca_file /etc/ssl/certs/ca-certificates.crt
 ssl_cli
 proxy -p3128
 </pre>
+<p>
+<b>Условное TLS для parent прокси (ssl_client_mode 3):</b>
+<br>При ssl_client_mode 3 TLS-рукопожатие с родительским прокси выполняется только если тип parent прокси заканчивается на 's' (защищённые типы). Это позволяет смешивать защищённые и незащищённые родительские прокси в одной конфигурации:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_cert /etc/3proxy/certs/server.crt
+ssl_server_key /etc/3proxy/certs/server.key
+ssl_client_mode 3
+
+auth strong
+allow user1
+parent 1000 https parent1.example.com 443
+allow user2
+parent 1000 socks5 parent2.example.com 1080
+ssl_serv
+ssl_cli
+proxy -p3128
+ssl_noserv
+ssl_nocli
+</pre>
+<p>
+Создаётся HTTPS-прокси (ssl_serv), принимающий TLS-соединения от клиентов. Для соединений с родительским прокси трафик user1 идёт через https родитель с TLS-шифрованием (защищённый тип), а трафик user2 — через обычный socks5 родитель без TLS. Защищённые типы parent прокси: tcps, https, connects, connect+s, socks4s, socks5s, socks4+s, socks5+s, pop3s, smtps, ftps.
+</p>
   <li><a name="CERTIFICATES"><i>Как создать CA и сертификаты для SSLPlugin</i></a>
 <p>
 <b>Создание удостоверяющего центра (CA):</b>

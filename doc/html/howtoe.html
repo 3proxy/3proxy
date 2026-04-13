@@ -711,6 +711,29 @@ ssl_client_ca_file /etc/ssl/certs/ca-certificates.crt
 ssl_cli
 proxy -p3128
 </pre>
+<p>
+<b>Conditional TLS for parent proxy (ssl_client_mode 3):</b>
+<br>With ssl_client_mode 3, TLS handshake to parent proxy is performed only if the parent type ends with 's' (secure types). This allows mixing secure and non-secure parent proxies in the same configuration:
+</p><pre>
+plugin /path/to/SSLPlugin.ld.so ssl_plugin
+ssl_server_cert /etc/3proxy/certs/server.crt
+ssl_server_key /etc/3proxy/certs/server.key
+ssl_client_mode 3
+
+auth strong
+allow user1
+parent 1000 https parent1.example.com 443
+allow user2
+parent 1000 socks5 parent2.example.com 1080
+ssl_serv
+ssl_cli
+proxy -p3128
+ssl_noserv
+ssl_nocli
+</pre>
+<p>
+This creates an HTTPS proxy (ssl_serv) that accepts TLS connections from clients. For parent proxy connections, user1's traffic goes through an https parent with TLS encryption (secure type), while user2's traffic goes through a regular socks5 parent without TLS. Secure parent types include: tcps, https, connects, connect+s, socks4s, socks5s, socks4+s, socks5+s, pop3s, smtps, ftps.
+</p>
 		<li><a name="CERTIFICATES"><i>How to create CA and certificates for SSLPlugin</i></a>
 <p>
 <b>Creating a Certificate Authority (CA):</b>
