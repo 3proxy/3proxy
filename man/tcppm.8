@@ -31,6 +31,11 @@ with the routing table.
 .B -i
 Internal address. IP address the proxy accepts connections to.
 By default, connections to any interface are accepted. It\'s usually unsafe.
+Unix domain sockets can be specified with
+.I -iunix:/path/to/socket
+syntax (e.g., -iunix:/var/run/tcppm.sock). On Linux, abstract sockets use
+.I -iunix:@socketname
+syntax.
 .TP
 .B -l
 Log. By default logging is to stdout. If
@@ -50,10 +55,18 @@ crashes.
 - port tcppm accepts connections on
 .TP
 .I remote_host
-- IP address of the host the connection is forwarded to
+- IP address of the host the connection is forwarded to. Unix domain sockets
+can be specified with the syntax
+.I unix:/path/to/socket
+(e.g., unix:/var/run/app.sock). On Linux, abstract (fileless) Unix sockets
+use the syntax
+.I unix:@socketname
+(e.g., unix:@app.socket).
 .TP
 .I remote_port
-- remote port the connection is forwarded to
+- remote port the connection is forwarded to. Ignored when using Unix socket
+destination, but must be specified (use any positive value) for syntax
+compatibility.
 .SH CLIENTS
 Any TCP-based application can be used as a client. Use
 .I internal_ip

@@ -127,7 +127,11 @@ accordance with the routing table.</p></td></tr>
 
 <p style="margin-top: 1em">Internal address. IP address the
 proxy accepts connections to. By default, connections to any
-interface are accepted. It&acute;s usually unsafe.</p></td></tr>
+interface are accepted. It&acute;s usually unsafe. Unix
+domain sockets can be specified with
+<i>-iunix:/path/to/socket</i> syntax (e.g.,
+-iunix:/var/run/proxy.sock). On Linux, abstract sockets use
+<i>-iunix:@socketname</i> syntax.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
 <td width="4%">

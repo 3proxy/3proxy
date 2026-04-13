@@ -87,7 +87,7 @@ SOCKS 4/4.5/5 proxy (default port 1080)
 SNI proxy (destination address is taken from TLS handshake), may be used to redirect any TLS-based traffic
 .br
 .B auto
-Proxy with protocol autoselection between proxy / socks / tlspr 
+Proxy with protocol autoselection between proxy / socks / tlspr
 .br
 .B pop3p
 POP3 proxy (default port 110)
@@ -105,7 +105,13 @@ Web interface (default port 80)
 caching DNS proxy (default port 53)
 .br
 .B tcppm
-TCP portmapper
+TCP portmapper. Destination address (DSTADDR) can be a Unix domain socket
+using the syntax
+.I unix:/path/to/socket
+(e.g., tcppm 8080 unix:/var/run/app.sock 0). On Linux, abstract sockets use
+.I unix:@socketname
+syntax. When using Unix socket destination, the port number is ignored
+but must be specified for syntax compatibility.
 .br
 .B udppm
 UDP portmapper
@@ -180,7 +186,12 @@ with the routing table.
 .br
 .B -i
 Internal address. IP address the proxy accepts connections to.
-By default, connections to any interface are accepted. 
+By default, connections to any interface are accepted.
+Unix domain sockets can be specified with
+.I -iunix:/path/to/socket
+syntax. On Linux, abstract sockets use
+.I -iunix:@socketname
+syntax. 
 .br
 .B -N
 (for socks) External NAT address 3proxy reports to client for BIND and UDPASSOC
@@ -513,6 +524,14 @@ http://dial.right.now/ from browser to set up connection.
  sets ip address of internal interface. This IP address will be used
 to bind gateways. Alternatively you can use -i option for individual
 gateways. Since 0.8 version, IPv6 address may be used.
+.br
+Unix domain sockets are supported with the syntax
+.I unix:/path/to/socket
+(e.g., internal unix:/var/run/3proxy.sock). On Linux, abstract (fileless)
+Unix sockets are supported with the syntax
+.I unix:@socketname
+(e.g., internal unix:@3proxy). When using Unix sockets, the socket file
+is automatically created and removed on service start/stop.
 
 .br
 .B external
@@ -795,7 +814,7 @@ If port is zero, it\'s taken from original request, only IP is changed.
 If both IP and port are zero - it\'s a special case of local redirection,
 it works only with
 .B socks
-proxy. In case of local redirection request is redirected to different service, 
+proxy. In case of local redirection request is redirected to different service,
 .B ftp
 locally redirects to
 .B ftppr
@@ -807,6 +826,14 @@ locally redirects to
 .B proxy
 .B admin
 locally redirects to the admin -s service.
+.br
+Unix domain sockets can be used instead of IP address with the syntax
+.I unix:/path/to/socket
+(e.g., parent 1000 socks5 unix:/var/run/parent.sock 1080). On Linux,
+abstract (fileless) Unix sockets are supported with
+.I unix:@socketname
+syntax (e.g., parent 1000 http unix:@parent.proxy 3128). When using Unix
+sockets, the port number is ignored but must be specified for syntax compatibility.
 
 .br
  Main purpose of local redirections is to have the requested resource

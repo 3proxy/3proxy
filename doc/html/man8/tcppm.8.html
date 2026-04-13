@@ -116,7 +116,11 @@ accordance with the routing table.</p></td></tr>
 
 <p style="margin-top: 1em">Internal address. IP address the
 proxy accepts connections to. By default, connections to any
-interface are accepted. It&acute;s usually unsafe.</p></td></tr>
+interface are accepted. It&acute;s usually unsafe. Unix
+domain sockets can be specified with
+<i>-iunix:/path/to/socket</i> syntax (e.g.,
+-iunix:/var/run/tcppm.sock). On Linux, abstract sockets use
+<i>-iunix:@socketname</i> syntax.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
 <td width="3%">
@@ -160,12 +164,18 @@ connections on</p>
 <p style="margin-left:6%;"><i>remote_host</i></p>
 
 <p style="margin-left:15%;">- IP address of the host the
-connection is forwarded to</p>
+connection is forwarded to. Unix domain sockets can be
+specified with the syntax <i>unix:/path/to/socket</i> (e.g.,
+unix:/var/run/app.sock). On Linux, abstract (fileless) Unix
+sockets use the syntax <i>unix:@socketname</i> (e.g.,
+unix:@app.socket).</p>
 
 <p style="margin-left:6%;"><i>remote_port</i></p>
 
 <p style="margin-left:15%;">- remote port the connection is
-forwarded to</p>
+forwarded to. Ignored when using Unix socket destination,
+but must be specified (use any positive value) for syntax
+compatibility.</p>
 
 <h2>CLIENTS
 <a name="CLIENTS"></a>

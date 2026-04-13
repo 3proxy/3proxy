@@ -34,6 +34,11 @@ with the routing table.
 .B -i
 Internal address. IP address the proxy accepts connections to.
 By default, connections to any interface are accepted. It\'s usually unsafe.
+Unix domain sockets can be specified with
+.I -iunix:/path/to/socket
+syntax (e.g., -iunix:/var/run/proxy.sock). On Linux, abstract sockets use
+.I -iunix:@socketname
+syntax.
 .TP
 .B -a
 Anonymous. Hide information about client.

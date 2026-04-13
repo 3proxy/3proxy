@@ -101,7 +101,13 @@ smtpp</b> SMTP proxy (default port 25) <b><br>
 ftppr</b> FTP proxy (default port 21) <b><br>
 admin</b> Web interface (default port 80) <b><br>
 dnspr</b> caching DNS proxy (default port 53) <b><br>
-tcppm</b> TCP portmapper <b><br>
+tcppm</b> TCP portmapper. Destination address (DSTADDR) can
+be a Unix domain socket using the syntax
+<i>unix:/path/to/socket</i> (e.g., tcppm 8080
+unix:/var/run/app.sock 0). On Linux, abstract sockets use
+<i>unix:@socketname</i> syntax. When using Unix socket
+destination, the port number is ignored but must be
+specified for syntax compatibility. <b><br>
 udppm</b> UDP portmapper</p>
 
 <p style="margin-left:6%; margin-top: 1em">Options: <b><br>
@@ -172,7 +178,9 @@ system will decide which address to use in accordance with
 the routing table. <b><br>
 -i</b> Internal address. IP address the proxy accepts
 connections to. By default, connections to any interface are
-accepted. <b><br>
+accepted. Unix domain sockets can be specified with
+<i>-iunix:/path/to/socket</i> syntax. On Linux, abstract
+sockets use <i>-iunix:@socketname</i> syntax. <b><br>
 -N</b> (for socks) External NAT address 3proxy reports to
 client for BIND and UDPASSOC By default external address is
 reported. It&rsquo;s only useful in the case of IP-IP NAT
@@ -447,7 +455,14 @@ connection.</p>
 sets ip address of internal interface. This IP address will
 be used to bind gateways. Alternatively you can use -i
 option for individual gateways. Since 0.8 version, IPv6
-address may be used.</p>
+address may be used. <br>
+Unix domain sockets are supported with the syntax
+<i>unix:/path/to/socket</i> (e.g., internal
+unix:/var/run/3proxy.sock). On Linux, abstract (fileless)
+Unix sockets are supported with the syntax
+<i>unix:@socketname</i> (e.g., internal unix:@3proxy). When
+using Unix sockets, the socket file is automatically created
+and removed on service start/stop.</p>
 
 <p style="margin-left:6%; margin-top: 1em"><b>external</b>
 &lt;ipaddr&gt; <br>
@@ -699,7 +714,15 @@ special case of local redirection, it works only with
 redirected to different service, <b>ftp</b> locally
 redirects to <b>ftppr pop3</b> locally redirects to <b>pop3p
 http</b> locally redirects to <b>proxy admin</b> locally
-redirects to the admin -s service.</p>
+redirects to the admin -s service. <br>
+Unix domain sockets can be used instead of IP address with
+the syntax <i>unix:/path/to/socket</i> (e.g., parent 1000
+socks5 unix:/var/run/parent.sock 1080). On Linux, abstract
+(fileless) Unix sockets are supported with
+<i>unix:@socketname</i> syntax (e.g., parent 1000 http
+unix:@parent.proxy 3128). When using Unix sockets, the port
+number is ignored but must be specified for syntax
+compatibility.</p>
 
 <p style="margin-left:6%; margin-top: 1em">Main purpose of
 local redirections is to have the requested resource (URL or
