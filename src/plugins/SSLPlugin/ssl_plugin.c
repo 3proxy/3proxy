@@ -274,8 +274,9 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 	*errSSL = getSSLErr();
 	return NULL;
     }
+#if OPENSSL_VERSION_NUMBER >= 0x0090806fL
     if(hostname && *hostname)SSL_set_tlsext_host_name(conn->ssl, hostname);
-
+#endif
 
     do {
 	struct pollfd fds[1] = {{}};
@@ -520,7 +521,9 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
     if(config->server_min_proto_version)SSL_CTX_set_min_proto_version(ctx, config->server_min_proto_version);
     if(config->server_max_proto_version)SSL_CTX_set_max_proto_version(ctx, config->server_max_proto_version);
     if(config->server_cipher_list)SSL_CTX_set_cipher_list(ctx, config->server_cipher_list);
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
     if(config->server_ciphersuites)SSL_CTX_set_ciphersuites(ctx, config->server_ciphersuites);
+#endif
     if(config->server_verify){
                 if(config->server_ca_file || config->server_ca_dir){
                     SSL_CTX_load_verify_locations(ctx, config->server_ca_file, config->server_ca_dir);
@@ -672,8 +675,12 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    if(sc->client_min_proto_version)SSL_CTX_set_min_proto_version(sc->srv_ctx, sc->client_min_proto_version);
 	    if(sc->client_max_proto_version)SSL_CTX_set_max_proto_version(sc->srv_ctx, sc->client_max_proto_version);
 	    if(sc->client_cipher_list)SSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_cipher_list);
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
 	    if(sc->client_ciphersuites)SSL_CTX_set_ciphersuites(sc->srv_ctx, sc->client_ciphersuites);
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x10200000L
 	    if(sc->client_alpn_protos.protos_len)SSL_CTX_set_alpn_protos(sc->srv_ctx, sc->client_alpn_protos.protos, sc->client_alpn_protos.protos_len);
+#endif
 	    if(sc->client_verify){
 		if(sc->client_ca_file || sc->client_ca_dir){
 		    SSL_CTX_load_verify_locations(sc->srv_ctx, sc->client_ca_file, sc->client_ca_dir);

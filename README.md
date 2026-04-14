@@ -140,7 +140,8 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 
 ### 1. General
 
-- IPv6 support for incoming and outgoing connection, can be used as a proxy between IPv4 and IPv6 networks in either direction
+- IPv4 / IPv6 support for incoming and outgoing connection, can be used as a proxy between IPv4 and IPv6 networks in either direction
+- Unix domain sockets support
 - HTTP/1.1 Proxy with keep-alive client and server support, transparent proxy support
 - HTTPS (CONNECT) proxy (compatible with HTTP/2 / SPDY)
 - Anonymous and random client IP emulation for HTTP proxy mode
@@ -153,7 +154,7 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 - SOCKSv5 UDP and BIND support (fully compatible with SocksCAP/FreeCAP for UDP)
 - Transparent SOCKS redirection for HTTP, POP3, FTP, SMTP
 - SNI proxy (based on TLS hostname)
-- TLS (SSL) server - may be used as https:// type proxy
+- TLS (SSL) server and client, 3proxy may be used as https:// type proxy or stunnel replacement
 - POP3 Proxy
 - FTP proxy
 - TCP port mapper (port forwarding)
