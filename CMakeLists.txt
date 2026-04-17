@@ -283,6 +283,9 @@ set(3PROXY_CORE_SOURCES
     src/3proxy.c
     src/auth.c
     src/authradius.c
+    src/hash.c
+    src/resolve.c
+    src/sql.c
     src/conf.c
     src/datatypes.c
     src/plugins.c
