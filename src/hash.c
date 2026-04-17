@@ -7,7 +7,7 @@ static unsigned hashindex(struct hashtable *ht, const unsigned char* hash){
     t2 = *(unsigned *)(hash + sizeof(unsigned));
     t3 = *(unsigned *)(hash + (2*sizeof(unsigned)));
     t4 = *(unsigned *)(hash + (3*sizeof(unsigned)));
-    return (t1 + (t2 * 7) + (t3 * 17) + (t4 * 29) ) % (ht->hashsize >> 2);
+    return (t1 + (t2 * 7) + (t3 * 17) + (t4 * 29) ) % (ht->tablesize);
 }
 
 
@@ -22,10 +22,12 @@ void destroyhashtable(struct hashtable *ht){
 	ht->hashvalues = NULL;
     }
     ht->hashsize = 0;
+    ht->tablesize = 0;
     pthread_mutex_unlock(&hash_mutex);
 }
 
-#define hvalue(I) ((struct hashentry *)((char *)ht->hashvalues + (I)*(sizeof(struct hashentry) + ht->recsize - 4)))
+#define hvalue(ht,I) ((struct hashentry *)(ht->hashvalues + (I)*(sizeof(struct hashentry) + ht->recsize - 4)))
+
 int inithashtable(struct hashtable *ht, unsigned nhashsize){
     unsigned i;
     clock_t c;
@@ -65,17 +67,18 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	return 3;
     }
     ht->hashsize = nhashsize;
+    ht->tablesize = (nhashsize>>2);
     ht->rnd[0] = myrand(&tb, sizeof(tb));
     ht->rnd[1] = myrand(ht->hashtable, sizeof(ht->hashtable));
     ht->rnd[2] = myrand(&c, sizeof(c));
     ht->rnd[3] = myrand(ht->hashvalues,sizeof(ht->hashvalues));
-    memset(ht->hashtable, 0, (ht->hashsize>>2) * sizeof(struct hashentry *));
-    memset(ht->hashvalues, 0, ht->hashsize * (sizeof(struct hashentry) + ht->recsize -4));
+    memset(ht->hashtable, 0, ht->tablesize * sizeof(struct hashentry *));
+    memset(ht->hashvalues, 0, ht->hashsize * (sizeof(struct hashentry) + ht->recsize - 4));
 
     for(i = 0; i< (ht->hashsize - 1); i++) {
-	hvalue(i)->next = hvalue(i+1);
+	hvalue(ht,i)->next = hvalue(ht,i+1);
     }
-    ht->hashempty = ht->hashvalues;
+    ht->hashempty = (struct hashentry *)ht->hashvalues;
     pthread_mutex_unlock(&hash_mutex);
     return 0;
 }
@@ -85,7 +88,7 @@ static void hashcompact(struct hashtable *ht){
     struct hashentry *he, **hep;
     
     if((conf.time - ht->compacted) < 60) return;
-    for(i = 0; i < ht->hashsize; i++){
+    for(i = 0; i < ht->tablesize; i++){
 	for(hep = ht->hashtable + i; (he = *hep)!=NULL; ){
 	    if(he->expires < conf.time ) {
 		(*hep) = he->next;

@@ -766,11 +766,12 @@ struct hashtable {
 	unsigned recsize;
 	unsigned rnd[4];
 	struct hashentry ** hashtable;
-	void * hashvalues;
+	uint8_t * hashvalues;
 	struct hashentry * hashempty;
 	void (*index2hash)(const void *index, unsigned char *hash, const unsigned char *rnd);
 	int grow;
 	time_t compacted;
+	int tablesize;
 };
 
 extern struct hashtable dns_table;
