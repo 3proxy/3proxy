@@ -1,7 +1,7 @@
 #include "proxy.h"
 
 
-unsigned hashindex(struct hashtable *ht, const unsigned char* hash){
+static unsigned hashindex(struct hashtable *ht, const unsigned char* hash){
     unsigned t1, t2, t3, t4;
     t1 = *(unsigned *)hash;
     t2 = *(unsigned *)(hash + sizeof(unsigned));
@@ -80,6 +80,25 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
     return 0;
 }
 
+static void hashcompact(struct hashtable *ht){
+    int i;
+    struct hashentry *he, **hep;
+    
+    if((conf.time - ht->compacted) < 60) return;
+    for(i = 0; i < ht->hashsize; i++){
+	for(hep = ht->hashtable + i; (he = *hep)!=NULL; ){
+	    if(he->expires < conf.time ) {
+		(*hep) = he->next;
+		he->expires = 0;
+		he->next = ht->hashempty;
+		ht->hashempty = he;
+	    }
+	    else hep=&(he->next);
+	}
+    }
+    ht->compacted = conf.time;
+}
+
 void hashadd(struct hashtable *ht, const void* name, const void* value, time_t expires){
         struct hashentry * hen, *he;
         struct hashentry ** hep;
@@ -87,6 +106,9 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
     unsigned index;
     
     pthread_mutex_lock(&hash_mutex);
+    if(!ht->hashempty){
+	hashcompact(ht);
+    }
     if(!ht||!value||!name||!ht->hashtable||!ht->hashempty) {
 	pthread_mutex_unlock(&hash_mutex);
 	return;

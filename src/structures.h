@@ -770,6 +770,7 @@ struct hashtable {
 	struct hashentry * hashempty;
 	void (*index2hash)(const void *index, unsigned char *hash, const unsigned char *rnd);
 	int grow;
+	time_t compacted;
 };
 
 extern struct hashtable dns_table;
