@@ -1,7 +1,7 @@
 #include "proxy.h"
 #include "libs/blake2.h"
 
-static unsigned hashindex(struct hashtable *ht, const uint8_t* hash){
+static uint32_t hashindex(struct hashtable *ht, const uint8_t* hash){
     return (*(unsigned *)hash ) % (ht->tablesize);
 }
 
@@ -80,7 +80,7 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 
 static void hashcompact(struct hashtable *ht){
     int i;
-    int he, *hep;
+    uint32_t he, *hep;
     
     if((conf.time - ht->compacted) < 60 || !ht->tablesize || !ht->hashsize || ht->hashsize/ht->tablesize >= 4 ) return;
     for(i = 0; i < ht->tablesize; i++){
@@ -98,10 +98,10 @@ static void hashcompact(struct hashtable *ht){
 }
 
 void hashadd(struct hashtable *ht, const void* name, const void* value, time_t expires){
-        int hen, he;
-        int *hep;
+    uint32_t hen, he;
+    uint32_t *hep;
 
-    unsigned index;
+    uint32_t index;
     
     pthread_mutex_lock(&hash_mutex);
     if(!ht->ihashempty){
@@ -135,9 +135,9 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
 
 int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *ttl){
     uint8_t hash[HASH_SIZE];
-    int *hep;
-    int he;
-    unsigned index;
+    uint32_t *hep;
+    uint32_t he;
+    uint32_t index;
 
     pthread_mutex_lock(&hash_mutex);
     if(!ht || !ht->ihashtable || !name) {

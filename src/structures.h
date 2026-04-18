@@ -759,7 +759,7 @@ struct child {
 struct hashentry {
 	uint8_t hash[HASH_SIZE];
 	time_t expires;
-	int inext;
+	uint32_t inext;
 	char value[4];
 };
 
@@ -767,9 +767,9 @@ struct hashtable {
 	unsigned hashsize;
 	unsigned recsize;
 	unsigned rnd[4];
-	int * ihashtable;
+	uint32_t * ihashtable;
 	uint8_t * hashvalues;
-	int ihashempty;
+	uint32_t ihashempty;
 	void (*index2hash)(const void *index, unsigned char *hash, const unsigned char *rnd);
 	int grow;
 	time_t compacted;
