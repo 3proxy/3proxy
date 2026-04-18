@@ -25,6 +25,7 @@ void destroyhashtable(struct hashtable *ht){
 
 int inithashtable(struct hashtable *ht, unsigned nhashsize){
     unsigned i;
+    unsigned tablesize, hashsize;
     clock_t c;
 
 
@@ -40,7 +41,8 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 #endif
     c = clock();
 
-    if(nhashsize<4) return 1;
+    hashsize = tablesize = (nhashsize >> 2);    
+    if(tablesize < 2) return 1;
     pthread_mutex_lock(&hash_mutex);
     if(ht->ihashtable){
 	myfree(ht->ihashtable);
@@ -51,18 +53,20 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
 	ht->hashvalues = NULL;
     }
     ht->hashsize = 0;
-    if(!(ht->ihashtable = myalloc((nhashsize>>2) *  sizeof(int)))){
+    ht->tablesize = 0;
+    if(!(ht->ihashtable = myalloc(tablesize *  sizeof(uint32_t)))){
 	pthread_mutex_unlock(&hash_mutex);
 	return 2;
     }
-    if(!(ht->hashvalues = myalloc(nhashsize * (sizeof(struct hashentry) + (ht->recsize-4))))){
+    if(!(ht->hashvalues = myalloc(hashsize * (sizeof(struct hashentry) + (ht->recsize-4))))){
 	myfree(ht->ihashtable);
 	ht->ihashtable = NULL;
 	pthread_mutex_unlock(&hash_mutex);
 	return 3;
     }
-    ht->hashsize = nhashsize;
-    ht->tablesize = (nhashsize>>2);
+    ht->hashsize = hashsize;
+    ht->tablesize = tablesize;
+    ht->growlimit = nhashsize;
     ht->rnd[0] = myrand(&tb, sizeof(tb));
     ht->rnd[1] = myrand(ht->ihashtable, sizeof(ht->ihashtable));
     ht->rnd[2] = myrand(&c, sizeof(c));
@@ -78,24 +82,53 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
     return 0;
 }
 
+static void hashgrow(struct hashtable *ht){
+    unsigned newsize = (ht->hashsize + (ht->hashsize >> 1));
+    unsigned i;
+    void * newvalues;
+    
+    if(!ht->tablesize || !ht->hashsize) return;
+    if(ht->hashsize >= ht->growlimit) return;
+    if(ht->hashsize / ht->tablesize > 100) return;
+    if(newsize > ht->growlimit) newsize = ht->growlimit;
+    newvalues = myrealloc(ht->hashvalues, newsize * (sizeof(struct hashentry) + ht->recsize - 4));
+    if(!newvalues) return;
+    memset(ht->hashvalues + (ht->hashsize * (sizeof(struct hashentry) + ht->recsize - 4)), 0, (newsize - ht->hashsize) * (sizeof(struct hashentry) + ht->recsize - 4));
+    for(i = ht->hashsize + 1; i < newsize; i++) {
+	hvalue(ht,i)->inext = i+1;
+    }
+    hvalue(ht,newsize)->inext = ht->ihashempty;
+    ht->ihashempty = ht->hashsize + 1;
+    ht->hashsize = newsize;
+}
+
+/*
 static void hashcompact(struct hashtable *ht){
     int i;
     uint32_t he, *hep;
     
-    if((conf.time - ht->compacted) < 60 || !ht->tablesize || !ht->hashsize || ht->hashsize/ht->tablesize >= 4 ) return;
-    for(i = 0; i < ht->tablesize; i++){
-	for(hep = ht->ihashtable + i; (he = *hep) != 0; ){
-	    if(hvalue(ht,he)->expires < conf.time ) {
-		(*hep) = hvalue(ht,he)->inext;
-		hvalue(ht,he)->expires = 0;
-		hvalue(ht,he)->inext = ht->ihashempty;
-		ht->ihashempty = he;
-	    }
-	    else hep=&(hvalue(ht,he)->inext);
-	}
+    if((conf.time - ht->compacted) < 60 || !ht->tablesize || !ht->hashsize || ht->ihashempty) return;
+    if(ht->grow && ht->hashsize/ht->tablesize < 100){
+	hashgrow(ht);
+	if(ht->ihashempty) return;
     }
-    ht->compacted = conf.time;
+    if(ht->hashsize/ht->tablesize < 4){
+        for(i = 0; i < ht->tablesize; i++){
+	    for(hep = ht->ihashtable + i; (he = *hep) != 0; ){
+		if(hvalue(ht,he)->expires < conf.time ) {
+		    (*hep) = hvalue(ht,he)->inext;
+		    hvalue(ht,he)->expires = 0;
+		    hvalue(ht,he)->inext = ht->ihashempty;
+		    ht->ihashempty = he;
+		}
+		else hep=&(hvalue(ht,he)->inext);
+	    }
+	}
+	ht->compacted = conf.time;
+	if(ht->ihashempty) return;
+    }
 }
+*/
 
 void hashadd(struct hashtable *ht, const void* name, const void* value, time_t expires){
     uint32_t hen, he;
@@ -105,7 +138,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
     
     pthread_mutex_lock(&hash_mutex);
     if(!ht->ihashempty){
-	hashcompact(ht);
+	hashgrow(ht);
     }
     if(!ht||!value||!name||!ht->ihashtable||!ht->ihashempty) {
 	pthread_mutex_unlock(&hash_mutex);

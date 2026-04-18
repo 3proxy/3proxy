@@ -771,8 +771,7 @@ struct hashtable {
 	uint8_t * hashvalues;
 	uint32_t ihashempty;
 	void (*index2hash)(const void *index, unsigned char *hash, const unsigned char *rnd);
-	int grow;
-	time_t compacted;
+	unsigned growlimit;
 	int tablesize;
 };
 
