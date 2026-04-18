@@ -204,7 +204,6 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa);
 int afdetect(unsigned char *name);
 uint32_t myresolver(int, unsigned char *, unsigned char *);
 uint32_t fakeresolver (int, unsigned char *, unsigned char*);
-int inithashtable(struct hashtable *hashtable, unsigned nhashsize);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);

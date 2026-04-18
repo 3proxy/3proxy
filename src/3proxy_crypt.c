@@ -5,8 +5,11 @@
    please read License Agreement
 
 */
+#ifndef WITHMAIN
 #include "libs/md5.h"
+#endif
 #include "libs/md4.h"
+#include "libs/blake2.h"
 #include <string.h>
 
 #define MD5_SIZE 16
@@ -64,20 +67,20 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsigned char *passwd){
 
  const unsigned char *ep;
+ unsigned char	*magic;
+ unsigned char  *p;
+ const unsigned char *sp;
+ unsigned char	final[MD5_SIZE];
+ int sl,pl,i;
+ unsigned long l;
+
+#ifndef WITHMAIN
  if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
-	static unsigned char	*magic = (unsigned char *)"$1$";	
-	unsigned char  *p;
-	const unsigned char *sp;
-	unsigned char	final[MD5_SIZE];
-	int sl,pl,i;
 	MD5_CTX	ctx,ctx1;
-	unsigned long l;
 
-	/* Refine the Salt first */
 	sp = salt +3;
-
-	/* get the length of the true salt */
 	sl = (int)(ep - sp);
+	magic = (unsigned char *)"$1$";
 
 	MD5Init(&ctx);
 
@@ -109,10 +112,6 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 		else
 		    MD5Update(&ctx, pw, 1);
 
-	/* Now make the output string */
-	strcpy((char *)passwd,(char *)magic);
-	strncat((char *)passwd,(char *)sp,sl);
-	strcat((char *)passwd,"$");
 
 	MD5Final(final,&ctx);
 
@@ -141,28 +140,42 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 		MD5Final(final,&ctx1);
 	}
 
-	p = passwd + strlen((char *)passwd);
-
-	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
-	_crypt_to64(p,l,4); p += 4;
-	l = (final[ 1]<<16) | (final[ 7]<<8) | final[13];
-	_crypt_to64(p,l,4); p += 4;
-	l = (final[ 2]<<16) | (final[ 8]<<8) | final[14];
-	_crypt_to64(p,l,4); p += 4;
-	l = (final[ 3]<<16) | (final[ 9]<<8) | final[15];
-	_crypt_to64(p,l,4); p += 4;
-	l = (final[ 4]<<16) | (final[10]<<8) | final[ 5];
-	_crypt_to64(p,l,4); p += 4;
-	l =                    final[11]                ;
-	_crypt_to64(p,l,2); p += 2;
-	*p = '\0';
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final,0,sizeof final);
  }
+ else
+#endif
+  if(salt[0] == '$' && salt[1] == '3' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
+    sp = salt +3;
+    sl = (int)(ep - sp);
+    magic = (unsigned char *)"$3$";
+
+    blake2b(final, MD5_SIZE, pw, strlen((char *)pw), salt, strlen((char *)salt) );
+ }
  else {
 	*passwd = 0;
+	return passwd;
  }
+
+ strcpy((char *)passwd,(char *)magic);
+ strncat((char *)passwd,(char *)sp,sl);
+ strcat((char *)passwd,"$");
+ p = passwd + strlen((char *)passwd);
+
+ l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
+ _crypt_to64(p,l,4); p += 4;
+ l = (final[ 1]<<16) | (final[ 7]<<8) | final[13];
+ _crypt_to64(p,l,4); p += 4;
+ l = (final[ 2]<<16) | (final[ 8]<<8) | final[14];
+ _crypt_to64(p,l,4); p += 4;
+ l = (final[ 3]<<16) | (final[ 9]<<8) | final[15];
+ _crypt_to64(p,l,4); p += 4;
+ l = (final[ 4]<<16) | (final[10]<<8) | final[ 5];
+ _crypt_to64(p,l,4); p += 4;
+ l =                    final[11]                ;
+ _crypt_to64(p,l,2); p += 2;
+ *p = '\0';
  return passwd;
 }
 
@@ -176,7 +189,7 @@ int main(int argc, char* argv[]){
 		fprintf(stderr, "usage: \n"
 			"\t%s <password>\n"
 			"\t%s <salt> <password>\n"
-			"Performs NT crypt if no salt specified, MD5 crypt with salt\n"
+			"Performs NT crypt if no salt specified, BLAKE2 crypt with salt\n"
 			"This software uses:\n"
 			"  RSA Data Security, Inc. MD4 Message-Digest Algorithm\n"
 			"  RSA Data Security, Inc. MD5 Message-Digest Algorithm\n",
@@ -190,7 +203,7 @@ int main(int argc, char* argv[]){
 	else {
 		i = (int)strlen((char *)argv[1]);
 		if (i > 64) argv[1][64] = 0;
-		sprintf((char *)buf, "$1$%s$", argv[1]);
+		sprintf((char *)buf, "$3$%s$", argv[1]);
 		printf("CR:%s\n", mycrypt((unsigned char *)argv[2], buf, buf+256));
 	}
 	return 0;

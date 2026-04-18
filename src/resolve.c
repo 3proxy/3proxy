@@ -1,20 +1,15 @@
 #include "proxy.h"
+#include "libs/blake2.h"
 
-void char_index2hash(const void *index, unsigned char *hash, const unsigned char *rnd){
+
+void char_index2hash(const void *index, uint8_t *hash, const unsigned char *rnd){
     const char* name = index;
-    unsigned i, j, k;
-    memcpy(hash, rnd, sizeof(unsigned)*4);
-    for(i=0, j=0, k=0; name[j]; j++){
-	hash[i] += (toupper(name[j]) - 32)+rnd[((toupper(name[j]))*29277+rnd[(k+j+i)%16]+k+j+i)%16];
-	if(++i == sizeof(unsigned)*4) {
-	    i = 0;
-	    k++;
-	}
-    }
+
+    blake2b(hash, HASH_SIZE, index, strlen((const char*)index), rnd, 4*sizeof(unsigned) );
 }
 
-struct hashtable dns_table = {0, 4, {0,0,0,0}, NULL, NULL, NULL, char_index2hash};
-struct hashtable dns6_table = {0, 16, {0,0,0,0}, NULL, NULL, NULL, char_index2hash};
+struct hashtable dns_table = {0, 4, {0,0,0,0}, NULL, NULL, 0, char_index2hash};
+struct hashtable dns6_table = {0, 16, {0,0,0,0}, NULL, NULL, 0, char_index2hash};
 
 struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0},0}};
 struct nserver authnserver;

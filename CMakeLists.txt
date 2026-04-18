@@ -292,10 +292,11 @@ set(3PROXY_CORE_SOURCES
     src/stringtable.c
 )
 
-# MD4/MD5 sources for mycrypt
+# MD4/MD5/BLAKE2 sources for 3proxy_crypt
 set(MD_SOURCES
     src/libs/md4.c
     src/libs/md5.c
+    src/libs/blake2b-ref.c
 )
 
 # ============================================================================
@@ -348,9 +349,9 @@ target_compile_definitions(mainfunc PRIVATE MODULEMAINFUNC=mainfunc)
 add_library(ftp_obj OBJECT src/ftp.c)
 target_include_directories(ftp_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# mycrypt object for 3proxy (without WITHMAIN)
-add_library(mycrypt_obj OBJECT src/mycrypt.c)
-target_include_directories(mycrypt_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# 3proxy_crypt object for 3proxy (without WITHMAIN)
+add_library(3proxy_crypt_obj OBJECT src/3proxy_crypt.c)
+target_include_directories(3proxy_crypt_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # ============================================================================
 # Main 3proxy executable
@@ -365,7 +366,7 @@ add_executable(3proxy
     $<TARGET_OBJECTS:common_obj>
     $<TARGET_OBJECTS:base64_obj>
     $<TARGET_OBJECTS:ftp_obj>
-    $<TARGET_OBJECTS:mycrypt_obj>
+    $<TARGET_OBJECTS:3proxy_crypt_obj>
 )
 
 target_include_directories(3proxy PRIVATE
@@ -398,18 +399,18 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     endif()
 endif()
 
-# Build mycrypt utility
-add_executable(mycrypt
-    src/mycrypt.c
+# Build 3proxy_crypt utility
+add_executable(3proxy_crypt
+    src/3proxy_crypt.c
     ${MD_SOURCES}
     $<TARGET_OBJECTS:base64_obj>
 )
-target_compile_definitions(mycrypt PRIVATE WITHMAIN)
-target_include_directories(mycrypt PRIVATE
+target_compile_definitions(3proxy_crypt PRIVATE WITHMAIN)
+target_include_directories(3proxy_crypt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/libs
 )
-target_link_libraries(mycrypt PRIVATE Threads::Threads)
+target_link_libraries(3proxy_crypt PRIVATE Threads::Threads)
 
 # Build standalone proxy executables
 foreach(PROXY_NAME proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
@@ -496,7 +497,7 @@ if(PAM_FOUND)
 endif()
 
 # Installation rules
-install(TARGETS 3proxy mycrypt proxy socks pop3p smtpp ftppr tcppm udppm tlspr
+install(TARGETS 3proxy 3proxy_crypt proxy socks pop3p smtpp ftppr tcppm udppm tlspr
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
