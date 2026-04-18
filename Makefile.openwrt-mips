@@ -63,7 +63,7 @@ INSTALL_BIN	= $(INSTALL) -m 755
 INSTALL_DATA	= $(INSTALL) -m 644
 INSTALL_OBJS	= src/3proxy \
 		  src/ftppr \
-		  src/mycrypt \
+		  src/3proxy_crypt \
 		  src/pop3p \
 		  src/proxy \
 		  src/socks \

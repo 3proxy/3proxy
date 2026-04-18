@@ -200,7 +200,7 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 - User authentication by DNS hostname
 - Authentication cache with possibility to limit user to single IP address
 - Access control by username/password for SOCKSv5 and HTTP/HTTPS/FTP
-- Cleartext or encrypted (crypt/MD5 or NT) passwords
+- Cleartext or encrypted passwords
 - Connection redirection
 - Access control by requested action (CONNECT/BIND, HTTP GET/POST/PUT/HEAD/OTHER)
 - All access control entries now support weekday and time limitations
@@ -286,12 +286,12 @@ TLS proxy (SNI proxy) - sniffs hostname from TLS handshake
 ### udppm
 UDP port mapping. Maps some UDP port on local machine to UDP port on remote machine. Only one user simultaneously can use UDP mapping, so it can't be used for public service in large networks. It's OK to use it to map to DNS server in small network or to map Counter-Strike server for single client (you can use few mappings on different ports for different clients in last case).
 
-### mycrypt
+### 3proxy_crypt
 Program to obtain crypted password for cleartext. Supports both MD5/crypt and NT password.
 
 ```bash
-mycrypt password          # produces NT password
-mycrypt salt password     # produces MD5/crypt password with salt "salt"
+3proxy_crypt password          # produces NT password
+3proxy_crypt salt password     # produces password hash with salt "salt"
 ```
 
 ---

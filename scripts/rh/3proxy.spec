@@ -33,7 +33,7 @@ make clean
 %files
 /bin/3proxy
 /bin/ftppr
-/bin/mycrypt
+/bin/3proxy_crypt
 /bin/pop3p
 /bin/proxy
 /bin/socks

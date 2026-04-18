@@ -49,7 +49,7 @@ include Makefile.inc
 install: all
 	if [ ! -d "/usr/local/3proxy/bin" ]; then mkdir -p /usr/local/3proxy/bin/; fi
 	install bin/3proxy /usr/local/3proxy/bin/3proxy
-	install bin/mycrypt /usr/local/3proxy/bin/mycrypt
+	install bin/3proxy_crypt /usr/local/3proxy/bin/3proxy_crypt
 	install scripts/rc.d/3proxy /usr/local/etc/rc.d/3proxy
 	install scripts/add3proxyuser.sh /usr/local/3proxy/bin/
 	if [ -s /usr/local/etc/3proxy/3proxy.cfg ]; then /usr/local/3proxy/3proxy.cfg already exists ; else install scripts/3proxy.cfg /usr/local/etc/3proxy/; fi
