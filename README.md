@@ -287,7 +287,7 @@ TLS proxy (SNI proxy) - sniffs hostname from TLS handshake
 UDP port mapping. Maps some UDP port on local machine to UDP port on remote machine. Only one user simultaneously can use UDP mapping, so it can't be used for public service in large networks. It's OK to use it to map to DNS server in small network or to map Counter-Strike server for single client (you can use few mappings on different ports for different clients in last case).
 
 ### 3proxy_crypt
-Program to obtain crypted password for cleartext. Supports both MD5/crypt and NT password.
+Program to obtain crypted password for cleartext. Supports both salted and NT password.
 
 ```bash
 3proxy_crypt password          # produces NT password

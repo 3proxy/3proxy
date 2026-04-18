@@ -71,12 +71,13 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
  unsigned char  *p;
  const unsigned char *sp;
  unsigned char	final[MD5_SIZE];
- int sl,pl,i;
+ int sl;
  unsigned long l;
 
 #ifndef WITHMAIN
  if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
 	MD5_CTX	ctx,ctx1;
+	int pl, i;
 
 	sp = salt +3;
 	sl = (int)(ep - sp);

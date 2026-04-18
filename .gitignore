@@ -258,3 +258,4 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 CLAUDE.md
+bin/3proxy_crypt
