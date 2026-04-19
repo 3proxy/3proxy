@@ -28,7 +28,6 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
     unsigned tablesize, hashsize;
     clock_t c;
 
-
 #ifdef _WIN32
     struct timeb tb;
 
@@ -71,7 +70,7 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
     ht->rnd[1] = myrand(ht->ihashtable, sizeof(ht->ihashtable));
     ht->rnd[2] = myrand(&c, sizeof(c));
     ht->rnd[3] = myrand(ht->hashvalues,sizeof(ht->hashvalues));
-    memset(ht->ihashtable, 0, ht->tablesize * sizeof(struct hashentry *));
+    memset(ht->ihashtable, 0, ht->tablesize * sizeof(uint32_t));
     memset(ht->hashvalues, 0, ht->hashsize * (sizeof(struct hashentry) + ht->recsize - 4));
 
     for(i = 1; i < ht->hashsize; i++) {
@@ -82,14 +81,35 @@ int inithashtable(struct hashtable *ht, unsigned nhashsize){
     return 0;
 }
 
+static void hashcompact(struct hashtable *ht){
+    int i;
+    uint32_t he, *hep;
+    
+    if((conf.time - ht->compacted) < 300 || !ht->tablesize || !ht->hashsize || ht->ihashempty) return;
+    for(i = 0; i < ht->tablesize; i++){
+	for(hep = ht->ihashtable + i; (he = *hep) != 0; ){
+	    if(hvalue(ht,he)->expires < conf.time ) {
+		(*hep) = hvalue(ht,he)->inext;
+		hvalue(ht,he)->expires = 0;
+		hvalue(ht,he)->inext = ht->ihashempty;
+		ht->ihashempty = he;
+	    }
+	    else hep=&(hvalue(ht,he)->inext);
+	}
+    }
+    ht->compacted = conf.time;
+    if(ht->ihashempty) return;
+}
+
 static void hashgrow(struct hashtable *ht){
     unsigned newsize = (ht->hashsize + (ht->hashsize >> 1));
     unsigned i;
     void * newvalues;
     
     if(!ht->tablesize || !ht->hashsize) return;
+    if(ht->hashsize / ht->tablesize < 4) hashcompact(ht);
+    if(ht->ihashempty) return;
     if(ht->hashsize >= ht->growlimit) return;
-    if(ht->hashsize / ht->tablesize > 100) return;
     if(newsize > ht->growlimit) newsize = ht->growlimit;
     newvalues = myrealloc(ht->hashvalues, newsize * (sizeof(struct hashentry) + ht->recsize - 4));
     if(!newvalues) return;
@@ -102,55 +122,24 @@ static void hashgrow(struct hashtable *ht){
     ht->hashsize = newsize;
 }
 
-/*
-static void hashcompact(struct hashtable *ht){
-    int i;
-    uint32_t he, *hep;
-    
-    if((conf.time - ht->compacted) < 60 || !ht->tablesize || !ht->hashsize || ht->ihashempty) return;
-    if(ht->grow && ht->hashsize/ht->tablesize < 100){
-	hashgrow(ht);
-	if(ht->ihashempty) return;
-    }
-    if(ht->hashsize/ht->tablesize < 4){
-        for(i = 0; i < ht->tablesize; i++){
-	    for(hep = ht->ihashtable + i; (he = *hep) != 0; ){
-		if(hvalue(ht,he)->expires < conf.time ) {
-		    (*hep) = hvalue(ht,he)->inext;
-		    hvalue(ht,he)->expires = 0;
-		    hvalue(ht,he)->inext = ht->ihashempty;
-		    ht->ihashempty = he;
-		}
-		else hep=&(hvalue(ht,he)->inext);
-	    }
-	}
-	ht->compacted = conf.time;
-	if(ht->ihashempty) return;
-    }
-}
-*/
+
 
 void hashadd(struct hashtable *ht, const void* name, const void* value, time_t expires){
     uint32_t hen, he;
     uint32_t *hep;
-
+    int overwrite = 0;
+    uint8_t hash[HASH_SIZE];
     uint32_t index;
+    uint32_t last = 0;
     
     pthread_mutex_lock(&hash_mutex);
-    if(!ht->ihashempty){
-	hashgrow(ht);
-    }
-    if(!ht||!value||!name||!ht->ihashtable||!ht->ihashempty) {
+    if(!ht||!value||!name||!ht->ihashtable) {
 	pthread_mutex_unlock(&hash_mutex);
 	return;
     }
-    hen = ht->ihashempty;
-    ht->ihashempty = hvalue(ht,ht->ihashempty)->inext;
-    ht->index2hash(name, hvalue(ht,hen)->hash, (unsigned char *)ht->rnd);
-    memcpy(hvalue(ht,hen)->value, value, ht->recsize);
-    hvalue(ht,hen)->expires = expires;
-    hvalue(ht,hen)->inext = 0;
-    index = hashindex(ht, hvalue(ht,hen)->hash);
+
+    ht->index2hash(name, hash, (unsigned char *)ht->rnd);
+    index = hashindex(ht, hash);
 
     for(hep = ht->ihashtable + index; (he = *hep)!=0; ){
 	if(hvalue(ht,he)->expires < conf.time || !memcmp(hvalue(ht,hen)->hash, hvalue(ht,he)->hash, HASH_SIZE)) {
@@ -159,10 +148,31 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
 	    hvalue(ht,he)->inext = ht->ihashempty;
 	    ht->ihashempty = he;
 	}
-	else hep=&(hvalue(ht,he)->inext);
+	else {
+	    hep=&(hvalue(ht,he)->inext);
+	    last = he;
+	}
     }
-    hvalue(ht,hen)->inext = ht->ihashtable[index];
-    ht->ihashtable[index] = hen;
+
+    if(!ht->ihashempty){
+	hashgrow(ht);
+    }
+
+    if(ht->ihashempty){
+	hen = ht->ihashempty;
+	ht->ihashempty = hvalue(ht,ht->ihashempty)->inext;
+	hvalue(ht,hen)->inext = ht->ihashtable[index];
+	ht->ihashtable[index] = hen;
+    }
+    else {
+	hen = last;
+    }
+    if(hen){
+	memcpy(hvalue(ht,hen)->hash, hash, HASH_SIZE);
+	memcpy(hvalue(ht,hen)->value, value, ht->recsize);
+	hvalue(ht,hen)->expires = expires;
+    }
+
     pthread_mutex_unlock(&hash_mutex);
 }
 

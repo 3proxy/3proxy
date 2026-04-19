@@ -773,10 +773,13 @@ struct hashtable {
 	void (*index2hash)(const void *index, unsigned char *hash, const unsigned char *rnd);
 	unsigned growlimit;
 	int tablesize;
+	time_t compacted;
 };
 
 extern struct hashtable dns_table;
 extern struct hashtable dns6_table;
+extern struct hashtable auth_table;
+
 struct pluginlink {
 	struct symbol symbols;
 	struct extparam *conf;

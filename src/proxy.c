@@ -31,7 +31,7 @@ char * proxy_stringtable[] = {
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>503 Service Unavailable</title></head>\r\n"
-	"<body><h2>503 Service Unavailable</h2><h3>You have exceeded your traffic limit</h3></body></html>\r\n",
+	"<body><h2>503 Service Unavailable</h2><h3>You have exceeded your limits</h3></body></html>\r\n",
 
 /* 3 */	"HTTP/1.0 503 Service Unavailable\r\n"
 	"Connection: close\r\n"

@@ -7,6 +7,7 @@
 */
 
 #include "proxy.h"
+#include "libs/blake2.h"
 
 static FILTER_ACTION (*ext_ssl_parent)(struct clientparam * param) = NULL;
 
@@ -776,73 +777,71 @@ int checkACL(struct clientparam * param){
 }
 
 struct authcache {
-	char * username;
-	char * password;
-	time_t expires;
-	PROXYSOCKADDRTYPE sa;
-	PROXYSOCKADDRTYPE sinsl;
-	struct ace *acl;
-	struct authcache *next;
-} *authc = NULL;
+	unsigned char username[64];
+#ifndef NOIPv6
+	uint8_t sincr_addr[16];
+	uint8_t sinsl_addr[16];
+#else
+	uint8_t sincr_addr[4];
+	uint8_t sinsl_addr[4];
+#endif
+	uint16_t sincr_family;
+	uint16_t sinsl_family;
+};
+
+void param2hash(const void *index, uint8_t *hash, const unsigned char *rnd){
+    blake2b_state S;
+    const struct clientparam *param = (struct clientparam *)index;
+
+    blake2b_init_key(&S, HASH_SIZE, rnd, sizeof(unsigned)*4);
+    if((conf.authcachetype & 1) && !(conf.authcachetype & 8))blake2b_update(&S, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
+    if((conf.authcachetype & 2) && param->username)blake2b_update(&S, param->username, strlen((const char *)param->username));
+    if((conf.authcachetype & 4) && param->password)blake2b_update(&S, param->password, strlen((const char *)param->password));
+    if((conf.authcachetype & 16))blake2b_update(&S, &param->srv->acl, sizeof(param->srv->acl));
+    blake2b_final(&S, hash, HASH_SIZE);
+}
+
+struct hashtable auth_table = {0, sizeof(struct authcache), {0,0,0,0}, NULL, NULL, 0, param2hash};
+
 
 int cacheauth(struct clientparam * param){
-	struct authcache *ac, *last=NULL;
-
-	pthread_mutex_lock(&hash_mutex);
-	for(ac = authc; ac; ){
-		if(ac->expires <= conf.time){
-			if(ac->username)myfree(ac->username);
-			if(ac->password)myfree(ac->password);
-			if(!last){
-				authc = ac->next;
-				myfree(ac);
-				ac = authc;
-			}
-			else {
-				last->next = ac->next;
-				myfree(ac);
-				ac = last->next;
-			}
-			continue;
-			
-		}
-		if(
-		 (!(conf.authcachetype&2) || (param->username && ac->username && !strcmp(ac->username, (char *)param->username))) &&
-		 (!(conf.authcachetype&4) || (ac->password && param->password && !strcmp(ac->password, (char *)param->password))) &&
-		 (!(conf.authcachetype&16) || (ac->acl == param->srv->acl))
-		) {
-
-			if(!(conf.authcachetype&1)
-				|| ((*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) 
-				   && !memcmp(SAADDR(&ac->sa), SAADDR(&param->sincr), SAADDRLEN(&ac->sa))))){
-
-				if(conf.authcachetype&32) {
-					param->sinsl = ac->sinsl;
-				}
-				if(param->username){
-					myfree(param->username);
-				}
-				param->username = (unsigned char *)mystrdup(ac->username);
-				pthread_mutex_unlock(&hash_mutex);
-				return 0;
-			}
-			else if ((conf.authcachetype&1) && (conf.authcachetype&8)) {
-				pthread_mutex_unlock(&hash_mutex);
-				return 10;
-			}
-		}
-		last = ac;
-		ac = ac->next;
+	struct authcache ac;
+	uint32_t ttl;
+	
+	
+	if(
+	((conf.authcachetype & 2) && !param->username) ||
+	((conf.authcachetype & 4) && !param->password) ||
+	(
+	 (conf.authcachetype & 1) && *SAFAMILY(&param->sincr) != AF_INET
+#ifndef NOIPv6
+	    && *SAFAMILY(&param->sincr) != AF_INET6
+#endif
+	) || (!hashresolv(&auth_table, param, &ac, &ttl))) {
+	    return 4;
 	}
-
-	pthread_mutex_unlock(&hash_mutex);
-	return 4;
+	if((conf.authcachetype & 1) &&(conf.authcachetype & 8) &&
+	 (ac.sincr_family != *SAFAMILY(&param->sincr) ||
+	 memcmp(ac.sincr_addr, SAADDR(&param->sincr), SAADDRLEN(&param->sincr))
+	)) {
+	    return 10;
+	}
+	 
+	if(!(conf.authcachetype&2) && *ac.username){
+	    if(param->username) myfree(param->username);
+	    param->username = (unsigned char *)mystrdup((char *)ac.username);
+	}
+	if((conf.authcachetype & 32)){
+	    memset(&param->sinsl, 0, sizeof(param->sinsl));
+	    *(SAFAMILY(&param->sinsl)) = ac.sinsl_family;
+	    memcpy(SAADDR(&param->sinsl), ac.sinsl_addr, SAADDRLEN(&param->sinsl));
+	}
+	return 0;
 }
 
 int doauth(struct clientparam * param){
 	int res = 0;
 	struct auth *authfuncs;
-	struct authcache *ac;
 	char * tmp;
 	int ret = 0;
 
@@ -853,51 +852,27 @@ int doauth(struct clientparam * param){
 				(res = (*authfuncs->authorize)(param)))
 					return res;
 			if(conf.authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && param->username && (!(conf.authcachetype&4) || (!param->pwtype && param->password))){
-				pthread_mutex_lock(&hash_mutex);
-				for(ac = authc; ac; ac = ac->next){
-					if(
-					   (!(conf.authcachetype&2) || !strcmp(ac->username, (char *)param->username)) &&
-					   (!(conf.authcachetype&1) || (*SAFAMILY(&ac->sa) ==  *SAFAMILY(&param->sincr) && !memcmp(SAADDR(&ac->sa), SAADDR(&param->sincr), SAADDRLEN(&ac->sa))))  &&
-					   (!(conf.authcachetype&4) || (ac->password && !strcmp(ac->password, (char *)param->password))) &&
-					   (!(conf.authcachetype&16) || (ac->acl == param->srv->acl))
-					) {
-						ac->expires = conf.time + conf.authcachetime;
-						if(strcmp(ac->username, (char *)param->username)){
-							tmp = ac->username;
-							ac->username = mystrdup((char *)param->username);
-							myfree(tmp);
-						}
-						if((conf.authcachetype&4)){
-							tmp = ac->password;
-							ac->password = mystrdup((char *)param->password);
-							myfree(tmp);
-						}
-						ac->sa = param->sincr;
-						if(conf.authcachetype&32) {
-							ac->sinsl = param-> sinsl;
-							*SAPORT(&ac->sinsl) = 0;
-						}
-
-						break;
-					}
-				}
-				if(!ac){
-					ac = myalloc(sizeof(struct authcache));
-					if(ac){
-						ac->expires = conf.time + conf.authcachetime;
-						ac->username = param->username?mystrdup((char *)param->username):NULL;
-						ac->sa = param->sincr;
-						ac->password = NULL;
-						if((conf.authcachetype&4) && param->password) ac->password = mystrdup((char *)param->password);
-						if(conf.authcachetype&32) {
-							ac->sinsl = param->sinsl;
-							*SAPORT(&ac->sinsl) = 0;
-						}
-					}
-					ac->next = authc;
-					authc = ac;
-				}
-				pthread_mutex_unlock(&hash_mutex);
+			    struct authcache ac={};
+			    
+			    if(param->username) strncpy((char *)ac.username, (char *)param->username, 64);
+			    if(*SAFAMILY(&param->sincr) == AF_INET
+#ifndef NOIPv6
+				 || *SAFAMILY(&param->sincr) == AF_INET6
+#endif
+			    ) {
+				ac.sincr_family = *SAFAMILY(&param->sincr);
+				memcpy(ac.sincr_addr, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
+			    }
+			    
+			    if(*SAFAMILY(&param->sinsl) == AF_INET
+#ifndef NOIPv6
+				 || *SAFAMILY(&param->sinsl) == AF_INET6
+#endif
+			    ) {
+				ac.sinsl_family = *SAFAMILY(&param->sinsl);
+				memcpy(ac.sinsl_addr, SAADDR(&param->sinsl), SAADDRLEN(&param->sinsl));
+			    }
+			    hashadd(&auth_table, param, &ac, conf.time + conf.authcachetime);
 			}
 			break;
 		}

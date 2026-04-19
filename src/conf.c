@@ -1430,6 +1430,7 @@ static int h_radius(int argc, unsigned char **argv){
 #endif
 static int h_authcache(int argc, unsigned char **argv){
 	conf.authcachetype = 0;
+	int authcachesize;
 	if(strstr((char *) *(argv + 1), "ip")) conf.authcachetype |= 1;
 	if(strstr((char *) *(argv + 1), "user")) conf.authcachetype |= 2;
 	if(strstr((char *) *(argv + 1), "pass")) conf.authcachetype |= 4;
@@ -1437,8 +1438,14 @@ static int h_authcache(int argc, unsigned char **argv){
 	if(strstr((char *) *(argv + 1), "acl")) conf.authcachetype |= 16;
 	if(strstr((char *) *(argv + 1), "ext")) conf.authcachetype |= 32;
 	if(argc > 2) conf.authcachetime = (unsigned) atoi((char *) *(argv + 2));
+	if(argc > 3) authcachesize  = (unsigned) atoi((char *) *(argv + 2));
 	if(!conf.authcachetype) conf.authcachetype = 6;
 	if(!conf.authcachetime) conf.authcachetime = 600;
+	if(inithashtable(&auth_table, authcachesize? authcachesize : 4096)){
+		fprintf(stderr, "Failed to initialize auth cache\n");
+		return 2;
+	}
+	if(!authcachesize)auth_table.growlimit = 65536*4;
 	return 0;
 }
 
@@ -1645,7 +1652,7 @@ struct commands commandhandlers[]={
 	{commandhandlers+53, "filtermaxsize", h_filtermaxsize, 2, 2},
 	{commandhandlers+54, "nolog", h_nolog, 1, 1},
 	{commandhandlers+55, "weight", h_nolog, 2, 2},
-	{commandhandlers+56, "authcache", h_authcache, 2, 3},
+	{commandhandlers+56, "authcache", h_authcache, 2, 4},
 	{commandhandlers+57, "smtpp", h_proxy, 1, 0},
 	{commandhandlers+58, "delimchar",h_delimchar, 2, 2},
 	{commandhandlers+59, "authnserver", h_authnserver, 2, 2},
@@ -1799,13 +1806,17 @@ int readconfig(FILE * fp){
 
 	res = 1;
 	for(cm = commandhandlers; cm; cm = cm->next){
-		if(!strcmp((char *)argv[0], (char *)cm->command) && argc >= cm->minargs && (!cm->maxargs || argc <= cm->maxargs)){
-			res = (*cm->handler)(argc, argv);
-			if(res > 0){
-				fprintf(stderr, "Command: '%s' failed with code %d, line %d\n", argv[0], res, linenum);
-				return(linenum);
-			}
-			if(!res) break;
+		if(!strcmp((char *)argv[0], (char *)cm->command)){
+		    if(argc < cm->minargs || (cm->maxargs && argc > cm->maxargs)){
+			fprintf(stderr, "Command: '%s' wrong number of arguments , line %d\n", argv[0], linenum);
+			return(linenum);
+		    }
+		    res = (*cm->handler)(argc, argv);
+		    if(res > 0){
+			fprintf(stderr, "Command: '%s' failed with code %d, line %d\n", argv[0], res, linenum);
+			return(linenum);
+		    }
+		    if(!res) break;
 		}
 	}
 	if(res != 1)continue;
