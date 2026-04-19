@@ -142,7 +142,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
     index = hashindex(ht, hash);
 
     for(hep = ht->ihashtable + index; (he = *hep)!=0; ){
-	if(hvalue(ht,he)->expires < conf.time || !memcmp(hvalue(ht,hen)->hash, hvalue(ht,he)->hash, HASH_SIZE)) {
+	if(hvalue(ht,he)->expires < conf.time || !memcmp(hash, hvalue(ht,he)->hash, HASH_SIZE)) {
 	    (*hep) = hvalue(ht,he)->inext;
 	    hvalue(ht,he)->expires = 0;
 	    hvalue(ht,he)->inext = ht->ihashempty;
