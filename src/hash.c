@@ -221,9 +221,9 @@ void param2hash(const void *index, uint8_t *hash){
     const struct clientparam *param = (struct clientparam *)index;
 
     blake2b_init(&S, HASH_SIZE);
+    if((conf.authcachetype & 2) && param->username)blake2b_update(&S, param->username, strlen((const char *)param->username) + 1);
+    if((conf.authcachetype & 4) && param->password)blake2b_update(&S, param->password, strlen((const char *)param->password) + 1);
     if((conf.authcachetype & 1) && !(conf.authcachetype & 8))blake2b_update(&S, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
-    if((conf.authcachetype & 2) && param->username)blake2b_update(&S, param->username, strlen((const char *)param->username));
-    if((conf.authcachetype & 4) && param->password)blake2b_update(&S, param->password, strlen((const char *)param->password));
     if((conf.authcachetype & 16))blake2b_update(&S, &param->srv->acl, sizeof(param->srv->acl));
     blake2b_final(&S, hash, HASH_SIZE);
 }
