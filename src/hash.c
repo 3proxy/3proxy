@@ -3,7 +3,6 @@
 
 
 struct hashentry {
-        uint8_t hash[HASH_SIZE];
         time_t expires;
         uint32_t inext;
         char value[4];
@@ -24,12 +23,17 @@ void destroyhashtable(struct hashtable *ht){
 	myfree(ht->hashvalues);
 	ht->hashvalues = NULL;
     }
+    if(ht->hashhashvalues){
+	myfree(ht->hashvalues);
+	ht->hashvalues = NULL;
+    }
     ht->poolsize = 0;
     ht->tablesize = 0;
     pthread_mutex_unlock(&hash_mutex);
 }
 
 #define hvalue(ht,I) ((struct hashentry *)(ht->hashvalues + (I-1)*(sizeof(struct hashentry) + ht->recsize - 4)))
+#define hhash(ht,I) ((ht->hashhashvalues + (I-1)*(ht->hash_size)))
 
 int inithashtable(struct hashtable *ht, unsigned npoolsize){
     unsigned i;
@@ -59,15 +63,20 @@ int inithashtable(struct hashtable *ht, unsigned npoolsize){
 	myfree(ht->hashvalues);
 	ht->hashvalues = NULL;
     }
+    if(ht->hashhashvalues){
+	myfree(ht->hashvalues);
+	ht->hashvalues = NULL;
+    }
     ht->poolsize = 0;
     ht->tablesize = 0;
-    if(!(ht->ihashtable = myalloc(tablesize *  sizeof(uint32_t)))){
-	pthread_mutex_unlock(&hash_mutex);
-	return 2;
-    }
-    if(!(ht->hashvalues = myalloc(poolsize * (sizeof(struct hashentry) + (ht->recsize-4))))){
+    if(!(ht->ihashtable = myalloc(tablesize *  sizeof(uint32_t)))
+    || !(ht->hashvalues = myalloc(poolsize * (sizeof(struct hashentry) + (ht->recsize-4))))
+    || !(ht->hashhashvalues = myalloc(poolsize * ht->hash_size))
+    ){
 	myfree(ht->ihashtable);
 	ht->ihashtable = NULL;
+	myfree(ht->hashvalues);
+	ht->hashvalues = NULL;
 	pthread_mutex_unlock(&hash_mutex);
 	return 3;
     }
@@ -117,6 +126,10 @@ static void hashgrow(struct hashtable *ht){
     if(newsize > ht->growlimit) newsize = ht->growlimit;
     newvalues = myrealloc(ht->hashvalues, newsize * (sizeof(struct hashentry) + ht->recsize - 4));
     if(!newvalues) return;
+    ht->hashvalues = newvalues;
+    newvalues = myrealloc(ht->hashhashvalues, newsize * ht->hash_size);
+    if(!newvalues) return;
+    ht->hashhashvalues = newvalues;
     memset(ht->hashvalues + (ht->poolsize * (sizeof(struct hashentry) + ht->recsize - 4)), 0, (newsize - ht->poolsize) * (sizeof(struct hashentry) + ht->recsize - 4));
     for(i = ht->poolsize + 1; i < newsize; i++) {
 	hvalue(ht,i)->inext = i+1;
@@ -145,7 +158,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
     index = hashindex(ht, hash);
 
     for(hep = ht->ihashtable + index; (he = *hep)!=0; ){
-	if(hvalue(ht,he)->expires < conf.time || !memcmp(hash, hvalue(ht,he)->hash, ht->hash_size)) {
+	if(hvalue(ht,he)->expires < conf.time || !memcmp(hash, hhash(ht,he), ht->hash_size)) {
 	    (*hep) = hvalue(ht,he)->inext;
 	    hvalue(ht,he)->expires = 0;
 	    hvalue(ht,he)->inext = ht->ihashempty;
@@ -171,7 +184,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
 	hen = last;
     }
     if(hen){
-	memcpy(hvalue(ht,hen)->hash, hash, ht->hash_size);
+	memcpy(hhash(ht,hen), hash, ht->hash_size);
 	memcpy(hvalue(ht,hen)->value, value, ht->recsize);
 	hvalue(ht,hen)->expires = expires;
     }
@@ -198,7 +211,7 @@ int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *tt
 	    hvalue(ht,he)->inext = ht->ihashempty;
 	    ht->ihashempty = he;
 	}
-	else if(!memcmp(hash, hvalue(ht,he)->hash, ht->hash_size)){
+	else if(!memcmp(hash, hhash(ht,he), ht->hash_size)){
 	    if(ttl) *ttl = (uint32_t)(hvalue(ht,he)->expires - conf.time);
 	    memcpy(value, hvalue(ht,he)->value, ht->recsize);
 	    pthread_mutex_unlock(&hash_mutex);

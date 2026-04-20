@@ -765,7 +765,9 @@ struct hashtable {
 	void (*index2hash)(const void *index, unsigned char *hash);
 	uint32_t * ihashtable;
 	uint8_t * hashvalues;
+	uint8_t * hashhashvalues;
 	time_t compacted;
+	uint32_t ihashhashempty;
 	uint32_t ihashempty;
 };
 
