@@ -757,12 +757,12 @@ struct child {
 #define HASH_SIZE (16)
 
 struct hashtable {
+	void (*index2hash)(const struct hashtable *ht, const void *index, uint8_t *hash);
+	unsigned recsize;
+	unsigned hash_size;
 	unsigned poolsize;
 	unsigned tablesize;
 	unsigned growlimit;
-	unsigned recsize;
-	unsigned hash_size;
-	void (*index2hash)(const void *index, unsigned char *hash);
 	uint32_t * ihashtable;
 	uint8_t * hashvalues;
 	uint8_t * hashhashvalues;

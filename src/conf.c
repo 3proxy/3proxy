@@ -655,14 +655,14 @@ static int h_fakeresolve(int argc, unsigned char **argv){
 }
 
 static int h_nscache(int argc, unsigned char **argv){
-  int res;
+  unsigned res;
 
-	res = atoi((char *)argv[1]);
+	res = (unsigned)atoi((char *)argv[1]);
 	if(res < 256) {
 		fprintf(stderr, "Invalid NS cache size: %d\n", res);
 		return 1;
 	}
-	if(inithashtable(&dns_table, (unsigned)res)){
+	if(inithashtable(&dns_table, (res << 2), (res << 2), res)){
 		fprintf(stderr, "Failed to initialize NS cache\n");
 		return 2;
 	}
@@ -678,14 +678,14 @@ static int h_parentretries(int argc, unsigned char **argv){
 }
 
 static int h_nscache6(int argc, unsigned char **argv){
-  int res;
+  unsigned res;
 
-	res = atoi((char *)argv[1]);
+	res = (unsigned)atoi((char *)argv[1]);
 	if(res < 256) {
 		fprintf(stderr, "Invalid NS cache size: %d\n", res);
 		return 1;
 	}
-	if(inithashtable(&dns6_table, (unsigned)res)){
+	if(inithashtable(&dns6_table, (res<<2), (res<<2), res)){
 		fprintf(stderr, "Failed to initialize NS cache\n");
 		return 2;
 	}
@@ -1429,8 +1429,9 @@ static int h_radius(int argc, unsigned char **argv){
 }
 #endif
 static int h_authcache(int argc, unsigned char **argv){
+	int authcachesize = 0;
+
 	conf.authcachetype = 0;
-	int authcachesize;
 	if(strstr((char *) *(argv + 1), "ip")) conf.authcachetype |= 1;
 	if(strstr((char *) *(argv + 1), "user")) conf.authcachetype |= 2;
 	if(strstr((char *) *(argv + 1), "pass")) conf.authcachetype |= 4;
@@ -1438,14 +1439,14 @@ static int h_authcache(int argc, unsigned char **argv){
 	if(strstr((char *) *(argv + 1), "acl")) conf.authcachetype |= 16;
 	if(strstr((char *) *(argv + 1), "ext")) conf.authcachetype |= 32;
 	if(argc > 2) conf.authcachetime = (unsigned) atoi((char *) *(argv + 2));
-	if(argc > 3) authcachesize  = (unsigned) atoi((char *) *(argv + 2));
+	if(argc > 3) authcachesize  = (unsigned) atoi((char *) *(argv + 3));
 	if(!conf.authcachetype) conf.authcachetype = 6;
 	if(!conf.authcachetime) conf.authcachetime = 600;
-	if(inithashtable(&auth_table, authcachesize? authcachesize : 4096)){
+	if(!authcachesize) authcachesize = 65536*4;
+	if(inithashtable(&auth_table, 1024, 1024, authcachesize)){
 		fprintf(stderr, "Failed to initialize auth cache\n");
 		return 2;
 	}
-	if(!authcachesize)auth_table.growlimit = 65536*4;
 	return 0;
 }
 

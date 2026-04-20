@@ -35,9 +35,8 @@ void destroyhashtable(struct hashtable *ht){
 #define hvalue(ht,I) ((struct hashentry *)(ht->hashvalues + (I-1)*(sizeof(struct hashentry) + ht->recsize - 4)))
 #define hhash(ht,I) ((ht->hashhashvalues + (I-1)*(ht->hash_size)))
 
-int inithashtable(struct hashtable *ht, unsigned npoolsize){
+int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, unsigned growlimit){
     unsigned i;
-    unsigned tablesize, poolsize;
     clock_t c;
 
 #ifdef _WIN32
@@ -52,8 +51,7 @@ int inithashtable(struct hashtable *ht, unsigned npoolsize){
 #endif
     c = clock();
 
-    poolsize = tablesize = (npoolsize >> 2);    
-    if(tablesize < 2) return 1;
+    if(tablesize < 2 || poolsize < tablesize || growlimit < poolsize) return 1;
     pthread_mutex_lock(&hash_mutex);
     if(ht->ihashtable){
 	myfree(ht->ihashtable);
@@ -82,7 +80,7 @@ int inithashtable(struct hashtable *ht, unsigned npoolsize){
     }
     ht->poolsize = poolsize;
     ht->tablesize = tablesize;
-    ht->growlimit = npoolsize;
+    ht->growlimit = growlimit;
     memset(ht->ihashtable, 0, ht->tablesize * sizeof(uint32_t));
     memset(ht->hashvalues, 0, ht->poolsize * (sizeof(struct hashentry) + ht->recsize - 4));
 
@@ -153,7 +151,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
 	return;
     }
 
-    ht->index2hash(name, hash);
+    ht->index2hash(ht, name, hash);
     pthread_mutex_lock(&hash_mutex);
     index = hashindex(ht, hash);
 
@@ -201,7 +199,7 @@ int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *tt
     if(!ht || !ht->ihashtable || !name) {
 	return 0;
     }
-    ht->index2hash(name, hash);
+    ht->index2hash(ht,name, hash);
     pthread_mutex_lock(&hash_mutex);
     index = hashindex(ht, hash);
     for(hep = ht->ihashtable + index; (he = *hep)!=0; ){
@@ -223,13 +221,13 @@ int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *tt
     return 0;
 }
 
-void char_index2hash(const void *index, uint8_t *hash){
+void char_index2hash(const struct hashtable *ht, const void *index, uint8_t *hash){
     const char* name = index;
 
-    blake2b(hash, HASH_SIZE, index, strlen((const char*)index), NULL, 0);
+    blake2b(hash, ht->hash_size, index, strlen((const char*)index), NULL, 0);
 }
 
-void param2hash(const void *index, uint8_t *hash){
+void param2hash(const struct hashtable *ht, const void *index, uint8_t *hash){
     blake2b_state S;
     const struct clientparam *param = (struct clientparam *)index;
 
@@ -238,9 +236,9 @@ void param2hash(const void *index, uint8_t *hash){
     if((conf.authcachetype & 4) && param->password)blake2b_update(&S, param->password, strlen((const char *)param->password) + 1);
     if((conf.authcachetype & 1) && !(conf.authcachetype & 8))blake2b_update(&S, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
     if((conf.authcachetype & 16))blake2b_update(&S, &param->srv->acl, sizeof(param->srv->acl));
-    blake2b_final(&S, hash, HASH_SIZE);
+    blake2b_final(&S, hash, ht->hash_size);
 }
 
-struct hashtable dns_table = {0, 0, 0, 4, HASH_SIZE, char_index2hash};
-struct hashtable dns6_table = {0, 0, 0, 16, HASH_SIZE, char_index2hash};
-struct hashtable auth_table = {0, 0, 0, sizeof(struct authcache), HASH_SIZE, param2hash};
+struct hashtable dns_table = {char_index2hash, 4, HASH_SIZE};
+struct hashtable dns6_table = {char_index2hash, 16, HASH_SIZE};
+struct hashtable auth_table = {param2hash, sizeof(struct authcache), HASH_SIZE};
