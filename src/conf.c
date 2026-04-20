@@ -197,7 +197,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_PROXY;
 		childdef.helpmessage = " -n - no NTLM support\n";
 #ifdef NOIPV6
-		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.hashsize)){
+		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, proxy may run very slow\n", linenum);
 		}
 #endif
@@ -230,7 +230,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_SOCKS;
 		childdef.helpmessage = " -n - no NTLM support\n";
 #ifdef NOIPV6
-		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.hashsize)){
+		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, socks may run very slow\n", linenum);
 		}
 #endif
@@ -276,7 +276,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_DNSPR;
 		childdef.helpmessage = " -s - simple DNS forwarding - do not use 3proxy resolver / name cache\n";
 #ifndef NOIPV6
-		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.hashsize) || resolvfunc == fakeresolver){
+		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize) || resolvfunc == fakeresolver){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
 		}
 #endif

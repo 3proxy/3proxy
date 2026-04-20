@@ -756,29 +756,35 @@ struct child {
 
 #define HASH_SIZE (16)
 
-struct hashentry {
-	uint8_t hash[HASH_SIZE];
-	time_t expires;
-	uint32_t inext;
-	char value[4];
-};
-
 struct hashtable {
-	unsigned hashsize;
+	unsigned poolsize;
+	unsigned tablesize;
+	unsigned growlimit;
 	unsigned recsize;
-	unsigned rnd[4];
+	unsigned hash_size;
+	void (*index2hash)(const void *index, unsigned char *hash);
 	uint32_t * ihashtable;
 	uint8_t * hashvalues;
-	uint32_t ihashempty;
-	void (*index2hash)(const void *index, unsigned char *hash, const unsigned char *rnd);
-	unsigned growlimit;
-	int tablesize;
 	time_t compacted;
+	uint32_t ihashempty;
 };
 
 extern struct hashtable dns_table;
 extern struct hashtable dns6_table;
 extern struct hashtable auth_table;
+
+struct authcache {
+        unsigned char username[64];
+#ifndef NOIPv6
+        uint8_t sincr_addr[16];
+        uint8_t sinsl_addr[16];
+#else
+        uint8_t sincr_addr[4];
+        uint8_t sinsl_addr[4];
+#endif
+        uint16_t sincr_family;
+        uint16_t sinsl_family;
+};
 
 struct pluginlink {
 	struct symbol symbols;

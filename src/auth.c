@@ -7,7 +7,6 @@
 */
 
 #include "proxy.h"
-#include "libs/blake2.h"
 
 static FILTER_ACTION (*ext_ssl_parent)(struct clientparam * param) = NULL;
 
@@ -775,34 +774,6 @@ int checkACL(struct clientparam * param){
 	}
 	return 3;
 }
-
-struct authcache {
-	unsigned char username[64];
-#ifndef NOIPv6
-	uint8_t sincr_addr[16];
-	uint8_t sinsl_addr[16];
-#else
-	uint8_t sincr_addr[4];
-	uint8_t sinsl_addr[4];
-#endif
-	uint16_t sincr_family;
-	uint16_t sinsl_family;
-};
-
-void param2hash(const void *index, uint8_t *hash, const unsigned char *rnd){
-    blake2b_state S;
-    const struct clientparam *param = (struct clientparam *)index;
-
-    blake2b_init_key(&S, HASH_SIZE, rnd, sizeof(unsigned)*4);
-    if((conf.authcachetype & 1) && !(conf.authcachetype & 8))blake2b_update(&S, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
-    if((conf.authcachetype & 2) && param->username)blake2b_update(&S, param->username, strlen((const char *)param->username));
-    if((conf.authcachetype & 4) && param->password)blake2b_update(&S, param->password, strlen((const char *)param->password));
-    if((conf.authcachetype & 16))blake2b_update(&S, &param->srv->acl, sizeof(param->srv->acl));
-    blake2b_final(&S, hash, HASH_SIZE);
-}
-
-struct hashtable auth_table = {0, sizeof(struct authcache), {0,0,0,0}, NULL, NULL, 0, param2hash};
-
 
 int cacheauth(struct clientparam * param){
 	struct authcache ac;
