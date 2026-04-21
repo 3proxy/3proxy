@@ -54,7 +54,7 @@ int mutex_unlock(int *val);
 #endif
 #else
 #include <winsock2.h>
-#include <Ws2tcpip.h>
+#include <ws2tcpip.h>
 #define pthread_mutex_t CRITICAL_SECTION
 #define pthread_mutex_init(x, y) InitializeCriticalSection(x)
 #define pthread_mutex_lock(x) EnterCriticalSection(x)

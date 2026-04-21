@@ -542,7 +542,13 @@ static fp_ssize_t WINAPI fp_send(void *state, SOCKET s, const char *msg, fp_size
  }
  return sso._send(sso.state, s, msg, len, flags);
 }
-static fp_ssize_t WINAPI fp_sendto(void *state, SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, fp_size_t tolen){
+static fp_ssize_t WINAPI fp_sendto(void *state, SOCKET s,
+#ifdef _WIN32
+ const char *msg, int len, int flags, const struct sockaddr *to, int tolen
+#else
+ const void *msg, fp_size_t len, int flags, const struct sockaddr *to, fp_size_t tolen
+#endif
+){
  struct fp_stream *fps = NULL;
  int res;
  res = searchsocket(s, &fps);
@@ -660,10 +666,22 @@ static fp_ssize_t WINAPI fp_sendto(void *state, SOCKET s, const void *msg, int l
  }
  return sso._sendto(sso.state, s, msg, len, flags, to, tolen);
 }
-static fp_ssize_t WINAPI fp_recv(void *state, SOCKET s, void *buf, fp_size_t len, int flags){
+static fp_ssize_t WINAPI fp_recv(void *state, SOCKET s,
+#ifdef _WIN32
+ char *buf, int len, int flags
+#else
+ void *buf, fp_size_t len, int flags
+#endif
+){
  return sso._recv(sso.state, s, buf, len, flags);
 }
-static fp_ssize_t WINAPI fp_recvfrom(void *state, SOCKET s, void * buf, fp_size_t len, int flags, struct sockaddr * from, fp_size_t * fromlen){
+static fp_ssize_t WINAPI fp_recvfrom(void *state, SOCKET s,
+#ifdef _WIN32
+ char *buf, int len, int flags, struct sockaddr * from, int * fromlen
+#else
+ void *buf, fp_size_t len, int flags, struct sockaddr * from, fp_size_t * fromlen
+#endif
+){
  return sso._recvfrom(sso.state, s, buf, len, flags, from, fromlen);
 }
 static int WINAPI fp_shutdown(void *state, SOCKET s, int how){
@@ -852,7 +870,7 @@ static int h_cachedir(int argc, unsigned char **argv){
 	char * dirp;
 	size_t len;
 
-	dirp = (argc > 1)? argv[1] : getenv("TEMP");
+	dirp = (argc > 1)? (char *)argv[1] : getenv("TEMP");
 	len = strlen(dirp);
 	if(!dirp || !len || len > 200 || strchr(dirp, '%')) {
 		fprintf(stderr, "FilePlugin: invalid directory path: %s\n", dirp);
