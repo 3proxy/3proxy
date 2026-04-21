@@ -843,7 +843,7 @@ int doauth(struct clientparam * param){
 				ac.sinsl_family = *SAFAMILY(&param->sinsl);
 				memcpy(ac.sinsl_addr, SAADDR(&param->sinsl), SAADDRLEN(&param->sinsl));
 			    }
-			    hashadd(&auth_table, param, &ac, conf.time + conf.authcachetime);
+			    hashadd(&auth_table, param, &ac, conf.time + param->srv->authcachetime);
 			}
 			break;
 		}
@@ -971,13 +971,14 @@ struct auth authfuncs[] = {
 	{authfuncs+4, dnsauth, checkACL, "dnsname"},
 	{authfuncs+5, strongauth, checkACL, "strong"},
 	{authfuncs+6, cacheauth, checkACL, "cache"},
+	{authfuncs+7, cacheauth, NULL, "cacheacl"},
 #ifndef NORADIUS
 #define AUTHOFFSET 1
-	{authfuncs+7, radauth, checkACL, "radius"},
+	{authfuncs+8, radauth, checkACL, "radius"},
 #else
 #define AUTHOFFSET 0
 #endif
-	{authfuncs+7+AUTHOFFSET, NULL, NULL, "none"},
+	{authfuncs+8+AUTHOFFSET, NULL, NULL, "none"},
 	{NULL, NULL, NULL, ""}
 };
 

@@ -662,7 +662,7 @@ static int h_nscache(int argc, unsigned char **argv){
 		fprintf(stderr, "Invalid NS cache size: %d\n", res);
 		return 1;
 	}
-	if(inithashtable(&dns_table, (res << 2), (res << 2), res)){
+	if(dns_table.growlimit != res && inithashtable(&dns_table, (res << 2), (res << 2), res)){
 		fprintf(stderr, "Failed to initialize NS cache\n");
 		return 2;
 	}
@@ -685,7 +685,7 @@ static int h_nscache6(int argc, unsigned char **argv){
 		fprintf(stderr, "Invalid NS cache size: %d\n", res);
 		return 1;
 	}
-	if(inithashtable(&dns6_table, (res<<2), (res<<2), res)){
+	if(dns6_table.growlimit != res &&inithashtable(&dns6_table, (res<<2), (res<<2), res)){
 		fprintf(stderr, "Failed to initialize NS cache\n");
 		return 2;
 	}
@@ -1438,12 +1438,18 @@ static int h_authcache(int argc, unsigned char **argv){
 	if(strstr((char *) *(argv + 1), "limit")) conf.authcachetype |= 8;
 	if(strstr((char *) *(argv + 1), "acl")) conf.authcachetype |= 16;
 	if(strstr((char *) *(argv + 1), "ext")) conf.authcachetype |= 32;
+	if(strstr((char *) *(argv + 1), "dstaddr")) conf.authcachetype |= 64;
+	if(strstr((char *) *(argv + 1), "dstport")) conf.authcachetype |= 128;
+	if(strstr((char *) *(argv + 1), "dsthost")) conf.authcachetype |= 256;
+	if(strstr((char *) *(argv + 1), "dstoper")) conf.authcachetype |= 512;
+	if(strstr((char *) *(argv + 1), "srvaddr")) conf.authcachetype |= 1024;
+	if(strstr((char *) *(argv + 1), "srvport")) conf.authcachetype |= 2048;
 	if(argc > 2) conf.authcachetime = (unsigned) atoi((char *) *(argv + 2));
 	if(argc > 3) authcachesize  = (unsigned) atoi((char *) *(argv + 3));
 	if(!conf.authcachetype) conf.authcachetype = 6;
 	if(!conf.authcachetime) conf.authcachetime = 600;
 	if(!authcachesize) authcachesize = 65536*4;
-	if(inithashtable(&auth_table, 1024, 1024, authcachesize)){
+	if(auth_table.growlimit != authcachesize && inithashtable(&auth_table, 1024, 1024, authcachesize)){
 		fprintf(stderr, "Failed to initialize auth cache\n");
 		return 2;
 	}

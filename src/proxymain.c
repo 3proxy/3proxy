@@ -1028,6 +1028,8 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->extsa6 = conf.extsa6;
 #endif
  srv->so = so;
+ srv->authcachetime = conf.authcachetime;
+ srv->authcachetype = conf.authcachetype;
 }
 
 void srvinit2(struct srvparam * srv, struct clientparam *param){

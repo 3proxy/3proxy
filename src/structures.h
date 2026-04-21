@@ -529,6 +529,7 @@ struct srvparam {
 	int usesplice;
 #endif
 	unsigned bufsize;
+	unsigned authcachetype, authcachetime;
 	unsigned logdumpsrv, logdumpcli;
 	PROXYSOCKADDRTYPE intsa, intNat, extNat;
 #ifndef NOIPV6
@@ -665,7 +666,7 @@ struct extparam {
 	int stacksize,
 		counterd, haveerror, rotate, paused, archiverc,
 		demon, maxchild, backlog, needreload, timetoexit, version, noforce, bandlimver, parentretries;
-	int authcachetype, authcachetime;
+	unsigned authcachetype, authcachetime;
 	int filtermaxsize;
 	int gracetraf, gracenum, gracedelay;
 	int maxseg;
