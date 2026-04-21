@@ -287,7 +287,7 @@ void processcallbacks(struct fp_stream *fps, int what, char *msg, int size){
 			case  GOT_SMTP_REQ:
 			case  GOT_SMTP_DATA:
 				fps->state = FLUSH_DATA;
-				pl->socksend(fps->fpd.cp->sostate,fps->fpd.cp->clisock, fp_stringtable[1], (int)strlen(fp_stringtable[1]), pl->conf->timeouts[STRING_S]);
+				pl->socksend(fps->fpd.cp->sostate,fps->fpd.cp->clisock, (unsigned char *)fp_stringtable[1], (int)strlen((char *)fp_stringtable[1]), pl->conf->timeouts[STRING_S]);
 				fps->state = state;
 				break;
 			case GOT_HTTP_REQUEST:
@@ -299,7 +299,7 @@ void processcallbacks(struct fp_stream *fps, int what, char *msg, int size){
 			case GOT_HTTP_SRVDATA:
 				if(!fps->serversent){
 					fps->state = FLUSH_DATA;
-					pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, fp_stringtable[0], (int)strlen(fp_stringtable[0]), pl->conf->timeouts[STRING_S]);
+					pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, (unsigned char *)fp_stringtable[0], (int)strlen((char *)fp_stringtable[0]), pl->conf->timeouts[STRING_S]);
 					fps->state = state;
 				}
 				break;
@@ -307,7 +307,7 @@ void processcallbacks(struct fp_stream *fps, int what, char *msg, int size){
 			case GOT_FTP_REQ:
 			case GOT_FTP_SRVDATA:
 				fps->state = FLUSH_DATA;
-				pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->ctrlsock, fp_stringtable[1], (int)strlen(fp_stringtable[1]), pl->conf->timeouts[STRING_S]);
+				pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->ctrlsock, (unsigned char *)fp_stringtable[1], (int)strlen((char *)fp_stringtable[1]), pl->conf->timeouts[STRING_S]);
 				fps->state = state;
 				break;
 			default:
@@ -359,7 +359,7 @@ static int copyfdtosock(struct fp_stream * fps, DIRECTION which, long len){
 			if(fps->serversent >= fps->srvhdrwritten){
 				sprintf(fps->buf, "%lx\r\n", len);
 				sendchunk = (int)strlen(fps->buf);
-				if(pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, fps->buf, sendchunk, pl->conf->timeouts[STRING_S]) != sendchunk){
+				if(pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, (unsigned char *)fps->buf, sendchunk, pl->conf->timeouts[STRING_S]) != sendchunk){
 					return -4;
 				}
 			} 
@@ -398,13 +398,13 @@ static int copyfdtosock(struct fp_stream * fps, DIRECTION which, long len){
 #endif
 			return -3;
 		}
-		if(pl->socksend(fps->fpd.cp->sostate, sock, fps->buf, res, pl->conf->timeouts[STRING_S]) != res) {
+		if(pl->socksend(fps->fpd.cp->sostate, sock, (unsigned char *)fps->buf, res, pl->conf->timeouts[STRING_S]) != res) {
 			return -4;
 		}
 		len -= res;
 	}
 	if(sendchunk){
-		if(pl->socksend(fps->fpd.cp->sostate, sock, "\r\n", 2, pl->conf->timeouts[STRING_S]) != 2)
+		if(pl->socksend(fps->fpd.cp->sostate, sock, (unsigned char *)"\r\n", 2, pl->conf->timeouts[STRING_S]) != 2)
 			return -4;
 	}
 	fps->state = state;
@@ -458,7 +458,11 @@ static int WINAPI fp_poll(void *state, struct pollfd *fds, unsigned int nfds, in
  return sso._poll(sso.state, fds, nfds, timeout);
 }
 
-static fp_ssize_t WINAPI fp_send(void *state, SOCKET s, const char *msg, fp_size_t len, int flags){
+#ifdef _WIN32
+static int WINAPI fp_send(void *state, SOCKET s, const char *msg, int len, int flags){
+#else
+static fp_ssize_t fp_send(void *state, SOCKET s, const void *msg, size_t len, int flags){
+#endif
  struct fp_stream *fps = NULL;
  int res;
  res = searchsocket(s, &fps);
@@ -499,7 +503,7 @@ static fp_ssize_t WINAPI fp_send(void *state, SOCKET s, const char *msg, fp_size
 		int hasnonzero = 0, i;
 		
 		for(i=0; i < len; i++){
-			char c = msg[i];
+			char c = ((char *)msg)[i];
 
 			if(c == '\r' || c == '\n') continue;
 			if((c<'0'|| c>'9') && (c<'A' || c>'F') && (c<'a' || c>'f')) {
@@ -542,7 +546,12 @@ static fp_ssize_t WINAPI fp_send(void *state, SOCKET s, const char *msg, fp_size
  }
  return sso._send(sso.state, s, msg, len, flags);
 }
-static fp_ssize_t WINAPI fp_sendto(void *state, SOCKET s, const void *msg, int len, int flags, const struct sockaddr *to, fp_size_t tolen){
+#ifdef _WIN32
+static int WINAPI fp_sendto(void *state, SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen
+#else
+static fp_ssize_t fp_sendto(void *state, SOCKET s, const void *msg, fp_size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen
+#endif
+){
  struct fp_stream *fps = NULL;
  int res;
  res = searchsocket(s, &fps);
@@ -660,10 +669,20 @@ static fp_ssize_t WINAPI fp_sendto(void *state, SOCKET s, const void *msg, int l
  }
  return sso._sendto(sso.state, s, msg, len, flags, to, tolen);
 }
-static fp_ssize_t WINAPI fp_recv(void *state, SOCKET s, void *buf, fp_size_t len, int flags){
+#ifdef _WIN32
+static int WINAPI fp_recv(void *state, SOCKET s, char *buf, int len, int flags
+#else
+static fp_ssize_t fp_recv(void *state, SOCKET s, void *buf, fp_size_t len, int flags
+#endif
+){
  return sso._recv(sso.state, s, buf, len, flags);
 }
-static fp_ssize_t WINAPI fp_recvfrom(void *state, SOCKET s, void * buf, fp_size_t len, int flags, struct sockaddr * from, fp_size_t * fromlen){
+#ifdef _WIN32
+static int WINAPI fp_recvfrom(void *state, SOCKET s, char *buf, int len, int flags, struct sockaddr * from, int * fromlen
+#else
+static fp_ssize_t fp_recvfrom(void *state, SOCKET s, void *buf, fp_size_t len, int flags, struct sockaddr * from, SASIZETYPE * fromlen
+#endif
+){
  return sso._recvfrom(sso.state, s, buf, len, flags, from, fromlen);
 }
 static int WINAPI fp_shutdown(void *state, SOCKET s, int how){
@@ -766,7 +785,7 @@ static FILTER_ACTION fp_request(void *fc, struct clientparam * param, unsigned c
 			closefiles(FC);
 			FC->state = 0;
 		}
-		processcallbacks(FC, FP_CALLONREQUEST, *buf_p + offset, *length_p - offset);
+		processcallbacks(FC, FP_CALLONREQUEST, (char *)*buf_p + offset, *length_p - offset);
 		if(FC->what &FP_REJECT) return REJECT;
 		FC->state = GOT_HTTP_REQUEST;
 		genpaths(FC);
@@ -778,13 +797,13 @@ static FILTER_ACTION fp_request(void *fc, struct clientparam * param, unsigned c
 
 static FILTER_ACTION fp_hcli(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	if(fc && param->service == S_SMTPP) {
-		processcallbacks(FC, FP_CALLONREQUEST, *buf_p + offset, *length_p - offset);
+		processcallbacks(FC, FP_CALLONREQUEST, (char *)*buf_p + offset, *length_p - offset);
 		if(FC->what & FP_REJECT) return REJECT;
 		if(!FC->state)genpaths(FC);
 		FC->state = GOT_SMTP_REQ;
 	}
 	if(fc && param->service == S_FTPPR) {
-		processcallbacks(FC, FP_CALLONREQUEST, *buf_p + offset, *length_p - offset);
+		processcallbacks(FC, FP_CALLONREQUEST, (char *)*buf_p + offset, *length_p - offset);
 		if(FC->what & FP_REJECT) return REJECT;
 		genpaths(FC);
 		FC->state = GOT_FTP_REQ;
@@ -852,7 +871,7 @@ static int h_cachedir(int argc, unsigned char **argv){
 	char * dirp;
 	size_t len;
 
-	dirp = (argc > 1)? argv[1] : getenv("TEMP");
+	dirp = (argc > 1)? (char *)argv[1] : getenv("TEMP");
 	len = strlen(dirp);
 	if(!dirp || !len || len > 200 || strchr(dirp, '%')) {
 		fprintf(stderr, "FilePlugin: invalid directory path: %s\n", dirp);
@@ -869,7 +888,7 @@ static int h_cachedir(int argc, unsigned char **argv){
 }
 
 static int h_preview(int argc, unsigned char **argv){
-	preview = atoi(argv[1]);
+	preview = atoi((char *)argv[1]);
 	return 0;
 }
 

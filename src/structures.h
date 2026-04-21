@@ -54,7 +54,7 @@ int mutex_unlock(int *val);
 #endif
 #else
 #include <winsock2.h>
-#include <Ws2tcpip.h>
+#include <ws2tcpip.h>
 #define pthread_mutex_t CRITICAL_SECTION
 #define pthread_mutex_init(x, y) InitializeCriticalSection(x)
 #define pthread_mutex_lock(x) EnterCriticalSection(x)
@@ -754,15 +754,15 @@ struct child {
 	unsigned char **argv;
 };
 
-#define HASH_SIZE (16)
+#define MAX_HASH_SIZE (16)
 
 struct hashtable {
+	void (*index2hash)(const struct hashtable *ht, const void *index, uint8_t *hash);
+	unsigned recsize;
+	unsigned hash_size;
 	unsigned poolsize;
 	unsigned tablesize;
 	unsigned growlimit;
-	unsigned recsize;
-	unsigned hash_size;
-	void (*index2hash)(const void *index, unsigned char *hash);
 	uint32_t * ihashtable;
 	uint8_t * hashvalues;
 	uint8_t * hashhashvalues;
