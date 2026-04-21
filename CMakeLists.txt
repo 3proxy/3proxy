@@ -168,6 +168,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         StringsPlugin
         TrafficPlugin
         TransparentPlugin
+        FilePlugin
     )
 
 elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|Darwin|OpenBSD|NetBSD")
@@ -189,6 +190,7 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|Darwin|OpenBSD|NetBSD")
         StringsPlugin
         TrafficPlugin
         TransparentPlugin
+        FilePlugin
     )
 
 else()
@@ -205,6 +207,7 @@ else()
         StringsPlugin
         TrafficPlugin
         TransparentPlugin
+        FilePlugin
     )
 endif()
 

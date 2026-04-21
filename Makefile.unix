@@ -31,7 +31,7 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.unix
-PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin
+PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin FilePlugin
 OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d \\\\ | $(CC) -x c $(CFLAGS) -o testssl.o - 2>/dev/null && $(CC) $(LDFLAGS) -otestssl testssl.o -lcrypto -lssl 2>/dev/null && rm testssl testssl.o && echo true||echo false)
 ifeq ($(OPENSSL_CHECK), true)
     LIBS += -l crypto -l ssl
