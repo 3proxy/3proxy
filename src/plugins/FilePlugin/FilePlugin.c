@@ -411,7 +411,11 @@ static int copyfdtosock(struct fp_stream * fps, DIRECTION which, long len){
 	return 0;
 }
 
+#ifdef _WIN32
 static int WINAPI fp_poll(void *state, struct pollfd *fds, unsigned int nfds, int timeout){
+#else
+static int fp_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
+#endif
  struct fp_stream *fps = NULL;
  int res;
  unsigned i;
