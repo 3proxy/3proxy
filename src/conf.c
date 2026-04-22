@@ -662,7 +662,7 @@ static int h_nscache(int argc, unsigned char **argv){
 		fprintf(stderr, "Invalid NS cache size: %d\n", res);
 		return 1;
 	}
-	if(dns_table.growlimit != res && inithashtable(&dns_table, (res << 2), (res << 2), res)){
+	if(dns_table.growlimit != res && inithashtable(&dns_table, (res >> 2), (res >> 2), res)){
 		fprintf(stderr, "Failed to initialize NS cache\n");
 		return 2;
 	}
@@ -685,7 +685,7 @@ static int h_nscache6(int argc, unsigned char **argv){
 		fprintf(stderr, "Invalid NS cache size: %d\n", res);
 		return 1;
 	}
-	if(dns6_table.growlimit != res &&inithashtable(&dns6_table, (res<<2), (res<<2), res)){
+	if(dns6_table.growlimit != res &&inithashtable(&dns6_table, (res>>2), (res>>2), res)){
 		fprintf(stderr, "Failed to initialize NS cache\n");
 		return 2;
 	}
@@ -1449,7 +1449,7 @@ static int h_authcache(int argc, unsigned char **argv){
 	if(!conf.authcachetype) conf.authcachetype = 6;
 	if(!conf.authcachetime) conf.authcachetime = 600;
 	if(!authcachesize) authcachesize = 65536*4;
-	if(auth_table.growlimit != authcachesize && inithashtable(&auth_table, 1024, 1024, authcachesize)){
+	if(auth_table.growlimit != authcachesize && inithashtable(&auth_table, authcachesize < 1024? authcachesize:1024, authcachesize < 1024? authcachesize:1024, authcachesize)){
 		fprintf(stderr, "Failed to initialize auth cache\n");
 		return 2;
 	}
