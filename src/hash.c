@@ -8,8 +8,8 @@ struct hashentry {
         char value[4];
 };
 
-static uint32_t hashindex(struct hashtable *ht, const uint8_t* hash){
-    return (*(unsigned *)hash ) % (ht->tablesize);
+static uint32_t hashindex(unsigned tablesize, const uint8_t* hash){
+    return (*(unsigned *)hash) % tablesize;
 }
 
 
@@ -135,6 +135,27 @@ static void hashgrow(struct hashtable *ht){
     hvalue(ht,newsize)->inext = ht->ihashempty;
     ht->ihashempty = ht->poolsize + 1;
     ht->poolsize = newsize;
+    if (ht->poolsize / ht->tablesize > 10) {
+        unsigned newtablesize = ht->poolsize / 3;
+        uint32_t *newitable = myalloc(newtablesize * sizeof(uint32_t));
+        if (newitable) {
+            unsigned j;
+            memset(newitable, 0, newtablesize * sizeof(uint32_t));
+            for (j = 0; j < ht->tablesize; j++) {
+                uint32_t he = ht->ihashtable[j];
+                while (he) {
+                    uint32_t next = hvalue(ht, he)->inext;
+                    unsigned idx = hashindex(newtablesize, hhash(ht, he));
+                    hvalue(ht, he)->inext = newitable[idx];
+                    newitable[idx] = he;
+                    he = next;
+                }
+            }
+            myfree(ht->ihashtable);
+            ht->ihashtable = newitable;
+            ht->tablesize = newtablesize;
+        }
+    }
 }
 
 
@@ -153,7 +174,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
 
     ht->index2hash(ht, name, hash);
     pthread_mutex_lock(&hash_mutex);
-    index = hashindex(ht, hash);
+    index = hashindex(ht->tablesize, hash);
 
     for(hep = ht->ihashtable + index; (he = *hep)!=0; ){
 	if(hvalue(ht,he)->expires < conf.time || !memcmp(hash, hhash(ht,he), ht->hash_size)) {
@@ -201,7 +222,7 @@ int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *tt
     }
     ht->index2hash(ht,name, hash);
     pthread_mutex_lock(&hash_mutex);
-    index = hashindex(ht, hash);
+    index = hashindex(ht->tablesize, hash);
     for(hep = ht->ihashtable + index; (he = *hep)!=0; ){
 	if(hvalue(ht, he)->expires < conf.time) {
 	    (*hep) = hvalue(ht,he)->inext;
