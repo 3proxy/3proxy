@@ -2,7 +2,7 @@ name: Build Win32 3proxy-lite with Watcom
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "test-ci" ]
     paths: [ 'RELEASE', '.github/workflows/build-watcom.yml' ]
 
 jobs:

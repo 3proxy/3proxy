@@ -2,7 +2,7 @@ name: Build Win64 3proxy with MSVC
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "test-ci" ]
     paths: [ 'RELEASE', '.github/workflows/build-win64.yml' ]
 
 jobs:

@@ -1,5 +1,5 @@
 #ifndef VERSION
-#define VERSION "3proxy-0.9.6"
+#define VERSION "3proxy-0.9.6.1"
 #endif
 #ifndef BUILDDATE
 #define BUILDDATE ""
@@ -7,8 +7,8 @@
 #define MAJOR3PROXY 0
 #define SUBMAJOR3PROXY 9
 #define MINOR3PROXY 6
-#define SUBMINOR3PROXY 0
-#define RELEASE3PROXY "3proxy-0.9.6(" BUILDDATE ")\0"
+#define SUBMINOR3PROXY 1
+#define RELEASE3PROXY "3proxy-0.9.6.1(" BUILDDATE ")\0"
 #ifndef YEAR3PROXY
 #define YEAR3PROXY "2026"
 #endif
