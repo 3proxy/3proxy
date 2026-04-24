@@ -823,7 +823,7 @@ int doauth(struct clientparam * param){
 				(res = (*authfuncs->authorize)(param)))
 					return res;
 			if(conf.authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && param->username && (!(conf.authcachetype&4) || (!param->pwtype && param->password))){
-			    struct authcache ac={};
+			    struct authcache ac={.username=""};
 			    
 			    if(param->username) strncpy((char *)ac.username, (char *)param->username, 64);
 			    if(*SAFAMILY(&param->sincr) == AF_INET

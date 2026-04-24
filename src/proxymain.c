@@ -116,11 +116,11 @@ void * threadfunc (void *p) {
 #undef param
 
 int pushthreadinit(){
-    return 
 #ifdef _WIN32
-    WriteFile(conf.threadinit[1], "1", 1, NULL, NULL);
+    DWORD n;
+    return WriteFile(conf.threadinit[1], "1", 1, &n, NULL);
 #else
-    write(conf.threadinit[1], "1", 1);
+    return write(conf.threadinit[1], "1", 1);
 #endif
 }
 

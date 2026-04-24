@@ -153,6 +153,7 @@ int start_proxy_thread(struct child * chp){
   pthread_t thread;
 #ifdef _WIN32
   HANDLE h;
+  DWORD num;
 #endif
   char r[1];
 
@@ -171,7 +172,7 @@ int start_proxy_thread(struct child * chp){
 	pthread_attr_destroy(&pa);
 #endif
 #ifdef _WIN32
-	ReadFile(conf.threadinit[0], r, 1, NULL, NULL);
+	ReadFile(conf.threadinit[0], r, 1, &num, NULL);
 #else
 	while(read(conf.threadinit[0], r, 1) !=1) if(errno != EINTR) {
 	    fprintf(stderr, "pipe failed\n");

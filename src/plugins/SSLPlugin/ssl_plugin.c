@@ -279,7 +279,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 #endif
 
     do {
-	struct pollfd fds[1] = {{}};
+	struct pollfd fds[1] = {{INVALID_SOCKET}};
 	int sslerr;
 
 	err = SSL_connect(conn->ssl);
@@ -350,7 +350,7 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
     SSL_set_fd(conn->ssl, s);
 
     do {
-	struct pollfd fds[1] = {{}};
+	struct pollfd fds[1] = {{INVALID_SOCKET}};
 	int sslerr;
 
 	err = SSL_accept(conn->ssl);
