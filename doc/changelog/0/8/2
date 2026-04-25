@@ -1,0 +1,3 @@
+!! Fix transparent flag not reset after keep-alive connection, can lead to DoS by authenticated user.
+! Do not use SO_REUSEADDR by default (leads to random 00013 errors under some glibc versions)
+! Use SASIZE() instead of sizeof() in bind() for FreeBSD compatibility

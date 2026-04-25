@@ -1,0 +1,9 @@
++ IPv6 support
++ back connect support
++ name resolution over TCP, parent proxy support for dnspr
++ SSLPlugin for TLS/SSL traffic decryption
+! multiple race conditions fixed
+! reduced memory usage
+! Generate Forwarded: header instead of X-Forwarded-For:
+! Default name resolution is non-blocking in *nix
+! multiple race conditions fixed on configuration reload

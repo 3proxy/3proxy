@@ -1,0 +1,6 @@
++ Socket options, interface binding
++ Connection limiting / connection rate limiting
++ RADIUS support (beta)
++ Zero copy (splice) support for Linux
++ Possibility to limit user to single IP (via authentication cache)
+! bugfixes, improvements

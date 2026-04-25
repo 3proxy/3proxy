@@ -1,0 +1,35 @@
+3proxy-0.7.1.4
+
+!! Fix transparent flag not reset after keep-alive connection, can lead to
+
+
+3proxy-0.7.1.3
+
+! traffic displayed incorrectly
+! archiver doesn't add suffix if logname contains macro
+! fix potential race condition on configuration reload
+! fix FTP over HTTP authentication
+
+
+3proxy-0.7.1.2
+
+! Request / header size limitation relaxed for HTTP proxy
+
+
+3proxy 0.7.1.1
+
+! Linux compilation issues resolved
+
+
+3proxy 0.7.1
+
+Minor improvements and bugfixes:
+
++ Windows icons added
++ Warnings added for most common misconfigurations
++ ftppr NLSD command supported
+! Ignore NTLM handshake if NTLM is not enabled
+!! memcpy replaced with memmove for overlapped region
+! better EINTR handling on *nix
+! FTP proxy debugging output removed (introduced in 0.7), binding for data connection corrected
+! memory leak fixed in ldapauth plugin

@@ -1,0 +1,3 @@
+Bugfixes:
+!! Fixed out-of-bound write and few minor bugs on configuration saving in admin
+! fixed: $ is not correctly handled in the beginning of quoted line on configuration parsing

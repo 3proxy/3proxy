@@ -1,0 +1,4 @@
+! Fix: invalid handling of '-' character in ACL hostname
+! Fix: minor bugfixes and improvements
++ parentretry command added (defaults to 2) to retry connections to parent proxies
+- icqpr related code (OSCAR proxy) removed, due to drop of OSCAR support by messengers

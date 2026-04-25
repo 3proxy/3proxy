@@ -1,0 +1,7 @@
+!! Security fix: proxy can potentially crash on on some platforms due to overlapping regions in strcpy() (thanks to @lenix123 for reporting)
++ new proxy service type: `tlspr` - SNI proxy, may also be used as parent `tls` type, sniffs hostname from TLS handhake, read more in https://github.com/3proxy/3proxy/wiki/tlspr https://github.com/3proxy/3proxy/wiki/How-To-(incomplete)#TLSPR
++ new proxy service type: `auto` - autodetect proxy type between `proxy` and `socks`
++ SSLPlugin is rewritten, production-ready, supports TLS (SSL) server (may be used to create https:// type proxy), certificates checks and cypher options, see https://github.com/3proxy/3proxy/wiki/SSLPlugin
++ -g option is added for grace delay to reduce CPU load, see https://github.com/3proxy/3proxy/wiki/High-Load
+! Multiple minor bugfixes
+! More supported sockets options

@@ -1,0 +1,11 @@
+Bugfixes:
+! Fixed: systemd description file (proxy may fail to start after reboot or via systemctl)
+! Fixed: group/account creation in installation scripts
+! Fixed: countall/nocounall do not work in some configurations
+! Fixed: counters do not work if counter file is not specified
+! Fixed: counters without rotation (type N) are incorrectly shown in web admin interface
+! Fixed: %n may be incomplete or missed in long log records
+! Fixed: connect back functionality does not work
+
+Improvements:
++ Docker builds

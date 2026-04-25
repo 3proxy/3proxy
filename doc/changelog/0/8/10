@@ -1,0 +1,2 @@
+! Fix: parent proxy can be used in some cases where it shouldn't
+! Fix: bandlimiters may not work for older connections on configuration reload

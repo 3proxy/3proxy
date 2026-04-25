@@ -1,0 +1,5 @@
+Bugfixes:
+! Fixed hostname support in SOCKSv5 UDP portmapping
+! -fno-strict-aliasing added to gcc options (compiling without this option can lead to unpredictable issues under Debian with gcc 6 and potentially others)
+! Fixed LDAP plugin compilation issues (LDAP plugin is still listed as unsupported though)
+and some minor fixes and improvements.

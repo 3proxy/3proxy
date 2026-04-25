@@ -1,0 +1,11 @@
+3proxy-0.9.6 Released April, 11 2026
+
++ ssl_client and multiple configuration options added to SSLPlugin, SSLPlugin code significantly improved and bugfixed. See https://github.com/3proxy/3proxy/wiki/SSLPlugin. 3proxy can now be used as stunnel replacement for many scenarios.
++ HAProxy proxy protocol v1 support as client and server, add -H option for service to expect HA proxy v1 protocol header, use ha parent type: parent 1000 ha 0.0.0.0 0 to send v1 header.
++ tlspr is supported in auto
++ tlspr supports -s option, it breaks HELLO packet to prevent some DPIs from detecting SNI
++ maxseg configuration option and TCP_MAXSEG socket flag support added. It sets maximum size of TCP segment to fix PathMTU discovery problems
++ -Ne / -Ni options added to specify external / internal NAT address for SOCKSv5
++ cmake environment added
+! External pcre2 (pcre2-8) library is used for PCRE, pcre code is removed from 3proxy
+! Multiple minor bugfixes

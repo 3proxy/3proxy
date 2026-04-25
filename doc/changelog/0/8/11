@@ -1,0 +1,9 @@
+Minor bugfixes / improvements:
+! Fixed: deadlock on insufficient resources
+! Fixed: race condition in ssl_plugin
+! Fixed: minor memory leak on configuration reload
+! Fixed: recursion detection was not working
+! Fixed: %n for IPv6 in logging terminates log record
+! Fixed: reverse PTR validation (required for dnsauth)
+! Fixed: error on external 0.0.0.0 for NOIPV6 (light version)
++ Better support for IPv6 in ftppr

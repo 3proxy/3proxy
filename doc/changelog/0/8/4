@@ -1,0 +1,5 @@
++ Build PamPlugin on *nix
++ stacksize and -S options, stacksize defaults changed for FreeBSD
++ extip redirection type added
+! SSL plugin fix to correct handling of certificates path
+! fixed random errors on IPv6 connect

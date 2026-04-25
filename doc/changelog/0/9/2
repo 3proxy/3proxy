@@ -1,0 +1,9 @@
+Bugfixes:
+! Fixed: bandwidth limiters (once again)
+! Fixed: data filtering plugins (PCREPlugin, SSLPlugin). SSLPlugin use on Linux requires to disable splice (-s0)
+! FIxed: standalone proxies do not react on HUP (Ctrl+C) in Linux/Unix
+! Fixed: few minor bugs
+
+Improvements:
++ deb for arm platforms (experimental)
++ Openssl 1.1 support for SSLPlugin

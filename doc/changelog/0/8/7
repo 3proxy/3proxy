@@ -1,0 +1,15 @@
+! Fix 'daemon' command for Linux
+! Fix 'extip' redirections 00009 errors
+! Fix counters for older Win platforms
+! Resolve logging race conditions
+! attempt to fix pam_auth race conditions
+! FTP proxy workaround for broken gethostname() on some libc limplementations
+! authcache IP matching corrected
+! fix SOCKSv5 BIND/UDP ASSOC
+! use setreuid/setregid instead of setuid / setgid
+
++ OpenWatcom makefiles for Windows
++ -u2 support for proxy
++ support %i in logformat
++ force/noforce configuration commands to disconnect / do not disconnect clients if nolonger match ACL after configuration change
++ support longer external passwords

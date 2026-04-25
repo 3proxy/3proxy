@@ -1,0 +1,8 @@
+Bugfixes:
+! Fixed: socket may be closed before all data received/sent
+! Fixed: bandlimin non-working
+! Fixed: countall/nocountall
+! Fixed: few race conditions
+
+Improvements:
++ deb/rpm build, systemd support (experimental)

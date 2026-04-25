@@ -1,0 +1,26 @@
+
+3proxy 0.7
+
+This release is partially forced: while no new significant functions are
+added, 0.7 is code is much more stable and less buggy than 0.6. Since
+there is no new development for a long time, except few minor bugfixes,
+I decided to finally release 0.7. You may want it if you:
+
+    Use HTTP proxy
+    Use 3proxy under *BSD/Mac OS X/iPhone OS
+    Use plugins, specially traffic related ones, like PCRE.
+
+I have no time for active developement. There are interesting features
+in nearly ready state, e.g. SSL support / SSL decryption via
+certificates spoofing, NAT support and SSL auto-detection. You can step
+into development, if you are interested.
+
+There are some configuration changes:
+
+    auth iponly is now default (because most misconfigurations were
+    because of default auth none)
+    maxconn is now 500 by default (because WebKit browsers ignore
+    standards and create a lot of connections even if proxy is configured)
+    NTLM is disabled by default (-n options, -n1 to enable) because
+    NTLMv1 is disabled by default in Windows since Vista and there is no
+    NTLMv2 library with compatible license. Report me, if any.
