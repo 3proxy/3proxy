@@ -314,7 +314,6 @@ extern pthread_mutex_t bandlim_mutex;
 extern pthread_mutex_t connlim_mutex;
 extern pthread_mutex_t hash_mutex;
 extern pthread_mutex_t tc_mutex;
-extern pthread_mutex_t pwl_mutex;
 extern pthread_mutex_t log_mutex;
 extern pthread_mutex_t rad_mutex;
 extern struct datatype datatypes[64];

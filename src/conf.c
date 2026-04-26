@@ -23,7 +23,6 @@
 pthread_mutex_t bandlim_mutex;
 pthread_mutex_t connlim_mutex;
 pthread_mutex_t tc_mutex;
-pthread_mutex_t pwl_mutex;
 pthread_mutex_t hash_mutex;
 pthread_mutex_t config_mutex;
 
