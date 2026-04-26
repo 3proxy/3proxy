@@ -160,7 +160,7 @@ static void hashgrow(struct hashtable *ht){
 
 
 
-void hashadd(struct hashtable *ht, const void* name, const void* value, time_t expires){
+void hashadd(struct hashtable *ht, void* name, void* value, time_t expires){
     uint32_t hen, he;
     uint32_t *hep;
     int overwrite = 0;
@@ -172,7 +172,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
 	return;
     }
 
-    ht->index2hash(ht, name, hash);
+    ht->index2hash_add(ht, name, hash);
     pthread_mutex_lock(&hash_mutex);
     index = hashindex(ht->tablesize, hash);
 
@@ -211,7 +211,7 @@ void hashadd(struct hashtable *ht, const void* name, const void* value, time_t e
     pthread_mutex_unlock(&hash_mutex);
 }
 
-int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *ttl){
+int hashresolv(struct hashtable *ht, void* name, void* value, uint32_t *ttl){
     uint8_t hash[MAX_HASH_SIZE];
     uint32_t *hep;
     uint32_t he;
@@ -220,7 +220,7 @@ int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *tt
     if(!ht || !ht->ihashtable || !name) {
 	return 0;
     }
-    ht->index2hash(ht,name, hash);
+    ht->index2hash_search(ht,name, hash);
     pthread_mutex_lock(&hash_mutex);
     index = hashindex(ht->tablesize, hash);
     for(hep = ht->ihashtable + index; (he = *hep)!=0; ){
@@ -242,15 +242,15 @@ int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *tt
     return 0;
 }
 
-void char_index2hash(const struct hashtable *ht, const void *index, uint8_t *hash){
-    const char* name = index;
+static void char_index2hash(const struct hashtable *ht, void *index, uint8_t *hash){
+    char* name = index;
 
     blake2b(hash, ht->hash_size, index, strlen((const char*)index), NULL, 0);
 }
 
-void param2hash(const struct hashtable *ht, const void *index, uint8_t *hash){
+static void param2hash_add(const struct hashtable *ht, void *index, uint8_t *hash){
     blake2b_state S;
-    const struct clientparam *param = (struct clientparam *)index;
+    struct clientparam *param = (struct clientparam *)index;
     unsigned type = param->srv->authcachetype;
 
     blake2b_init(&S, ht->hash_size);
@@ -265,8 +265,59 @@ void param2hash(const struct hashtable *ht, const void *index, uint8_t *hash){
     if((type & 1024))blake2b_update(&S, SAADDR(&param->srv->intsa), SAADDRLEN(&param->srv->intsa));
     if((type & 2048))blake2b_update(&S, SAPORT(&param->srv->intsa), 2);
     blake2b_final(&S, hash, ht->hash_size);
+    memcpy(param->hash, hash, ht->hash_size);
 }
 
-struct hashtable dns_table = {char_index2hash, 4, 16};
-struct hashtable dns6_table = {char_index2hash, 16, 16};
-struct hashtable auth_table = {param2hash, sizeof(struct authcache), 16};
+static void pw2hash_add(const struct hashtable *ht, void *index, uint8_t *hash){
+    char ** pw = (char **)index;
+    blake2b_state S;
+    
+    blake2b_init(&S, ht->hash_size);
+    if(pw[0])blake2b_update(&S, pw[0], strlen(pw[0]) + 1);
+    if(pw[1])blake2b_update(&S, pw[1], strlen(pw[1]) + 1);
+    blake2b_final(&S, hash, ht->hash_size);
+}
+
+
+static void pw2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
+    struct clientparam *param  = (struct clientparam *)index;
+
+    char *pw[2] = {(char *)param->username, (char *)param->password};
+    
+    pw2hash_add(ht, pw, hash);
+}
+
+static void pwnt2hash_add(const struct hashtable *ht, void *index, uint8_t *hash){
+    char ** pw = (char **)index;
+    blake2b_state S;
+    
+    blake2b_init(&S, ht->hash_size);
+    if(pw[0])blake2b_update(&S, pw[0], strlen(pw[0]) + 1);
+    if(pw[1])blake2b_update(&S, pw[1], strlen(pw[1]) + 1);
+    blake2b_final(&S, hash, ht->hash_size);
+}
+
+
+static void pwnt2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
+    struct clientparam *param  = (struct clientparam *)index;
+    unsigned char pass[40];    
+    char *pw[2] = {(char *)param->username, (char *)pass};
+
+    ntpwdhash(pass, param->password, 1);
+    pwnt2hash_add(ht, pw, hash);
+}
+
+void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
+    struct clientparam *param = (struct clientparam *)index;
+
+    memcpy(hash, param->hash, ht->hash_size);
+}
+
+
+
+struct hashtable dns_table = {char_index2hash, char_index2hash, 4, 12};
+struct hashtable dns6_table = {char_index2hash, char_index2hash, 16, 12};
+struct hashtable auth_table = {param2hash_add, param2hash_search, sizeof(struct authcache), 12};
+struct hashtable pw_table = {pw2hash_add, pw2hash_search, 0, 12};
+struct hashtable pwnt_table = {pwnt2hash_add, pwnt2hash_search, 0, 12};
+struct hashtable pwcr_table = {char_index2hash, char_index2hash, 64, 12};

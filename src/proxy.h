@@ -245,8 +245,8 @@ void mschap(const unsigned char *win_password,
 
 void destroyhashtable(struct hashtable *ht);
 int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, unsigned growlimit);
-void hashadd(struct hashtable *ht, const void* name, const void* value, time_t expires);
-int hashresolv(struct hashtable *ht, const void* name, void* value, uint32_t *ttl);
+void hashadd(struct hashtable *ht, void* name, void* value, time_t expires);
+int hashresolv(struct hashtable *ht, void* name, void* value, uint32_t *ttl);
 
 int parsehost(int family, unsigned char *host, struct sockaddr *sa);
 int parsehostname(char *hostname, struct clientparam *param, uint16_t port);

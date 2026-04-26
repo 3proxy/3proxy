@@ -192,6 +192,9 @@ int
 #endif
 #endif
 
+#define MAX_HASH_SIZE (16)
+
+
 extern char* NULLADDR;
 typedef enum {
 	CLIENT,
@@ -585,6 +588,7 @@ struct clientparam {
 			waitserver64,
 			cycles,
 			threadid;
+	uint8_t hash[MAX_HASH_SIZE];
 
 	int	redirected,
 		operation,
@@ -755,10 +759,10 @@ struct child {
 	unsigned char **argv;
 };
 
-#define MAX_HASH_SIZE (16)
 
 struct hashtable {
-	void (*index2hash)(const struct hashtable *ht, const void *index, uint8_t *hash);
+	void (*index2hash_add)(const struct hashtable *ht, void *index, uint8_t *hash);
+	void (*index2hash_search)(const struct hashtable *ht, void *index, uint8_t *hash);
 	unsigned recsize;
 	unsigned hash_size;
 	unsigned poolsize;
