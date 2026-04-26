@@ -24,11 +24,12 @@ void destroyhashtable(struct hashtable *ht){
 	ht->hashvalues = NULL;
     }
     if(ht->hashhashvalues){
-	myfree(ht->hashvalues);
-	ht->hashvalues = NULL;
+	myfree(ht->hashhashvalues);
+	ht->hashhashvalues = NULL;
     }
     ht->poolsize = 0;
     ht->tablesize = 0;
+    ht->ihashempty = 0;
     pthread_mutex_unlock(&hash_mutex);
 }
 
@@ -62,8 +63,8 @@ int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, u
 	ht->hashvalues = NULL;
     }
     if(ht->hashhashvalues){
-	myfree(ht->hashvalues);
-	ht->hashvalues = NULL;
+	myfree(ht->hashhashvalues);
+	ht->hashhashvalues = NULL;
     }
     ht->poolsize = 0;
     ht->tablesize = 0;
@@ -315,9 +316,14 @@ void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
 
 
 
+static void user2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
+    struct clientparam *param = (struct clientparam *)index;
+    blake2b(hash, ht->hash_size, param->username, strlen((const char *)param->username), NULL, 0);
+}
+
 struct hashtable dns_table = {char_index2hash, char_index2hash, 4, 12};
 struct hashtable dns6_table = {char_index2hash, char_index2hash, 16, 12};
 struct hashtable auth_table = {param2hash_add, param2hash_search, sizeof(struct authcache), 12};
 struct hashtable pw_table = {pw2hash_add, pw2hash_search, 0, 12};
 struct hashtable pwnt_table = {pwnt2hash_add, pwnt2hash_search, 0, 12};
-struct hashtable pwcr_table = {char_index2hash, char_index2hash, 64, 12};
+struct hashtable pwcr_table = {char_index2hash, user2hash_search, 64, 12};

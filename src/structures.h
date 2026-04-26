@@ -779,6 +779,9 @@ struct hashtable {
 extern struct hashtable dns_table;
 extern struct hashtable dns6_table;
 extern struct hashtable auth_table;
+extern struct hashtable pw_table;
+extern struct hashtable pwnt_table;
+extern struct hashtable pwcr_table;
 
 struct authcache {
         unsigned char username[64];

@@ -533,46 +533,45 @@ static int h_auth(int argc, unsigned char **argv){
 }
 
 static int h_users(int argc, unsigned char **argv){
-  int j;
-  unsigned char *arg;
-  struct passwords *pwl = NULL;
+    static char dummy;
+    int j;
+    unsigned char *arg;
+    char *pw[2];
 
-	for (j = 1; j<argc; j++) {
-		if(!(pwl = myalloc(sizeof(struct passwords)))) {
-			return(21);
-		}
-		memset(pwl, 0, sizeof(struct passwords));
+    for (j = 1; j < argc; j++) {
+        arg = (unsigned char *)strchr((char *)argv[j], ':');
+        if (!arg) continue;
+        *arg = 0;
+        pw[0] = (char *)argv[j];
 
-		arg = (unsigned char *)strchr((char *)argv[j], ':');
-		if(!arg||!arg[1]||!arg[2]||arg[3]!=':')	{
-			pwl->user = (unsigned char *)mystrdup((char *)argv[j]);
-			pwl->pwtype = SYS;
-		}
-		else {
-			*arg = 0;
-			pwl->user = (unsigned char *)mystrdup((char *)argv[j]);
+        if (arg[1] && arg[2] && arg[3] == ':') {
+            pw[1] = (char *)(arg + 4);
+            if (arg[1] == 'N' && arg[2] == 'T') {
+                if (!pwnt_table.ihashtable && inithashtable(&pwnt_table, 16, 32, 1048576))
+                    return 3;
+                hashadd(&pwnt_table, pw, &dummy, MAX_COUNTER_TIME);
+                continue;
+            }
+            if (arg[1] == 'C' && arg[2] == 'R') {
+                if (!pwcr_table.ihashtable && inithashtable(&pwcr_table, 16, 32, 1048576))
+                    return 3;
+                hashadd(&pwcr_table, pw[0], pw[1], MAX_COUNTER_TIME);
+                continue;
+            }
+            if (arg[1] == 'C' && arg[2] == 'L') {
+                /* fall through to CL handling below */
+            } else {
+                continue;
+            }
+        } else {
+            pw[1] = (char *)(arg + 1);
+        }
 
-			if((arg[1] == 'C' && arg[2] == 'L' && (pwl->pwtype = CL)) ||
-				(arg[1] == 'C' && arg[2] == 'R' && (pwl->pwtype = CR)) ||
-				(arg[1] == 'N' && arg[2] == 'T' && (pwl->pwtype = NT)) ||
-				(arg[1] == 'L' && arg[2] == 'M' && (pwl->pwtype = LM))){
-				pwl->password = (unsigned char *)mystrdup((char *)arg+4);
-			}
-			else {
-				pwl->password = (unsigned char *) mystrdup((char *)arg + 1);
-				pwl->pwtype = UN;
-			}
-			if(!pwl->password) return 3;
-		}
-		if(!pwl->user) return 21;
-		pthread_mutex_lock(&pwl_mutex);
-		pwl->next = conf.pwl;
-		conf.pwl = pwl;
-		pthread_mutex_unlock(&pwl_mutex);
-
-
-	}
-	return 0;
+        if (!pw_table.ihashtable && inithashtable(&pw_table, 16, 32, 1048576))
+            return 3;
+        hashadd(&pw_table, pw, &dummy, MAX_COUNTER_TIME);
+    }
+    return 0;
 }
 
 static int h_maxconn(int argc, unsigned char **argv){
@@ -1852,7 +1851,6 @@ void freeconf(struct extparam *confp){
  struct bandlim * blout;
  struct connlim * cl;
  struct trafcount * tc;
- struct passwords *pw;
  struct ace *acl;
  struct filemon *fm;
  int counterd, archiverc;
@@ -1886,11 +1884,9 @@ void freeconf(struct extparam *confp){
  confp->connlimiter = NULL;
  pthread_mutex_unlock(&connlim_mutex);
 
- pthread_mutex_lock(&pwl_mutex);
- pw = confp->pwl;
- confp->pwl = NULL;
- pthread_mutex_unlock(&pwl_mutex);
-
+ destroyhashtable(&pw_table);
+ destroyhashtable(&pwnt_table);
+ destroyhashtable(&pwcr_table);
 
  confp->logfunc = lognone;
  logformat = confp->logformat;
@@ -1935,7 +1931,6 @@ void freeconf(struct extparam *confp){
 
  
  freeacl(acl);
- freepwl(pw);
  for(; bl; bl = (struct bandlim *) itfree(bl, bl->next)) freeacl(bl->ace);
  for(; blout; blout = (struct bandlim *) itfree(blout, blout->next))freeacl(blout->ace);
  for(; cl; cl = (struct connlim *) itfree(cl, cl->next)) freeacl(cl->ace);

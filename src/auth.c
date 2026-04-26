@@ -919,46 +919,24 @@ int dnsauth(struct clientparam * param){
 }
 
 int strongauth(struct clientparam * param){
-	struct passwords * pwl;
+	static char dummy;
 	unsigned char buf[256];
+	char cryptpw[65] = {0};
 
-
-	if(!param->username) return 4;
-	pthread_mutex_lock(&pwl_mutex);
-	for(pwl = conf.pwl; pwl; pwl=pwl->next){
-		if(!strcmp((char *)pwl->user, (char *)param->username)) switch(pwl->pwtype) {
-			case CL:
-				if(!pwl->password || !*pwl->password){
-					break;
-				}
-				else if (!param->pwtype && param->password && !strcmp((char *)param->password, (char *)pwl->password)){
-					break;
-				}
-				pthread_mutex_unlock(&pwl_mutex);
-				return 6;
+	if (!param->username) return 4;
+	if (!param->pwtype && param->password) {
+		if (pw_table.ihashtable && hashresolv(&pw_table, param, &dummy, NULL))
+			return 0;
+		if (pwnt_table.ihashtable && hashresolv(&pwnt_table, param, &dummy, NULL))
+			return 0;
 #ifndef NOCRYPT
-			case CR:
-				if(param->password && !param->pwtype && !strcmp((char *)pwl->password, (char *)mycrypt(param->password, pwl->password,buf))) {
-					break;
-				}
-				pthread_mutex_unlock(&pwl_mutex);
-				return 7;
-			case NT:
-				if(param->password && !param->pwtype && !memcmp(pwl->password, ntpwdhash(buf,param->password, 1), 32)) {
-					break;
-				}
-				pthread_mutex_unlock(&pwl_mutex);
-				return 8;
-#endif				
-			default:
-				pthread_mutex_unlock(&pwl_mutex);
-				return 999;
+		if (pwcr_table.ihashtable && hashresolv(&pwcr_table, param, cryptpw, NULL)) {
+			if (!strcmp(cryptpw, (char *)mycrypt(param->password, (unsigned char *)cryptpw, buf)))
+				return 0;
+			return 7;
 		}
-		else continue;
-		pthread_mutex_unlock(&pwl_mutex);
-		return 0;
+#endif
 	}
-	pthread_mutex_unlock(&pwl_mutex);
 	return 5;
 }
 
