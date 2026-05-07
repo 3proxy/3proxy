@@ -194,7 +194,6 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.port = 3128;
 		childdef.isudp = 0;
 		childdef.service = S_PROXY;
-		childdef.helpmessage = " -n - no NTLM support\n";
 #ifdef NOIPV6
 		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, proxy may run very slow\n", linenum);
@@ -227,7 +226,6 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.port = 1080;
 		childdef.isudp = 0;
 		childdef.service = S_SOCKS;
-		childdef.helpmessage = " -n - no NTLM support\n";
 #ifdef NOIPV6
 		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, socks may run very slow\n", linenum);

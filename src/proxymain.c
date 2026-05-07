@@ -456,12 +456,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 			else if(argv[i][3] == 'i') getip46(46, (unsigned char *)argv[i]+3, (struct sockaddr *)&srv.intNat);
 			else getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extNat);
 			break;
-#ifdef __linux__
 		 case 'n':
+#ifdef __linux__
 			if(argv[i][2] == 'i') { if(srv.inetns) free(srv.inetns); srv.inetns = strdup(argv[i] + 3); }
 			else if(argv[i][2] == 'e') { if(srv.onetns) free(srv.onetns); srv.onetns = strdup(argv[i] + 3); }
-			break;
 #endif
+			break;
 		 case 'p':
 			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
 			break;
