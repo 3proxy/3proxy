@@ -111,6 +111,11 @@ int udpsockmap(struct clientparam *param, int timeo)
 			    memcmp(SAADDR(&sin), SAADDR(&param->sincr), SAADDRLEN(&sin)))
 				continue;
 			if (firstpacket) {
+				if (!SAISNULL(&param->req) && *SAPORT(&param->req) &&
+				    SAADDRLEN(&param->req) == SAADDRLEN(&sin) &&
+				    !memcmp(SAADDR(&param->req), SAADDR(&sin), SAADDRLEN(&param->req)) &&
+				    memcmp(SAPORT(&param->req), SAPORT(&sin), 2))
+					continue;
 				param->sincr = sin;
 				firstpacket = 0;
 			} else if (memcmp(SAPORT(&sin), SAPORT(&param->sincr), 2)) {
@@ -182,13 +187,6 @@ int udpsockmap(struct clientparam *param, int timeo)
 					if (SAADDRLEN(&from) != SAADDRLEN(&param->sinsr) ||
 					    memcmp(SAADDR(&from), SAADDR(&param->sinsr), SAADDRLEN(&from)) ||
 					    memcmp(SAPORT(&from), SAPORT(&param->sinsr), 2))
-						continue;
-				}
-			} else {
-				if (!SAISNULL(&param->req) && *SAPORT(&param->req)) {
-					if (SAADDRLEN(&from) != SAADDRLEN(&param->req) ||
-					    memcmp(SAADDR(&from), SAADDR(&param->req), SAADDRLEN(&from)) ||
-					    memcmp(SAPORT(&from), SAPORT(&param->req), 2))
 						continue;
 				}
 			}
