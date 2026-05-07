@@ -162,10 +162,6 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 		EVP_DigestFinal_ex(ctx1,final,&len);
 		EVP_MD_CTX_free(ctx1);
 	}
-
-
-	/* Don't leave anything around in vm they could use. */
-	memset(final,0,sizeof final);
  }
  else
 #endif
