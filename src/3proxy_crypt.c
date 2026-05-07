@@ -118,7 +118,6 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	EVP_DigestUpdate(ctx1,sp,sl);
 	EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
 	EVP_DigestFinal_ex(ctx1,final,&len);
-	EVP_MD_CTX_free(ctx1);
 	for(pl = (int)strlen((char *)pw); pl > 0; pl -= MD5_SIZE)
 		EVP_DigestUpdate(ctx,final,pl>MD5_SIZE ? MD5_SIZE : pl);
 
@@ -142,7 +141,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	 * need 30 seconds to build a 1000 entry dictionary...
 	 */
 	for(i=0;i<1000;i++) {
-		ctx1 = EVP_MD_CTX_new();
+		EVP_MD_CTX_reset(ctx1);
 		EVP_DigestInit_ex(ctx1, md5, NULL);
 		if(i & 1)
 			EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
@@ -160,8 +159,8 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 		else
 			EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
 		EVP_DigestFinal_ex(ctx1,final,&len);
-		EVP_MD_CTX_free(ctx1);
 	}
+	EVP_MD_CTX_free(ctx1);
  }
  else
 #endif
