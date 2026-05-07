@@ -417,6 +417,10 @@ for(;;){
 			c = *se;
 			*se = 0;
 		}
+		if(param->hostname && (!*param->hostname || isnumber(param->hostname[strlen((char *)param->hostname) - 1]))){
+		    free(param->hostname);
+		    param->hostname = NULL;
+		}
 		if(!param->hostname){
 			if(parsehostname((char *)sb, param, 80)) RETURN(100);
 		}
