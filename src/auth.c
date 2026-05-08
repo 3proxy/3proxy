@@ -234,9 +234,9 @@ int strongauth(struct clientparam * param){
 				unsigned hashsz;
 				hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
 				memset(buf, 0, pwl_table.recsize - 1);
-				blake2b_init(&S, hashsz);
-				blake2b_update(&S, param->password, pwlen + 1);
-				blake2b_final(&S, buf, hashsz);
+				blake2b_init_3p(&S, hashsz);
+				blake2b_update_3p(&S, param->password, pwlen + 1);
+				blake2b_final_3p(&S, buf, hashsz);
 				if(!memcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
 			    }
 			    return 6;

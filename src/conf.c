@@ -561,9 +561,9 @@ static int h_users(int argc, unsigned char **argv){
 	    blake2b_state S;
 	    unsigned hashsz;
 	    hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
-	    blake2b_init(&S, hashsz);
-	    blake2b_update(&S, pw[1], l + 1);
-	    blake2b_final(&S, (uint8_t *)(pass + 1), hashsz);
+	    blake2b_init_3p(&S, hashsz);
+	    blake2b_update_3p(&S, pw[1], l + 1);
+	    blake2b_final_3p(&S, (uint8_t *)(pass + 1), hashsz);
 	} else {
 	    memcpy(pass + 1, pw[1], l);
 	}

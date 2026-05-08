@@ -405,7 +405,6 @@ endif()
 
 add_executable(3proxy
     ${3PROXY_CORE_SOURCES}
-    ${MD_SOURCES}
     $<TARGET_OBJECTS:srv_modules>
     $<TARGET_OBJECTS:srvudppm_obj>
     $<TARGET_OBJECTS:mainfunc>
@@ -415,6 +414,9 @@ add_executable(3proxy
     $<TARGET_OBJECTS:ftp_obj>
     $<TARGET_OBJECTS:3proxy_crypt_obj>
 )
+if(NOT OpenSSL_FOUND)
+    target_sources(3proxy PRIVATE ${MD_SOURCES})
+endif()
 
 if(OpenSSL_FOUND)
     target_sources(3proxy PRIVATE src/ssllib.c src/ssl.c)
@@ -519,9 +521,11 @@ endif()
 # Build 3proxy_crypt utility
 add_executable(3proxy_crypt
     src/3proxy_crypt.c
-    ${MD_SOURCES}
     $<TARGET_OBJECTS:base64_obj>
 )
+if(NOT OpenSSL_FOUND)
+    target_sources(3proxy_crypt PRIVATE ${MD_SOURCES})
+endif()
 target_compile_definitions(3proxy_crypt PRIVATE WITHMAIN)
 target_include_directories(3proxy_crypt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src

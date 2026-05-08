@@ -10,9 +10,9 @@ static void char_index2hash(const struct hashtable *ht, void *index, uint8_t *ha
     memset(hash, 0, ht->hash_size);
     if(len <= ht->hash_size) memcpy(hash, index, len);
     else {
-	blake2b_init(&S, ht->hash_size);
-	blake2b_update(&S, index, strlen((const char*)index) + 1);
-	blake2b_final(&S, hash, ht->hash_size);
+	blake2b_init_3p(&S, ht->hash_size);
+	blake2b_update_3p(&S, index, strlen((const char*)index) + 1);
+	blake2b_final_3p(&S, hash, ht->hash_size);
     }
 }
 
@@ -49,18 +49,18 @@ static void param2hash_add(const struct hashtable *ht, void *index, uint8_t *has
 	if((type & 2048)){ memcpy(hash + offset, SAPORT(&param->srv->intsa), p2len); offset += 2; }
     }
     else {
-	blake2b_init(&S, ht->hash_size);
-	if((type & 2) && param->username)blake2b_update(&S, param->username, ulen);
-        if((type & 4) && param->password)blake2b_update(&S, param->password, plen);
-	if((type & 1) && !(type & 8))blake2b_update(&S, SAADDR(&param->sincr), a1len);
-	if((type & 16))blake2b_update(&S, &param->srv->acl, acllen);
-	if((type & 64))blake2b_update(&S, SAADDR(&param->req), a2len);
-	if((type & 128))blake2b_update(&S, SAPORT(&param->req), 2);
-	if((type & 256) && param->hostname)blake2b_update(&S, param->hostname, hlen);
-	if((type & 512))blake2b_update(&S, &param->operation, sizeof(param->operation));
-	if((type & 1024))blake2b_update(&S, SAADDR(&param->srv->intsa), a3len);
-	if((type & 2048))blake2b_update(&S, SAPORT(&param->srv->intsa), 2);
-	blake2b_final(&S, hash, ht->hash_size);
+	blake2b_init_3p(&S, ht->hash_size);
+	if((type & 2) && param->username)blake2b_update_3p(&S, param->username, ulen);
+        if((type & 4) && param->password)blake2b_update_3p(&S, param->password, plen);
+	if((type & 1) && !(type & 8))blake2b_update_3p(&S, SAADDR(&param->sincr), a1len);
+	if((type & 16))blake2b_update_3p(&S, &param->srv->acl, acllen);
+	if((type & 64))blake2b_update_3p(&S, SAADDR(&param->req), a2len);
+	if((type & 128))blake2b_update_3p(&S, SAPORT(&param->req), 2);
+	if((type & 256) && param->hostname)blake2b_update_3p(&S, param->hostname, hlen);
+	if((type & 512))blake2b_update_3p(&S, &param->operation, sizeof(param->operation));
+	if((type & 1024))blake2b_update_3p(&S, SAADDR(&param->srv->intsa), a3len);
+	if((type & 2048))blake2b_update_3p(&S, SAPORT(&param->srv->intsa), 2);
+	blake2b_final_3p(&S, hash, ht->hash_size);
     }
     memcpy(param->hash, hash, ht->hash_size);
 }
@@ -74,12 +74,12 @@ void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
 static void udpparam2hash(const struct hashtable *ht, void *index, uint8_t *hash){
     struct clientparam *param = (struct clientparam *)index;
     blake2b_state S;
-    blake2b_init(&S, ht->hash_size);
-    blake2b_update(&S, SAADDR(&param->srv->intsa), SAADDRLEN(&param->srv->intsa));
-    blake2b_update(&S, SAPORT(&param->srv->intsa), 2);
-    blake2b_update(&S, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
-    blake2b_update(&S, SAPORT(&param->sincr), 2);
-    blake2b_final(&S, hash, ht->hash_size);
+    blake2b_init_3p(&S, ht->hash_size);
+    blake2b_update_3p(&S, SAADDR(&param->srv->intsa), SAADDRLEN(&param->srv->intsa));
+    blake2b_update_3p(&S, SAPORT(&param->srv->intsa), 2);
+    blake2b_update_3p(&S, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
+    blake2b_update_3p(&S, SAPORT(&param->sincr), 2);
+    blake2b_final_3p(&S, hash, ht->hash_size);
 }
 
 struct hashtable dns_table = {char_index2hash, char_index2hash, 4, 32};

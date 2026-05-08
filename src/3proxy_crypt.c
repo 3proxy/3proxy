@@ -8,7 +8,9 @@
 #include "blake2_compat.h"
 #ifdef WITH_SSL
 #include <openssl/evp.h>
-#ifndef WITHMAIN
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/params.h>
+#include <openssl/core_names.h>
 #endif
 #endif
 #include <string.h>
@@ -29,8 +31,49 @@ static unsigned char itoa64[] =
 #if defined(WITH_SSL)
 EVP_MD *md4_hash = NULL;
 EVP_MD *md5_hash = NULL;
-EVP_MD *blake2_hash = NULL;
 #endif
+
+#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+int blake2b_init_3p(blake2b_state *S, size_t outlen) {
+    *S = EVP_MD_CTX_new();
+    if (!*S) return -1;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    size_t sz = outlen;
+    OSSL_PARAM params[2];
+    params[0] = OSSL_PARAM_construct_size_t(OSSL_DIGEST_PARAM_SIZE, &sz);
+    params[1] = OSSL_PARAM_construct_end();
+    if (!EVP_DigestInit_ex2(*S, EVP_blake2b512(), params)) {
+#else
+    (void)outlen;
+    if (!EVP_DigestInit_ex(*S, EVP_blake2b512(), NULL)) {
+#endif
+        EVP_MD_CTX_free(*S);
+        *S = NULL;
+        return -1;
+    }
+    return 0;
+}
+
+int blake2b_update_3p(blake2b_state *S, const void *in, size_t inlen) {
+    if (inlen == 0) return 0;
+    return EVP_DigestUpdate(*S, in, inlen) ? 0 : -1;
+}
+
+int blake2b_final_3p(blake2b_state *S, void *out, size_t outlen) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    unsigned int len = 0;
+    int ret = EVP_DigestFinal_ex(*S, out, &len) ? 0 : -1;
+#else
+    unsigned char tmp[64];
+    unsigned int len = 0;
+    int ret = EVP_DigestFinal_ex(*S, tmp, &len) ? 0 : -1;
+    if (ret == 0) memcpy(out, tmp, outlen);
+#endif
+    EVP_MD_CTX_free(*S);
+    *S = NULL;
+    return ret;
+}
+#endif /* WITH_SSL && OPENSSL >= 1.1 */
 
 void
 _crypt_to64(unsigned char *s, unsigned long v, int n)
@@ -189,10 +232,10 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
     magic = (unsigned char *)"$3$";
     {
         blake2b_state S;
-        if(blake2b_init(&S, MD5_SIZE) != 0 ||
-           blake2b_update(&S, pw, strlen((char *)pw) + 1) != 0 ||
-           blake2b_update(&S, sp, sl) != 0 ||
-           blake2b_final(&S, final, MD5_SIZE) != 0) {
+        if(blake2b_init_3p(&S, MD5_SIZE) != 0 ||
+           blake2b_update_3p(&S, pw, strlen((char *)pw) + 1) != 0 ||
+           blake2b_update_3p(&S, sp, sl) != 0 ||
+           blake2b_final_3p(&S, final, MD5_SIZE) != 0) {
             *passwd = 0;
             return NULL;
         }
@@ -267,10 +310,6 @@ int main(int argc, char* argv[]){
         md5_hash = EVP_MD_fetch(library_ctx, "MD5", NULL);
         if (md5_hash == NULL) {
 	    fprintf(stderr, "Error fetching MD5\n");
-        }
-        blake2_hash = EVP_blake2b512();
-        if (blake2_hash == NULL) {
-	    fprintf(stderr, "Error fetching Blake2\n");
         }
 #endif
 	if(argc == 2) {

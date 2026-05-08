@@ -281,7 +281,6 @@ int ssl_init_done = 0;
 OSSL_LIB_CTX *library_ctx = NULL;
 extern EVP_MD *md4_hash;
 extern EVP_MD *md5_hash;
-extern EVP_MD *blake2_hash;
 
 
 void ssl_init()
@@ -304,10 +303,6 @@ void ssl_init()
 	    md5_hash = EVP_MD_fetch(library_ctx, "MD5", NULL);
 	    if (md5_hash == NULL) {
     		fprintf(stderr, "Error fetching MD5\n");
-	    }
-	    blake2_hash = EVP_blake2b512();
-	    if (blake2_hash == NULL) {
-    		fprintf(stderr, "Error fetching Blake2\n");
 	    }
 
     	}
