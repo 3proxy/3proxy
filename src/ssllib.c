@@ -278,7 +278,6 @@ int ssl_file_init = 0;
 
 int ssl_init_done = 0;
 
-OSSL_LIB_CTX *library_ctx = NULL;
 extern EVP_MD *md4_hash;
 extern EVP_MD *md5_hash;
 
@@ -293,14 +292,13 @@ void ssl_init()
 	    SSL_load_error_strings();
 	    _3proxy_mutex_init(&ssl_file_mutex);
 	    bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
-	    library_ctx = OSSL_LIB_CTX_new();
-	    OSSL_PROVIDER_load(library_ctx, "legacy");
-	    OSSL_PROVIDER_load(library_ctx, "default");
-	    md4_hash = EVP_MD_fetch(library_ctx, "MD4", NULL);
+	    OSSL_PROVIDER_load(NULL, "legacy");
+	    OSSL_PROVIDER_load(NULL, "default");
+	    md4_hash = EVP_MD_fetch(NULL, "MD4", NULL);
 	    if (md4_hash == NULL) {
     		fprintf(stderr, "Error fetching MD4\n");
 	    }
-	    md5_hash = EVP_MD_fetch(library_ctx, "MD5", NULL);
+	    md5_hash = EVP_MD_fetch(NULL, "MD5", NULL);
 	    if (md5_hash == NULL) {
     		fprintf(stderr, "Error fetching MD5\n");
 	    }

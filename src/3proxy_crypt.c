@@ -96,6 +96,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
  unsigned long l;
 
 #if defined(WITH_SSL)
+#ifndef WITHMAIN
  if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
 	EVP_MD_CTX	*ctx, *ctx1;
 	unsigned int len;
@@ -184,6 +185,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
  }
  else
 #endif
+#endif
   if(salt[0] == '$' && salt[1] == '3' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
     sp = salt +3;
     sl = (int)(ep - sp);
@@ -229,7 +231,6 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 
 #ifdef WITHMAIN
 #ifdef WITH_SSL
-OSSL_LIB_CTX *library_ctx = NULL;
 #include <openssl/provider.h>
 #endif
 #include <stdio.h>
@@ -256,16 +257,11 @@ int main(int argc, char* argv[]){
 			return 1;
 	}
 #ifdef WITH_SSL
-        library_ctx = OSSL_LIB_CTX_new();
-        OSSL_PROVIDER_load(library_ctx, "legacy");
-        OSSL_PROVIDER_load(library_ctx, "default");
-        md4_hash = EVP_MD_fetch(library_ctx, "MD4", NULL);
+        OSSL_PROVIDER_load(NULL, "legacy");
+        OSSL_PROVIDER_load(NULL, "default");
+        md4_hash = EVP_MD_fetch(NULL, "MD4", NULL);
         if (md4_hash == NULL) {
 	    fprintf(stderr, "Error fetching MD4\n");
-        }
-        md5_hash = EVP_MD_fetch(library_ctx, "MD5", NULL);
-        if (md5_hash == NULL) {
-	    fprintf(stderr, "Error fetching MD5\n");
         }
 #endif
 	if(argc == 2) {
