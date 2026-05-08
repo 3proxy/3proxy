@@ -231,14 +231,12 @@ int strongauth(struct clientparam * param){
 				if(!strncmp(pass + 1, (char *)param->password, pwl_table.recsize - 1)) return 0;
 			    } else {
 				blake2b_state S;
-				unsigned char _b2tmp[64];
 				unsigned hashsz;
 				hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
 				memset(buf, 0, pwl_table.recsize - 1);
-				blake2b_init(&S, 64);
+				blake2b_init(&S, hashsz);
 				blake2b_update(&S, param->password, pwlen + 1);
-				blake2b_final(&S, _b2tmp, 64);
-				memcpy(buf, _b2tmp, hashsz);
+				blake2b_final(&S, buf, hashsz);
 				if(!memcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
 			    }
 			    return 6;
