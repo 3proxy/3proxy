@@ -128,7 +128,7 @@ redirect$(OBJSUFFICS): redirect.c proxy.h structures.h
 hash$(OBJSUFFICS): hash.c proxy.h structures.h
 	$(CC) $(COUT)hash$(OBJSUFFICS) $(CFLAGS) hash.c
 
-hashtables$(OBJSUFFICS): hashtables.c proxy.h structures.h blake2_compat.h
+hashtables$(OBJSUFFICS): hashtables.c proxy.h structures.h libs/blake2.h
 	$(CC) $(COUT)hashtables$(OBJSUFFICS) $(CFLAGS) hashtables.c
 
 resolve$(OBJSUFFICS): resolve.c proxy.h structures.h
@@ -146,10 +146,10 @@ log$(OBJSUFFICS): log.c proxy.h structures.h
 datatypes$(OBJSUFFICS): datatypes.c proxy.h structures.h
 	$(CC) $(COUT)datatypes$(OBJSUFFICS) $(CFLAGS) datatypes.c
 
-3proxy_crypt$(OBJSUFFICS): 3proxy_crypt.c blake2_compat.h
+3proxy_crypt$(OBJSUFFICS): 3proxy_crypt.c libs/blake2.h
 	$(CC) $(COUT)3proxy_crypt$(OBJSUFFICS) $(CFLAGS) 3proxy_crypt.c
 
-3proxy_cryptmain$(OBJSUFFICS): 3proxy_crypt.c blake2_compat.h
+3proxy_cryptmain$(OBJSUFFICS): 3proxy_crypt.c libs/blake2.h
 	$(CC) $(COUT)3proxy_cryptmain$(OBJSUFFICS) $(CFLAGS) $(DEFINEOPTION)WITHMAIN 3proxy_crypt.c
 
 blake2$(OBJSUFFICS):  libs/blake2b-ref.c

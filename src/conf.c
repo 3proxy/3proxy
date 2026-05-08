@@ -7,7 +7,7 @@
 */
 
 #include "proxy.h"
-#include "blake2_compat.h"
+#include "libs/blake2.h"
 #ifdef WITH_SSL
 void ssl_install(void);
 #endif
@@ -559,11 +559,13 @@ static int h_users(int argc, unsigned char **argv){
 	if((unsigned)l >= pwl_table.recsize) {
 	    if(*pass != CL) continue;
 	    blake2b_state S;
+	    unsigned char _b2tmp[64];
 	    unsigned hashsz;
 	    hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
-	    blake2b_init_3p(&S, hashsz);
-	    blake2b_update_3p(&S, pw[1], l + 1);
-	    blake2b_final_3p(&S, (uint8_t *)(pass + 1), hashsz);
+	    blake2b_init(&S, 64);
+	    blake2b_update(&S, pw[1], l + 1);
+	    blake2b_final(&S, _b2tmp, 64);
+	    memcpy((uint8_t *)(pass + 1), _b2tmp, hashsz);
 	} else {
 	    memcpy(pass + 1, pw[1], l);
 	}

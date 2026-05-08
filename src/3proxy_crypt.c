@@ -5,7 +5,7 @@
    please read License Agreement
 
 */
-#include "blake2_compat.h"
+#include "libs/blake2.h"
 #ifdef WITH_SSL
 #include <openssl/evp.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -32,50 +32,6 @@ static unsigned char itoa64[] =
 EVP_MD *md4_hash = NULL;
 EVP_MD *md5_hash = NULL;
 #endif
-
-#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-int blake2b_init_3p(blake2b_state *S, size_t outlen) {
-    *S = EVP_MD_CTX_new();
-    if (!*S) return -1;
-    (void)outlen;
-    if (!EVP_DigestInit_ex(*S, EVP_blake2b512(), NULL)) {
-        EVP_MD_CTX_free(*S);
-        *S = NULL;
-        return -1;
-    }
-    return 0;
-}
-
-int blake2b_update_3p(blake2b_state *S, const void *in, size_t inlen) {
-    if (inlen == 0) return 0;
-    return EVP_DigestUpdate(*S, in, inlen) ? 0 : -1;
-}
-
-int blake2b_final_3p(blake2b_state *S, void *out, size_t outlen) {
-    unsigned char tmp[64];
-    unsigned int len = 0;
-    int ret = EVP_DigestFinal_ex(*S, tmp, &len) ? 0 : -1;
-    memset(out, 0, outlen);
-    if (ret == 0) memcpy(out, tmp, outlen);
-    EVP_MD_CTX_free(*S);
-    *S = NULL;
-    return ret;
-}
-#else
-int blake2b_final_3p(blake2b_state *S, void *out, size_t outlen) {
-    int res;
-    
-    if(outlen < 64){
-	unsigned char tmp[64];
-	res = blake2b_final(S, tmp, 64);
-	memcpy(out, tmp, outlen > 64? 64 : outlen);
-	return res;
-    }
-    res = blake2b_final(S, out, 64);
-    if(outlen > 64) memset(out + 64, 0, outlen - 64);
-    return res;
-}
-#endif /* WITH_SSL && OPENSSL >= 1.1 */
 
 void
 _crypt_to64(unsigned char *s, unsigned long v, int n)
@@ -234,13 +190,15 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
     magic = (unsigned char *)"$3$";
     {
         blake2b_state S;
-        if(blake2b_init_3p(&S, MD5_SIZE) != 0 ||
-           blake2b_update_3p(&S, pw, strlen((char *)pw) + 1) != 0 ||
-           blake2b_update_3p(&S, sp, sl) != 0 ||
-           blake2b_final_3p(&S, final, MD5_SIZE) != 0) {
+        unsigned char _b2tmp[64];
+        if(blake2b_init(&S, 64) != 0 ||
+           blake2b_update(&S, pw, strlen((char *)pw) + 1) != 0 ||
+           blake2b_update(&S, sp, sl) != 0 ||
+           blake2b_final(&S, _b2tmp, 64) != 0) {
             *passwd = 0;
             return NULL;
         }
+        memcpy(final, _b2tmp, MD5_SIZE);
     }
  }
  else {

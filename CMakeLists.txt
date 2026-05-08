@@ -414,9 +414,7 @@ add_executable(3proxy
     $<TARGET_OBJECTS:ftp_obj>
     $<TARGET_OBJECTS:3proxy_crypt_obj>
 )
-if(NOT OpenSSL_FOUND)
-    target_sources(3proxy PRIVATE ${MD_SOURCES})
-endif()
+target_sources(3proxy PRIVATE ${MD_SOURCES})
 
 if(OpenSSL_FOUND)
     target_sources(3proxy PRIVATE src/ssllib.c src/ssl.c)
@@ -523,9 +521,7 @@ add_executable(3proxy_crypt
     src/3proxy_crypt.c
     $<TARGET_OBJECTS:base64_obj>
 )
-if(NOT OpenSSL_FOUND)
-    target_sources(3proxy_crypt PRIVATE ${MD_SOURCES})
-endif()
+target_sources(3proxy_crypt PRIVATE ${MD_SOURCES})
 target_compile_definitions(3proxy_crypt PRIVATE WITHMAIN)
 target_include_directories(3proxy_crypt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
