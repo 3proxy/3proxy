@@ -183,8 +183,10 @@ char *strNcpy(char *dest, const char *src, int n)
 	return dest;
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 extern EVP_MD *md4_hash;
 extern EVP_MD *md5_hash;
+#endif
 
 
 void md5_calc(unsigned char *output, unsigned char *input,
@@ -192,7 +194,11 @@ void md5_calc(unsigned char *output, unsigned char *input,
 {
 	EVP_MD_CTX *ctx = EVP_MD_CTX_new();
 	unsigned int len = 0;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 	EVP_DigestInit_ex(ctx, md5_hash, NULL);
+#else
+	EVP_DigestInit_ex(ctx, EVP_md5(), NULL);
+#endif
 	EVP_DigestUpdate(ctx, input, inlen);
 	EVP_DigestFinal_ex(ctx, output, &len);
 	EVP_MD_CTX_free(ctx);

@@ -28,7 +28,7 @@ static unsigned char itoa64[] =
         "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 
-#if defined(WITH_SSL)
+#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
 EVP_MD *md4_hash = NULL;
 EVP_MD *md5_hash = NULL;
 #endif
@@ -52,7 +52,12 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 	unsigned int len=sizeof(szUnicodePass);
 	unsigned int i;
 
-	if(md4_hash == NULL) return NULL;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	const EVP_MD *md4 = md4_hash;
+#else
+	const EVP_MD *md4 = EVP_md4();
+#endif
+	if(md4 == NULL) return NULL;
 
 	/*
 	 *	NT passwords are unicode.  Convert plain text password
@@ -68,7 +73,7 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 	/* Encrypt Unicode password to a 16-byte MD4 hash */
 	ctx = EVP_MD_CTX_new();
 	if(!ctx) return NULL;
-	if(!EVP_DigestInit_ex(ctx, md4_hash, NULL)){
+	if(!EVP_DigestInit_ex(ctx, md4, NULL)){
 	    EVP_MD_CTX_free(ctx);
 	    return NULL;
 	}
@@ -102,7 +107,12 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	unsigned int len;
 	int pl, i;
 
-	if(md5_hash == NULL) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	const EVP_MD *md5 = md5_hash;
+#else
+	const EVP_MD *md5 = EVP_md5();
+#endif
+	if(md5 == NULL) {
 	    *passwd = 0;
 	    return NULL;
 	}
@@ -116,7 +126,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	    *passwd = 0;
 	    return NULL;
 	}
-	EVP_DigestInit_ex(ctx, md5_hash, NULL);
+	EVP_DigestInit_ex(ctx, md5, NULL);
 
 	/* The password first, since that is what is most unknown */
 	EVP_DigestUpdate(ctx,pw,strlen((char *)pw));
@@ -134,7 +144,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	    *passwd = 0;
 	    return NULL;
 	}
-	EVP_DigestInit_ex(ctx1, EVP_md5(), NULL);
+	EVP_DigestInit_ex(ctx1, md5, NULL);
 	EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
 	EVP_DigestUpdate(ctx1,sp,sl);
 	EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
@@ -163,7 +173,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	 */
 	for(i=0;i<1000;i++) {
 		EVP_MD_CTX_reset(ctx1);
-		EVP_DigestInit_ex(ctx1, md5_hash, NULL);
+		EVP_DigestInit_ex(ctx1, md5, NULL);
 		if(i & 1)
 			EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
 		else
@@ -230,7 +240,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 }
 
 #ifdef WITHMAIN
-#ifdef WITH_SSL
+#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/provider.h>
 #endif
 #include <stdio.h>
@@ -256,7 +266,7 @@ int main(int argc, char* argv[]){
 			argv[0]);
 			return 1;
 	}
-#ifdef WITH_SSL
+#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
         OSSL_PROVIDER_load(NULL, "legacy");
         OSSL_PROVIDER_load(NULL, "default");
         md4_hash = EVP_MD_fetch(NULL, "MD4", NULL);
