@@ -24,6 +24,7 @@
  */
 
 typedef EVP_MD_CTX *blake2b_state;
+extern EVP_MD *blake2_hash;
 
 static int blake2b_init(blake2b_state *S, size_t outlen) {
     *S = EVP_MD_CTX_new();
@@ -35,10 +36,10 @@ static int blake2b_init(blake2b_state *S, size_t outlen) {
     params[0] = OSSL_PARAM_construct_size_t(OSSL_DIGEST_PARAM_SIZE, &sz);
     params[1] = OSSL_PARAM_construct_end();
 
-    if (!EVP_DigestInit_ex2(*S, EVP_blake2b512(), params)) {
+    if (!EVP_DigestInit_ex2(*S, blake2_hash, params)) {
 #else
     (void)outlen;
-    if (!EVP_DigestInit_ex(*S, EVP_blake2b512(), NULL)) {
+    if (!EVP_DigestInit_ex(*S, blake2_hash, NULL)) {
 #endif
         EVP_MD_CTX_free(*S);
         *S = NULL;

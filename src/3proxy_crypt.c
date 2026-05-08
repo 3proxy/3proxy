@@ -9,7 +9,6 @@
 #ifdef WITH_SSL
 #include <openssl/evp.h>
 #ifndef WITHMAIN
-/* MD5 needed for $1$ crypt */
 #endif
 #endif
 #include <string.h>
@@ -28,8 +27,9 @@ static unsigned char itoa64[] =
 
 
 #if defined(WITH_SSL)
-EVP_MD *md4 = NULL;
-EVP_MD *md5 = NULL;
+EVP_MD *md4_hash = NULL;
+EVP_MD *md5_hash = NULL;
+EVP_MD *blake2_hash = NULL;
 #endif
 
 void
@@ -51,7 +51,7 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 	unsigned int len=sizeof(szUnicodePass);
 	unsigned int i;
 
-	if(md4 == NULL) return NULL;
+	if(md4_hash == NULL) return NULL;
 
 	/*
 	 *	NT passwords are unicode.  Convert plain text password
@@ -67,7 +67,7 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 	/* Encrypt Unicode password to a 16-byte MD4 hash */
 	ctx = EVP_MD_CTX_new();
 	if(!ctx) return NULL;
-	if(!EVP_DigestInit_ex(ctx, md4, NULL)){
+	if(!EVP_DigestInit_ex(ctx, md4_hash, NULL)){
 	    EVP_MD_CTX_free(ctx);
 	    return NULL;
 	}
@@ -100,7 +100,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	unsigned int len;
 	int pl, i;
 
-	if(md5 == NULL) {
+	if(md5_hash == NULL) {
 	    *passwd = 0;
 	    return NULL;
 	}
@@ -114,7 +114,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	    *passwd = 0;
 	    return NULL;
 	}
-	EVP_DigestInit_ex(ctx, md5, NULL);
+	EVP_DigestInit_ex(ctx, md5_hash, NULL);
 
 	/* The password first, since that is what is most unknown */
 	EVP_DigestUpdate(ctx,pw,strlen((char *)pw));
@@ -161,7 +161,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	 */
 	for(i=0;i<1000;i++) {
 		EVP_MD_CTX_reset(ctx1);
-		EVP_DigestInit_ex(ctx1, md5, NULL);
+		EVP_DigestInit_ex(ctx1, md5_hash, NULL);
 		if(i & 1)
 			EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
 		else
@@ -231,7 +231,8 @@ OSSL_LIB_CTX *library_ctx = NULL;
 #endif
 #include <stdio.h>
 int main(int argc, char* argv[]){
-	unsigned char buf[1024];
+	unsigned char buf1[128];
+	unsigned char buf2[128];
 	unsigned i;
 	if(argc < 2 || argc > 3) {
 		fprintf(stderr, "usage: \n"
@@ -259,18 +260,22 @@ int main(int argc, char* argv[]){
         library_ctx = OSSL_LIB_CTX_new();
         OSSL_PROVIDER_load(library_ctx, "legacy");
         OSSL_PROVIDER_load(library_ctx, "default");
-        md4 = EVP_MD_fetch(library_ctx, "MD4", NULL);
-        if (md4 == NULL) {
+        md4_hash = EVP_MD_fetch(library_ctx, "MD4", NULL);
+        if (md4_hash == NULL) {
 	    fprintf(stderr, "Error fetching MD4\n");
         }
-        md5 = EVP_MD_fetch(library_ctx, "MD5", NULL);
-        if (md5 == NULL) {
+        md5_hash = EVP_MD_fetch(library_ctx, "MD5", NULL);
+        if (md5_hash == NULL) {
 	    fprintf(stderr, "Error fetching MD5\n");
+        }
+        blake2_hash = EVP_blake2b512();
+        if (blake2_hash == NULL) {
+	    fprintf(stderr, "Error fetching Blake2\n");
         }
 #endif
 	if(argc == 2) {
 #ifdef WITH_SSL
-		{ unsigned char *nt = ntpwdhash(buf, (unsigned char *)argv[1], 1);
+		{ unsigned char *nt = ntpwdhash(buf1, (unsigned char *)argv[1], 1);
 		  if(nt) printf("NT:%s\n", nt); }
 #else
 		fprintf(stderr, "NT crypt not available (compiled without OpenSSL)\n");
@@ -280,8 +285,8 @@ int main(int argc, char* argv[]){
 		unsigned char *cr;
 		i = (int)strlen((char *)argv[1]);
 		if (i > 64) argv[1][64] = 0;
-		sprintf((char *)buf, "$3$%s$", argv[1]);
-		cr = mycrypt((unsigned char *)argv[2], buf, buf+256);
+		sprintf((char *)buf1, "$3$%.64s$", argv[1]);
+		cr = mycrypt((unsigned char *)argv[2], buf1, buf2);
 		if(cr) printf("CR:%s\n", cr);
 	}
 	return 0;

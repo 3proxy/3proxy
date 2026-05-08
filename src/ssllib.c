@@ -279,8 +279,9 @@ int ssl_file_init = 0;
 int ssl_init_done = 0;
 
 OSSL_LIB_CTX *library_ctx = NULL;
-extern EVP_MD *md4;
-extern EVP_MD *md5;
+extern EVP_MD *md4_hash;
+extern EVP_MD *md5_hash;
+extern EVP_MD *blake2_hash;
 
 
 void ssl_init()
@@ -296,13 +297,18 @@ void ssl_init()
 	    library_ctx = OSSL_LIB_CTX_new();
 	    OSSL_PROVIDER_load(library_ctx, "legacy");
 	    OSSL_PROVIDER_load(library_ctx, "default");
-	    md4 = EVP_MD_fetch(library_ctx, "MD4", NULL);
-	    if (md4 == NULL) {
-    		printf("Error fetching MD4\n");
+	    md4_hash = EVP_MD_fetch(library_ctx, "MD4", NULL);
+	    if (md4_hash == NULL) {
+    		fprintf(stderr, "Error fetching MD4\n");
 	    }
-	    md5 = EVP_MD_fetch(library_ctx, "MD5", NULL);
-	    if (md5 == NULL) {
-    		printf("Error fetching MD5\n");
+	    md5_hash = EVP_MD_fetch(library_ctx, "MD5", NULL);
+	    if (md5_hash == NULL) {
+    		fprintf(stderr, "Error fetching MD5\n");
 	    }
+	    blake2_hash = EVP_blake2b512();
+	    if (blake2_hash == NULL) {
+    		fprintf(stderr, "Error fetching Blake2\n");
+	    }
+
     	}
 }

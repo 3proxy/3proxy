@@ -183,8 +183,8 @@ char *strNcpy(char *dest, const char *src, int n)
 	return dest;
 }
 
-extern EVP_MD *md4;
-extern EVP_MD *md5;
+extern EVP_MD *md4_hash;
+extern EVP_MD *md5_hash;
 
 
 void md5_calc(unsigned char *output, unsigned char *input,
@@ -192,7 +192,7 @@ void md5_calc(unsigned char *output, unsigned char *input,
 {
 	EVP_MD_CTX *ctx = EVP_MD_CTX_new();
 	unsigned int len = 0;
-	EVP_DigestInit_ex(ctx, md5, NULL);
+	EVP_DigestInit_ex(ctx, md5_hash, NULL);
 	EVP_DigestUpdate(ctx, input, inlen);
 	EVP_DigestFinal_ex(ctx, output, &len);
 	EVP_MD_CTX_free(ctx);
