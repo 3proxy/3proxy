@@ -279,7 +279,6 @@ log("done send to client from buf");
 			if(param->srvoffset == param->srvinbuf)param->srvoffset = param->srvinbuf =0;
 			if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
 			needaction = 0;
-			if(param->srv->singlepacket) RETURN(0);
 			continue;
 		}
 	}

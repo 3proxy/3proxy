@@ -620,7 +620,7 @@ static void * ef_server_acl(struct node * node){
 }
 
 static void * ef_server_singlepacket(struct node * node){
-	return &((struct srvparam *)node->value) -> singlepacket;
+	return &((struct srvparam *)node->value) -> s_option;
 }
 
 static void * ef_server_needuser(struct node * node){

@@ -522,7 +522,7 @@ struct srvparam {
 	int maxchild;
 	int backlog;
 	int paused, version;
-	int singlepacket;
+	int s_option;
 	int needuser;
 	int silent;
 	int transparent;

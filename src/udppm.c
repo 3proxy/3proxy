@@ -56,7 +56,7 @@ void * udppmchild(struct clientparam* param) {
 	param->operation = UDPASSOC;
 	authres = (*param->srv->authfunc)(param);
 	if(authres) { RETURN(authres); }
-	if(!param->srv->singlepacket)hashadd(&udp_table, param, &param, MAX_COUNTER_TIME);
+	if(!param->srv->s_option)hashadd(&udp_table, param, &param, MAX_COUNTER_TIME);
 	if(!param->srvbuf){
 	    if(!(param->srvbuf = malloc(UDPBUFSIZE)))RETURN(11);
 	    param->srvbufsize = UDPBUFSIZE;
@@ -78,7 +78,7 @@ void * udppmchild(struct clientparam* param) {
 	param->waitserver64 = 0x7fffffffffffffff;
 	param->res = udpsockmap(param, conf.timeouts[STRING_L]);
 	_3proxy_sem_lock(udpinit);
-	if(!param->srv->singlepacket)hashdelete(&udp_table, param);
+	if(!param->srv->s_option)hashdelete(&udp_table, param);
 
 CLEANRET:
 

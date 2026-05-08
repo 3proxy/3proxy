@@ -531,7 +531,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef WITHSPLICE
 			if(isudp || srv.service == S_ADMIN)
 #endif
-				srv.singlepacket = 1 + atoi(argv[i]+2);
+				srv.s_option = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
 			else
 				if(*(argv[i]+2)) srv.usesplice = atoi(argv[i]+2);

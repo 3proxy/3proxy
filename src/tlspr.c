@@ -191,7 +191,7 @@ void * tlsprchild(struct clientparam* param) {
 	}
 	else if (parsehostname(sni, param, param->srv->targetport? ntohs(param->srv->targetport):443)) RETURN (100);
 	if (!param->hostname)param->hostname = (unsigned char *)strdup(sni);
-	if(param->srv->singlepacket && snipos && res > 1){
+	if(param->srv->s_option && snipos && res > 1){
 	    int len;
 	    
 	    len = socksend(param, param->remsock, param->clibuf+param->clioffset,snipos + (res/2), conf.timeouts[STRING_S]);

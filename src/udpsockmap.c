@@ -44,7 +44,7 @@ static int socks5_udp_skip_hdr(unsigned char *buf, int len)
  *    3  three parent proxies (prepend 2 headers / strip 2 headers)
  *
  * param->waitserver64   non-zero: skip client socket polling (server→client only)
- * param->srv->singlepacket non-zero: return after first datagram sent to client
+ * param->srv->s_option non-zero: return after first datagram sent to client
  * param->ctrlsock    TCP control socket from the client; INVALID_SOCKET if none.
  */
 int udpsockmap(struct clientparam *param, int timeo)
@@ -213,7 +213,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 				param->srv->so._sendto(param->sostate, param->clisock,
 				           (char *)param->srvbuf + sendoff, sendlen, 0,
 				           (struct sockaddr *)&sin, SASIZE(&sin));
-			if (param->srv->singlepacket) return 0;
+			if (param->srv->s_option && param->srv->service == S_UDPPM) return 0;
 		}
 
 		if ((ctrlsock_idx >= 0 && fds[ctrlsock_idx].revents) ||

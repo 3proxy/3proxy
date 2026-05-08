@@ -82,7 +82,7 @@ void * dnsprchild(struct clientparam* param) {
  *s2 = (len - (int)(s2 - buf)) - 1;
 
  type = ((unsigned)buf[len+1])*256 + (unsigned)buf[len+2];
- if((type==0x01 || type==0x1c) && !param->srv->singlepacket){
+ if((type==0x01 || type==0x1c) && !param->srv->s_option){
  	ip = udpresolve((type==0x1c)?AF_INET6:AF_INET, (unsigned char *)host, addr, &ttl, param, 0);
  }
 

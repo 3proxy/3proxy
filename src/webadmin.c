@@ -379,7 +379,7 @@ void * adminchild(struct clientparam* param) {
  int limited = 0;
 
 
- limited =param->srv->singlepacket;
+ limited =param->srv->s_option;
  pp.inbuf = 0;
  pp.cp = param;
 
