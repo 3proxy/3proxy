@@ -1,5 +1,5 @@
 /*
-   (c) 2007-2021 by Vladimir Dubrovin <3proxy@3proxy.org>
+   (c) 2007-2026 by Vladimir Dubrovin <vlad@3proxy.org>
 
    please read License Agreement
 

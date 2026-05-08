@@ -1,6 +1,6 @@
 # 3APA3A 3proxy tiny proxy server
 
-(c) 2002-2025 by Vladimir '3APA3A' Dubrovin <3APA3A@security.nnov.ru>
+(c) 2002-2026 by Vladimir '3APA3A' Dubrovin <vlad@3proxy.org>
 
 ## Branches
 
