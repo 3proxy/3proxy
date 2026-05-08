@@ -244,9 +244,9 @@ int strongauth(struct clientparam * param){
 			    return 6;
 			    }
 			    case CR:
-			    if (mycrypt(param->password, (unsigned char *)pass, buf) &&
+			    if (mycrypt(param->password, (unsigned char *)pass + 1, buf) &&
 			        !strcmp(pass + 1, (char *)buf))
-				    return 0;
+				return 0;
 			    else return 7;
 #ifdef WITH_SSL
 			    case NT:

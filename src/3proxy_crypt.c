@@ -202,15 +202,13 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
     magic = (unsigned char *)"$3$";
     {
         blake2b_state S;
-        unsigned char _b2tmp[64];
-        if(blake2b_init(&S, 64) != 0 ||
+        if(blake2b_init(&S, MD5_SIZE) != 0 ||
            blake2b_update(&S, pw, strlen((char *)pw) + 1) != 0 ||
            blake2b_update(&S, sp, sl) != 0 ||
-           blake2b_final(&S, _b2tmp, 64) != 0) {
+           blake2b_final(&S, final, MD5_SIZE) != 0) {
             *passwd = 0;
             return NULL;
         }
-        memcpy(final, _b2tmp, MD5_SIZE);
     }
  }
  else {
