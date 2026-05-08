@@ -7,14 +7,7 @@ Files: *
 Copyright: 2000-2026 Vladimir Dubrovin <vlad@3proxy.org>
 License: BSD-3-clause or Apache or GPL-2+ or LGPL-2+
 
-Files: src/libs/md*.*
-Copyright: 1990,1991,1992  RSA Data Security, Inc
-License: public-domain
+Files: src/libs/blake2*.*
+Copyright: 2012, Samuel Neves <sneves@dei.uc.pt>
+License: public-domain (CC0 1.0 Universal) or  OpenSSL license or Apache 2.0
 
-Files: src/libs/regex.*
-Copyright: Henry Spencer
-License: public-domain
-
-Files: src/libs/smbdes.c
-Copyright: Andrew Tridgell 1998
-License: GPL-2+
