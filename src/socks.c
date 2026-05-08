@@ -7,6 +7,9 @@
 */
 
 #include "proxy.h"
+#ifdef __linux__
+#include <sched.h>
+#endif
 
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
@@ -189,6 +192,12 @@ void * sockschild(struct clientparam* param) {
 #else
 	 param->sinsl = param->srv->extsa;
 #endif
+#ifdef __linux__
+	 if(command == 3 && param->srv->o_nsfd >= 0) {
+		if(param->srv->saved_nsfd >= 0 && setns(param->srv->saved_nsfd, CLONE_NEWNET)) {RETURN(11);}
+		if(setns(param->srv->o_nsfd, CLONE_NEWNET)) {RETURN(11);}
+	 }
+#endif
 	 if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;
 #ifdef REUSE
@@ -242,6 +251,12 @@ fflush(stderr);
 	param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl,  &sasize);
 	if(command == 3) {
 		param->ctrlsock = param->clisock;
+#ifdef __linux__
+		if(param->srv->i_nsfd >= 0) {
+			if(param->srv->saved_nsfd >= 0 && setns(param->srv->saved_nsfd, CLONE_NEWNET)) {RETURN(11);}
+			if(setns(param->srv->i_nsfd, CLONE_NEWNET)) {RETURN(11);}
+		}
+#endif
 		param->clisock = param->srv->so._socket(param->sostate, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 		sin = param->sincl;

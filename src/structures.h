@@ -557,6 +557,9 @@ struct srvparam {
 #ifdef __linux__
 	char * inetns;
 	char * onetns;
+	int saved_nsfd;
+	int i_nsfd;
+	int o_nsfd;
 #endif
 	struct auth *authenticate;
 	struct pollfd * srvfds;

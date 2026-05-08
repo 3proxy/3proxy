@@ -702,8 +702,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 			freesrvstrings(&srv, cbc_string, cbl_string);
 			return -13;
 		}
-		close(nsfd);
+		if(srv.service == S_SOCKS) srv.i_nsfd = nsfd;
+		else close(nsfd);
 	}
+	if(srv.service == S_SOCKS) srv.saved_nsfd = saved_nsfd;
  }
 #endif
  if (!iscbc) {
@@ -805,27 +807,42 @@ int MODULEMAINFUNC (int argc, char** argv){
  if(saved_nsfd != -1) {
 	if(setns(saved_nsfd, CLONE_NEWNET)) {
 		dolog(&defparam, (unsigned char *)"failed to restore netns");
+		if(srv.service == S_SOCKS) {
+			if(srv.i_nsfd >= 0) { close(srv.i_nsfd); srv.i_nsfd = -1; }
+			srv.saved_nsfd = -1;
+		}
 		close(saved_nsfd);
 		freesrvstrings(&srv, cbc_string, cbl_string);
 		return -14;
 	}
-	close(saved_nsfd);
-	saved_nsfd = -1;
+	if(srv.service != S_SOCKS) {
+		close(saved_nsfd);
+		saved_nsfd = -1;
+	}
  }
  if(srv.onetns) {
 	int nsfd = open(srv.onetns, O_RDONLY);
 	if(nsfd == -1) {
 		dolog(&defparam, (unsigned char *)"failed to open onetns");
+		if(srv.service == S_SOCKS) {
+			if(srv.saved_nsfd >= 0) { close(srv.saved_nsfd); srv.saved_nsfd = -1; }
+			if(srv.i_nsfd >= 0) { close(srv.i_nsfd); srv.i_nsfd = -1; }
+		}
 		freesrvstrings(&srv, cbc_string, cbl_string);
 		return -14;
 	}
 	if(setns(nsfd, CLONE_NEWNET)) {
 		dolog(&defparam, (unsigned char *)"failed to setns onetns");
 		close(nsfd);
+		if(srv.service == S_SOCKS) {
+			if(srv.saved_nsfd >= 0) { close(srv.saved_nsfd); srv.saved_nsfd = -1; }
+			if(srv.i_nsfd >= 0) { close(srv.i_nsfd); srv.i_nsfd = -1; }
+		}
 		freesrvstrings(&srv, cbc_string, cbl_string);
 		return -14;
 	}
-	close(nsfd);
+	if(srv.service == S_SOCKS) srv.o_nsfd = nsfd;
+	else close(nsfd);
  }
 #endif
  if(iscbl){
@@ -1149,8 +1166,11 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->srvsock = INVALID_SOCKET;
  srv->logdumpsrv = conf.logdumpsrv;
  srv->logdumpcli = conf.logdumpcli;
- srv->cbsock = INVALID_SOCKET; 
+ srv->cbsock = INVALID_SOCKET;
  srv->needuser = 1;
+#ifdef __linux__
+ srv->saved_nsfd = srv->i_nsfd = srv->o_nsfd = -1;
+#endif
 #ifdef WITHSPLICE
  srv->usesplice = 1;
 #endif
@@ -1247,6 +1267,9 @@ void srvfree(struct srvparam * srv){
 #ifdef __linux__
  if(srv->inetns) free(srv->inetns);
  if(srv->onetns) free(srv->onetns);
+ if(srv->saved_nsfd >= 0) { close(srv->saved_nsfd); srv->saved_nsfd = -1; }
+ if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
+ if(srv->o_nsfd >= 0) { close(srv->o_nsfd); srv->o_nsfd = -1; }
 #endif
  if(srv->so.freefunc) srv->so.freefunc(srv->so.state);
 #ifndef NOUDPMAIN
