@@ -37,16 +37,8 @@ EVP_MD *md5_hash = NULL;
 int blake2b_init_3p(blake2b_state *S, size_t outlen) {
     *S = EVP_MD_CTX_new();
     if (!*S) return -1;
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    size_t sz = outlen;
-    OSSL_PARAM params[2];
-    params[0] = OSSL_PARAM_construct_size_t(OSSL_DIGEST_PARAM_SIZE, &sz);
-    params[1] = OSSL_PARAM_construct_end();
-    if (!EVP_DigestInit_ex2(*S, EVP_blake2b512(), params)) {
-#else
     (void)outlen;
     if (!EVP_DigestInit_ex(*S, EVP_blake2b512(), NULL)) {
-#endif
         EVP_MD_CTX_free(*S);
         *S = NULL;
         return -1;
@@ -60,18 +52,28 @@ int blake2b_update_3p(blake2b_state *S, const void *in, size_t inlen) {
 }
 
 int blake2b_final_3p(blake2b_state *S, void *out, size_t outlen) {
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    unsigned int len = 0;
-    int ret = EVP_DigestFinal_ex(*S, out, &len) ? 0 : -1;
-#else
     unsigned char tmp[64];
     unsigned int len = 0;
     int ret = EVP_DigestFinal_ex(*S, tmp, &len) ? 0 : -1;
+    memset(out, 0, outlen);
     if (ret == 0) memcpy(out, tmp, outlen);
-#endif
     EVP_MD_CTX_free(*S);
     *S = NULL;
     return ret;
+}
+#else
+int blake2b_final_3p(blake2b_state *S, void *out, size_t outlen) {
+    int res;
+    
+    if(outlen < 64){
+	unsigned char tmp[64];
+	res = blake2b_final(S, tmp, 64);
+	memcpy(out, tmp, outlen > 64? 64 : outlen);
+	return res;
+    }
+    res = blake2b_final(S, out, 64);
+    if(outlen > 64) memset(out + 64, 0, outlen - 64);
+    return res;
 }
 #endif /* WITH_SSL && OPENSSL >= 1.1 */
 
@@ -288,14 +290,10 @@ int main(int argc, char* argv[]){
 #else
 			"Performs BLAKE2 crypt with salt\n"
 #endif
-			"This software uses:\n"
-#ifdef WITH_SSL
-			"  OpenSSL EVP (MD4, MD5, BLAKE2b)\n"
-#else
-			"  BLAKE2 reference implementation\n"
-#endif
 			,
+#ifdef WITH_SSL
 			argv[0],
+#endif
 			argv[0]);
 			return 1;
 	}
