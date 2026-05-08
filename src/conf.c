@@ -334,7 +334,7 @@ static int h_log(int argc, unsigned char ** argv){
 			openlog((char *)conf.logtarget+1, LOG_PID, LOG_DAEMON);
 #endif
 		}
-#ifndef NOODBC
+#ifdef WITH_ODBC
 		else if(*argv[1]=='&'){
 			conf.logfunc = logsql;
 			if(notchanged) return 0;

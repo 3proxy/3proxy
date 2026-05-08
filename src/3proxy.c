@@ -71,7 +71,7 @@ void __stdcall CommandHandler( DWORD dwCommand )
 	conf.paused++;
 	Sleep(2000);
         SetStatus( SERVICE_STOPPED, 0, 0 );
-#ifndef NOODBC
+#ifdef WITH_ODBC
 	_3proxy_mutex_lock(&log_mutex);
 	close_sql();
 	_3proxy_mutex_unlock(&log_mutex);

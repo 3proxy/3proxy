@@ -1,5 +1,5 @@
 #include "proxy.h"
-#ifndef NOODBC
+#ifdef WITH_ODBC
 
 SQLHENV  henv = NULL;
 SQLHSTMT hstmt = NULL;

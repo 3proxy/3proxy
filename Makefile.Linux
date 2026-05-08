@@ -1,7 +1,7 @@
 #
 # 3 proxy Makefile for GCC/Linux/Cygwin
 #
-# remove -DNOODBC from CFLAGS and add -lodbc to LIBS to compile with ODBC
+# add -DWITH_ODBC to CFLAGS and -lodbc to LIBS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
@@ -10,7 +10,7 @@ CRYPT_PREFIX ?= $(PREFIX)
 CC ?= gcc
 
 CFLAGS ?= -O3 -flto
-CFLAGS += -fPIC -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER -D WITH_UN
+CFLAGS += -fPIC -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER -D WITH_UN
 COUT = -o 
 LN ?= ${CC}
 DCFLAGS ?= 

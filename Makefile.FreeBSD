@@ -1,7 +1,7 @@
 #
 # 3 proxy Makefile for GCC/Unix
 #
-# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
+# add -DWITH_ODBC to CFLAGS and -lodbc to LDFLAGS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
@@ -11,7 +11,7 @@ MANDIR ?= /usr/share/man
 CC ?= cc
 
 CFLAGS ?= -O3 -flto
-CFLAGS += -c -fno-strict-aliasing -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_UN
+CFLAGS += -c -fno-strict-aliasing -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_UN
 COUT = -o 
 LN ?= ${CC}
 LDFLAGS ?= -flto

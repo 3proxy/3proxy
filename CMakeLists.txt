@@ -300,9 +300,9 @@ if(WIN32 OR 3PROXY_USE_ODBC)
     endif()
 endif()
 
-# Set NOODBC if ODBC is not found
-if(NOT ODBC_FOUND)
-    add_compile_definitions(NOODBC)
+# Define WITH_ODBC when ODBC is available
+if(ODBC_FOUND)
+    add_compile_definitions(WITH_ODBC)
 endif()
 
 # Set NORADIUS if OpenSSL is not available (RADIUS requires MD5 from OpenSSL)

@@ -561,7 +561,7 @@ static void * ef_server_log(struct node * node){
 #ifndef _WIN32
 	else if(((struct srvparam *)node->value) -> logfunc == logsyslog)	return "syslog";
 #endif
-#ifndef NOODBC
+#ifdef WITH_ODBC
 	else if(((struct srvparam *)node->value) -> logfunc == logsql)	return "odbc";
 #endif
 	return NULL;

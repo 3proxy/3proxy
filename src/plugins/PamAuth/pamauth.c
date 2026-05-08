@@ -1,7 +1,7 @@
 /* plugin for 3proxy with PAM auth only for *NIX (linux,*bsd)
 Kirill Lopuchov <lopuchov@mail.ru>
 
-   Compile with: gcc -shared -o pamauth.so pamauth.c -lpam  -DNOODBC
+   Compile with: gcc -shared -o pamauth.so pamauth.c -lpam
 */
 
 #include "../../structures.h"

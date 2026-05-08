@@ -2,14 +2,13 @@
 # 3 proxy Makefile for GCC/windows
 #
 #
-# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
-# library support
+# ODBC support is enabled by default on Windows (-DWITH_ODBC, -lodbc32)
 
 
 BUILDDIR = ../bin/
 CC ?= gcc
 CFLAGS ?= -O3 -flto -fno-strict-aliasing
-CFLAGS += -c -mthreads  -DWITH_WSAPOLL
+CFLAGS += -c -mthreads  -DWITH_WSAPOLL -DWITH_ODBC
 COUT = -o 
 LN ?= $(CC)
 LDFLAGS ?= -flto -fno-strict-aliasing

@@ -112,7 +112,7 @@ void daemonize(void);
 #endif
 #endif
 
-#ifndef NOODBC
+#ifdef WITH_ODBC
 #ifndef _WIN32
 #include <sqltypes.h>
 #endif

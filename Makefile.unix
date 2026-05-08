@@ -2,7 +2,7 @@
 # 3 proxy Makefile for GCC/Unix
 #
 #
-# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
+# add -DWITH_ODBC to CFLAGS and -lodbc to LDFLAGS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
@@ -13,7 +13,7 @@ CC ?= gcc
 
 # you may need -L/usr/pkg/lib for older NetBSD versions
 CFLAGS ?= -O3 -flto
-CFLAGS += -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_UN
+CFLAGS += -fno-strict-aliasing -c -pthread -D_THREAD_SAFE -D_REENTRANT -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_UN
 COUT = -o 
 LN ?= $(CC)
 LDFLAGS ?= -flto

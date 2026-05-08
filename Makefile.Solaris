@@ -2,12 +2,12 @@
 # 3 proxy Makefile for Solaris/SunCC
 #
 #
-# remove -DNOODBC from CFLAGS and add -lodbc to LDFLAGS to compile with ODBC
+# add -DWITH_ODBC to CFLAGS and -lodbc to LDFLAGS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
 CC ?= cc
-CFLAGS = -xO3 -c -D_SOLARIS -D_THREAD_SAFE -DGETHOSTBYNAME_R -D_REENTRANT -DNOODBC  -DFD_SETSIZE=4096 -DWITH_POLL
+CFLAGS = -xO3 -c -D_SOLARIS -D_THREAD_SAFE -DGETHOSTBYNAME_R -D_REENTRANT -DFD_SETSIZE=4096 -DWITH_POLL
 COUT = -o ./
 LN = $(CC)
 LDFLAGS = -xO3

@@ -2,13 +2,14 @@
 # 3 proxy Makefile for Microsoft Visual C compiler (for both make and nmake)
 #
 #
+# ODBC support is enabled by default on Windows (/D WITH_ODBC, odbc32.lib)
 # Add /DSAFESQL to CFLAGS if you are using poorely written/tested ODBC driver
 
 BUILDDIR = ../bin/
 CC = cl
 VERSION = $(VERSION)
 BUILDDATE = $(BUILDDATE)
-CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "WITH_PCRE" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /Fp"proxy.pch" /FD /c $(BUILDDATE) $(VERSION)
+CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "WITH_PCRE" /D "WITH_ODBC" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /Fp"proxy.pch" /FD /c $(BUILDDATE) $(VERSION)
 COUT = /Fo
 LN = link
 LDFLAGS =  /nologo /subsystem:console /incremental:no
