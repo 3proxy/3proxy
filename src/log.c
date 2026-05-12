@@ -20,16 +20,8 @@ struct srvparam logsrv;
 
 
 void dolog(struct clientparam * param, const unsigned char *s){
-	static int init = 0;
-
-	if(param)param->srv->logfunc(param, s);
-	else {
-		if(!init){
-			srvinit(&logsrv, &logparam);
-			init = 1;
-		}
-		logstdout(&logparam, s);
-	}
+	if(param && param->srv)param->srv->logfunc(param, s);
+	else logstdout(NULL, s);
 }
 
 
@@ -69,6 +61,9 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 
 	long timezone;
 	unsigned delay;
+
+	if(!logparam.srv) srvinit(&logsrv, &logparam);
+	if(!param) param = &logparam;
 
 
 
@@ -317,15 +312,21 @@ int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *
 	int i;
 	char * format;
 	time_t t;
+	int has_srv;
 
 	time(&t);
-	if(!param) return 0;
-	if(param->trafcountfunc)(*param->trafcountfunc)(param);
-	format = param->srv->logformat?(char *)param->srv->logformat : DEFLOGFORMAT;
+	has_srv = param && param->srv;
+	if(has_srv){
+		if(param->trafcountfunc)(*param->trafcountfunc)(param);
+		format = param->srv->logformat?(char *)param->srv->logformat : DEFLOGFORMAT;
+	}
+	else {
+		format = DEFLOGFORMAT;
+	}
 	tm = (*format == 'G' || *format == 'g')?
 		gmtime(&t) : localtime(&t);
 	i = dobuf2(param, buf, s, doublec, tm, format + 1);
-	clearstat(param);
+	if(has_srv) clearstat(param);
 	return i;
 }
 
@@ -339,8 +340,8 @@ void logstdout(struct clientparam * param, const unsigned char *s) {
 	unsigned char tmpbuf[8192];
 
 	dobuf(param, tmpbuf, s, NULL);
-	log = param->srv->stdlog?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
-	if(!param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
+	log = (param && param->srv && param->srv->stdlog)?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
+	if(!param || !param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
 		perror("printf()");
 	};
 	if(log != conf.stdlog)fflush(log);

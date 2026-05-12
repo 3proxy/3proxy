@@ -72,6 +72,8 @@
 #define PW_ACCT_INPUT_PACKETS		47
 #define PW_ACCT_OUTPUT_PACKETS		48
 #define PW_ACCT_TERMINATE_CAUSE		49
+#define PW_ACCT_INPUT_GIGAWORDS		52
+#define PW_ACCT_OUTPUT_GIGAWORDS	53
 
 #define PW_EVENT_TIMESTAMP		55
 
@@ -375,7 +377,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	/* NAS-Port */
 	*ptr++ =  PW_NAS_PORT_ID;
 	*ptr++ = 6;
-	(*(uint32_t *)ptr)=htonl((uint32_t)ntohs((*SAPORT(&param->srv->intsa))));
+	(*(uint32_t *)ptr)=htonl(param->srv?(uint32_t)ntohs((*SAPORT(&param->srv->intsa))):0);
 	ptr+=4;
 	total_length+=6;
 
@@ -479,12 +481,28 @@ int radsend(struct clientparam * param, int auth, int stop){
 		(*(uint32_t *)ptr)=htonl((uint32_t)param->statssrv64);
 		ptr+=4;
 		total_length+=6;
+		/* Acct-Input-Gigawords */
+		if(param->statssrv64 > 0xFFFFFFFFULL){
+			*ptr++ = PW_ACCT_INPUT_GIGAWORDS;
+			*ptr++ = 6;
+			(*(uint32_t *)ptr)=htonl((uint32_t)(param->statssrv64 >> 32));
+			ptr+=4;
+			total_length+=6;
+		}
 		/* Acct-Output-Octets */
 		*ptr++ =  PW_ACCT_OUTPUT_OCTETS;
 		*ptr++ = 6;
 		(*(uint32_t *)ptr)=htonl((uint32_t)param->statscli64);
 		ptr+=4;
 		total_length+=6;
+		/* Acct-Output-Gigawords */
+		if(param->statscli64 > 0xFFFFFFFFULL){
+			*ptr++ = PW_ACCT_OUTPUT_GIGAWORDS;
+			*ptr++ = 6;
+			(*(uint32_t *)ptr)=htonl((uint32_t)(param->statscli64 >> 32));
+			ptr+=4;
+			total_length+=6;
+		}
 		/* Acct-Input-Packets */
 		*ptr++ =  PW_ACCT_INPUT_PACKETS;
 		*ptr++ = 6;

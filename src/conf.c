@@ -115,10 +115,7 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 	    return buf;
 	}
 	if(strchr((char *)name, '%')){
-		struct clientparam fakecli;
-
-		memset(&fakecli, 0, sizeof(fakecli));
-		dobuf2(&fakecli, buf, NULL, NULL, ts, (char *)name);
+		dobuf2(NULL, buf, NULL, NULL, ts, (char *)name);
 	}
 	else switch(lt){
 		case NONE:
