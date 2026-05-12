@@ -399,7 +399,7 @@ log("done read from client to pipe");
 #ifdef WITHLOG
 log("read from server to pipe\n");
 #endif
-			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(MAXSPLICE - inclientpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(MAXSPLICE - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
 log("server to pipe splice finished\n");
 #if WITHLOG > 1
