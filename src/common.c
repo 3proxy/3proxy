@@ -13,7 +13,25 @@
 
 char * copyright = COPYRIGHT;
 
-int randomizer = 1;
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+# define MYRAND_ARC4RANDOM 1
+#elif defined(__GLIBC__) && ((__GLIBC__ > 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ >= 36)))
+# define MYRAND_ARC4RANDOM 1
+#elif defined(__linux__)
+# define MYRAND_GETRANDOM 1
+# include <sys/random.h>
+#elif defined(_WIN32)
+# if defined(__WATCOMC__)
+#  define MYRAND_CRYPTGENRANDOM 1
+#  include <wincrypt.h>
+# else
+#  define MYRAND_BCRYPTGENRANDOM 1
+#  include <bcrypt.h>
+#  pragma comment(lib, "bcrypt.lib")
+# endif
+#else
+# define MYRAND_FALLBACK 1
+#endif
 
 
 
@@ -188,18 +206,31 @@ int numservers=0;
 
 char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
-int myrand(void * entropy, int len){
-	int i;
-	uint16_t init;
-
-	init = randomizer;
-	for(i=0; i < len/2; i++){
-		init ^= ((uint16_t *)entropy)[i];
+uint32_t myrand(void){
+#if defined(MYRAND_ARC4RANDOM)
+	return arc4random();
+#elif defined(MYRAND_GETRANDOM)
+	uint32_t r = 0;
+	ssize_t n;
+	do {
+		n = getrandom(&r, sizeof(r), 0);
+	} while(n < 0 && errno == EINTR);
+	return r;
+#elif defined(MYRAND_BCRYPTGENRANDOM)
+	uint32_t r = 0;
+	BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	return r;
+#elif defined(MYRAND_CRYPTGENRANDOM)
+	uint32_t r = 0;
+	HCRYPTPROV prov;
+	if(CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT|CRYPT_SILENT)){
+		CryptGenRandom(prov, sizeof(r), (BYTE *)&r);
+		CryptReleaseContext(prov, 0);
 	}
-	srand(rand()+init);
-	randomizer = rand();
-	return rand();
-	
+	return r;
+#else
+	return ((uint32_t)rand() << 16) ^ (uint32_t)rand();
+#endif
 }
 
 #ifndef WITH_POLL

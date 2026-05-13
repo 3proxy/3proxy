@@ -7,6 +7,18 @@
 
 #include "proxy.h"
 
+/*
+ * Read one FTP server response, skipping continuation lines (lines whose
+ * 4th character is '-' per RFC 959). Returns the line length on success,
+ * 0/<0 on socket error/timeout. The final line's text is left in buf.
+ */
+static int ftpreadresponse(struct clientparam *param, char *buf, int buflen) {
+	int i;
+	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, buflen - 1, '\n',
+			conf.timeouts[STRING_L])) > 0
+	      && (i < 3 || !isnumber(*buf) || buf[3] == '-')) {}
+	return i;
+}
 
 int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 	char tbuf[256];
@@ -20,8 +32,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 
 	if(innbuf)*innbuf = 0;
 	if(len < 140) return 707;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, buf, len);
 	if(i < 3) return 706;
 	buf[i] = 0;
 	if(atoi(buf)/100 != 2) {
@@ -34,8 +45,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, buf, len);
 	if(i < 3) return 704;
 	buf[i] = 0;
 	res = atoi(buf)/100;
@@ -99,8 +109,7 @@ int ftpres(struct clientparam *param, unsigned char * buf, int l){
 	int i;
 
 	if (l < 16) return 755;
-	while((i = sockgetlinebuf(param, SERVER, buf, l - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, (char *)buf, l);
 	buf[i] = 0;
 	if(i < 3) return 751;
 	if(buf[0] != '2' && buf[0] != '1') return 750;
@@ -115,8 +124,7 @@ int ftpsyst(struct clientparam *param, unsigned char *buf, unsigned len){
 	}
 	param->statscli64 += 6;
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, (char *)buf, len);
 	if(i < 7) return 722;
 	buf[3] = 0;
 	if(atoi((char *)buf)/100 != 2) return 723;
@@ -134,8 +142,7 @@ int ftppwd(struct clientparam *param, unsigned char *buf, unsigned len){
 	}
 	param->statscli64 += 5;
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, (char *)buf, len);
 	if(i < 7) return 732;
 	buf[3] = 0;
 	if(atoi((char *)buf)/100 != 2) return 733;
@@ -159,8 +166,7 @@ int ftptype(struct clientparam *param, unsigned char* f_type){
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, buf, sizeof(buf));
 	if(i < 3) return 742;
 	if(buf[0] != '2') return 740;
 	return 0;
@@ -181,8 +187,7 @@ SOCKET ftpdata(struct clientparam *param){
 	}
 	param->statscli64 += 6;
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, buf, sizeof(buf));
 	if(i < 7) return INVALID_SOCKET;
 	if(buf[0] != '2') return INVALID_SOCKET;
 	buf[i-2] = 0;
@@ -195,7 +200,7 @@ SOCKET ftpdata(struct clientparam *param){
 	rem = param->remsock;
 	param->remsock = INVALID_SOCKET;
 	param->req = param->sinsr;
-	*SAPORT(&param->req) = *SAPORT(&param->sinsr) = htons((uint16_t)((b5<<8)^b6));
+	*SAPORT(&param->req) = *SAPORT(&param->sinsr) = htons((uint16_t)(((b5 & 0xff)<<8) | (b6 & 0xff)));
 	*SAPORT(&param->sinsl) = 0;
 	i = param->operation;
 	param->operation = FTP_DATA;
@@ -233,8 +238,7 @@ SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned c
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
-	}
+	i = ftpreadresponse(param, buf, sizeof(buf));
 	if(i < 3) {
 		param->srv->so._closesocket(param->sostate, s);
 		return INVALID_SOCKET;

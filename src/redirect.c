@@ -274,14 +274,14 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		return 100;
 	}
 
-	r2 = (myrand(param, sizeof(struct clientparam))%1000);
+	r2 = (myrand()%1000);
 
 	for(cur = acentry->chains; cur; cur=cur->next){
 		if(((weight = weight - cur->weight) > r2)|| done) {
 			if(weight <= 0) {
 				weight += 1000;
 				done = 0;
-				r2 = (myrand(param, sizeof(struct clientparam))%1000);
+				r2 = (myrand()%1000);
 			}
 			continue;
 		}
@@ -290,7 +290,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		if(weight <= 0) {
 			weight += 1000;
 			done = 0;
-			r2 = (myrand(param, sizeof(struct clientparam))%1000);
+			r2 = (myrand()%1000);
 		}
 		if(!connected){
 			if(cur->type == R_EXTIP){
@@ -302,12 +302,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					int i;
 
 					for(i = 0; i < 8; i++){
-						if(i==4)myrand(&param->sincr, sizeof(param->sincr));
-						else if(i==6) myrand(&param->req, sizeof(param->req));
-
-						if(i*16 >= cur->cidr) ((uint16_t *)SAADDR(&param->sinsl))[i] |= rand();
+						if(i*16 >= cur->cidr) ((uint16_t *)SAADDR(&param->sinsl))[i] |= (uint16_t)myrand();
 						else if ((i+1)*16 >  cur->cidr){
-							c = rand();
+							c = (uint16_t)myrand();
 							c >>= (cur->cidr - (i*16));
 							c |= ntohs(((uint16_t *)SAADDR(&param->sinsl))[i]);
 							((uint16_t *)SAADDR(&param->sinsl))[i] = htons(c);

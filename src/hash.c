@@ -85,7 +85,7 @@ int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, u
     ht->poolsize = poolsize;
     ht->tablesize = tablesize;
     ht->growlimit = growlimit;
-    ht->entropy = myrand(ht, sizeof(struct hashtable));
+    ht->entropy = myrand();
     memset(ht->ihashtable, 0, ht->tablesize * sizeof(uint32_t));
     memset(ht->hashvalues, 0, ht->poolsize * (sizeof(struct hashentry) + ht->recsize - 4));
 

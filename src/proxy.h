@@ -317,7 +317,7 @@ int readconfig(FILE * fp);
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
 
 
-int myrand(void * entropy, int len);
+uint32_t myrand(void);
 uint32_t murmurhash3(const void *key, int len, uint32_t seed);
 
 extern char *copyright;

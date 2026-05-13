@@ -108,6 +108,14 @@ int getrotate(char c){
 
 unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
 	struct tm *ts;
+	static const char * const rot_fmt[] = {
+		[NONE]     = "%s",
+		[ANNUALLY] = "%s.%04d",
+		[MONTHLY]  = "%s.%04d.%02d",
+		[DAILY]    = "%s.%04d.%02d.%02d",
+		[HOURLY]   = "%s.%04d.%02d.%02d-%02d",
+		[MINUTELY] = "%s.%04d.%02d.%02d-%02d.%02d",
+	};
 
 	ts = localtime(&t);
 	if(strlen((char *)name) >= 4096){
@@ -117,32 +125,13 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 	if(strchr((char *)name, '%')){
 		dobuf2(NULL, buf, NULL, NULL, ts, (char *)name);
 	}
-	else switch(lt){
-		case NONE:
-			sprintf((char *)buf, "%s", name);
-			break;
-		case ANNUALLY:
-			sprintf((char *)buf, "%s.%04d", name, ts->tm_year+1900);
-			break;
-		case MONTHLY:
-			sprintf((char *)buf, "%s.%04d.%02d", name, ts->tm_year+1900, ts->tm_mon+1);
-			break;
-		case WEEKLY:
-			t = t - (ts->tm_wday * (60*60*24));
-			ts = localtime(&t);
-			sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
-			break;
-		case DAILY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
-			break;
-		case HOURLY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d-%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour);
-			break;
-		case MINUTELY:
-			sprintf((char *)buf, "%s.%04d.%02d.%02d-%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour, ts->tm_min);
-			break;
-		default:
-			break;
+	else if(lt == WEEKLY){
+		t = t - (ts->tm_wday * (60*60*24));
+		ts = localtime(&t);
+		sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
+	}
+	else if((unsigned)lt < sizeof(rot_fmt)/sizeof(rot_fmt[0]) && rot_fmt[lt]){
+		sprintf((char *)buf, rot_fmt[lt], name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour, ts->tm_min);
 	}
 	if(ext){
 		strcat((char *)buf, ".");

@@ -201,11 +201,13 @@ int udpsockmap(struct clientparam *param, int timeo)
 				sendlen = len + hdrsize;
 			} else if (nhops >= 2) {
 				int off = 0, k;
+				int bad = 0;
 				for (k = 1; k < nhops; k++) {
 					int next = socks5_udp_skip_hdr(param->srvbuf + off, len - off);
-					if (next < 0) break;
+					if (next < 0) { bad = 1; break; }
 					off += next;
 				}
+				if (bad) continue;
 				sendoff = off;
 				sendlen = len - off;
 			}

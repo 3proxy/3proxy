@@ -281,7 +281,7 @@ void random_vector(uint8_t *vector, struct clientparam *param)
 
 		ntry = (int)basetime;
 		for (i = 0; i < (int)sizeof(random_vector_pool); i++) {
-			random_vector_pool[i] += myrand((void *) &param->msec_start, sizeof(param->msec_start)) & 0xff;
+			random_vector_pool[i] += myrand() & 0xff;
 		}
 		did_random = 1;
 

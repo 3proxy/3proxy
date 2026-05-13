@@ -135,6 +135,27 @@ char * proxy_stringtable[] = {
 #define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
 
+#define PST_COUNT (sizeof(proxy_stringtable)/sizeof(proxy_stringtable[0]) - 1)
+static int proxy_stringtable_len[PST_COUNT];
+
+static int pst_len(int idx){
+	int len = proxy_stringtable_len[idx];
+	if(!len) {
+		len = (int)strlen(proxy_stringtable[idx]);
+		proxy_stringtable_len[idx] = len;
+	}
+	return len;
+}
+
+static int send_st(struct clientparam *param, int idx){
+	return socksend(param, param->clisock, (unsigned char *)proxy_stringtable[idx], pst_len(idx), conf.timeouts[STRING_S]);
+}
+
+static void freeptr(void *p){
+	void **pp = (void **)p;
+	if(*pp) { free(*pp); *pp = NULL; }
+}
+
 static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
  char *sb;
  char *se;
@@ -347,16 +368,28 @@ for(;;){
 	if(!isconnect){
 		if(se==sg)*se-- = ' ';
 		*se = '/';
-		memmove(ss, se, i - (se - sb) + 1);
+		memmove(ss, se, i - (se - buf) + 1);
 	}
  }
  reqlen = i = (int)strlen((char *)buf);
- if(!strncasecmp((char *)buf, "CONNECT", 7))param->operation = HTTP_CONNECT;
- else if(!strncasecmp((char *)buf, "GET", 3))param->operation = (ftp)?FTP_GET:HTTP_GET;
- else if(!strncasecmp((char *)buf, "PUT", 3))param->operation = (ftp)?FTP_PUT:HTTP_PUT;
- else if(!strncasecmp((char *)buf, "POST", 4)||!strncasecmp((char *)buf, "BITS_POST", 9))param->operation = HTTP_POST;
- else if(!strncasecmp((char *)buf, "HEAD", 4))param->operation = HTTP_HEAD;
- else param->operation = HTTP_OTHER;
+ {
+	static const struct { const char *m; int mlen; int op_http, op_ftp; } methods[] = {
+		{"CONNECT",   7, HTTP_CONNECT, HTTP_CONNECT},
+		{"GET",       3, HTTP_GET,     FTP_GET},
+		{"PUT",       3, HTTP_PUT,     FTP_PUT},
+		{"POST",      4, HTTP_POST,    HTTP_POST},
+		{"BITS_POST", 9, HTTP_POST,    HTTP_POST},
+		{"HEAD",      4, HTTP_HEAD,    HTTP_HEAD},
+	};
+	int k;
+	param->operation = HTTP_OTHER;
+	for(k = 0; k < (int)(sizeof(methods)/sizeof(methods[0])); k++){
+		if(!strncasecmp((char *)buf, methods[k].m, methods[k].mlen)){
+			param->operation = ftp ? methods[k].op_ftp : methods[k].op_http;
+			break;
+		}
+	}
+ }
  do {
 	buf[inbuf+i]=0;
 /*printf("Got: %s\n", buf+inbuf);*/
@@ -403,7 +436,7 @@ for(;;){
 	}
 	if( i > 11 && !strncasecmp((char *)(buf+inbuf),  "Expect: 100", 11)){
 		keepalive = 1;
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[17], (int)strlen(proxy_stringtable[17]), conf.timeouts[STRING_S]);
+		send_st(param, 17);
 		continue;
 	}
 	if(param->transparent && i > 6 && !strncasecmp((char *)buf + inbuf, "Host:", 5)){
@@ -516,7 +549,7 @@ for(;;){
 #endif
 
  if(isconnect && param->redirtype != R_HTTP) {
-	socksend(param, param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
+	send_st(param, 8);
  }
 
 
@@ -593,7 +626,7 @@ for(;;){
 		res = ftptype(param, (unsigned char *)"I");
 		if(res)RETURN(res);
 		ftpbase[--i] = 0;
-		ftps = ftpcommand(param, param->operation == FTP_PUT? (unsigned char *)"PUT" : (unsigned char *)"RETR", ftpbase);
+		ftps = ftpcommand(param, param->operation == FTP_PUT? (unsigned char *)"STOR" : (unsigned char *)"RETR", ftpbase);
 	}
 	else {
 		if(inftpbuf){
@@ -607,7 +640,7 @@ for(;;){
 	}
 	if(ftps == INVALID_SOCKET){RETURN(780);}
 	if(!mode){
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[8], (int)strlen(proxy_stringtable[8]), conf.timeouts[STRING_S]);
+		send_st(param, 8);
 		s = param->remsock;
 		param->remsock = ftps;
 		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
@@ -753,7 +786,7 @@ for(;;){
 			if((bufsize - inbuf) < LINESIZE){
 				if (bufsize > 20000){
 					if(!headsent++){
-						socksend(param, param->clisock, (unsigned char *)proxy_stringtable[9], (int)strlen(proxy_stringtable[9]), conf.timeouts[STRING_S]);
+						send_st(param, 9);
 					}
 					if((unsigned)socksend(param, param->clisock, buf, inbuf, conf.timeouts[STRING_S]) != inbuf){
 						RETURN(781);
@@ -797,16 +830,10 @@ for(;;){
 
  if(isconnect && param->redirtype != R_HTTP) {
 	if(param->redirectfunc) {
-		if(req)free(req);
-		if(buf)free(buf);
+		freeptr(&req); freeptr(&buf); freeptr(&ftpbase);
 		return (*param->redirectfunc)(param);
 	}
 	param->res =  mapsocket(param, conf.timeouts[CONNECTION_L]);
-	if(param->redirectfunc) {
-		if(req)free(req);
-		if(buf)free(buf);
-		return (*param->redirectfunc)(param);
-	}
 	RETURN(param->res);
  }
 
@@ -828,43 +855,45 @@ for(;;){
 	 param->nwrites++;
  }
  inbuf = 0;
+ {
+ int hlen = (int)strlen((char *)buf);
 #ifndef ANONYMOUS
  if(!anonymous){
-		int len = strlen((char *)buf);
-		len += sprintf((char*)buf + len, "Forwarded: for=");
-		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "\"[");
-		len += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + len, 128);
-		if(*SAFAMILY(&param->sincr) == AF_INET6) len += sprintf((char*)buf + len, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
-		else len += sprintf((char*)buf + len, ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
-		gethostname((char *)(buf + len), 256);
-		sprintf((char*)buf+strlen((char *)buf), ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
+		hlen += sprintf((char*)buf + hlen, "Forwarded: for=");
+		if(*SAFAMILY(&param->sincr) == AF_INET6) hlen += sprintf((char*)buf + hlen, "\"[");
+		hlen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + hlen, 128);
+		if(*SAFAMILY(&param->sincr) == AF_INET6) hlen += sprintf((char*)buf + hlen, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
+		else hlen += sprintf((char*)buf + hlen, ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
+		gethostname((char *)(buf + hlen), 256);
+		hlen += (int)strlen((char *)(buf + hlen));
+		hlen += sprintf((char*)buf + hlen, ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
  }
  else if(anonymous>1){
-		sprintf((char*)buf+strlen((char *)buf), "Via: 1.1 ");
-		gethostname((char *)(buf+strlen((char *)buf)), 256);
-		sprintf((char*)buf+strlen((char *)buf), ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
-		if(anonymous != 2)myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + strlen((char *)buf), 128);
+		hlen += sprintf((char*)buf + hlen, "Via: 1.1 ");
+		gethostname((char *)(buf + hlen), 256);
+		hlen += (int)strlen((char *)(buf + hlen));
+		hlen += sprintf((char*)buf + hlen, ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf.stringtable?conf.stringtable[2]:(unsigned char *)"", conf.stringtable?conf.stringtable[3]:(unsigned char *)"");
+		if(anonymous != 2)hlen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + hlen, 128);
 		else {
-			unsigned long tmp;
-
-			tmp = ((unsigned long)myrand(param, sizeof(struct clientparam))<<16)^(unsigned long)rand();
-			myinet_ntop(AF_INET, &tmp, (char *)buf + strlen((char *)buf), 64);
+			uint32_t tmp = myrand();
+			hlen += myinet_ntop(AF_INET, &tmp, (char *)buf + hlen, 64);
 		}
-		sprintf((char*)buf+strlen((char *)buf), "\r\n");
+		hlen += sprintf((char*)buf + hlen, "\r\n");
  }
 #endif
  if(keepalive <= 1) {
-	sprintf((char*)buf+strlen((char *)buf), "Connection: %s\r\n", keepalive? "keep-alive":"close");
+	hlen += sprintf((char*)buf + hlen, "Connection: %s\r\n", keepalive? "keep-alive":"close");
  }
  if(param->extusername){
-	sprintf((char*)buf + strlen((char *)buf), "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
+	hlen += sprintf((char*)buf + hlen, "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
 	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
-	en64(username, buf+strlen((char *)buf), (int)strlen((char *)username));
-	sprintf((char*)buf + strlen((char *)buf), "\r\n");
+	hlen = (int)(en64(username, buf + hlen, (int)strlen((char *)username)) - buf);
+	hlen += sprintf((char*)buf + hlen, "\r\n");
  }
- sprintf((char*)buf+strlen((char *)buf), "\r\n");
- if ((res = socksend(param, param->remsock, buf+reqlen, (int)strlen((char *)buf+reqlen), conf.timeouts[STRING_S])) != (int)strlen((char *)buf+reqlen)) {
+ hlen += sprintf((char*)buf + hlen, "\r\n");
+ if ((res = socksend(param, param->remsock, buf+reqlen, hlen - reqlen, conf.timeouts[STRING_S])) != hlen - reqlen) {
 	RETURN(518);
+ }
  }
 #ifdef TCP_CORK
  {
@@ -1004,16 +1033,17 @@ for(;;){
 #else
 #endif
  if(!isconnect || param->operation){
-	 if(authenticate && !param->transparent) sprintf((char*)buf+strlen((char *)buf), 
+	 int hlen = (int)strlen((char *)buf);
+	 if(authenticate && !param->transparent) hlen += sprintf((char*)buf + hlen,
 		"Proxy-support: Session-Based-Authentication\r\n"
 		"Connection: Proxy-support\r\n"
 	 );
 	 if(!param->srv->transparent && res>=200){
-		if(ckeepalive <= 1) sprintf((char*)buf+strlen((char *)buf), "Connection: %s\r\n", 
+		if(ckeepalive <= 1) hlen += sprintf((char*)buf + hlen, "Connection: %s\r\n",
 		(hascontent && ckeepalive)?"keep-alive":"close");
 	 }
-	 sprintf((char*)buf + strlen((char *)buf), "\r\n");
-	 if((socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S])) != (int)strlen((char *)buf)) {
+	 hlen += sprintf((char*)buf + hlen, "\r\n");
+	 if(socksend(param, param->clisock, buf, hlen, conf.timeouts[STRING_S]) != hlen) {
 		RETURN(521);
 	 }
  }
@@ -1084,51 +1114,32 @@ REQUESTEND:
 CLEANRET:
 
  if(param->res != 555 && param->res && param->clisock != INVALID_SOCKET && (param->res < 90 || param->res >=800 || param->res == 100 ||(param->res > 500 && param->res< 800))) {
-	if((param->res>=509 && param->res < 517) || param->res > 900) {
+	int stidx = -1;
+	int r = param->res;
+
+	if((r >= 509 && r < 517) || r > 900) {
 		if(buf) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2);
 	}
-	if(param->res == 10) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[2], (int)strlen(proxy_stringtable[2]), conf.timeouts[STRING_S]);
+	if(r == 10) stidx = 2;
+	else if(r == 700 || r == 701) stidx = 16;
+	else if(r == 100 || (r > 10 && r < 20) || (r > 701 && r <= 705)) stidx = 1;
+	else if(r >= 20 && r < 30) stidx = 6;
+	else if(r >= 30 && r < 80) stidx = 5;
+	else if(r == 1 || (!param->srv->needuser && r < 10)) stidx = 11;
+	else if(r < 10) stidx = 7;
+	else if(r == 999) stidx = 4;
+	else if(r == 519) stidx = 3;
+	else if(r == 517) stidx = 15;
+	else if(r == 780) stidx = 10;
+	else if(r >= 511 && r <= 516) stidx = 0;
+
+	if(stidx >= 0) {
+		send_st(param, stidx);
+		if(r == 700 || r == 701) socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
 	}
-	else if (param->res == 700 || param->res == 701){
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[16], (int)strlen(proxy_stringtable[16]), conf.timeouts[STRING_S]);
-		socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
-	}
-	else if(param->res == 100 || (param->res >10 && param->res < 20) || (param->res >701 && param->res <= 705)) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[1], (int)strlen(proxy_stringtable[1]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res >=20 && param->res < 30) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[6], (int)strlen(proxy_stringtable[6]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res >=30 && param->res < 80) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[5], (int)strlen(proxy_stringtable[5]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res == 1 || (!param->srv->needuser && param->res < 10)) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[11], (int)strlen(proxy_stringtable[11]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res < 10) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[7], (int)strlen(proxy_stringtable[7]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res == 999) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[4], (int)strlen(proxy_stringtable[4]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res == 519) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[3], (int)strlen(proxy_stringtable[3]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res == 517) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[15], (int)strlen(proxy_stringtable[15]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res == 780) {
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[10], (int)strlen(proxy_stringtable[10]), conf.timeouts[STRING_S]);
-	}
-	else if(param->res >= 511 && param->res<=516){
-		socksend(param, param->clisock, (unsigned char *)proxy_stringtable[0], (int)strlen(proxy_stringtable[0]), conf.timeouts[STRING_S]);
-	}
- } 
+ }
  logurl(param, (char *)buf, (char *)req, ftp);
- if(req)free(req);
- if(buf)free(buf);
- if(ftpbase)free(ftpbase);
+ freeptr(&req); freeptr(&buf); freeptr(&ftpbase);
  freeparam(param);
  return (NULL);
 }

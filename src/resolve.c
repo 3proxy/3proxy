@@ -70,7 +70,7 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	}
 	len = (int)strlen((char *)name);
 	
-	serial = myrand(name,len);
+	serial = myrand();
 	*(unsigned short*)buf = serial; /* query id */
 	buf[2] = 1; 			/* recursive */
 	buf[3] = 0;

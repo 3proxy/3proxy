@@ -9,6 +9,12 @@
 #include "proxy.h"
 #ifdef __linux__
 #include <sched.h>
+
+static int switch_ns(struct srvparam *srv, int target_fd) {
+	if(target_fd < 0) return 0;
+	if(srv->saved_nsfd >= 0 && setns(srv->saved_nsfd, CLONE_NEWNET)) return -1;
+	return setns(target_fd, CLONE_NEWNET);
+}
 #endif
 
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
@@ -75,14 +81,14 @@ void * sockschild(struct clientparam* param) {
 			RETURN(412);
 		}
 		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
-		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(441);};
+		if (i && (res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != (int)i) {RETURN(441);}
 		buf[i] = 0;
 		if(!param->username) {
 			param->username = (unsigned char *)strdup((char *)buf);
 			if(!param->username){RETURN(21);}
 		}
 		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(445);}
-		if (i && (unsigned)(res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != i){RETURN(441);};
+		if (i && (res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != (int)i) {RETURN(441);}
 		buf[i] = 0;
 		if(!param->password) {
 			param->password = (unsigned char *)strdup((char *)buf);
@@ -198,33 +204,28 @@ void * sockschild(struct clientparam* param) {
  	case 2:
 	case 3:
 
-#ifndef NOIPV6	 
+#ifndef NOIPV6
 	 param->sinsl = *SAFAMILY(&param->req)==AF_INET6? param->srv->extsa6 : param->srv->extsa;
 #else
 	 param->sinsl = param->srv->extsa;
 #endif
-#ifdef __linux__
-	 if(command == 3 && param->srv->o_nsfd >= 0) {
-		if(param->srv->saved_nsfd >= 0 && setns(param->srv->saved_nsfd, CLONE_NEWNET)) {RETURN(11);}
-		if(setns(param->srv->o_nsfd, CLONE_NEWNET)) {RETURN(11);}
-	 }
-#endif
-	 if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), command == 2? SOCK_STREAM:SOCK_DGRAM, command == 2?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
 	 param->operation = command == 2?BIND:UDPASSOC;
+	 if(command == 2){
+		if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN (11);}
 #ifdef REUSE
-	if (command == 2){
-		int opt;
-
+		{
+			int opt;
 #ifdef SO_REUSEADDR
-		opt = 1;
-		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
+			opt = 1;
+			param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (unsigned char *)&opt, sizeof(int));
 #endif
 #ifdef SO_REUSEPORT
-		opt = 1;
-		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
+			opt = 1;
+			param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
 #endif
-	}
+		}
 #endif
+	 }
 	 break;
 
 	default:
@@ -249,6 +250,13 @@ void * sockschild(struct clientparam* param) {
  }
 #endif
 
+ if(command == 3) {
+#ifdef __linux__
+	if(switch_ns(param->srv, param->srv->o_nsfd)) {RETURN(11);}
+#endif
+	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+ }
+
  if(command > 1) {
 	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		*SAPORT(&param->sinsl) = 0;
@@ -263,10 +271,7 @@ fflush(stderr);
 	if(command == 3) {
 		param->ctrlsock = param->clisock;
 #ifdef __linux__
-		if(param->srv->i_nsfd >= 0) {
-			if(param->srv->saved_nsfd >= 0 && setns(param->srv->saved_nsfd, CLONE_NEWNET)) {RETURN(11);}
-			if(setns(param->srv->i_nsfd, CLONE_NEWNET)) {RETURN(11);}
-		}
+		if(switch_ns(param->srv, param->srv->i_nsfd)) {RETURN(11);}
 #endif
 		param->clisock = param->srv->so._socket(param->sostate, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
