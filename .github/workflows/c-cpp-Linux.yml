@@ -7,6 +7,7 @@ on:
   pull_request:
     branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.Linux', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+  workflow_dispatch:
 
 jobs:
   ci:
