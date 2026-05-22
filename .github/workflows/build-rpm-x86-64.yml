@@ -1,9 +1,7 @@
 name: RPM/DEB build x86-64
 
 on:
-  push:
-    branches: [ "master", "test-ci" ]
-    paths: [ 'RELEASE', '.github/workflows/build-rpm-x86-64.yml' ]
+  workflow_dispatch:
 
 jobs:
   ci:

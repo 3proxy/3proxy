@@ -1,9 +1,7 @@
 name: RPM/DEB build aarch64
 
 on:
-  push:
-    branches: [ "master", "test-ci" ]
-    paths: [ 'RELEASE', '.github/workflows/build-rpm-arm64.yml' ]
+  workflow_dispatch:
 
 jobs:
   ci:

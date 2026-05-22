@@ -1,9 +1,7 @@
 name: Build Win32 3proxy with MSVC
 
 on:
-  push:
-    branches: [ "master" ]
-    paths: [ 'RELEASE', '.github/workflows/build-win32.yml' ]
+  workflow_dispatch:
 
 jobs:
   ci:

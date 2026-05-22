@@ -1,9 +1,7 @@
 name: RPM/DEB build armhf
 
 on:
-  push:
-    branches: [ "master", "test-ci" ]
-    paths: [ 'RELEASE', '.github/workflows/build-rpm-armhf.yml' ]
+  workflow_dispatch:
 
 jobs:
   ci:
