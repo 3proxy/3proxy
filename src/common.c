@@ -255,7 +255,9 @@ int
 	FD_ZERO(&writefd);
 	FD_ZERO(&oobfd);
 	for(i=0; i<nfds; i++){
+#ifndef _WIN32
 		if(fds[i].fd >= FD_SETSIZE) continue;
+#endif
 		if((fds[i].events&POLLIN))FD_SET(fds[i].fd, &readfd);
 		if((fds[i].events&POLLOUT))FD_SET(fds[i].fd, &writefd);
 		if((fds[i].events&POLLPRI))FD_SET(fds[i].fd, &oobfd);
@@ -264,7 +266,9 @@ int
 	}
 	if((num = select(((int)(maxfd))+1, &readfd, &writefd, &oobfd, &tv)) < 1) return num;
 	for(i=0; i<nfds; i++){
+#ifndef _WIN32
 		if(fds[i].fd >= FD_SETSIZE) continue;
+#endif
 		if(FD_ISSET(fds[i].fd, &readfd)) fds[i].revents |= POLLIN;
 		if(FD_ISSET(fds[i].fd, &writefd)) fds[i].revents |= POLLOUT;
 		if(FD_ISSET(fds[i].fd, &oobfd)) fds[i].revents |= POLLPRI;
