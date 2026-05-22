@@ -256,6 +256,7 @@ log("send to client from buf");
 		}
 		if(!inserverbuf){
 			param->srvinbuf = param->srvoffset = 0;
+			if(fromserver) TOSERVERBUF = 1;
 			continue;
 		}
 		sasize = SASIZE(&param->sincr);
@@ -303,6 +304,7 @@ log(logbuf);
 				param->statscli64 += res;
 				inclientpipe -= res;
 				fromclient -= res;
+				if(fromclient) TOCLIENTPIPE = 1;
 				if(param->bandlimfunc) {
 					int sl1;
 					sl1 = (*param->bandlimfunc)(param, 0, res);
