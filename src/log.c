@@ -62,22 +62,25 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 	long timezone;
 	unsigned delay;
 
+#ifdef _WIN32
+	struct timeb tb;
+#else
+	struct timeval tv;
+	struct timezone tz;
+#endif
+
 	if(!logparam.srv) srvinit(&logsrv, &logparam);
 	if(!param) param = &logparam;
 
 
 
 #ifdef _WIN32
-	struct timeb tb;
-
 	ftime(&tb);
 	sec = (time_t)tb.time;
 	msec = (unsigned)tb.millitm;
 	timezone = tm->tm_isdst*60 - tb.timezone;
 
 #else
-	struct timeval tv;
-	struct timezone tz;
 	gettimeofday(&tv, &tz);
 
 	sec = (time_t)tv.tv_sec;
