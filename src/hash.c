@@ -9,6 +9,7 @@ struct hashentry {
 
 
 void destroyhashtable(struct hashtable *ht){
+    if(!ht->ihashtable) return;
     _3proxy_mutex_lock(&ht->hash_mutex);
     if(ht->ihashtable){
 	free(ht->ihashtable);
