@@ -543,9 +543,9 @@ static int h_users(int argc, unsigned char **argv){
 	l = strlen(pw[1]);
 	if(l > 255) l = 255;
 	if((unsigned)l >= pwl_table.recsize) {
-	    if(*pass != CL) continue;
 	    blake2b_state S;
 	    unsigned hashsz;
+	    if(*pass != CL) continue;
 	    hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
 	    blake2b_init(&S, hashsz);
 	    blake2b_update(&S, pw[1], l + 1);

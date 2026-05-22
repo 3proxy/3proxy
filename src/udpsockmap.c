@@ -20,6 +20,7 @@ int socks5_udp_build_hdr(unsigned char *buf, PROXYSOCKADDRTYPE *addr)
 static int socks5_udp_skip_hdr(unsigned char *buf, int len)
 {
 	int addr_len;
+	int off;
 	if (len < 4) return -1;
 	switch (buf[3]) {
 	case 1: addr_len = 4;  break;
@@ -30,7 +31,7 @@ static int socks5_udp_skip_hdr(unsigned char *buf, int len)
 		break;
 	default: return -1;
 	}
-	int off = 4 + addr_len + 2;
+	off = 4 + addr_len + 2;
 	return (off <= len) ? off : -1;
 }
 
