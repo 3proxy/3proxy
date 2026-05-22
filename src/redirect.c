@@ -134,12 +134,13 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 		 int atyp;
 		 int skip_port = 0;
 			buf[0] = 5;
-			buf[1] = user? 1 : 0;
-			buf[2] = 2;
-			if(socksend(param, param->remsock, buf, user?3:2, conf.timeouts[CHAIN_TO]) < 2){
+			buf[1] = user? 2 : 1;
+			buf[2] = 0;
+			buf[3] = 2;
+			if(socksend(param, param->remsock, buf, user?4:3, conf.timeouts[CHAIN_TO]) < 2){
 				return 51;
 			}
-			param->statssrv64+=3;
+			param->statssrv64+=user?4:3;
 			param->nwrites++;
 			if(sockgetlinebuf(param, SERVER, buf, 2, EOF, conf.timeouts[CHAIN_TO]) != 2){
 				return 52;
