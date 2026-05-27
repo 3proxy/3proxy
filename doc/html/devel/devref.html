@@ -1,0 +1,259 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title>3proxy developer reference</title>
+  <style type="text/css">
+    span.s1 {text-decoration: underline}
+    ol {list-style-type: none}
+    ol.level1 {counter-reset: h1}
+    ol.level1 > li::before {content: counter(h1) ". "; counter-increment: h1; font-weight: bold}
+    ol.level2 {counter-reset: h2}
+    ol.level2 > li::before {content: counter(h1) "." counter(h2) " "; counter-increment: h2}
+    ol.level3 {counter-reset: h3}
+    ol.level3 > li::before {content: counter(h1) "." counter(h2) "." counter(h3) " "; counter-increment: h3}
+    pre {margin: 0.5em 0; padding: 0.5em; background: #f5f5f5; border: 1px solid #ddd}
+    code {font-family: monospace}
+  </style>
+</head>
+<body>
+<h2>3proxy developer reference</h2>
+
+<ol class="level1">
+  <li><b>Understanding Internal 3proxy structure</b>
+    <p>3proxy is implemented as multithread application. Server model is implemented as "one connection – one thread". It means, for every client connection new thread is created. This model is effective enough under Windows, because it allows it avoid thread creation on asynchronous operations, yet under most POSIX systems this model can not be considered as most efficient. It's planned for (very far in future) release to implement more efficient model, where single thread can serve few clients.</p>
+    <ol class="level2">
+      <li>main thread
+        <p>3proxy begins with main thread. This thread parses configuration file and starts main loop. During configuration file parsing <code>struct extaparam conf;</code> structure is filled and service threads are started.</p>
+        <p>Main loop cycle takes approximately 1 second and does these tasks:</p>
+        <ul>
+          <li>re-reads configuration file, if necessary</li>
+          <li>performs scheduled tasks</li>
+          <li>monitors files ('monitor' command), approx. once in a minute</li>
+          <li>rotates main logfile</li>
+          <li>dumps counters to file, approx. once in a minute</li>
+          <li>performs termination, if required</li>
+        </ul>
+        <p>It's guaranteed every configuration and schedule command is executed from the same thread.</p>
+        <p>Main thread is implemented in <b>3proxy.c</b></p>
+      </li>
+      <li>service thread
+        <p>Service threads are started immediately, than service command (e.g. 'proxy' or 'socks') are found during configuration file parsing. Each command creates new thread. Thread does these tasks:</p>
+        <ul>
+          <li>parses service command arguments and fills <code>struct srvparam srv</code> structure with service configuration and <code>struct clientparam defparam</code> structure with default client configuration</li>
+          <li>initializes filters (filter_open)</li>
+          <li>creates and initializes listening service socket</li>
+          <li>enters into service loop</li>
+          <li>terminates filters (filter_close)</li>
+        </ul>
+        <p>service loop:</p>
+        <ul>
+          <li>checks for configuration reload (approximately every second), thread exits if configuration reloaded or 3proxy is in terminating state.</li>
+          <li>accepts client connection and creates <code>struct clientparam newparam</code> structure with client configuration</li>
+          <li>creates/checks client filters (filter_client)</li>
+          <li>creates client thread with newly created <code>struct clientparam newparam</code></li>
+        </ul>
+        <p>service threads are implemented in <b>proxymain.c</b></p>
+        <p>Please note: struct clientparam is freed and filter_clear is executed from different (client) thread.</p>
+      </li>
+      <li>client thread
+        <p>Client threads are started from service thread. Client thread:</p>
+        <ul>
+          <li>reads client request (except portmappers) with authentication information and request headers (if any).</li>
+          <li>filters request (if any) with filter_request</li>
+          <li>filters headers (if any) with filter_header_cli</li>
+          <li>performs authentication and authorization</li>
+          <li>established connection with server</li>
+          <li>sends request to server</li>
+          <li>filters server headers (if any)</li>
+          <li>maps client end server sockets to transmit data between client and server</li>
+          <li>logs request. Global counters are also updated on this operation</li>
+          <li>clears client filters (filter_clear)</li>
+          <li>frees <code>struct clientparam</code> data</li>
+        </ul>
+        <p>in some point client thread may loop to process few client requests from the same connection (e.g. HTTP 'established' connection in 'proxy').</p>
+        <p>Socket mapping does:</p>
+        <ul>
+          <li>caches data in internal client and server buffers</li>
+          <li>delays data transmit to limit bandwidth</li>
+          <li>performs data filtering (filter_data_cli / filter_data_srv)</li>
+        </ul>
+        <p>client threads are implemented in <b>proxy.c</b>, <b>socks.c</b>, <b>pop3p.c</b> etc.</p>
+      </li>
+    </ol>
+  </li>
+  <li><b>Hacking into 3proxy code with plugins</b>
+    <ol class="level2">
+      <li>What is 3proxy plugin
+        <p>3proxy plugin is any dynamic/shared library. There is no specific requirement for plugin, actually you can load any dynamic library with 'plugin' command. No linking with any libraries are required. However, to interoperate with 3proxy dynamic library must have an export function 3proxy may call to pass the structure with required information.</p>
+<pre><code>typedef int (*PLUGINFUNC) (struct pluginlink *pluginlink, int argc, char** argv);</code></pre>
+        <p><code>struct pluginlink</code> is a structure with export information, explained later, argc and argv are argument counter and array of arguments of "plugin" command. Plugin should report it's status with integer return value. 0 is success, positive value indicates non-recoverable error, 3proxy do not parse rest of configuration and enters into termination state, negative value indicates recoverable value, 3proxy logs warning (if possible). In case of C++, all 3proxy functions/structures must be extern "C".</p>
+        <p>All 3proxy structures/functions descriptions are located in <b>structures.h</b></p>
+      </li>
+      <li>Understanding pluginlink structure
+        <p>Because there is no linking between 3proxy and plugin, all 3proxy functions and structures are passed with pluginlink structure. Pluginlink is actually a collection of pointers to 3proxy internal structures and functions. Because pluginlink is constantly extending, you should see it's definitions in <b>structures.h</b>.</p>
+        <p>most important are:</p>
+<pre><code>struct symbol symbols;</code></pre>
+        <p>"symbols" is a kind of name/value export table, made as a list. It can be used by plugins to exchange information and functions between plugins, e.g. to export functions from one plugin to another, where pluginlink is useless, because it's static. It's quite simple:</p>
+<pre><code>struct symbol {
+	struct symbol *next;
+	char * name;
+	void * value;
+};</code></pre>
+        <p><code>name</code> – is a name of function or structure</p>
+        <p><code>value</code> – is it's value.</p>
+        <p>use <code>pluginlink-&gt;findbyname</code> function to lookup, e.g.</p>
+<pre><code>anotherplugindata = pluginlink-&gt;findbyname("anotherplugindata");</code></pre>
+        <p>To export something from your plugin, add your structure to this list.</p>
+<pre><code>struct extparam *conf;</code></pre>
+        <p>pointer to conf structure, it holds all current 3proxy configuration</p>
+      </li>
+      <li>How to get control within plugin
+        <p>There are few points you can get control for your plugin, after it's loaded with 'plugin' command.</p>
+        <ol class="level3">
+          <li>Adding configuration command processor with struct command structure
+            <p>A list of configuration file command, available from 3proxy.cfg is extendable. Each command is defined by <code>struct commands</code>:</p>
+<pre><code>struct commands {
+	struct commands *next;
+	char * command;
+	int (* handler)(int argc, unsigned char ** argv);
+	int minargs;
+	int maxargs;
+};</code></pre>
+            <p><code>struct commands *next</code> - next element in list</p>
+            <p><code>char * command</code> – command name</p>
+            <p><code>int (* handler)(int argc, unsigned char ** argv)</code> – command handler. It's called than 'command' is found in configuration files, argc is a number of arguments, counting command itself, argv is array of arguments.</p>
+            <p><code>minargs</code> – minimum number of arguments command support (&gt;= 1)</p>
+            <p><code>maxargs</code> – maximum number of arguments command support, 0 means infinity.</p>
+            <p>Handler return value of 0 indicates command is successfully processed. Positive return value indicates non-recoverable error, 3proxy enters termination state. Negative value indicates 3proxy to continue to process command list, it makes it possible to set few handlers for the same command.</p>
+            <p>A list of the command is pointed by <code>pluginlink-&gt;commandhandlers</code>; you must insert you command after first one (do not replace <code>pluginlink-&gt;commandhandlers</code>). It's guaranteed at least 1 dummy command is always present.</p>
+            <p>Example:</p>
+<pre><code>int mycommandhandler(int argc, unsigned char **argv);
+struct commands mycommand;
+
+mycommand.command = "mycommand";
+mycommand.handler = mycommandhandler;
+mycommand.intargs = 1;
+mycommand.intargs = 2;
+mycommand.next = pluginslinks-&gt;commandhandlers-&gt;next;
+pluginslink-&gt;commandhandlers-&gt;next = &amp;mycommand;</code></pre>
+            <p>Adds processor for "mycommand" command with zero on one arguments.</p>
+            <p>Adding configuration command is useful, if your plugin expects configuration data.</p>
+          </li>
+          <li>Adding authentication method with struct auth
+            <p>3proxy supports authentication and authorization. Authentication process determines user account (for example by username and password), authorization checks, if user account has a right to access given resource and optionally establishes a connection, if required.</p>
+            <p>'auth' command combines both authentication and authorization method. It's extandable with struct auth list:</p>
+<pre><code>struct auth {
+	struct auth *next;
+	AUTHFUNC authenticate;
+	AUTHFUNC authorize;
+	char * desc;
+};</code></pre>
+            <p><code>char * desc</code> – name of authentication/authorization method</p>
+            <p><code>authenticate</code> – name of authentication function</p>
+            <p><code>authorize</code> – name of authorization function</p>
+            <p><code>pluginlink-&gt;authfuncs</code> points to list of authenticataction structures. Like above, new structure must be inserted after fiest one (or to the end of the list).</p>
+            <p>First, authentication is called, if authentication indicates OK status (return value 0), authorization is called. Normally, 'checkACL' (<code>pluginlink-&gt;checkACL</code>) is called as authorization function to check user's request matches to standard allow/deny rules. If for some reason you need to avoid this check, you should call <code>pluginlink-&gt;alwaysauth</code> to do some dirty job, like establishing outgoing connection.</p>
+<pre><code>typedef int (*AUTHFUNC)(struct clientparam * param);</code></pre>
+            <p>is both authentication and authorization function. <code>struct clientparam</code> holds all information about client connection, including username (<code>param-&gt;username</code>) and password (<code>param-&gt;password</code>).</p>
+            <p>Return value of 0 indicates successful authentication/authorization, 1 and 3 – authorization failed (access denied), use 3 in case you want to indicate access is explicitly denied and 3 in case there is no matching rule. 4,5,6,7,8 – authentication failed (e.g. username/password do not match). 4 indicates username does not present in request and must be requested, if possible. 5 indicates username found in request can not be found in user's database/list, 6,7,8 – username does not match password for different authentication types. 10 – user exceeded some limits, e.g. traffic. You may use some different code to indicate internal problems.</p>
+            <p>Example:</p>
+<pre><code>int myauthfunc(struct clientparam *param);
+struct auth myauth;
+
+myauth.desc = "myauth";
+myauth.authenticate = myauthfunc;
+myauth.authorize = pluginlink-&gt;checkACL;
+myauth-&gt;next = pluginlink-&gt;authfuncs-&gt;next;
+pluginlink-&gt;authfuncs-&gt;next = &amp;myauth;</code></pre>
+            <p>Installs "myauthfunc" as authentication function. There is no need to add 'auth' command processor for new authentication type, it's processed by standard 'auth' command processor.</p>
+          </li>
+          <li>Adding scheduled functions
+            <p>Scheduled functions are described by this structure:</p>
+<pre><code>typedef enum {NONE, MINUTELY, HOURLY, DAILY, WEEKLY, MONTHLY, ANNUALLY, NEVER} ROTATION;
+
+struct schedule {
+	struct schedule *next;
+	ROTATION type;
+	void *data;
+	int (*function)(void *);
+	time_t start_time;
+};</code></pre>
+            <p><code>int (*function)(void *)</code> – scheduled function</p>
+            <p><code>void *data</code> – this pointer will be passed as an argument to scheduled functions</p>
+            <p><code>ROTATION type</code> – defines how often function is called (once in a minute, hour, etc).</p>
+            <p><code>start_time</code> – time to begin using of scheduled function</p>
+            <p>Scheduled functions are called every 'type' interval after start_time and also on reloading configuration and going to termination state.</p>
+            <p>Schedule function return value of 1 means function must be removed from the schedule. 3proxy doesn't free struct schedule.</p>
+            <p>Schedule list can be empty. Pointer to schedule is pointed by <code>struct schedule ** schedule;</code> in pluginlink.</p>
+            <p>Example:</p>
+<pre><code>int myschedfunc(void * data);
+struct schedule myschedule;
+
+myschedule.data = "somethinghere";
+myschedule.function = myschedfunc;
+myschedule.type = MINUTELY;
+myschedule.starttime = 0;
+myschedule.next = *pluginlink-&gt;schedule;
+*pluginlink-&gt;schedule = myschedule;</code></pre>
+            <p><span class="s1">NOTE:</span> time_t is different for different compilers. Make sure to compile plugin and 3proxy with same compiler.</p>
+          </li>
+          <li>Filters API
+            <p>3proxy has filters API, you can use, to process client request and data flowing through proxy. It should be noted, that currently 3proxy doesn't provide filters with any useful data conversion, so, it's filter's task to find data in data flow. In case filter modifies some data, it's filter's task again to assure that everything's fine. If you know some filtering API like MILTER, you will find 3proxy filters very same.</p>
+<pre><code>typedef enum {
+	PASS,
+	CONTINUE,
+	HANDLED,
+	REJECT,
+	REMOVE
+} FILTER_ACTION;
+
+typedef void*		 FILTER_OPEN(void * idata, struct srvparam * param);
+typedef FILTER_ACTION	 FILTER_CLIENT(void *fo, struct clientparam * param, void** fc);
+typedef FILTER_ACTION	 FILTER_BUFFER(void *fc, struct clientparam * param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
+typedef void		 FILTER_CLOSE(void *fo);
+
+struct filter {
+	struct filter * next;
+	char * instance;
+	void * data;
+	FILTER_OPEN *filter_open;
+	FILTER_CLIENT *filter_client;
+	FILTER_BUFFER *filter_request;
+	FILTER_BUFFER *filter_header_cli;
+	FILTER_BUFFER *filter_header_srv;
+	FILTER_BUFFER *filter_data_cli;
+	FILTER_BUFFER *filter_data_srv;
+	FILTER_CLOSE *filter_clear;
+	FILTER_CLOSE *filter_close;
+};</code></pre>
+            <p><code>char * instance</code> – is some instance identifier. You can use it to find required filter in the list. 3proxy itself doesn't use this field.</p>
+            <p><code>void * data</code> – this parameter is passed to filter_open function. The rest are filtering functions. Section 1 explains where and then each filter is called. data should not be NULL.</p>
+            <p><code>filter_open</code> must always be defined, if you want filter to be ever used. It's called then new service is created and is given "data" from struct filter and struct srvparam (parsed service configuration). If filter_open for some filter returns NULL, filter will not be used for this service. Non-NULL return value will be used as "fo" parameter for every call to filter_client.</p>
+            <p><code>filter_client</code> is called upon client connect (before any data is sent/received). It's good place to filter client by IP (and is not good place to filter it by hostname, because this operation takes a long time, 3proxy will not be able to accept new connection). fo is a data pointer received from filter_open, param – newly created clientparam structure, fc is return parameter filter_open must initialize, it will be used as an argument to FILTER_BUFFER functions. PASS return value means this filter will be used for this client request. CONTINUE says to install filters. On different values client connection is closed and no client thread is created.</p>
+            <p><code>filter_request, filter_header_cli, filter_header_srv, filter_data_cli, filter_data_srv</code> are used to process request and data received from client and server.</p>
+            <p><code>char ** buf_p</code> is a pointer to current buffer, <code>int * bufsize_p</code> is a pointer to it's size. In case you change some data and it doesn't fit to current buffer, you may allocate new buffer (with <code>pluginlink-&gt;myalloc</code>), copy data from old buffer, free old buffer (with <code>pluginlink-&gt;myfree</code>) and set new values for <code>*buf_p</code> and <code>*bufsize_p</code>.</p>
+            <p><code>int offset</code> offset of the new data in the buffer, <code>int * length_p</code> length of all data in the buffer. You should filter only <code>(*length_p - *offset_p)</code> characters starting from <code>(*buf_p + *offset_p)</code>.</p>
+            <p><code>filter_clear</code> is called for each successfule filter_client and should be used to free allocated resources</p>
+            <p><code>filter_close</code> is called for each successful filter_open for the same reason</p>
+            <p>An example of filter API usage you can find in PCREPlugin (see plugins/PCREPlugin/pcre_plugin.c).</p>
+            <p><span class="s1">Note</span>: if <code>param-&gt;nooverwritefilter</code> is set for FILTER_BUFFER functions, filter may change data in the buffer, but must not change data length. This flag may be set, if data size if already known and is sent to the client.</p>
+          </li>
+          <li>Replacing log functions, traffic counting functions, bandwidth limitation functions
+            <p>Log, traffic and bandwidth function can be directly replaced in any over place. All functions may be replaced in conf (<code>pluginlink-&gt;conf-&gt;logfunc</code>, <code>pluginlink-&gt;conf-&gt;bandlimfunc</code>, <code>pluginlink-&gt;conf-&gt;trafcountfunc</code>). In this case, these functions will be used for services started after the changes are made. logfunc may also be changed for struct srvparam (e.g. within filter_open), bandlimfunc and trafcountfunc may be changed in struct clientparam for every client individually (e.g. within filter_client).</p>
+<pre><code>typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char * test);
+typedef void (*TRAFCOUNTFUNC)(struct clientparam * param);
+typedef unsigned (*BANDLIMFUNC)(struct clientparam * param, unsigned nbytesin, unsigned nbytesout);</code></pre>
+            <p><code>struct clientparam * param</code> – information about client request</p>
+            <p><code>char * text</code> - text string (e.g. request)</p>
+            <p><code>nbytesin, nbytesout</code> – number of bytes received from / send to server. bandlimfunc returns delay in milliseconds.</p>
+          </li>
+        </ol>
+      </li>
+    </ol>
+  </li>
+</ol>
+
+</body>
+</html>
