@@ -6,6 +6,8 @@
 
 
 BUILDDIR = ../bin/
+PREFIX ?= 3proxy_
+CRYPT_PREFIX ?= $(PREFIX)
 CC ?= gcc
 CFLAGS ?= -O3 -flto
 CFLAGS += -fno-strict-aliasing -c -mthreads  -DWITH_WSAPOLL -DWITH_ODBC

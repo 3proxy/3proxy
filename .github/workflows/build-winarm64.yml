@@ -37,6 +37,17 @@ jobs:
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/arm64-windows-static/include"
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
        nmake /F Makefile.msvc
+    - name: Decode Certificate
+      shell: pwsh
+      run: |
+       $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
+       [System.IO.File]::WriteAllBytes("${{ github.workspace }}\cert.pfx", $pfx_cert_byte)
+    - name: Sign
+      shell: pwsh
+      run: |
+       $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).FullName
+       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy.exe"
+       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy_crypt.exe"
     - name: make dist dir
       shell: cmd
       run: |
@@ -54,7 +65,7 @@ jobs:
        mkdir dist\3proxy\doc\devel
        copy bin\3proxy.exe dist\3proxy\bin64\
        copy bin\*.dll dist\3proxy\bin64\
-       copy bin\mycrypt.exe  dist\3proxy\bin64\
+       copy bin\3proxy_crypt.exe  dist\3proxy\bin64\
        copy cfg\*.* dist\3proxy\cfg\
        copy cfg\sql\*.*  dist\3proxy\cfg\sql\
        copy doc\ru\*.*  dist\3proxy\doc\ru\

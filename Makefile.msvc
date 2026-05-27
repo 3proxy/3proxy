@@ -6,6 +6,8 @@
 # Add /DSAFESQL to CFLAGS if you are using poorely written/tested ODBC driver
 
 BUILDDIR = ../bin/
+PREFIX = 3proxy_
+CRYPT_PREFIX = 3proxy_
 CC = cl
 VERSION = $(VERSION)
 BUILDDATE = $(BUILDDATE)
