@@ -13,7 +13,7 @@
 # use "log" without pathname in config to log to stdout.
 # plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config)
 # symlinked as /lib and /lib64 in both root and chroot configurations, so no need
-# to specify full path to plugin. SSLPlugin is supported.
+# to specify full path to plugin.
 #
 # Since 0.9.6 image is distroless, no reason to use chroot, chroot
 # configuration is supported for compatibility only.
@@ -23,7 +23,7 @@ FROM docker.io/gcc AS buildenv
 COPY . 3proxy
 RUN cd 3proxy &&\
  apt --assume-yes update && apt --assume-yes install libssl-dev libpcre2-dev &&\
- make -f Makefile.Linux &&\
+ make -f Makefile.Linux LIBSTATIC=true PAM_CHECK=false &&\
  strip bin/3proxy &&\
  mkdir /dist &&\
  mkdir /dist/etc &&\
@@ -42,15 +42,11 @@ RUN cd /dist &&\
  ln -s /usr/local/3proxy/libexec lib &&\
  ln -s /usr/local/3proxy/libexec usr/lib &&\
  ln -s /usr/local/3proxy/libexec usr/lib64 &&\
- ln -s /usr/local/3proxy/libexec /dist/usr/local/3proxy/libexec/`gcc -dumpmachine` &&\
- cp /lib64/ld-*.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libc.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libcrypto.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libssl.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libpcre2-8.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libz.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libzstd.so.* /dist/usr/local/3proxy/libexec
+ ln -s /usr/local/3proxy/libexec /dist/usr/local/3proxy/libexec/`gcc -dumpmachine`
+RUN cp /lib/ld-*.so.* /dist/usr/local/3proxy/libexec || true
+RUN cp /lib64/ld-*.so.* /dist/usr/local/3proxy/libexec || true
+RUN cp "/lib/`gcc -dumpmachine`"/libc.so.* /dist/usr/local/3proxy/libexec &&\
+ cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec
 RUN cd /dist/usr/local/3proxy/ &&\
  ln -s libexec lib &&\
  ln -s libexec lib64 &&\

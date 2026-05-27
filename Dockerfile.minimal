@@ -6,7 +6,7 @@
 # This is busybox based docker with only 3proxy static executable.
 #
 # Limitations for minimal version:
-# no support for plugins, IPv6, RADIUS, system resolver.
+# no support for plugins and system resolver.
 # 'nserver' or 'fakeresolve' are mandatory in configuration.
 #
 # Build:
@@ -28,9 +28,7 @@
 FROM docker.io/gcc AS buildenv
 COPY . 3proxy
 RUN cd 3proxy &&\
- export "LDFLAGS=-static" &&\
- export "CFLAGS=-DNOPLUGINS -DNORADIUS -DNOIPV6 -DNOODBC -DNOCRYPT -DNOSTDRESOLVE" &&\
- make -f Makefile.Linux PLUGINS= LIBS= &&\
+ make -f Makefile.Linux STATIC=true &&\
  strip bin/3proxy
  
 FROM scratch
