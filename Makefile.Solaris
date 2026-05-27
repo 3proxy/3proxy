@@ -6,6 +6,8 @@
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
 
 BUILDDIR = ../bin/
+PREFIX ?= 3proxy_
+CRYPT_PREFIX ?= $(PREFIX)
 CC ?= cc
 CFLAGS = -xO3 -c -D_SOLARIS -D_THREAD_SAFE -DGETHOSTBYNAME_R -D_REENTRANT -DFD_SETSIZE=4096 -DWITH_POLL
 COUT = -o ./
