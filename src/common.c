@@ -812,7 +812,9 @@ int afdetect(unsigned char *name){
 uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
 	int detect;
+#ifndef NOSTDRESOLVE
 	struct addrinfo *ai, hint;
+#endif
         RESOLVFUNC tmpresolv;
 
 	if(!sa) return 0;
@@ -832,7 +834,6 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 		return inet_pton(*SAFAMILY(sa), (char *)name, SAADDR(sa))>0? *SAFAMILY(sa) : 0; 
 	}
 
-
 	if((tmpresolv = resolvfunc)){
 		int f = (family == 6 || family == 64)?AF_INET6:AF_INET;
 		*SAFAMILY(sa) = f;
@@ -843,6 +844,7 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 		if(tmpresolv(f, name, SAADDR(sa))) return f;
 		return 0;
 	}
+#ifndef NOSTDRESOLVE
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = (family == 6 || family == 64)?AF_INET6:AF_INET;
 	if (getaddrinfo((char *)name, NULL, &hint, &ai)) {
@@ -861,6 +863,7 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 		}
 		freeaddrinfo(ai);
 	}
+#endif
 	return 0;
 #endif
 }
