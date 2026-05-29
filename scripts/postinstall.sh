@@ -44,5 +44,10 @@ fi
 
 fi
 
-chown -R proxy:proxy ${PREFIX}/etc/3proxy/
+if id proxy >/dev/null 2>&1 && [ -d "${PREFIX}/etc/3proxy" ]; then
+    chown -R proxy:proxy "${PREFIX}/etc/3proxy/"
+fi
+if id proxy >/dev/null 2>&1 && [ -d "/opt/3proxy" ]; then
+    chown -R proxy:proxy "/opt/3proxy/"
+fi
 exit 0

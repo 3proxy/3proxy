@@ -81,16 +81,18 @@ install: all
 	for f in proxy socks pop3p smtpp ftppr tcppm udppm tlspr; do \
 	  if [ -f bin/$(PREFIX)$$f ]; then install bin/$(PREFIX)$$f $(DESTDIR)$(BINPREFIX)/$(PREFIX)$$f; fi; \
 	done
+	install -d $(DESTDIR)$(prefix)/etc/3proxy/conf
 	install -d $(DESTDIR)$(prefix)/etc/rc.d/
 	sed -e 's|@CMAKE_INSTALL_FULL_BINDIR@|$(BINPREFIX)|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|$(prefix)/etc|g' scripts/rc.d/3proxy.in > $(DESTDIR)$(prefix)/etc/rc.d/3proxy
 	chmod 755 $(DESTDIR)$(prefix)/etc/rc.d/3proxy
 	sed -e 's|@CMAKE_INSTALL_FULL_BINDIR@|$(BINPREFIX)|g' -e 's|@3PROXY_CONFDIR@|$(prefix)/etc/3proxy/conf|g' -e 's|@CRYPT_PREFIX@|$(CRYPT_PREFIX)|g' scripts/add3proxyuser.sh.in > $(DESTDIR)$(BINPREFIX)/add3proxyuser
+	chmod 755 $(DESTDIR)$(BINPREFIX)/add3proxyuser
 	if [ -s $(DESTDIR)$(prefix)/etc/3proxy/3proxy.cfg ]; then echo $(prefix)/etc/3proxy/3proxy.cfg already exists; else sed -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|$(prefix)/etc|g' -e 's|@3PROXY_CONFDIR@|$(prefix)/etc/3proxy/conf|g' -e 's|@3PROXY_COUNTERDIR@|/opt/3proxy|g' scripts/3proxy.cfg.in > $(DESTDIR)$(prefix)/etc/3proxy/3proxy.cfg; chmod 640 $(DESTDIR)$(prefix)/etc/3proxy/3proxy.cfg; fi
 	if [ ! -d $(DESTDIR)/var/log/3proxy/ ]; then mkdir -p $(DESTDIR)/var/log/3proxy/; fi
 	mkdir -p $(DESTDIR)/opt/3proxy
-	touch $(DESTDIR)$(prefix)/3proxy/passwd
-	touch $(DESTDIR)$(prefix)/3proxy/counters
-	touch $(DESTDIR)$(prefix)/3proxy/bandlimiters
+	touch $(DESTDIR)$(prefix)/etc/3proxy/conf/passwd
+	touch $(DESTDIR)$(prefix)/etc/3proxy/conf/counters
+	touch $(DESTDIR)$(prefix)/etc/3proxy/conf/bandlimiters
 	install -d $(DESTDIR)$(MANDIR)/man8
 	install -m 644 man/3proxy.8 $(DESTDIR)$(MANDIR)/man8/3proxy.8
 	for f in proxy socks pop3p smtpp ftppr tcppm udppm tlspr; do \

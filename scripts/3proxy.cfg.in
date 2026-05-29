@@ -1,6 +1,8 @@
+#!@CMAKE_INSTALL_FULL_BINDIR@/3proxy
 
 # use standard syslog logging
 log @3proxy
+pidfile /var/run/3proxy/3proxy.pid
 #log /logs/3proxy-%y%m%d.log D
 #rotate 60
 
