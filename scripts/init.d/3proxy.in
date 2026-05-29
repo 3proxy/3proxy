@@ -14,7 +14,7 @@
 # description: 3proxy tiny proxy server
 
 DAEMON=@CMAKE_INSTALL_FULL_BINDIR@/3proxy
-CONFIGFILE=/etc/3proxy/3proxy.cfg
+CONFIGFILE=@CMAKE_INSTALL_FULL_SYSCONFDIR@/3proxy/3proxy.cfg
 PIDFILE=/var/run/3proxy/3proxy.pid
 USER=proxy
 GROUP=proxy

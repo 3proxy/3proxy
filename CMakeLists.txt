@@ -676,8 +676,25 @@ endif()
 
 # Install configuration files
 if(NOT WIN32)
-    install(FILES scripts/3proxy.cfg DESTINATION /etc/3proxy)
-    install(FILES scripts/add3proxyuser.sh DESTINATION ${CMAKE_INSTALL_BINDIR})
+    set(CRYPT_PREFIX "${3PROXY_BINARY_PREFIX}")
+    set(3PROXY_CONFDIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/3proxy/conf")
+    set(3PROXY_COUNTERDIR "/opt/3proxy")
+    install(DIRECTORY DESTINATION /opt/3proxy)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/scripts/3proxy.cfg.in
+        ${CMAKE_CURRENT_BINARY_DIR}/3proxy.cfg
+        @ONLY
+    )
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.cfg DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/3proxy)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/scripts/add3proxyuser.sh.in
+        ${CMAKE_CURRENT_BINARY_DIR}/add3proxyuser
+        @ONLY
+    )
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/add3proxyuser
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+    )
 endif()
 
 # Install service files (systemd, launchd, init.d, or rc.d)
@@ -736,16 +753,6 @@ if(NOT WIN32)
                 DESTINATION ${SYSTEMD_UNIT_DIR}
             )
 
-            # Install tmpfiles.d configuration for runtime directory
-            configure_file(
-                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/3proxy.tmpfiles.in
-                ${CMAKE_CURRENT_BINARY_DIR}/3proxy.conf
-                @ONLY
-            )
-            install(FILES ${CMAKE_CURRENT_BINARY_DIR}/3proxy.conf
-                DESTINATION /usr/lib/tmpfiles.d
-            )
-
             message(STATUS "  systemd: YES (${SYSTEMD_UNIT_DIR})")
         else()
             # No systemd - install init.d script
@@ -778,16 +785,14 @@ if(NOT WIN32)
         message(STATUS "  init.d: YES (/etc/init.d)")
     endif()
 
-    # Create proxy user and group during installation
-    install(FILES scripts/postinstall.sh
-        DESTINATION ${CMAKE_INSTALL_BINDIR}
-        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-    )
+    # Run postinstall only for direct installs (no DESTDIR)
     install(CODE "
-        execute_process(
-            COMMAND ${CMAKE_INSTALL_FULL_BINDIR}/postinstall.sh
-            RESULT_VARIABLE POSTINSTALL_RESULT
-        )
+        if(\"\$ENV{DESTDIR}\" STREQUAL \"\")
+            execute_process(
+                COMMAND ${CMAKE_COMMAND} -E env sh ${CMAKE_CURRENT_SOURCE_DIR}/scripts/postinstall.sh ${CMAKE_INSTALL_PREFIX}
+                RESULT_VARIABLE POSTINSTALL_RESULT
+            )
+        endif()
     ")
 endif()
 

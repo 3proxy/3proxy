@@ -1,3 +1,17 @@
+sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@3PROXY_CONFDIR@|/etc/3proxy/conf|g' -e 's|@CRYPT_PREFIX@|3proxy_|g' /bin/add3proxyuser; \
+sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|/etc|g' /etc/init.d/3proxy; \
+sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|/etc|g' /usr/lib/systemd/system/3proxy.service; \
+
+if [ -d /etc/3proxy ]; then \
+ chmod -R o-rwx /etc/3proxy; \
+ chown -R proxy:proxy /etc/3proxy; \
+fi
+
+if [ -d /usr/local/3proxy ]; then \
+ chmod -R o-rwx /usr/local/3proxy; \
+ chown -R proxy:proxy /usr/local/3proxy; \
+fi
+
 if /bin/systemctl >/dev/null 2>&1; then \
  /usr/sbin/update-rc.d 3proxy disable || true; \
  /usr/sbin/chkconfig 3proxy off || true; \

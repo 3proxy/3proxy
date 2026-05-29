@@ -1,3 +1,0 @@
-# tmpfiles.d configuration for 3proxy
-# This creates the runtime directory for 3proxy
-d /run/3proxy 0755 proxy proxy -

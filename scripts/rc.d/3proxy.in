@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # PROVIDE: 3proxy
-# REQUIRE: LOGIN DAEMON
+# REQUIRE: LOGIN DAEMON NETWORKING
 # KEYWORD: shutdown
 
 . /etc/rc.subr
@@ -11,8 +11,8 @@ rcvar="3proxy_enable"
 
 command="@CMAKE_INSTALL_FULL_BINDIR@/3proxy"
 pidfile="/var/run/3proxy/${name}.pid"
-command_args="${3proxy_config:-/etc/3proxy/3proxy.cfg}"
-required_files="${3proxy_config:-/etc/3proxy/3proxy.cfg}"
+command_args="${3proxy_config:-@CMAKE_INSTALL_FULL_SYSCONFDIR@/3proxy/3proxy.cfg}"
+required_files="${3proxy_config:-@CMAKE_INSTALL_FULL_SYSCONFDIR@/3proxy/3proxy.cfg}"
 command_user="proxy:proxy"
 
 start_precmd="3proxy_precmd"

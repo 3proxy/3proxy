@@ -5,8 +5,10 @@ nserver 8.8.4.4
 config /conf/3proxy.cfg
 monitor /conf/3proxy.cfg
 
-log /logs/3proxy-%y%m%d.log D
-rotate 60
+log @3proxy
+#log /logs/3proxy-%y%m%d.log D
+#rotate 60
+
 counter /count/3proxy.3cf
 
 users $/conf/passwd

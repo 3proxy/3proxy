@@ -1,0 +1,31 @@
+
+# use standard syslog logging
+log @3proxy
+#log /logs/3proxy-%y%m%d.log D
+#rotate 60
+
+
+#nscache 65536
+#nserver 8.8.8.8
+#nserver 8.8.4.4
+
+#config @CMAKE_INSTALL_FULL_SYSCONFDIR@/3proxy/3proxy.cfg
+#monitor @CMAKE_INSTALL_FULL_SYSCONFDIR@/3proxy/3proxy.cfg
+#monitor @3PROXY_CONFDIR@/passwd
+
+#counter @3PROXY_COUNTERDIR@/3proxy.3cf
+
+#users $@3PROXY_CONFDIR@/passwd
+
+#include @3PROXY_CONFDIR@/counters
+#include @3PROXY_CONFDIR@/bandlimiters
+
+#auth strong
+#deny * * 127.0.0.0/8
+#allow *
+#proxy -n
+#socks
+#flush
+#allow admin
+
+#admin -p8080
