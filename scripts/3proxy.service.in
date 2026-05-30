@@ -7,7 +7,7 @@ After=network.target
 Type=simple
 User=proxy
 Group=proxy
-Environment=CONFIGFILE=/etc/3proxy/3proxy.cfg
+Environment=CONFIGFILE=@CMAKE_INSTALL_FULL_SYSCONFDIR@/3proxy/3proxy.cfg
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/3proxy ${CONFIGFILE}
 ExecReload=/bin/kill -SIGUSR1 $MAINPID
 KillMode=process

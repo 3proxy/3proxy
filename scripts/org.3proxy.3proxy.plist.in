@@ -7,7 +7,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>@CMAKE_INSTALL_FULL_BINDIR@/3proxy</string>
-        <string>/etc/3proxy/3proxy.cfg</string>
+        <string>@CMAKE_INSTALL_FULL_SYSCONFDIR@/3proxy/3proxy.cfg</string>
     </array>
     <key>UserName</key>
     <string>proxy</string>

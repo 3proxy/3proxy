@@ -70,29 +70,41 @@ endif
 
 include Makefile.inc
 
+DESTDIR		?=
+prefix		?= /usr/local
+BINPREFIX	?= $(prefix)/bin
+
 install: all
-	if [ ! -d "/usr/local/3proxy/bin" ]; then mkdir -p /usr/local/3proxy/bin/; fi
-	install bin/3proxy /usr/local/3proxy/bin/3proxy
-	install bin/$(CRYPT_PREFIX)crypt /usr/local/3proxy/bin/$(CRYPT_PREFIX)crypt
+	if [ ! -d "$(DESTDIR)$(BINPREFIX)" ]; then mkdir -p $(DESTDIR)$(BINPREFIX)/; fi
+	install bin/3proxy $(DESTDIR)$(BINPREFIX)/3proxy
+	install bin/$(CRYPT_PREFIX)crypt $(DESTDIR)$(BINPREFIX)/$(CRYPT_PREFIX)crypt
 	for f in proxy socks pop3p smtpp ftppr tcppm udppm tlspr; do \
-	  if [ -f bin/$(PREFIX)$$f ]; then install bin/$(PREFIX)$$f /usr/local/3proxy/bin/$(PREFIX)$$f; fi; \
+	  if [ -f bin/$(PREFIX)$$f ]; then install bin/$(PREFIX)$$f $(DESTDIR)$(BINPREFIX)/$(PREFIX)$$f; fi; \
 	done
-	install scripts/rc.d/3proxy /usr/local/etc/rc.d/3proxy
-	install scripts/add3proxyuser.sh /usr/local/3proxy/bin/
-	if [ -s /usr/local/etc/3proxy/3proxy.cfg ]; then echo /usr/local/3proxy/3proxy.cfg already exists; else install scripts/3proxy.cfg /usr/local/etc/3proxy/; fi
-	if [ ! -d /var/log/3proxy/ ]; then mkdir /var/log/3proxy/; fi
-	touch /usr/local/3proxy/passwd
-	touch /usr/local/3proxy/counters
-	touch /usr/local/3proxy/bandlimiters
-	install -d $(MANDIR)/man8
-	install -m 644 man/3proxy.8 $(MANDIR)/man8/3proxy.8
+	install -d $(DESTDIR)$(prefix)/etc/3proxy/conf
+	install -d $(DESTDIR)$(prefix)/etc/rc.d/
+	sed -e 's|@CMAKE_INSTALL_FULL_BINDIR@|$(BINPREFIX)|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|$(prefix)/etc|g' scripts/rc.d/3proxy.in > $(DESTDIR)$(prefix)/etc/rc.d/3proxy
+	chmod 755 $(DESTDIR)$(prefix)/etc/rc.d/3proxy
+	sed -e 's|@CMAKE_INSTALL_FULL_BINDIR@|$(BINPREFIX)|g' -e 's|@3PROXY_CONFDIR@|$(prefix)/etc/3proxy/conf|g' -e 's|@CRYPT_PREFIX@|$(CRYPT_PREFIX)|g' scripts/add3proxyuser.sh.in > $(DESTDIR)$(BINPREFIX)/add3proxyuser
+	chmod 755 $(DESTDIR)$(BINPREFIX)/add3proxyuser
+	if [ -s $(DESTDIR)$(prefix)/etc/3proxy/3proxy.cfg ]; then echo $(prefix)/etc/3proxy/3proxy.cfg already exists; else sed -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|$(prefix)/etc|g' -e 's|@3PROXY_CONFDIR@|$(prefix)/etc/3proxy/conf|g' -e 's|@3PROXY_COUNTERDIR@|/opt/3proxy|g' scripts/3proxy.cfg.in > $(DESTDIR)$(prefix)/etc/3proxy/3proxy.cfg; chmod 640 $(DESTDIR)$(prefix)/etc/3proxy/3proxy.cfg; fi
+	if [ ! -d $(DESTDIR)/var/log/3proxy/ ]; then mkdir -p $(DESTDIR)/var/log/3proxy/; fi
+	mkdir -p $(DESTDIR)/opt/3proxy
+	touch $(DESTDIR)$(prefix)/etc/3proxy/conf/passwd
+	touch $(DESTDIR)$(prefix)/etc/3proxy/conf/counters
+	touch $(DESTDIR)$(prefix)/etc/3proxy/conf/bandlimiters
+	install -d $(DESTDIR)$(MANDIR)/man8
+	install -m 644 man/3proxy.8 $(DESTDIR)$(MANDIR)/man8/3proxy.8
 	for f in proxy socks pop3p smtpp ftppr tcppm udppm tlspr; do \
-	  if [ -f man/$$f.8 ]; then install -m 644 man/$$f.8 $(MANDIR)/man8/$(PREFIX)$$f.8; fi; \
+	  if [ -f man/$$f.8 ]; then install -m 644 man/$$f.8 $(DESTDIR)$(MANDIR)/man8/$(PREFIX)$$f.8; fi; \
 	done
-	install -m 644 man/3proxy_crypt.8 $(MANDIR)/man8
-	install -d $(MANDIR)/man5
-	install -m 644 man/3proxy.cfg.5 $(MANDIR)/man5/3proxy.cfg.5
-	echo Run /usr/local/3proxy/bin/add3proxyuser.sh to add \'admin\' user
+	install -m 644 man/3proxy_crypt.8 $(DESTDIR)$(MANDIR)/man8/$(CRYPT_PREFIX)crypt.8
+	install -d $(DESTDIR)$(MANDIR)/man5
+	install -m 644 man/3proxy.cfg.5 $(DESTDIR)$(MANDIR)/man5/3proxy.cfg.5
+	@if [ "$(DESTDIR)" = "" ]; then \
+	 sh scripts/postinstall.sh $(prefix); \
+	fi
+	echo Run $(BINPREFIX)/add3proxyuser to add \'admin\' user
 
 allplugins:
 	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done

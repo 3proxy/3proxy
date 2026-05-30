@@ -1,0 +1,14 @@
+#!/bin/sh
+if [ $4 ]; then
+	echo bandlimin $4 $1 >> @3PROXY_CONFDIR@/bandlimiters
+fi
+if [ $3 ]; then
+	echo countall \"`wc -l @3PROXY_CONFDIR@/counters|awk '{print $1}'`/$1\" D $3 $1 >> @3PROXY_CONFDIR@/counters
+fi
+if [ $2 ]; then
+	echo $1:`@CMAKE_INSTALL_FULL_BINDIR@/@CRYPT_PREFIX@crypt $$ $2` >> @3PROXY_CONFDIR@/passwd
+else
+	echo usage: $0 username password [day_limit] [bandwidth]
+	echo "	"day_limit - traffic limit in MB per day
+	echo "	"bandwidth - bandwidth in bits per second 1048576 = 1Mbps
+fi

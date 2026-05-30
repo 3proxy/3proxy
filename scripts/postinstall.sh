@@ -4,11 +4,12 @@
 
 set -e
 
+PREFIX="${1-/usr/local}"
+
 # Check if user already exists
 if id proxy >/dev/null 2>&1; then
     echo "User 'proxy' already exists"
-    exit 0
-fi
+else
 
 echo "Creating proxy user and group..."
 
@@ -33,7 +34,6 @@ elif command -v dscl >/dev/null 2>&1; then
     dscl . create /Users/proxy NFSHomeDirectory /var/run/3proxy 2>/dev/null || true
 else
     echo "Warning: Could not create proxy user - no suitable user management tool found"
-    exit 0
 fi
 
 if id proxy >/dev/null 2>&1; then
@@ -42,4 +42,12 @@ else
     echo "Warning: Failed to create user 'proxy'"
 fi
 
+fi
+
+if id proxy >/dev/null 2>&1 && [ -d "${PREFIX}/etc/3proxy" ]; then
+    chown -R proxy:proxy "${PREFIX}/etc/3proxy/"
+fi
+if id proxy >/dev/null 2>&1 && [ -d "/opt/3proxy" ]; then
+    chown -R proxy:proxy "/opt/3proxy/"
+fi
 exit 0

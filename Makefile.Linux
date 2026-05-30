@@ -74,13 +74,13 @@ include Makefile.inc
 allplugins:
 	@list='$(PLUGINS)'; for p in $$list; do cp Makefile Makefile.var plugins/$$p; cd plugins/$$p ; make ;	cd ../.. ; done
 
-DESTDIR		=
-prefix		= 
-exec_prefix	= $(prefix)
-man_prefix	= /usr/share
-chroot_prefix	= /usr/local
+DESTDIR		?=
+prefix		?= 
+exec_prefix	?= $(prefix)
+man_prefix	?= /usr/share
+chroot_prefix	?= /usr/local
 
-INSTALL		= /usr/bin/install
+INSTALL		?= /usr/bin/install
 INSTALL_BIN	= $(INSTALL) -m 755
 INSTALL_DATA	= $(INSTALL) -m 644
 INSTALL_OBJS	= bin/3proxy \
@@ -97,12 +97,11 @@ INSTALL_OBJS	= bin/3proxy \
 
 INSTALL_CFG	 = scripts/3proxy.cfg.chroot
 INSTALL_CFG_INCHROOT = scripts/3proxy.cfg.inchroot
-INSTALL_CFG_OBJS = scripts/add3proxyuser.sh
 
 INSTALL_CFG_OBJS2 = counters bandlimiters
 
-INSTALL_INITD_SCRIPT = scripts/init.d/3proxy.sh
-INSTALL_SYSTEMD_SCRIPT = scripts/3proxy.service
+INSTALL_INITD_SCRIPT = scripts/init.d/3proxy.in
+INSTALL_SYSTEMD_SCRIPT = scripts/3proxy.service.in
 
 CHROOTDIR	= $(DESTDIR)$(chroot_prefix)/3proxy
 CHROOTREL	= ../..$(chroot_prefix)/3proxy
@@ -111,8 +110,6 @@ MANDIR8		= $(DESTDIR)$(man_prefix)/man/man8
 BINDIR		= $(DESTDIR)$(exec_prefix)/bin
 ETCDIR		= $(DESTDIR)/etc/3proxy
 INITDDIR	= $(DESTDIR)/etc/init.d
-RUNBASE		= $(DESTDIR)/var/run
-RUNDIR		= $(RUNBASE)/3proxy
 LOGBASE		= $(DESTDIR)/var/log
 LOGDIR		= $(LOGBASE)/3proxy
 INSTALL_CFG_DEST = $(ETCDIR)/conf
@@ -122,6 +119,7 @@ install-bin:
 	$(INSTALL_BIN) -d $(BINDIR)
 	$(INSTALL_BIN) -s $(INSTALL_OBJS) $(BINDIR)
 	$(INSTALL_BIN) -s bin/*.ld.so $(CHROOTDIR)/libexec
+	$(INSTALL_BIN) scripts/add3proxyuser.sh.in $(BINDIR)/add3proxyuser
 
 install-etc-dir:
 	$(INSTALL_BIN) -d $(ETCDIR)
@@ -132,13 +130,11 @@ install-chroot-dir:
 	$(INSTALL_BIN) -d $(CHROOTDIR)/logs
 	$(INSTALL_BIN) -d $(CHROOTDIR)/count
 	$(INSTALL_BIN) -d $(CHROOTDIR)/libexec
-	chmod -R o-rwx $(CHROOTDIR)
 
 install-etc-default-config: install-chroot-dir
 	if [ ! -d $(INSTALL_CFG_DEST) ]; then \
 	   ln -s $(CHROOTREL)/conf $(INSTALL_CFG_DEST); \
 	   $(INSTALL_BIN) $(INSTALL_CFG) $(ETCDIR)/3proxy.cfg; \
-	   $(INSTALL_BIN) $(INSTALL_CFG_OBJS) $(INSTALL_CFG_DEST); \
 	   $(INSTALL_BIN) $(INSTALL_CFG_INCHROOT) $(INSTALL_CFG_DEST)/3proxy.cfg; \
 	fi
 
@@ -156,16 +152,13 @@ install-man:
 	for f in proxy socks pop3p smtpp ftppr tcppm udppm tlspr; do \
 	  if [ -f man/$$f.8 ]; then $(INSTALL_DATA) man/$$f.8 $(MANDIR8)/$(PREFIX)$$f.8; fi; \
 	done
-	$(INSTALL_DATA) man/3proxy_crypt.8 $(MANDIR8)
+	$(INSTALL_DATA) man/3proxy_crypt.8 $(MANDIR8)/$(CRYPT_PREFIX)crypt.8
 
 install-init:
+	$(INSTALL_BIN) -d $(SYSTEMDDIR)
+	sed -e 's|@CMAKE_INSTALL_FULL_BINDIR@|$(exec_prefix)/bin|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|/etc|g' $(INSTALL_SYSTEMD_SCRIPT) > $(SYSTEMDDIR)/3proxy.service
 	$(INSTALL_BIN) -d $(INITDDIR)
 	$(INSTALL_BIN) $(INSTALL_INITD_SCRIPT) $(INITDDIR)/3proxy
-	$(INSTALL_BIN) -d $(SYSTEMDDIR)
-	$(INSTALL_DATA) $(INSTALL_SYSTEMD_SCRIPT) $(SYSTEMDDIR)
-
-install-run:
-	$(INSTALL_BIN) -d $(RUNDIR)
 
 install-log:
 	$(INSTALL_BIN) -d $(LOGBASE)
@@ -173,7 +166,7 @@ install-log:
 	 ln -s $(CHROOTREL)/logs $(LOGDIR);\
 	fi
 
-install: install-chroot-dir install-bin install-etc install-log install-man install-run install-init
+install: install-chroot-dir install-bin install-etc install-log install-man install-init
 	@if [ "$(DESTDIR)" = "" ]; then \
 	 sh debian/preinst; \
 	 sh debian/postinst; \
