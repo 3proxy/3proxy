@@ -1,6 +1,9 @@
 name: Build Win32 3proxy-lite with Watcom
 
 on:
+  push:
+    paths:
+      - 'RELEASE'
   workflow_dispatch:
 
 jobs:

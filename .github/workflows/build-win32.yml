@@ -1,6 +1,9 @@
 name: Build Win32 3proxy with MSVC
 
 on:
+  push:
+    paths:
+      - 'RELEASE'
   workflow_dispatch:
 
 jobs:

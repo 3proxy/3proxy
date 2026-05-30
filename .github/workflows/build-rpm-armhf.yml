@@ -1,6 +1,9 @@
 name: RPM/DEB build armhf
 
 on:
+  push:
+    paths:
+      - 'RELEASE'
   workflow_dispatch:
 
 jobs:

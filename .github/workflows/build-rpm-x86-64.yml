@@ -1,6 +1,9 @@
 name: RPM/DEB build x86-64
 
 on:
+  push:
+    paths:
+      - 'RELEASE'
   workflow_dispatch:
 
 jobs:

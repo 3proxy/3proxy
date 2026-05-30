@@ -1,6 +1,9 @@
 name: RPM/DEB build aarch64
 
 on:
+  push:
+    paths:
+      - 'RELEASE'
   workflow_dispatch:
 
 jobs:
