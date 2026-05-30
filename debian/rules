@@ -3,8 +3,21 @@
 %:
 	dh $@
 
-override_dh_auto_clean:
-	find src/ -type f -name "*.o" -delete
-	find src/ -type f -name "Makefile.var" -delete
-	find bin/ -type f -executable -delete
+override_dh_auto_configure:
+	ln -sf Makefile.Linux Makefile
 
+override_dh_auto_build:
+	$(MAKE)
+
+override_dh_auto_install:
+	$(MAKE) DESTDIR=debian/3proxy install
+
+override_dh_installman:
+
+override_dh_usrlocal:
+
+override_dh_auto_clean:
+	find src/ -type f -name "*.o" -delete                               
+	find src/ -type f -name "Makefile.var" -delete                    
+	find bin/ -type f -executable -delete 
+	rm -f Makefile
