@@ -50,7 +50,7 @@ make clean
 %config(noreplace) /usr/local/3proxy/conf/bandlimiters
 %config(noreplace) /usr/local/3proxy/conf/counters
 /usr/local/3proxy/libexec/*.ld.so
-/usr/share/man/man5/3proxy.cfg.5
+/usr/share/man/man5/3proxy.cfg.5*
 /usr/share/man/man8/*
 /var/log/3proxy
 
