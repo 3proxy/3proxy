@@ -170,4 +170,6 @@ install: install-chroot-dir install-bin install-etc install-log install-man inst
 	@if [ "$(DESTDIR)" = "" ]; then \
 	 sh debian/preinst; \
 	 sh debian/postinst; \
+	else \
+	 ls -lR $(DESTDIR); \
 	fi
