@@ -51,29 +51,29 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 		case R_CONNECT:
 		case R_CONNECTP:
 		{
-			len = sprintf((char *)buf, "CONNECT ");
+			len = snprintf((char *)buf, 2048, "CONNECT ");
 			if(redir->type == R_CONNECTP && hostname) {
 				char * needreplace;
 				needreplace = strchr((char *)hostname, ':');
 				if(needreplace) buf[len++] = '[';
-				len += sprintf((char *)buf + len, "%.256s", (char *)hostname);
+				len += snprintf((char *)buf + len, 2048 - len, "%.256s", (char *)hostname);
 				if(needreplace) buf[len++] = ']';
 			}
 			else {
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = '[';
-				len += myinet_ntop(*SAFAMILY(addr), SAADDR(addr), (char *)buf+len, 256);
+				len += myinet_ntop(*SAFAMILY(addr), SAADDR(addr), (char *)buf+len, 2048 - len);
 				if(*SAFAMILY(addr) == AF_INET6) buf[len++] = ']';
 			}
-			len += sprintf((char *)buf + len,
+			len += snprintf((char *)buf + len, 2048 - len,
 				":%hu HTTP/1.0\r\nConnection: keep-alive\r\n", ntohs(*SAPORT(addr)));
 			if(user){
-				len += sprintf((char *)buf + len, "Proxy-Authorization: Basic ");
-				sprintf((char *)username, "%.128s:%.128s", user, pass?pass:(unsigned char *)"");
+				len += snprintf((char *)buf + len, 2048 - len, "Proxy-Authorization: Basic ");
+				snprintf((char *)username, 258, "%.128s:%.128s", user, pass?pass:(unsigned char *)"");
 				en64(username, buf+len, (int)strlen((char *)username));
 				len = (int)strlen((char *)buf);
-				len += sprintf((char *)buf + len, "\r\n");
+				len += snprintf((char *)buf + len, 2048 - len, "\r\n");
 			}
-			len += sprintf((char *)buf + len, "\r\n");
+			len += snprintf((char *)buf + len, 2048 - len, "\r\n");
 			if(socksend(param, param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != (int)strlen((char *)buf))
 				return 31;
 			param->statssrv64+=len;
@@ -364,12 +364,12 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			if(ha) {
 			    char buf[128];
 			    int len;
-			    len = sprintf(buf, "PROXY %s ",
+			    len = snprintf(buf, sizeof(buf), "PROXY %s ",
 				*SAFAMILY(&param->sincr) == AF_INET6 ? "TCP6" : "TCP4");
 			    len += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), buf+len, sizeof(buf) - len);
 			    buf[len++] = ' ';
 			    len += myinet_ntop(*SAFAMILY(&param->sincl), SAADDR(&param->sincl), buf+len, sizeof(buf) - len);
-			    len += sprintf(buf + len, " %hu %hu\r\n",
+			    len += snprintf(buf + len, sizeof(buf) - len, " %hu %hu\r\n",
 				ntohs(*SAPORT(&param->sincr)),
 				ntohs(*SAPORT(&param->sincl))
 			    );
