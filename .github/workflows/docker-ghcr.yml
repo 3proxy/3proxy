@@ -34,9 +34,10 @@ jobs:
             echo "busybox=${IMAGE}:${RELEASE}.busybox,${IMAGE}:busybox" >> "$GITHUB_OUTPUT"
             echo "full=${IMAGE}:${RELEASE},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
           else
-            echo "minimal=${IMAGE}:devel.minimal" >> "$GITHUB_OUTPUT"
-            echo "busybox=${IMAGE}:devel.busybox" >> "$GITHUB_OUTPUT"
-            echo "full=${IMAGE}:devel" >> "$GITHUB_OUTPUT"
+            DATETIME=$(date +%d%m%y%H%M%S)
+            echo "minimal=${IMAGE}:${DATETIME}-devel.minimal,${IMAGE}:devel.minimal" >> "$GITHUB_OUTPUT"
+            echo "busybox=${IMAGE}:${DATETIME}-devel.busybox,${IMAGE}:devel.busybox" >> "$GITHUB_OUTPUT"
+            echo "full=${IMAGE}:${DATETIME}-devel,${IMAGE}:devel" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up QEMU
@@ -60,6 +61,7 @@ jobs:
           file: Dockerfile.minimal
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          no-cache: true
           tags: ${{ steps.tags.outputs.minimal }}
 
       - name: Build and push busybox
@@ -69,6 +71,7 @@ jobs:
           file: Dockerfile.busybox
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          no-cache: true
           tags: ${{ steps.tags.outputs.busybox }}
 
       - name: Build and push full
@@ -78,4 +81,13 @@ jobs:
           file: Dockerfile.full
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          no-cache: true
           tags: ${{ steps.tags.outputs.full }}
+
+      - name: Delete untagged GHCR images
+        if: github.event_name != 'pull_request'
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 3proxy
+          package-type: container
+          delete-untagged-versions: true
