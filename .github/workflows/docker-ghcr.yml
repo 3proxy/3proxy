@@ -80,10 +80,3 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.full }}
 
-      - name: Delete untagged GHCR images
-        if: github.event_name != 'pull_request'
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: 3proxy
-          package-type: container
-          delete-only-untagged-versions: true
