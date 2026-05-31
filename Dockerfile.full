@@ -54,8 +54,7 @@ RUN cd /dist/usr/local/3proxy/ &&\
 RUN cd /dist/usr/local/3proxy/usr &&\
  ln -s ../libexec lib &&\
  ln -s ../libexec lib64 &&\
- strip /dist/usr/local/3proxy/libexec/*.so &&\
- ls -lR /dist
+ strip /dist/usr/local/3proxy/libexec/*.so
 
 FROM scratch
 COPY --from=buildenv /dist /
