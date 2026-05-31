@@ -4,9 +4,6 @@ on:
   push:
     branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.msvc', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
-  pull_request:
-    branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.msvc', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
   workflow_dispatch:
 
 jobs:

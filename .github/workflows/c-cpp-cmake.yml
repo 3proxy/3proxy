@@ -4,9 +4,6 @@ on:
   push:
     branches: [ "master", "unix_socket" ]
     paths: [ '**.c', '**.h', '**.cmake', 'CMakeLists.txt', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
-  pull_request:
-    branches: [ "master" ]
-    paths: [ '**.c', '**.h', '**.cmake', 'CMakeLists.txt', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
   workflow_dispatch:
 
 jobs:

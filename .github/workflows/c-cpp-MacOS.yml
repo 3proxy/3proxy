@@ -4,9 +4,6 @@ on:
   push:
     branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.FreeBSD', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
-  pull_request:
-    branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.FreeBSD', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
   workflow_dispatch:
 
 jobs:
