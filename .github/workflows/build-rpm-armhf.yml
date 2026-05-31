@@ -1,9 +1,8 @@
 name: RPM/DEB build armhf
 
 on:
-  push:
-    paths:
-      - 'RELEASE'
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -72,11 +71,17 @@ jobs:
        rpmbuild -ba --define "PAMLIB pam0g" --define "_arch arm" --define "cross yes" --target=arm-linux-gnueabi 3proxy-$RELEASE.spec
        cd $ret
        mv ~/rpmbuild/RPMS/arm/3proxy-$RELEASE-1.arm.rpm 3proxy-$RELEASE.arm.rpm
-    - name: Get artifact
+    - name: Get artifact rpm
       uses: actions/upload-artifact@v6
       with:
        name: "3proxy-${{ env.RELEASE }}-arm.rpm"
        path: "*.rpm"
+    - name: Upload rpm to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.arm.rpm
     - name: debbuild
       run: |
         ret=`pwd`
@@ -103,3 +108,9 @@ jobs:
       with:
        name: "3proxy-${{ env.RELEASE }}-arm.deb"
        path: "*.deb"
+    - name: Upload deb to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.arm.deb

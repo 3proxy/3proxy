@@ -1,10 +1,8 @@
 name: Build Docker images (Docker Hub)
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'RELEASE'
+  release:
+    types: [published]
   workflow_dispatch:
 
 env:
@@ -24,18 +22,19 @@ jobs:
       - name: Determine tags
         id: tags
         env:
-          REF: ${{ github.ref }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [[ "$REF" == refs/tags/* ]]; then
-            RELEASE=$(cat RELEASE)
+          if [[ "$RELEASE_TAG" != "" ]]; then
+            RELEASE="${RELEASE_TAG#v}"
             echo "minimal=${REGISTRY}/${IMAGE_NAME}:${RELEASE}.minimal,${REGISTRY}/${IMAGE_NAME}:minimal" >> "$GITHUB_OUTPUT"
             echo "busybox=${REGISTRY}/${IMAGE_NAME}:${RELEASE}.busybox,${REGISTRY}/${IMAGE_NAME}:busybox" >> "$GITHUB_OUTPUT"
             echo "full=${REGISTRY}/${IMAGE_NAME}:${RELEASE},${REGISTRY}/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
           else
             DATETIME=$(date +%d%m%y%H%M%S)
-            echo "minimal=${REGISTRY}/${IMAGE_NAME}:${DATETIME}-devel.minimal,${REGISTRY}/${IMAGE_NAME}:devel.minimal" >> "$GITHUB_OUTPUT"
-            echo "busybox=${REGISTRY}/${IMAGE_NAME}:${DATETIME}-devel.busybox,${REGISTRY}/${IMAGE_NAME}:devel.busybox" >> "$GITHUB_OUTPUT"
-            echo "full=${REGISTRY}/${IMAGE_NAME}:${DATETIME}-devel,${REGISTRY}/${IMAGE_NAME}:devel" >> "$GITHUB_OUTPUT"
+            BRANCH=$(echo "${GITHUB_REF#refs/heads/}" | tr "/" "-")
+            echo "minimal=${REGISTRY}/${IMAGE_NAME}:${DATETIME}-${BRANCH}.minimal,${REGISTRY}/${IMAGE_NAME}:${BRANCH}.minimal" >> "$GITHUB_OUTPUT"
+            echo "busybox=${REGISTRY}/${IMAGE_NAME}:${DATETIME}-${BRANCH}.busybox,${REGISTRY}/${IMAGE_NAME}:${BRANCH}.busybox" >> "$GITHUB_OUTPUT"
+            echo "full=${REGISTRY}/${IMAGE_NAME}:${DATETIME}-${BRANCH},${REGISTRY}/${IMAGE_NAME}:${BRANCH}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up QEMU
@@ -58,7 +57,6 @@ jobs:
           file: Dockerfile.minimal
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          no-cache: true
           tags: ${{ steps.tags.outputs.minimal }}
 
       - name: Build and push busybox
@@ -68,7 +66,6 @@ jobs:
           file: Dockerfile.busybox
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          no-cache: true
           tags: ${{ steps.tags.outputs.busybox }}
 
       - name: Build and push full
@@ -78,5 +75,4 @@ jobs:
           file: Dockerfile.full
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          no-cache: true
           tags: ${{ steps.tags.outputs.full }}

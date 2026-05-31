@@ -1,9 +1,8 @@
 name: Build Win64 3proxy with MSVC
 
 on:
-  push:
-    paths:
-      - 'RELEASE'
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -87,3 +86,13 @@ jobs:
       with:
        name: "3proxy-${{ env.RELEASE }}-x64"
        path: dist/
+    - name: Create zip
+      if: github.event_name == 'release'
+      shell: pwsh
+      run: Compress-Archive -Path dist/* -DestinationPath 3proxy-${{ env.RELEASE }}-x64.zip
+    - name: Upload to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}-x64.zip
