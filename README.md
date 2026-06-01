@@ -24,7 +24,7 @@ https://github.com/z3APA3A/3proxy-archive
 
 Documentation (man pages and HTML) available with download, on https://3proxy.org/ and in github wiki https://github.com/3proxy/3proxy/wiki
 
-## Docker images for https://github.com/z3APA3A/3proxy
+## Docker images
 
 3 docker configurations are provided, default (full) also tagged as `:latest`, `:busybox` and `:minimal`, all refer to newest stable version. Except busybox, images are distroless and contain only binaries, you can not sh inside the container. `:busybox` contains busybox shell.
 
