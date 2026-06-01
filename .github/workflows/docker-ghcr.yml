@@ -59,7 +59,7 @@ jobs:
         with:
           context: .
           file: Dockerfile.minimal
-          platforms: linux/amd64,linux/arm64,linux/arm/v7,riscv64,ppc64le
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,ppc64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.minimal }}
 
@@ -68,7 +68,7 @@ jobs:
         with:
           context: .
           file: Dockerfile.busybox
-          platforms: linux/amd64,linux/arm64,linux/arm/v7,riscv64,ppc64le
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,ppc64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.busybox }}
 
@@ -77,7 +77,7 @@ jobs:
         with:
           context: .
           file: Dockerfile.full
-          platforms: linux/amd64,linux/arm64,linux/arm/v7,riscv64,ppc64le
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,ppc64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.full }}
 
