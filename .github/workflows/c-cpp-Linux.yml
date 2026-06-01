@@ -2,9 +2,13 @@ name: C/C++ CI Linux
 
 on:
   push:
-    branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.Linux', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+  pull_request:
+    paths: [ "**.c", "**.h", "Makefile.Linux", ".github/configs", ".github/workflows/c-cpp-Linux.yml" ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   ci:

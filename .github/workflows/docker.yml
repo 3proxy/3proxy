@@ -5,6 +5,9 @@ on:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: docker.io
   IMAGE_NAME: 3proxy/3proxy
@@ -13,8 +16,6 @@ jobs:
   build:
     name: Build and push Docker images
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5

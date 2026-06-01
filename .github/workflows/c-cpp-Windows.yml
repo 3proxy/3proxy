@@ -2,9 +2,13 @@ name: C/C++ CI Windows
 
 on:
   push:
-    branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.msvc', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
+  pull_request:
+    paths: [ "**.c", "**.h", "Makefile.msvc", ".github/configs", ".github/workflows/c-cpp-Windows.yml" ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   ci:

@@ -2,9 +2,13 @@ name: C/C++ CI MacOS
 
 on:
   push:
-    branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.FreeBSD', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
+  pull_request:
+    paths: [ "**.c", "**.h", "Makefile.FreeBSD", ".github/configs", ".github/workflows/c-cpp-MacOS.yml" ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   ci:
