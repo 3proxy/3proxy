@@ -9,18 +9,80 @@
 
 ## Download
 
-Binaries and sources for released (master) versions (Windows, Linux):
+# Binaries and sources for released (master) versions (Windows, Linux)
 https://github.com/z3APA3A/3proxy/releases
 
-Docker images:
+# Docker images
 https://hub.docker.com/r/3proxy/3proxy
+https://github.com/3proxy/3proxy/pkgs/container/3proxy
 
-Archive of old versions:
+# Archive of old versions
 https://github.com/z3APA3A/3proxy-archive
+
 
 ## Documentation
 
 Documentation (man pages and HTML) available with download, on https://3proxy.org/ and in github wiki https://github.com/3proxy/3proxy/wiki
+
+## Docker images for https://github.com/z3APA3A/3proxy
+
+3 docker configurations are provided, default (full) also tagged as `:latest`, `:busybox` and `:minimal`, all refer to newest stable version. Except busybox, images are distroless and contain only binaries, you can not sh inside the container. `:busybox` contains busybox shell.
+
+# Default image (`:latest`):
+
+Full installation requires to mount /etc/3proxy directory with 3proxy.cfg files.
+
+to run:
+
+``` 
+echo log >/path/to/local/config/directory/3proxy.cfg
+echo nserver 8.8.8.8 >>/path/to/local/config/directory/3proxy.cfg
+echo nscache 65536 >>/path/to/local/config/directory/3proxy.cfg
+echo proxy -p3129 >>/path/to/local/config/directory/3proxy.cfg
+docker run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy --name 3proxy.full docker.io/3proxy/3proxy
+```
+
+ /path/to/local/config/directory in this example must contain 3proxy.cfg
+
+ use `log` without pathname in config to log to stdout.
+ plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config) and since 0.9.6 symlinked by /lib and /lib64 in both chroot and non-chroot configurations, so no full path is required in `plugin` command. Use e.g. `plugin SSLPlugin.ls.so ssl_plugin`. SSLPlugin is supported since 0.9.6. Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. -`-network host` mode or `-P` for `docker run`.
+
+since 0.9.6 images are distroless (except :busybox) it's recommended to use with read only file system, there are no benefits from chroot. For compatibility, you still can use chroot installation by mounting directory with 3proxy.cfg to /usr/local/3proxy/config.
+
+# Busybox image (`:busybox`):
+Full with busybox added, to allow shell commands inside container. All libraries are in /lib, so chroot configuration can not use plugins.
+
+# Interactive `:minimal` image:
+
+ Dockerfile for "interactive" minimal 3proxy execution, no configuration mounting is required, configuration
+ is accepted from stdin. Use `end` command to indicate the end of configuration. Use `log` for stdout logging.
+
+
+ `plugin` is not supported, `nserver` or `fakeresolve` are mandatory, because system resolver is not supported, no support for RADIUS and IPv6.
+
+ Run example:
+
+ `docker run --read-only -i -p 3129:3129 --name 3proxy docker.io/3proxy/3proxy:minimal`
+or
+ `docker start -ai 3proxy` to start existing container
+
+send this to standard input (example):
+```
+nserver 8.8.8.8
+nscache 65535
+log
+proxy -p3129
+end
+```
+ `nserver` is required for DNS resolutions. 
+
+Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. `--network host` mode or `-P` to `docker run`.
+
+`:minimal` without version specified uses current stable version.
+
+# Binaries (deb / rpm / Windows zip)
+
+https://github.com/3proxy/3proxy/releases
 
 ## Windows Installation
 
@@ -38,7 +100,7 @@ Remove the service (should be stopped before via `net stop 3proxy`):
 3proxy --remove
 ```
 
-## Building on Linux
+## Building and installation on Linux
 
 ### With Makefile
 
@@ -64,10 +126,10 @@ By default, socks is started on 0.0.0.0:1080 and proxy on 0.0.0.0:3128 with basi
 
 ### Adding Users
 
-Use `/etc/3proxy/conf/add3proxyuser.sh` script to add users:
+Use `add3proxyuser` script to add users:
 
 ```bash
-/etc/3proxy/conf/add3proxyuser.sh username password [day_limit] [bandwidth]
+add3proxyuser username password [day_limit] [bandwidth]
 ```
 
 Parameters:
@@ -135,6 +197,8 @@ sudo launchctl start org.3proxy.3proxy
 # Unload and disable service
 sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 ```
+
+
 
 ## Features
 
