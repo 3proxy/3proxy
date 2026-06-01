@@ -17,7 +17,7 @@ jobs:
           - ubuntu-24.04-arm
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: env
       run: |
        pwd
