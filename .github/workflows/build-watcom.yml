@@ -21,7 +21,7 @@ jobs:
 #    - name: configure
 #      run: ./configure
     - name: Setup Open Watcom
-      uses: open-watcom/setup-watcom@v0
+      uses: open-watcom/setup-watcom@v1
     - name: set date
       run: |
        $NOW = Get-Date -Format "yyMMddHHmmss"
