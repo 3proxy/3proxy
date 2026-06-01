@@ -52,28 +52,28 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push minimal
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.minimal
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,riscv64,ppc64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.minimal }}
 
       - name: Build and push busybox
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.busybox
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,riscv64,ppc64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.busybox }}
 
       - name: Build and push full
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.full
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,riscv64,ppc64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.full }}

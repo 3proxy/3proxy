@@ -38,14 +38,13 @@ Full installation requires to mount /etc/3proxy directory with 3proxy.cfg files.
 to run:
 
 ``` 
-echo log >/path/to/local/config/directory/3proxy.cfg
-echo nserver 8.8.8.8 >>/path/to/local/config/directory/3proxy.cfg
-echo nscache 65536 >>/path/to/local/config/directory/3proxy.cfg
-echo proxy -p3129 >>/path/to/local/config/directory/3proxy.cfg
-docker run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy --name 3proxy.full docker.io/3proxy/3proxy
+echo "
+log
+nserver 8.8.8.8
+nscache 65536
+proxy -p3129" | docker config create 3proxy
+docker run --read-only -p 3129:3129 --config source=3proxy,target=/etc/3proxy/3proxy.cfg --name 3proxy.full docker.io/3proxy/3proxy
 ```
-
- /path/to/local/config/directory in this example must contain 3proxy.cfg
 
  use `log` without pathname in config to log to stdout.
  plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config) and since 0.9.6 symlinked by /lib and /lib64 in both chroot and non-chroot configurations, so no full path is required in `plugin` command. Use e.g. `plugin SSLPlugin.ls.so ssl_plugin`. SSLPlugin is supported since 0.9.6. Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. -`-network host` mode or `-P` for `docker run`.
