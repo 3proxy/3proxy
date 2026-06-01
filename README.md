@@ -9,14 +9,17 @@
 
 ## Download
 
-# Binaries and sources for released (master) versions (Windows, Linux)
-https://github.com/z3APA3A/3proxy/releases
+# Binaries (deb / rpm / Windows zip)
+
+https://github.com/3proxy/3proxy/releases
 
 # Docker images
+
 https://hub.docker.com/r/3proxy/3proxy
 https://github.com/3proxy/3proxy/pkgs/container/3proxy
 
 # Archive of old versions
+
 https://github.com/z3APA3A/3proxy-archive
 
 
@@ -80,9 +83,6 @@ Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy
 
 `:minimal` without version specified uses current stable version.
 
-# Binaries (deb / rpm / Windows zip)
-
-https://github.com/3proxy/3proxy/releases
 
 ## Windows Installation
 
