@@ -84,7 +84,7 @@ jobs:
        copy README.md dist\3proxy\
        copy rus.3ps dist\3proxy\
     - name: Get artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-arm64"
        path: dist/
