@@ -48,7 +48,7 @@ jobs:
        cd $ret
        mv ~/rpmbuild/RPMS/aarch64/3proxy-$RELEASE-1.aarch64.rpm 3proxy-$RELEASE.arm64.rpm
     - name: Get artifact rpm
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-arm64.rpm"
        path: "*.rpm"
@@ -74,7 +74,7 @@ jobs:
         cd $ret
         cp ~/debian/3proxy_$RELEASE-"$VERSION"_arm64.deb ./3proxy-$RELEASE.arm64.deb
     - name: Get artifact deb
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-arm64.deb"
        path: "*.deb"

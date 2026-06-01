@@ -75,7 +75,7 @@ jobs:
        cd $ret
        mv ~/rpmbuild/RPMS/arm/3proxy-$RELEASE-1.arm.rpm 3proxy-$RELEASE.arm.rpm
     - name: Get artifact rpm
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-arm.rpm"
        path: "*.rpm"
@@ -107,7 +107,7 @@ jobs:
         cd $ret
         cp ~/debian/3proxy_$RELEASE-"$VERSION"_armhf.deb ./3proxy-$RELEASE.arm.deb
     - name: Get artifact deb
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-arm.deb"
        path: "*.deb"

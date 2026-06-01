@@ -48,7 +48,7 @@ jobs:
        cd $ret
        mv ~/rpmbuild/RPMS/x86_64/3proxy-$RELEASE-1.x86_64.rpm 3proxy-$RELEASE.x86_64.rpm
     - name: Get artifact rpm
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-x86_64.rpm"
        path: "*.rpm"
@@ -74,7 +74,7 @@ jobs:
         cd $ret
         cp ~/debian/3proxy_$RELEASE-"$VERSION"_amd64.deb ./3proxy-$RELEASE.x86_64.deb
     - name: Get artifact deb
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-x86_64.deb"
        path: "*.deb"
