@@ -18,6 +18,9 @@ https://github.com/3proxy/3proxy/releases
 https://hub.docker.com/r/3proxy/3proxy
 https://github.com/3proxy/3proxy/pkgs/container/3proxy
 
+> [!TIP]
+> An alternative Docker image (community-maintained) with support for configuration through environment variables and a ready-to-use Helm chart for Kubernetes can be found here: [tarampampam/3proxy-docker](https://github.com/tarampampam/3proxy-docker).
+
 ### Archive of old versions
 
 https://github.com/z3APA3A/3proxy-archive
