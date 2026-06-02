@@ -255,6 +255,11 @@ void * sockschild(struct clientparam* param) {
 	if(switch_ns(param->srv, param->srv->o_nsfd)) {RETURN(11);}
 #endif
 	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
+#ifdef _WIN32
+	{ unsigned long ul = 1; ioctlsocket(param->remsock, FIONBIO, &ul); }
+#else
+	fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
+#endif
  }
 
  if(command > 1) {
@@ -275,6 +280,11 @@ fflush(stderr);
 #endif
 		param->clisock = param->srv->so._socket(param->sostate, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
+#ifdef _WIN32
+		{ unsigned long ul = 1; ioctlsocket(param->clisock, FIONBIO, &ul); }
+#else
+		fcntl(param->clisock, F_SETFL, O_NONBLOCK | fcntl(param->clisock, F_GETFL));
+#endif
 		sin = param->sincl;
 		*SAPORT(&sin) = 0;
 		if(param->srv->so._bind(param->sostate, param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}

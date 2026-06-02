@@ -106,6 +106,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 			len = param->srv->so._recvfrom(param->sostate, param->clisock,
 				(char *)param->srvbuf + recvoff, UDPBUFSIZE - recvoff,
 				0, (struct sockaddr *)&sin, &sasize);
+			if (len < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 			if (len <= 0) return 482;
 
 			if (SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) ||
@@ -182,6 +183,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 			len = param->srv->so._recvfrom(param->sostate, param->remsock,
 				(char *)param->srvbuf + hdrsize, UDPBUFSIZE - hdrsize, 0,
 				(struct sockaddr *)&from, &sasize);
+			if (len < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 			if (len <= 0) return 486;
 			if (nhops >= 1) {
 				if (!SAISNULL(&param->sinsr) && *SAPORT(&param->sinsr)) {

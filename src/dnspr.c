@@ -147,9 +147,9 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	else {
 #ifdef _WIN32
-/*		ioctlsocket(param->remsock, FIONBIO, &ul); */
+		ioctlsocket(param->remsock, FIONBIO, &ul);
 #else
-/*		fcntl(param->remsock,F_SETFL,O_NONBLOCK);  */
+		fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
 #endif
 	}
 
