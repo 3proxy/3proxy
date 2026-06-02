@@ -1020,17 +1020,19 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(hashresolv(&udp_table, &defparam, &toparam, NULL)) {
 		    int i, len=0;
 		
-		    if(toparam->udp_nhops){
-			for(i=1; i < toparam->udp_nhops; i++){
-			    len+=socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->udp_relay[i-1]);
-    			}
-    			len += socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->req);
+		    if(!toparam->bandlimfunc || !(*toparam->bandlimfunc)(toparam, 0, srv.udplen)){
+			if(toparam->udp_nhops){
+			    for(i=1; i < toparam->udp_nhops; i++){
+				len+=socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->udp_relay[i-1]);
+    			    }
+    			    len += socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->req);
+			}
+			memcpy(srv.udpbuf2+len, srv.udpbuf, srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen);
+			len += srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen;
+			srv.so._sendto(toparam->sostate, toparam->remsock, (char *)srv.udpbuf2, len, 0, (struct sockaddr *)&toparam->sinsr, SASIZE(&toparam->sinsr));
+			toparam->statscli64 += srv.udplen;
+			toparam->nwrites++;
 		    }
-		    memcpy(srv.udpbuf2+len, srv.udpbuf, srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen);
-		    len += srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen;
-		    srv.so._sendto(toparam->sostate, toparam->remsock, (char *)srv.udpbuf2, len, 0, (struct sockaddr *)&toparam->sinsr, SASIZE(&toparam->sinsr));
-		    toparam->statscli64 += srv.udplen;
-		    toparam->nwrites++;
 		    _3proxy_sem_unlock(udpinit);
 		    continue;
 		}

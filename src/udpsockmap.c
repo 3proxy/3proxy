@@ -124,6 +124,8 @@ int udpsockmap(struct clientparam *param, int timeo)
 				continue;
 			}
 
+			if(param->bandlimfunc && (*param->bandlimfunc)(param, 0, len)) continue;
+
 			if (nhops == 0) {
 				int i;
 				if (len < 10 || param->srvbuf[0] || param->srvbuf[1] || param->srvbuf[2])
@@ -195,6 +197,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 			}
 			param->statssrv64 += len;
 			param->nreads++;
+			if(param->bandlimfunc && (*param->bandlimfunc)(param, len, 0)) continue;
 			sendlen = len;
 			if (nhops == 0) {
 				param->srvbuf[0] = param->srvbuf[1] = param->srvbuf[2] = 0;

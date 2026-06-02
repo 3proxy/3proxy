@@ -61,19 +61,21 @@ void * udppmchild(struct clientparam* param) {
 	    if(!(param->srvbuf = malloc(UDPBUFSIZE)))RETURN(11);
 	    param->srvbufsize = UDPBUFSIZE;
 	}
-	if(param->udp_nhops){
-	    for(i=1; i < param->udp_nhops; i++){
-		len+=socks5_udp_build_hdr(param->srvbuf+len, &param->udp_relay[i-1]);
+	if(!param->bandlimfunc || !(*param->bandlimfunc)(param, 0, param->srv->udplen)){
+	    if(param->udp_nhops){
+		for(i=1; i < param->udp_nhops; i++){
+		    len+=socks5_udp_build_hdr(param->srvbuf+len, &param->udp_relay[i-1]);
+		}
+		len += socks5_udp_build_hdr(param->srvbuf+len, &param->req);
 	    }
-	    len += socks5_udp_build_hdr(param->srvbuf+len, &param->req);
+	    memcpy(param->srvbuf+len, param->srv->udpbuf, param->srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : param->srv->udplen);
+	    len += param->srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : param->srv->udplen;
+	    param->srv->so._sendto(param->sostate, param->remsock, (char *)param->srvbuf, len, 0, (struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr));
+	    param->statscli64 += param->srvinbuf;
+	    param->nwrites++;
 	}
-	memcpy(param->srvbuf+len, param->srv->udpbuf, param->srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : param->srv->udplen);
-	len += param->srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : param->srv->udplen;
-	param->srv->so._sendto(param->sostate, param->remsock, (char *)param->srvbuf, len, 0, (struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr));
 	_3proxy_sem_unlock(udpinit);
-	param->statscli64 += param->srvinbuf;
 	param->srvinbuf = 0;
-	param->nwrites++;
 	param->clisock = param->srv->srvsock;
 	param->waitserver64 = 0x7fffffffffffffff;
 	param->res = udpsockmap(param, conf.timeouts[STRING_L]);
