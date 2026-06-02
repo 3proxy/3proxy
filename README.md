@@ -33,18 +33,29 @@ Documentation (man pages and HTML) available with download, on https://3proxy.or
 
 ### Default image (`:latest`):
 
-Full installation requires to mount /etc/3proxy directory with 3proxy.cfg files.
+Full installation requires to mount /etc/3proxy/3proxy.cfg files.
 
-to run:
+For docker, config can be provided via `docker config` 
 
 ``` 
-echo "
-log
+echo "log
 nserver 8.8.8.8
 nscache 65536
 proxy -p3129" | docker config create 3proxy
 docker run --read-only -p 3129:3129 --config source=3proxy,target=/etc/3proxy/3proxy.cfg --name 3proxy.full docker.io/3proxy/3proxy
 ```
+
+ `podman` does not support `config` as above.
+ Mounts may be used as config alternative. `podman` used in example below can be replaced with `docker`:
+
+```
+echo "log
+nserver 8.8.8.8
+nscache 65536
+proxy -p3129" >/path/to/local/config/directory/3proxy.cfg
+podman run --read-only -p 3129:3129 -v /path/to/local/config/directory/3proxy.cfg:/etc/3proxy/3proxy.cfg --name 3proxy.full 3proxy.full
+```
+
 
  use `log` without pathname in config to log to stdout.
  plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config) and since 0.9.6 symlinked by /lib and /lib64 in both chroot and non-chroot configurations, so no full path is required in `plugin` command. Use e.g. `plugin SSLPlugin.ls.so ssl_plugin`. SSLPlugin is supported since 0.9.6. Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. -`-network host` mode or `-P` for `docker run`.
@@ -52,7 +63,8 @@ docker run --read-only -p 3129:3129 --config source=3proxy,target=/etc/3proxy/3p
 since 0.9.6 images are distroless (except :busybox) it's recommended to use with read only file system, there are no benefits from chroot. For compatibility, you still can use chroot installation by mounting directory with 3proxy.cfg to /usr/local/3proxy/config.
 
 ### Busybox image (`:busybox`):
-Full with busybox added, to allow shell commands inside container. All libraries are in /lib, so chroot configuration can not use plugins.
+
+`full` with busybox added, to allow `sh` and few more commands like `sed` inside container. All libraries are in /lib, so chroot configuration can not use plugins.
 
 ### Interactive `:minimal` image:
 
