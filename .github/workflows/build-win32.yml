@@ -56,10 +56,11 @@ jobs:
        [System.IO.File]::WriteAllBytes("${{ github.workspace }}\3proxy.crt", $cert.Export("Cert"))
     - name: Sign
       shell: pwsh
+      env:
+       CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       run: |
        $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).FullName
-       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy.exe"
-       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy_crypt.exe"
+       Get-ChildItem bin\*.exe, bin\*.dll | ForEach-Object { & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "$env:CERT_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName }
     - name: make dist dir
       shell: cmd
       run: |
