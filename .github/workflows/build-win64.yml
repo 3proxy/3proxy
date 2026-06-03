@@ -48,6 +48,13 @@ jobs:
       run: |
        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
        [System.IO.File]::WriteAllBytes("${{ github.workspace }}\cert.pfx", $pfx_cert_byte)
+    - name: Extract public certificate
+      shell: pwsh
+      env:
+       CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      run: |
+       $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("${{ github.workspace }}\cert.pfx", "$env:CERT_PASSWORD")
+       [System.IO.File]::WriteAllBytes("${{ github.workspace }}\3proxy.crt", $cert.Export("Cert"))
     - name: Sign
       shell: pwsh
       run: |
@@ -84,6 +91,7 @@ jobs:
        copy authors dist\3proxy\
        copy README.md dist\3proxy\
        copy rus.3ps dist\3proxy\
+       copy 3proxy.crt dist\3proxy\
     - name: Get artifact
       uses: actions/upload-artifact@v7
       with:
