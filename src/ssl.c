@@ -338,7 +338,11 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	return NULL;
     }
 
-    SSL_set_fd(conn->ssl, s);
+    if(!SSL_set_fd(conn->ssl, s)){
+	*errSSL = getSSLErr();
+	ssl_conn_free(conn);
+	return NULL;
+    }
 
     do {
 	struct pollfd fds[1] = {{INVALID_SOCKET}};
@@ -509,6 +513,7 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
 	SSL_CTX_free(ctx);
 	return NULL;
     }
+    SSL_CTX_set_session_id_context(ctx, (const unsigned char *)"3proxy", 6);
     if(config->server_min_proto_version)SSL_CTX_set_min_proto_version(ctx, config->server_min_proto_version);
     if(config->server_max_proto_version)SSL_CTX_set_max_proto_version(ctx, config->server_max_proto_version);
     if(config->server_cipher_list)SSL_CTX_set_cipher_list(ctx, config->server_cipher_list);
@@ -786,7 +791,7 @@ static void ssl_filter_close(void *fo){
 	X509_free(CONFIG->server_cert);
     }
     if ( CONFIG->client_cert != NULL ) {
-	X509_free(CONFIG->server_cert);
+	X509_free(CONFIG->client_cert);
     }
     if ( CONFIG->CA_key != NULL ) {
 	EVP_PKEY_free(CONFIG->CA_key);
@@ -795,7 +800,7 @@ static void ssl_filter_close(void *fo){
 	EVP_PKEY_free(CONFIG->server_key);
     }
     if ( CONFIG->client_key != NULL ) {
-	EVP_PKEY_free(CONFIG->server_key);
+	EVP_PKEY_free(CONFIG->client_key);
     }
     if ( CONFIG->srv_ctx != NULL ) {
 	SSL_CTX_free(CONFIG->srv_ctx);
