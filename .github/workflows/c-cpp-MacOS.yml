@@ -19,7 +19,7 @@ jobs:
           - macos-15
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 #    - name: configure
 #      run: ./configure
     - name: Mac libraries

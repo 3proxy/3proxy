@@ -20,7 +20,7 @@ jobs:
           - ubuntu-24.04-arm
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 #    - name: configure
 #      run: ./configure
     - name: Linux libraries
