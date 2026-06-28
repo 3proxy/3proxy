@@ -18,7 +18,7 @@ DWORD WINAPI threadfunc(LPVOID p) {
 void * threadfunc (void *p) {
 #endif
  int i = -1;
-#ifndef STDMAIN
+#ifdef MODULEMAINFUNC
  if(makefilters(param->srv, param) > CONTINUE){
 #ifndef NOUDPMAIN
 	if(param->srv->service == S_UDPPM) _3proxy_sem_unlock(udpinit);
