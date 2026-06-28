@@ -201,7 +201,7 @@ log(logbuf);
 log("send to server from buf");
 #endif
 		if(!param->nolongdatfilter){
-			action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, param->cliinbuf - res, (int *)&param->cliinbuf);
+			action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, param->clioffset, (int *)&param->cliinbuf);
 			if(action == HANDLED){
 				RETURN(0);
 			}
@@ -247,7 +247,7 @@ log("done send to server from buf");
 log("send to client from buf");
 #endif
 		if(!param->nolongdatfilter){
-			action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, param->srvinbuf - res, (int *)&param->srvinbuf);
+			action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, param->srvoffset, (int *)&param->srvinbuf);
 			if(action == HANDLED){
 				RETURN(0);
 			}
