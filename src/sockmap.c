@@ -544,6 +544,7 @@ log("done read from server to buf");
 		}
 //		if(!CLIENTTERMREAD || !CLIENTTERMWRITE){
 			if(!after){
+				fds[fdsc].fd = param->clisock;
 				if(fromclient && !CLIENTTERMREAD && !FROMCLIENT && ((
 #ifdef WITHSPLICE
 					!usesplice &&
@@ -603,6 +604,7 @@ log("ready to write to client");
 
 //		if(!SERVERTERMREAD || !SERVERTERMWRITE){
 			if(!after){
+				fds[fdsc].fd = param->remsock;
 				if(fromserver && !SERVERTERMREAD && !FROMSERVER && ((
 #ifdef WITHSPLICE
 					!usesplice &&
