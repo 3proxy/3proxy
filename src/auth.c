@@ -72,31 +72,32 @@ int alwaysauth(struct clientparam * param){
 int cacheauth(struct clientparam * param){
 	struct authcache ac;
 	uint32_t ttl;
+	unsigned type = param->srv->authcachetype;
 
 
 	if(
-	((conf.authcachetype & 2) && !param->username) ||
-	((conf.authcachetype & 4) && !param->password) ||
+	((type & 2) && !param->username) ||
+	((type & 4) && !param->password) ||
 	(
-	 (conf.authcachetype & 1) && *SAFAMILY(&param->sincr) != AF_INET
+	 (type & 1) && *SAFAMILY(&param->sincr) != AF_INET
 #ifndef NOIPv6
 	    && *SAFAMILY(&param->sincr) != AF_INET6
 #endif
 	) || (!hashresolv(&auth_table, param, &ac, &ttl))) {
 	    return 4;
 	}
-	if((conf.authcachetype & 1) &&(conf.authcachetype & 8) &&
+	if((type & 1) &&(type & 8) &&
 	 (ac.sincr_family != *SAFAMILY(&param->sincr) ||
 	 memcmp(ac.sincr_addr, SAADDR(&param->sincr), SAADDRLEN(&param->sincr))
 	)) {
 	    return 10;
 	}
 
-	if(!(conf.authcachetype&2) && *ac.username){
+	if(!(type&2) && *ac.username){
 	    if(param->username) free(param->username);
 	    param->username = (unsigned char *)strdup((char *)ac.username);
 	}
-	if((conf.authcachetype & 32)){
+	if((type & 32)){
 	    memset(&param->sinsl, 0, sizeof(param->sinsl));
 	    *(SAFAMILY(&param->sinsl)) = ac.sinsl_family;
 	    memcpy(SAADDR(&param->sinsl), ac.sinsl_addr, SAADDRLEN(&param->sinsl));
@@ -116,7 +117,7 @@ int doauth(struct clientparam * param){
 			if(authfuncs->authorize &&
 				(res = (*authfuncs->authorize)(param)))
 					return res;
-			if(conf.authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && param->username && (!(conf.authcachetype&4) || (!param->pwtype && param->password))){
+			if(param->srv->authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && param->username && (!(param->srv->authcachetype&4) || (!param->pwtype && param->password))){
 			    struct authcache ac={.username=""};
 
 			    if(param->username) {
