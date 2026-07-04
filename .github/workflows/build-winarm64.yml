@@ -103,6 +103,7 @@ jobs:
       run: Compress-Archive -Path dist/* -DestinationPath 3proxy-${{ env.RELEASE }}-arm64.zip
     - name: Upload to release
       if: github.event_name == 'release'
+      shell: bash
       env:
        GH_TOKEN: ${{ github.token }}
        TAG: ${{ github.event.release.tag_name }}
