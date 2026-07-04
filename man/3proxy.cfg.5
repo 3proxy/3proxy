@@ -591,8 +591,7 @@ This is the default authentication type
  Appropriate for most cases
 .br
  \fBuseronly\fR - authentication by username without checking for any password with
-authorization by ACLs. Useful for e.g. SOCKSv4 proxy and icqpr (icqpr set UIN /
-AOL screen name as a username)
+authorization by ACLs. Useful for e.g. SOCKSv4 proxy.
 .br
  \fBdnsname\fR - authentication by DNS hostname with authorization by ACLs.
 The DNS hostname is resolved via a PTR (reverse) record and validated (the resolved
@@ -604,6 +603,11 @@ NB: there is no password check; the name may be spoofed.
 SOCKSv5, FTP, POP3 and HTTP proxy. 
 .br
  \fBcache\fR - cached authentication, may be used with \'authcache\'.
+.br
+ \fBcacheacl\fR - cached authentication, same as \fBcache\fR but the ACL
+authorization result is also cached and not re-evaluated on each request. Faster
+than \fBcache\fR, but ACL changes do not take effect for cached users until the
+cache entry expires. Use \fBcache\fR if ACLs may change during the cache lifetime.
 .br
  \fBradius\fR - authentication with RADIUS.
 .br
@@ -641,11 +645,25 @@ assigned to the same user without actual authentication.
 .br
  \fBlimit\fR - limit user to use only one ip, \'ip\' and \'user\' are required
 .br
- \fBack\fR - only use cached auth if user access service with same ACL
+ \fBacl\fR - only use cached auth if user access service with same ACL
 .br
  \fBext\fR - cache external IP
 .br
-Use auth type \fBcache\fR for cached authentication
+ \fBdstaddr\fR - cache by destination IP address
+.br
+ \fBdstport\fR - cache by destination port
+.br
+ \fBdsthost\fR - cache by destination hostname
+.br
+ \fBdstoper\fR - cache by destination operation (e.g. HTTP method)
+.br
+ \fBsrvaddr\fR - cache by service (listener) address
+.br
+ \fBsrvport\fR - cache by service (listener) port
+.br
+Multiple types can be combined (e.g. \fBip,user,dstaddr,dstport\fR).
+.br
+Use auth type \fBcache\fR (or \fBcacheacl\fR) for cached authentication
 
 .br
 .BR allow
@@ -808,6 +826,12 @@ in the proxy chain. Useful for passing client IP information to the parent proxy
 Example: parent 1000 ha
 .br
 Use "+" proxy only with \fBfakeresolve\fR option
+.br
+Any parent type above can be suffixed with \fBs\fR (e.g. \fBhttps\fR,
+\fBtcps\fR, \fBsocks5s\fR, \fBconnect+s\fR) to establish a TLS-encrypted
+connection to the parent proxy. Requires SSL/TLS support (WITH_SSL) and is
+used with \fBssl_client_mode 3\fR, which only handshakes TLS for \fBs\fR-suffixed
+parents.
 .br
 
  IP and port are ip addres and port of parent proxy server.
@@ -1047,7 +1071,9 @@ the format:
 .br
  \fBCL\fR - password is cleartext
 .br
- \fBCR\fR - password is crypt-style password
+ \fBCR\fR - password is crypt-style password. \fB$1$\fR prefix uses MD5-crypt
+(requires OpenSSL), \fB$3$\fR prefix uses BLAKE2b-crypt (always available, see
+.BR 3proxy_crypt (8))
 .br
  \fBNT\fR - password is NT password (in hex)
 .br
@@ -1056,6 +1082,8 @@ the format:
  users test1:CL:password1 "test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49."
 .br
  users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63
+.br
+ users "test4:CR:$3$salt$G47yV9w...."
 .br
  Note: double quotes are required because the password contains a $ sign.
 
@@ -1356,7 +1384,7 @@ authentication and/or allow/deny ACLs.
 Report all bugs to
 .BR 3proxy@3proxy.org
 .SH SEE ALSO
-3proxy(8), proxy(8), ftppr(8), socks(8), pop3p(8), tcppm(8), udppm(8), syslogd(8),
+3proxy(8), 3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8), smtpp(8), tlspr(8), tcppm(8), udppm(8), syslogd(8),
 .br
  https://3proxy.org/
 .SH AUTHORS

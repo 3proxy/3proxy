@@ -87,7 +87,7 @@ jobs:
        copy doc\html\plugins\*.* dist\3proxy\doc\html\plugins\
        copy doc\html\man8\*.* dist\3proxy\doc\html\man8\
        copy doc\html\man5\*.* dist\3proxy\doc\html\man5\
-       copy doc\html\devel\*.rtf dist\3proxy\doc\html\devel\
+       copy doc\html\devel\*.* dist\3proxy\doc\html\devel\
        copy copying dist\3proxy\
        copy authors dist\3proxy\
        copy README.md dist\3proxy\
