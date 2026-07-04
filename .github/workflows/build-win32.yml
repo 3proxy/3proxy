@@ -95,7 +95,7 @@ jobs:
     - name: Get artifact
       uses: actions/upload-artifact@v7
       with:
-       name: "3proxy-${{ env.RELEASE }}"
+       name: "3proxy-${{ env.RELEASE }}-x86"
        path: dist/
     - name: Create zip
       if: github.event_name == 'release'
