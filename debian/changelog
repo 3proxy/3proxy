@@ -1,3 +1,9 @@
+3proxy (0.9.7-1) buster; urgency=medium
+
+  *3proxy 0.9.7 initial build
+
+ -- z3APA3A <3apa3a@3proxy.org>  Sat, 04 Jul 2026 11:55:03 +0300
+
 3proxy (0.9.6-1) buster; urgency=medium
 
   *3proxy 0.9.6 initial build
