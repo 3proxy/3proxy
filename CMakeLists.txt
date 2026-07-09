@@ -620,14 +620,6 @@ foreach(PROXY_NAME proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
     endif()
 endforeach()
 
-# Plugin output directory
-set(PLUGIN_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-if(WIN32)
-    set(PLUGIN_SUFFIX ".dll")
-else()
-    set(PLUGIN_SUFFIX ".ld.so")
-endif()
-
 # Include plugin definitions
 include(cmake/plugins.cmake)
 
@@ -661,16 +653,17 @@ foreach(PROXY_NAME proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
 endforeach()
 
 # Install plugins
-file(GLOB PLUGINFILES "${PLUGIN_OUTPUT_DIR}/*${PLUGIN_SUFFIX}")
+get_property(PLUGINTARGETS GLOBAL PROPERTY 3PROXY_PLUGIN_TARGETS)
+
 if(WIN32)
-    install(FILES
-        ${PLUGINFILES}
-        DESTINATION ${CMAKE_INSTALL_BINDIR}
+    install(TARGETS
+        ${PLUGINTARGETS}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 else()
-    install(FILES
-        ${PLUGINFILES}
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/3proxy
+    install(TARGETS
+        ${PLUGINTARGETS}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/3proxy
     )
 endif()
 

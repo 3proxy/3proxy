@@ -20,6 +20,8 @@ function(add_3proxy_plugin PLUGIN_NAME)
 
     add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SOURCES})
 
+    set_property(GLOBAL APPEND PROPERTY 3PROXY_PLUGIN_TARGETS ${PLUGIN_NAME})
+
     set_target_properties(${PLUGIN_NAME} PROPERTIES
         PREFIX ""
         SUFFIX ${PLUGIN_SUFFIX}
