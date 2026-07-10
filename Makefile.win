@@ -8,10 +8,7 @@
 BUILDDIR = ../bin/
 PREFIX ?= 3proxy_
 CRYPT_PREFIX ?= $(PREFIX)
-# Override make's built-in CC=cc default; respect env/command-line overrides.
-ifeq ($(origin CC), default)
-CC = gcc
-endif
+CC ?= gcc
 CFLAGS ?= -O3 -flto
 CFLAGS += -fno-strict-aliasing -c -mthreads  -DWITH_WSAPOLL -DWITH_ODBC
 COUT = -o 

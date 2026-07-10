@@ -19,6 +19,7 @@ jobs:
         update: true
         install: >-
           make
+          mingw-w64-ucrt-x86_64-gcc
           mingw-w64-ucrt-x86_64-pcre2
           mingw-w64-ucrt-x86_64-openssl
     - name: set date
