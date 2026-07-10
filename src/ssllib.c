@@ -280,7 +280,7 @@ int ssl_file_init = 0;
 
 int ssl_init_done = 0;
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
 extern EVP_MD *md4_hash;
 extern EVP_MD *md5_hash;
 #endif
@@ -289,14 +289,14 @@ extern EVP_MD *md5_hash;
 void ssl_init()
 {
 	if(!ssl_init_done){
-	    
+
 	    ssl_init_done = 1;
 	    thread_setup();
 	    SSLeay_add_ssl_algorithms();
 	    SSL_load_error_strings();
 	    _3proxy_mutex_init(&ssl_file_mutex);
 	    bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
 	    OSSL_PROVIDER_load(NULL, "legacy");
 	    OSSL_PROVIDER_load(NULL, "default");
 	    md4_hash = EVP_MD_fetch(NULL, "MD4", NULL);

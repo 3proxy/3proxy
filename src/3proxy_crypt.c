@@ -6,6 +6,7 @@
 
 */
 #include "libs/blake2.h"
+#include "mdhash.h"
 #ifdef WITH_SSL
 #include <openssl/evp.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -28,7 +29,7 @@ static unsigned char itoa64[] =
         "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 
-#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if defined(WITH_SSL) && !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
 EVP_MD *md4_hash = NULL;
 EVP_MD *md5_hash = NULL;
 #endif
@@ -43,21 +44,14 @@ _crypt_to64(unsigned char *s, unsigned long v, int n)
 }
 
 
-#ifdef WITH_SSL
+#if defined(WITH_SSL) || defined(_WIN32)
 unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPassword, int ctohex)
 {
 	unsigned char szUnicodePass[513];
 	unsigned int nPasswordLen;
-	EVP_MD_CTX *ctx;
-	unsigned int len=sizeof(szUnicodePass);
+	unsigned int len = 16;
 	unsigned int i;
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	const EVP_MD *md4 = md4_hash;
-#else
-	const EVP_MD *md4 = EVP_md4();
-#endif
-	if(md4 == NULL) return NULL;
+	mdh_ctx *ctx;
 
 	/*
 	 *	NT passwords are unicode.  Convert plain text password
@@ -71,15 +65,14 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 	}
 
 	/* Encrypt Unicode password to a 16-byte MD4 hash */
-	ctx = EVP_MD_CTX_new();
+	ctx = mdh_init(MDH_MD4);
 	if(!ctx) return NULL;
-	if(!EVP_DigestInit_ex(ctx, md4, NULL)){
-	    EVP_MD_CTX_free(ctx);
-	    return NULL;
+	mdh_update(ctx, szUnicodePass, (nPasswordLen<<1));
+	if(!mdh_final(ctx, szUnicodePass, &len)) {
+		mdh_free(ctx);
+		return NULL;
 	}
-	EVP_DigestUpdate(ctx, szUnicodePass, (nPasswordLen<<1));
-	EVP_DigestFinal_ex(ctx, szUnicodePass, &len);
-	EVP_MD_CTX_free(ctx);
+	mdh_free(ctx);
 	if (ctohex){
 		tohex(szUnicodePass, szHash, 16);
 	}
@@ -100,57 +93,45 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
  int sl;
  unsigned long l;
 
-#if defined(WITH_SSL)
+#if defined(WITH_SSL) || defined(_WIN32)
 #ifndef WITHMAIN
  if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
-	EVP_MD_CTX	*ctx, *ctx1;
-	unsigned int len;
+	mdh_ctx	*ctx, *ctx1;
+	unsigned int len = MD5_SIZE;
 	int pl, i;
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	const EVP_MD *md5 = md5_hash;
-#else
-	const EVP_MD *md5 = EVP_md5();
-#endif
-	if(md5 == NULL) {
-	    *passwd = 0;
-	    return NULL;
-	}
 
 	sp = salt +3;
 	sl = (int)(ep - sp);
 	magic = (unsigned char *)"$1$";
 
-	ctx = EVP_MD_CTX_new();
+	ctx = mdh_init(MDH_MD5);
 	if(!ctx) {
 	    *passwd = 0;
 	    return NULL;
 	}
-	EVP_DigestInit_ex(ctx, md5, NULL);
 
 	/* The password first, since that is what is most unknown */
-	EVP_DigestUpdate(ctx,pw,strlen((char *)pw));
+	mdh_update(ctx, pw, (unsigned int)strlen((char *)pw));
 
 	/* Then our magic string */
-	EVP_DigestUpdate(ctx,magic,strlen((char *)magic));
+	mdh_update(ctx, magic, (unsigned int)strlen((char *)magic));
 
 	/* Then the raw salt */
-	EVP_DigestUpdate(ctx,sp,sl);
+	mdh_update(ctx, sp, (unsigned int)sl);
 
 	/* Then just as many unsigned characters of the MD5(pw,salt,pw) */
-	ctx1 = EVP_MD_CTX_new();
+	ctx1 = mdh_init(MDH_MD5);
 	if(!ctx1) {
-	    EVP_MD_CTX_free(ctx);
+	    mdh_free(ctx);
 	    *passwd = 0;
 	    return NULL;
 	}
-	EVP_DigestInit_ex(ctx1, md5, NULL);
-	EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
-	EVP_DigestUpdate(ctx1,sp,sl);
-	EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
-	EVP_DigestFinal_ex(ctx1,final,&len);
+	mdh_update(ctx1, pw, (unsigned int)strlen((char *)pw));
+	mdh_update(ctx1, sp, (unsigned int)sl);
+	mdh_update(ctx1, pw, (unsigned int)strlen((char *)pw));
+	mdh_final(ctx1, final, &len);
 	for(pl = (int)strlen((char *)pw); pl > 0; pl -= MD5_SIZE)
-		EVP_DigestUpdate(ctx,final,pl>MD5_SIZE ? MD5_SIZE : pl);
+		mdh_update(ctx, final, (unsigned int)(pl>MD5_SIZE ? MD5_SIZE : pl));
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final,0,sizeof final);
@@ -158,13 +139,13 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	/* Then something really weird... */
 	for (i = (int)strlen((char *)pw); i ; i >>= 1)
 		if(i&1)
-		    EVP_DigestUpdate(ctx, final, 1);
+		    mdh_update(ctx, final, 1);
 		else
-		    EVP_DigestUpdate(ctx, pw, 1);
+		    mdh_update(ctx, pw, 1);
 
 
-	EVP_DigestFinal_ex(ctx,final,&len);
-	EVP_MD_CTX_free(ctx);
+	mdh_final(ctx, final, &len);
+	mdh_free(ctx);
 
 	/*
 	 * and now, just to make sure things don't run too fast
@@ -172,26 +153,27 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	 * need 30 seconds to build a 1000 entry dictionary...
 	 */
 	for(i=0;i<1000;i++) {
-		EVP_MD_CTX_reset(ctx1);
-		EVP_DigestInit_ex(ctx1, md5, NULL);
+		mdh_free(ctx1);
+		ctx1 = mdh_init(MDH_MD5);
+		if(!ctx1) { *passwd = 0; return NULL; }
 		if(i & 1)
-			EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
+			mdh_update(ctx1, pw, (unsigned int)strlen((char *)pw));
 		else
-			EVP_DigestUpdate(ctx1,final,MD5_SIZE);
+			mdh_update(ctx1, final, MD5_SIZE);
 
 		if(i % 3)
-			EVP_DigestUpdate(ctx1,sp,sl);
+			mdh_update(ctx1, sp, (unsigned int)sl);
 
 		if(i % 7)
-			EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
+			mdh_update(ctx1, pw, (unsigned int)strlen((char *)pw));
 
 		if(i & 1)
-			EVP_DigestUpdate(ctx1,final,MD5_SIZE);
+			mdh_update(ctx1, final, MD5_SIZE);
 		else
-			EVP_DigestUpdate(ctx1,pw,strlen((char *)pw));
-		EVP_DigestFinal_ex(ctx1,final,&len);
+			mdh_update(ctx1, pw, (unsigned int)strlen((char *)pw));
+		mdh_final(ctx1, final, &len);
 	}
-	EVP_MD_CTX_free(ctx1);
+	mdh_free(ctx1);
  }
  else
 #endif
@@ -248,23 +230,23 @@ int main(int argc, char* argv[]){
 	unsigned i;
 	if(argc < 2 || argc > 3) {
 		fprintf(stderr, "usage: \n"
-#ifdef WITH_SSL
+#if defined(WITH_SSL) || defined(_WIN32)
 			"\t%s <password>\n"
 #endif
 			"\t%s <salt> <password>\n"
-#ifdef WITH_SSL
+#if defined(WITH_SSL) || defined(_WIN32)
 			"Performs NT crypt if no salt specified, BLAKE2 crypt with salt\n"
 #else
 			"Performs BLAKE2 crypt with salt\n"
 #endif
 			,
-#ifdef WITH_SSL
+#if defined(WITH_SSL) || defined(_WIN32)
 			argv[0],
 #endif
 			argv[0]);
 			return 1;
 	}
-#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if defined(WITH_SSL) && !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
         OSSL_PROVIDER_load(NULL, "legacy");
         OSSL_PROVIDER_load(NULL, "default");
         md4_hash = EVP_MD_fetch(NULL, "MD4", NULL);
@@ -273,7 +255,7 @@ int main(int argc, char* argv[]){
         }
 #endif
 	if(argc == 2) {
-#ifdef WITH_SSL
+#if defined(WITH_SSL) || defined(_WIN32)
 		{ unsigned char *nt = ntpwdhash(buf1, (unsigned char *)argv[1], 1);
 		  if(nt) printf("NT:%s\n", nt); }
 #else

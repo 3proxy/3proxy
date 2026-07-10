@@ -134,7 +134,7 @@ hashtables$(OBJSUFFICS): hashtables.c proxy.h structures.h libs/blake2.h
 resolve$(OBJSUFFICS): resolve.c proxy.h structures.h
 	$(CC) $(COUT)resolve$(OBJSUFFICS) $(CFLAGS) resolve.c
 
-authradius$(OBJSUFFICS): authradius.c proxy.h structures.h
+authradius$(OBJSUFFICS): authradius.c proxy.h structures.h mdhash.h
 	$(CC) $(COUT)authradius$(OBJSUFFICS) $(CFLAGS) authradius.c
 
 conf$(OBJSUFFICS): conf.c proxy.h structures.h
@@ -146,17 +146,20 @@ log$(OBJSUFFICS): log.c proxy.h structures.h
 datatypes$(OBJSUFFICS): datatypes.c proxy.h structures.h
 	$(CC) $(COUT)datatypes$(OBJSUFFICS) $(CFLAGS) datatypes.c
 
-3proxy_crypt$(OBJSUFFICS): 3proxy_crypt.c libs/blake2.h
+3proxy_crypt$(OBJSUFFICS): 3proxy_crypt.c libs/blake2.h mdhash.h
 	$(CC) $(COUT)3proxy_crypt$(OBJSUFFICS) $(CFLAGS) 3proxy_crypt.c
 
-3proxy_cryptmain$(OBJSUFFICS): 3proxy_crypt.c libs/blake2.h
+3proxy_cryptmain$(OBJSUFFICS): 3proxy_crypt.c libs/blake2.h mdhash.h
 	$(CC) $(COUT)3proxy_cryptmain$(OBJSUFFICS) $(CFLAGS) $(DEFINEOPTION)WITHMAIN 3proxy_crypt.c
 
 blake2$(OBJSUFFICS):  libs/blake2b-ref.c
 	$(CC) $(COUT)blake2$(OBJSUFFICS) $(CFLAGS) libs/blake2b-ref.c
 
-$(BUILDDIR)$(CRYPT_PREFIX)crypt$(EXESUFFICS): blake2$(OBJSUFFICS) 3proxy_cryptmain$(OBJSUFFICS) base64$(OBJSUFFICS)
-	$(LN) $(LNOUT)$(BUILDDIR)$(CRYPT_PREFIX)crypt$(EXESUFFICS) $(LDFLAGS) blake2$(OBJSUFFICS) base64$(OBJSUFFICS) 3proxy_cryptmain$(OBJSUFFICS) $(LIBS)
+mdhash$(OBJSUFFICS): mdhash.c mdhash.h proxy.h structures.h
+	$(CC) $(COUT)mdhash$(OBJSUFFICS) $(CFLAGS) mdhash.c
+
+$(BUILDDIR)$(CRYPT_PREFIX)crypt$(EXESUFFICS): blake2$(OBJSUFFICS) 3proxy_cryptmain$(OBJSUFFICS) base64$(OBJSUFFICS) mdhash$(OBJSUFFICS)
+	$(LN) $(LNOUT)$(BUILDDIR)$(CRYPT_PREFIX)crypt$(EXESUFFICS) $(LDFLAGS) blake2$(OBJSUFFICS) base64$(OBJSUFFICS) mdhash$(OBJSUFFICS) 3proxy_cryptmain$(OBJSUFFICS) $(LIBS)
 
 stringtable$(OBJSUFFICS):  stringtable.c
 	$(CC) $(COUT)stringtable$(OBJSUFFICS) $(CFLAGS) stringtable.c
@@ -170,6 +173,6 @@ ssl$(OBJSUFFICS): ssl.c structures.h proxy.h ssl.h
 pcre$(OBJSUFFICS): pcre.c structures.h
 	$(CC) $(COUT)pcre$(OBJSUFFICS) $(CFLAGS) $(DEFINEOPTION)WITH_PCRE pcre.c
 
-$(BUILDDIR)3proxy$(EXESUFFICS): 3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) log$(OBJSUFFICS) datatypes$(OBJSUFFICS) blake2$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(COMPATLIBS) $(VERSIONDEP)
-	$(LN) $(LNOUT)$(BUILDDIR)3proxy$(EXESUFFICS) $(LDFLAGS) $(VERFILE)  3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) datatypes$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) log$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) blake2$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(COMPATLIBS) $(LIBS) $(PCRE_LIBS)
+$(BUILDDIR)3proxy$(EXESUFFICS): 3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) log$(OBJSUFFICS) datatypes$(OBJSUFFICS) blake2$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) mdhash$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(COMPATLIBS) $(VERSIONDEP)
+	$(LN) $(LNOUT)$(BUILDDIR)3proxy$(EXESUFFICS) $(LDFLAGS) $(VERFILE)  3proxy$(OBJSUFFICS) mainfunc$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) datatypes$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) log$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) blake2$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) mdhash$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(COMPATLIBS) $(LIBS) $(PCRE_LIBS)
 
