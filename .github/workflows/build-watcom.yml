@@ -1,7 +1,12 @@
 name: Build Win32 3proxy-lite with Watcom
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   ci:
@@ -12,11 +17,11 @@ jobs:
           - windows-2022
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 #    - name: configure
 #      run: ./configure
     - name: Setup Open Watcom
-      uses: open-watcom/setup-watcom@v0
+      uses: open-watcom/setup-watcom@v1
     - name: set date
       run: |
        $NOW = Get-Date -Format "yyMMddHHmmss"
@@ -73,7 +78,18 @@ jobs:
        copy README.md dist\3proxy\
        copy rus.3ps dist\3proxy\
     - name: Get artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-lite"
        path: dist/
+    - name: Create zip
+      if: github.event_name == 'release'
+      shell: pwsh
+      run: Compress-Archive -Path dist/* -DestinationPath 3proxy-${{ env.RELEASE }}-lite.zip
+    - name: Upload to release
+      if: github.event_name == 'release'
+      shell: bash
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}-lite.zip

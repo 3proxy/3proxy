@@ -106,6 +106,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 			len = param->srv->so._recvfrom(param->sostate, param->clisock,
 				(char *)param->srvbuf + recvoff, UDPBUFSIZE - recvoff,
 				0, (struct sockaddr *)&sin, &sasize);
+			if (len < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 			if (len <= 0) return 482;
 
 			if (SAADDRLEN(&sin) != SAADDRLEN(&param->sincr) ||
@@ -122,6 +123,8 @@ int udpsockmap(struct clientparam *param, int timeo)
 			} else if (memcmp(SAPORT(&sin), SAPORT(&param->sincr), 2)) {
 				continue;
 			}
+
+			if(param->bandlimfunc && (*param->bandlimfunc)(param, 0, len)) continue;
 
 			if (nhops == 0) {
 				int i;
@@ -182,6 +185,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 			len = param->srv->so._recvfrom(param->sostate, param->remsock,
 				(char *)param->srvbuf + hdrsize, UDPBUFSIZE - hdrsize, 0,
 				(struct sockaddr *)&from, &sasize);
+			if (len < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 			if (len <= 0) return 486;
 			if (nhops >= 1) {
 				if (!SAISNULL(&param->sinsr) && *SAPORT(&param->sinsr)) {
@@ -193,6 +197,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 			}
 			param->statssrv64 += len;
 			param->nreads++;
+			if(param->bandlimfunc && (*param->bandlimfunc)(param, len, 0)) continue;
 			sendlen = len;
 			if (nhops == 0) {
 				param->srvbuf[0] = param->srvbuf[1] = param->srvbuf[2] = 0;

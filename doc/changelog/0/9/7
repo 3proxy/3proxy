@@ -1,5 +1,3 @@
-3proxy-0.9.7 Released July, 4 2026
-
 + PCRE2 and SSL/TLS code moved from plugins into main 3proxy binary; dynamic linking with ssl/pcre by default, STATIC/LIBSTATIC options for static linking
 + Unix sockets support for parent proxies, tcppm, internal listeners and -i option; abstract (fileless) unix sockets on Linux
 + ssl_client_mode = 3 to use 'secure' parent types: https, tcps, socks5s, connect+s, etc.

@@ -1,0 +1,99 @@
+name: Build Docker images (GHCR)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build and push Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Determine tags
+        id: tags
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          if [[ "$RELEASE_TAG" != "" ]]; then
+            RELEASE="${RELEASE_TAG#v}"
+            echo "minimal=${IMAGE}:${RELEASE}.minimal,${IMAGE}:minimal" >> "$GITHUB_OUTPUT"
+            echo "busybox=${IMAGE}:${RELEASE}.busybox,${IMAGE}:busybox" >> "$GITHUB_OUTPUT"
+            echo "full=${IMAGE}:${RELEASE},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+          else
+            DATETIME=$(date +%d%m%y%H%M%S)
+            BRANCH=$(echo "${GITHUB_REF#refs/heads/}" | tr "/" "-")
+            echo "minimal=${IMAGE}:${DATETIME}-${BRANCH}.minimal,${IMAGE}:${BRANCH}.minimal" >> "$GITHUB_OUTPUT"
+            echo "busybox=${IMAGE}:${DATETIME}-${BRANCH}.busybox,${IMAGE}:${BRANCH}.busybox" >> "$GITHUB_OUTPUT"
+            echo "full=${IMAGE}:${DATETIME}-${BRANCH},${IMAGE}:${BRANCH}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push minimal
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.minimal
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,ppc64le
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.minimal }}
+
+      - name: Build and push busybox
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.busybox
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,ppc64le
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.busybox }}
+
+      - name: Build and push full
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.full
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,ppc64le
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.full }}
+
+      - name: Sign images
+        if: github.event_name != 'pull_request'
+        env:
+          TAGS_MINIMAL: ${{ steps.tags.outputs.minimal }}
+          TAGS_BUSYBOX: ${{ steps.tags.outputs.busybox }}
+          TAGS_FULL: ${{ steps.tags.outputs.full }}
+        run: |
+          IFS=',' read -ra TAGS <<< "$TAGS_MINIMAL,$TAGS_BUSYBOX,$TAGS_FULL"
+          for tag in "${TAGS[@]}"; do
+            cosign sign --yes "$tag"
+          done
+

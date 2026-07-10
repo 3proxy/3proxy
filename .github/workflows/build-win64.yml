@@ -1,7 +1,12 @@
 name: Build Win64 3proxy with MSVC
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   ci:
@@ -12,7 +17,7 @@ jobs:
           - windows-2022
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 #    - name: configure
 #      run: ./configure
     - name: set date
@@ -43,12 +48,20 @@ jobs:
       run: |
        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
        [System.IO.File]::WriteAllBytes("${{ github.workspace }}\cert.pfx", $pfx_cert_byte)
+    - name: Extract public certificate
+      shell: pwsh
+      env:
+       CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      run: |
+       $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("${{ github.workspace }}\cert.pfx", "$env:CERT_PASSWORD")
+       [System.IO.File]::WriteAllBytes("${{ github.workspace }}\3proxy.crt", $cert.Export("Cert"))
     - name: Sign
       shell: pwsh
+      env:
+       CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       run: |
        $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).FullName
-       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy.exe"
-       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy_crypt.exe"
+       Get-ChildItem bin\*.exe, bin\*.dll | ForEach-Object { & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "$env:CERT_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName }
     - name: make dist dir
       shell: cmd
       run: |
@@ -74,13 +87,25 @@ jobs:
        copy doc\html\plugins\*.* dist\3proxy\doc\html\plugins\
        copy doc\html\man8\*.* dist\3proxy\doc\html\man8\
        copy doc\html\man5\*.* dist\3proxy\doc\html\man5\
-       copy doc\html\devel\*.rtf dist\3proxy\doc\html\devel\
+       copy doc\html\devel\*.* dist\3proxy\doc\html\devel\
        copy copying dist\3proxy\
        copy authors dist\3proxy\
        copy README.md dist\3proxy\
        copy rus.3ps dist\3proxy\
+       copy 3proxy.crt dist\3proxy\
     - name: Get artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-x64"
        path: dist/
+    - name: Create zip
+      if: github.event_name == 'release'
+      shell: pwsh
+      run: Compress-Archive -Path dist/* -DestinationPath 3proxy-${{ env.RELEASE }}-x64.zip
+    - name: Upload to release
+      if: github.event_name == 'release'
+      shell: bash
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}-x64.zip

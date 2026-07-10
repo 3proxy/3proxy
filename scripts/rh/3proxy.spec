@@ -1,5 +1,5 @@
 Name:           3proxy
-Version:        0.9.6
+Version:        0.9.7
 Release:        1%{?dist}
 Summary:        3proxy tiny proxy server
 License:        GPL/LGPL/Apache/BSD
@@ -67,8 +67,8 @@ if [ ! -f /usr/local/3proxy/conf/passwd ]; then \
  touch /usr/local/3proxy/conf/passwd;\
 fi
 [ -f /bin/add3proxyuser ] && sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@3PROXY_CONFDIR@|/etc/3proxy/conf|g' -e 's|@CRYPT_PREFIX@|3proxy_|g' /bin/add3proxyuser; \
-[ -f /etc/init.d/3proxy ] && sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|/etc|g' /etc/init.d/3proxy; \
-[ -f /usr/lib/systemd/system/3proxy.service ] && sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|/etc|g' /usr/lib/systemd/system/3proxy.service; \
+[ -f /etc/init.d/3proxy ] && sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|/etc|g' -e 's|USER=proxy|USER=root|g' /etc/init.d/3proxy; \
+[ -f /usr/lib/systemd/system/3proxy.service ] && sed -i -e 's|@CMAKE_INSTALL_FULL_BINDIR@|/bin|g' -e 's|@CMAKE_INSTALL_FULL_SYSCONFDIR@|/etc|g' -e 's|User=proxy|User=root|g' /usr/lib/systemd/system/3proxy.service; \
 if [ -d /etc/3proxy ]; then \
  chown -R proxy:proxy /etc/3proxy; \
  chmod -R o-rwx /etc/3proxy; \

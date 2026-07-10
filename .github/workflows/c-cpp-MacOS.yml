@@ -2,12 +2,13 @@ name: C/C++ CI MacOS
 
 on:
   push:
-    branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.FreeBSD', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
   pull_request:
-    branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.FreeBSD', '.github/configs', '.github/workflows/c-cpp-MacOS.yml' ]
+    paths: [ "**.c", "**.h", "Makefile.FreeBSD", ".github/configs", ".github/workflows/c-cpp-MacOS.yml" ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   ci:
@@ -18,7 +19,7 @@ jobs:
           - macos-15
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 #    - name: configure
 #      run: ./configure
     - name: Mac libraries

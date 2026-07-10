@@ -1,7 +1,12 @@
 name: RPM/DEB build armhf
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   ci:
@@ -12,7 +17,7 @@ jobs:
           - ubuntu-latest
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
     - name: env
       run: |
        pwd
@@ -66,14 +71,20 @@ jobs:
        export CC=$CC
        export RPATH=/usr/arm-linux-gnueabihf/lib:$RPATH
        export LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH
-       rpmbuild -ba --define "PAMLIB pam0g" --define "_arch arm" --define "cross yes" --target=arm-linux-gnueabi 3proxy-$RELEASE.spec
+       rpmbuild -ba --define "PAMLIB pam0g" --define "_arch arm" --define "cross yes" --target=arm-linux-gnueabihf 3proxy-$RELEASE.spec
        cd $ret
        mv ~/rpmbuild/RPMS/arm/3proxy-$RELEASE-1.arm.rpm 3proxy-$RELEASE.arm.rpm
-    - name: Get artifact
-      uses: actions/upload-artifact@v6
+    - name: Get artifact rpm
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-arm.rpm"
        path: "*.rpm"
+    - name: Upload rpm to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.arm.rpm
     - name: debbuild
       run: |
         ret=`pwd`
@@ -96,7 +107,13 @@ jobs:
         cd $ret
         cp ~/debian/3proxy_$RELEASE-"$VERSION"_armhf.deb ./3proxy-$RELEASE.arm.deb
     - name: Get artifact deb
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-arm.deb"
        path: "*.deb"
+    - name: Upload deb to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.arm.deb

@@ -2,12 +2,13 @@ name: C/C++ CI Linux
 
 on:
   push:
-    branches: [ "master" ]
     paths: [ '**.c', '**.h', 'Makefile.Linux', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
   pull_request:
-    branches: [ "master" ]
-    paths: [ '**.c', '**.h', 'Makefile.Linux', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+    paths: [ "**.c", "**.h", "Makefile.Linux", ".github/configs", ".github/workflows/c-cpp-Linux.yml" ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   ci:
@@ -19,7 +20,7 @@ jobs:
           - ubuntu-24.04-arm
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 #    - name: configure
 #      run: ./configure
     - name: Linux libraries

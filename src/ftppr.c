@@ -215,6 +215,11 @@ void * ftpprchild(struct clientparam* param) {
 			sasize = sizeof(param->sincr);
 			ss = param->srv->so._accept(param->sostate, clidatasock, (struct sockaddr *)&param->sincr, &sasize);
 			if (ss == INVALID_SOCKET) { RETURN (858);}
+#ifdef _WIN32
+			{ unsigned long ul = 1; ioctlsocket(ss, FIONBIO, &ul); }
+#else
+			fcntl(ss, F_SETFL, O_NONBLOCK | fcntl(ss, F_GETFL));
+#endif
 			param->srv->so._shutdown(param->sostate, clidatasock, SHUT_RDWR);
 			param->srv->so._closesocket(param->sostate, clidatasock);
 			clidatasock = ss;

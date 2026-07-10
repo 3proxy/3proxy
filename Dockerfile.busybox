@@ -44,8 +44,7 @@ RUN cd /dist &&\
  ln -s /lib usr/lib64
 RUN cp /lib/ld-*.so.* /dist/usr/local/3proxy/libexec || true
 RUN cp /lib64/ld-*.so.* /dist/usr/local/3proxy/libexec || true
-RUN cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec &&\
- ls -lR /dist
+RUN cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec
 
 FROM docker.io/busybox:glibc
 COPY --from=buildenv /dist /

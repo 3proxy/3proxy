@@ -1,7 +1,12 @@
 name: RPM/DEB build x86-64
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   ci:
@@ -12,7 +17,7 @@ jobs:
           - ubuntu-latest
     runs-on: ${{ matrix.target }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
     - name: env
       run: |
        pwd
@@ -43,10 +48,16 @@ jobs:
        cd $ret
        mv ~/rpmbuild/RPMS/x86_64/3proxy-$RELEASE-1.x86_64.rpm 3proxy-$RELEASE.x86_64.rpm
     - name: Get artifact rpm
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-x86_64.rpm"
        path: "*.rpm"
+    - name: Upload rpm to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.x86_64.rpm
     - name: debbuild
       run: |
         ret=`pwd`
@@ -63,8 +74,14 @@ jobs:
         cd $ret
         cp ~/debian/3proxy_$RELEASE-"$VERSION"_amd64.deb ./3proxy-$RELEASE.x86_64.deb
     - name: Get artifact deb
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
        name: "3proxy-${{ env.RELEASE }}-x86_64.deb"
        path: "*.deb"
+    - name: Upload deb to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.x86_64.deb
 

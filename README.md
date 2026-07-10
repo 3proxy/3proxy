@@ -2,27 +2,101 @@
 
 (c) 2002-2026 by Vladimir '3APA3A' Dubrovin <vlad@3proxy.org>
 
-## Branches
+## Repository
+
+### Branches
 
 - **Master** (stable) branch - 3proxy 0.9
 - **Devel** branch - 3proxy 10 (don't use it)
 
-## Download
+### Binaries (deb / rpm / Windows zip)
 
-Binaries and sources for released (master) versions (Windows, Linux):
-https://github.com/z3APA3A/3proxy/releases
+https://github.com/3proxy/3proxy/releases
 
-Docker images:
+### Docker images
+
 https://hub.docker.com/r/3proxy/3proxy
+https://github.com/3proxy/3proxy/pkgs/container/3proxy
 
-Archive of old versions:
+### Archive of old versions
+
 https://github.com/z3APA3A/3proxy-archive
 
-## Documentation
+
+### Documentation
 
 Documentation (man pages and HTML) available with download, on https://3proxy.org/ and in github wiki https://github.com/3proxy/3proxy/wiki
 
-## Windows Installation
+## Docker images
+
+3 docker configurations are provided, default (full) also tagged as `:latest`, `:busybox` and `:minimal`, all refer to newest stable version. Except busybox, images are distroless and contain only binaries, you can not sh inside the container. `:busybox` contains busybox shell.
+
+### Default image (`:latest`):
+
+Full installation requires to mount /etc/3proxy/3proxy.cfg files.
+
+For docker, config can be provided via `docker config` 
+
+``` 
+echo "log
+nserver 8.8.8.8
+nscache 65536
+proxy -p3129" | docker config create 3proxy
+docker run --read-only -p 3129:3129 --config source=3proxy,target=/etc/3proxy/3proxy.cfg --name 3proxy.full docker.io/3proxy/3proxy
+```
+
+ `podman` does not support `config` as above.
+ Mounts may be used as config alternative. `podman` used in example below can be replaced with `docker`:
+
+```
+echo "log
+nserver 8.8.8.8
+nscache 65536
+proxy -p3129" >/path/to/local/config/directory/3proxy.cfg
+podman run --read-only -p 3129:3129 -v /path/to/local/config/directory/3proxy.cfg:/etc/3proxy/3proxy.cfg --name 3proxy.full 3proxy.full
+```
+
+
+ use `log` without pathname in config to log to stdout.
+ plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config) and since 0.9.6 symlinked by /lib and /lib64 in both chroot and non-chroot configurations, so no full path is required in `plugin` command. Use e.g. `plugin SSLPlugin.ls.so ssl_plugin`. SSLPlugin is supported since 0.9.6. Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. -`-network host` mode or `-P` for `docker run`.
+
+since 0.9.6 images are distroless (except :busybox) it's recommended to use with read only file system, there are no benefits from chroot. For compatibility, you still can use chroot installation by mounting directory with 3proxy.cfg to /usr/local/3proxy/config.
+
+### Busybox image (`:busybox`):
+
+`full` with busybox added, to allow `sh` and few more commands like `sed` inside container. All libraries are in /lib, so chroot configuration can not use plugins.
+
+### Interactive `:minimal` image:
+
+ Dockerfile for "interactive" minimal 3proxy execution, no configuration mounting is required, configuration
+ is accepted from stdin. Use `end` command to indicate the end of configuration. Use `log` for stdout logging.
+
+
+ `plugin` is not supported, `nserver` or `fakeresolve` are mandatory, because system resolver is not supported, no support for RADIUS and IPv6.
+
+ Run example:
+
+ `docker run --read-only -i -p 3129:3129 --name 3proxy docker.io/3proxy/3proxy:minimal`
+or
+ `docker start -ai 3proxy` to start existing container
+
+send this to standard input (example):
+```
+nserver 8.8.8.8
+nscache 65535
+log
+proxy -p3129
+end
+```
+ `nserver` is required for DNS resolutions. 
+
+Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. `--network host` mode or `-P` to `docker run`.
+
+`:minimal` without version specified uses current stable version.
+
+## Building and installation
+
+### Windows Installation
 
 Install and start proxy as Windows service:
 
@@ -38,9 +112,9 @@ Remove the service (should be stopped before via `net stop 3proxy`):
 3proxy --remove
 ```
 
-## Building on Linux
+### Building and installation on Linux
 
-### With Makefile
+#### With Makefile
 
 ```bash
 git clone https://github.com/z3apa3a/3proxy
@@ -50,9 +124,9 @@ make
 sudo make install
 ```
 
-### Default Configuration (Linux/Unix)
+#### Default Configuration (for Makefile.Linux installation)
 
-3proxy uses 2 configuration files:
+3proxy uses 2 configuration files in :
 - `/etc/3proxy/3proxy.cfg` (before-chroot) - This configuration file is executed before chroot and should not be modified.
 - `/usr/local/3proxy/conf/3proxy.cfg` symlinked from `/etc/3proxy/conf/3proxy.cfg` (after-chroot) - Main configuration file. Modify this file if required.
 
@@ -62,12 +136,12 @@ Log files are created in `/usr/local/3proxy/logs` symlinked from `/var/log/3prox
 
 By default, socks is started on 0.0.0.0:1080 and proxy on 0.0.0.0:3128 with basic auth, no users are added by default.
 
-### Adding Users
+#### Adding Users
 
-Use `/etc/3proxy/conf/add3proxyuser.sh` script to add users:
+Use `add3proxyuser` script to add users:
 
 ```bash
-/etc/3proxy/conf/add3proxyuser.sh username password [day_limit] [bandwidth]
+add3proxyuser username password [day_limit] [bandwidth]
 ```
 
 Parameters:
@@ -76,7 +150,7 @@ Parameters:
 
 Or modify `/etc/3proxy/conf/` files directly.
 
-### With CMake
+#### With CMake
 
 ```bash
 git clone https://github.com/z3apa3a/3proxy
@@ -89,9 +163,9 @@ sudo cmake --install .
 
 CMake does not use chroot configuration, config file is `/etc/3proxy/3proxy.cfg`
 
-## MacOS X / FreeBSD / *BSD
+### MacOS X / FreeBSD / *BSD
 
-### With Makefile
+#### With Makefile
 
 ```bash
 git clone https://github.com/z3apa3a/3proxy
@@ -102,7 +176,7 @@ make
 
 Binaries are in `bin/` directory.
 
-### With CMake (recommended)
+#### With CMake (recommended)
 
 ```bash
 git clone https://github.com/z3apa3a/3proxy
@@ -120,7 +194,7 @@ This installs:
 - rc scripts to `rc.d` for BSD
 - launchd plist to `/Library/LaunchDaemons/` for MacOS
 
-### Service Management on macOS
+#### Service Management on macOS
 
 ```bash
 # Load and start service
@@ -135,6 +209,8 @@ sudo launchctl start org.3proxy.3proxy
 # Unload and disable service
 sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 ```
+
+
 
 ## Features
 
@@ -258,32 +334,32 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 ### 3proxy
 Combined proxy server may be used as executable or service (supports installation and removal). It uses config file to read its configuration (see `3proxy.cfg.sample` for details). `3proxy.exe` is all-in-one, it doesn't require all others .exe to work. See `3proxy.cfg.sample` for examples, see `man 3proxy.cfg`
 
-### proxy
+### 3proxy_proxy
 HTTP proxy server, binds to port 3128
 
-### ftppr
+### 3proxy_ftppr
 FTP proxy server, binds to port 21. Please do not mess it with FTP over HTTP proxy used in browsers
 
-### socks
+### 3proxy_socks
 SOCKS 4/5 proxy server, binds to port 1080
 
-### pop3p
+### 3proxy_pop3p
 POP3 proxy server, binds to port 110. You must specify POP3 username as `username@popserver[:port]` (port is 110 by default).
 
 Example: in Username configuration for your e-mail reader set `someuser@pop.somehost.ru`, to obtain mail for someuser from pop.somehost.ru via proxy.
 
-### smtpp
+### 3proxy_smtpp
 SMTP proxy server, binds to port 25. You must specify SMTP username as `username@smtpserver[:port]` (port is 25 by default).
 
 Example: in Username configuration for your e-mail reader set `someuser@mail.somehost.ru`, to send mail as someuser via mail.somehost.ru via proxy.
 
-### tcppm
+### 3proxy_tcppm
 TCP port mapping. Maps some TCP port on local machine to TCP port on remote host.
 
-### tlspr
+### 3proxy_tlspr
 TLS proxy (SNI proxy) - sniffs hostname from TLS handshake
 
-### udppm
+### 3proxy_udppm
 UDP port mapping. Maps some UDP port on local machine to UDP port on remote machine. Only one user simultaneously can use UDP mapping, so it can't be used for public service in large networks. It's OK to use it to map to DNS server in small network or to map Counter-Strike server for single client (you can use few mappings on different ports for different clients in last case).
 
 ### 3proxy_crypt

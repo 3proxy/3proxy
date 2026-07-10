@@ -17,6 +17,12 @@ static void char_index2hash(const struct hashtable *ht, void *index, uint8_t *ha
 }
 
 static void param2hash_add(const struct hashtable *ht, void *index, uint8_t *hash){
+    struct clientparam *param = (struct clientparam *)index;
+
+    memcpy(hash, param->hash, ht->hash_size);
+}
+
+void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
     blake2b_state S;
     struct clientparam *param = (struct clientparam *)index;
     unsigned type = param->srv->authcachetype;
@@ -62,12 +68,7 @@ static void param2hash_add(const struct hashtable *ht, void *index, uint8_t *has
 	if((type & 2048))blake2b_update(&S, SAPORT(&param->srv->intsa), 2);
 	blake2b_final(&S, hash, ht->hash_size);
     }
-}
-
-void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
-    struct clientparam *param = (struct clientparam *)index;
-
-    memcpy(hash, param->hash, ht->hash_size);
+    memcpy(param->hash, hash, ht->hash_size);
 }
 
 static void udpparam2hash(const struct hashtable *ht, void *index, uint8_t *hash){

@@ -201,7 +201,7 @@ log(logbuf);
 log("send to server from buf");
 #endif
 		if(!param->nolongdatfilter){
-			action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, param->cliinbuf - res, (int *)&param->cliinbuf);
+			action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, param->clioffset, (int *)&param->cliinbuf);
 			if(action == HANDLED){
 				RETURN(0);
 			}
@@ -247,7 +247,7 @@ log("done send to server from buf");
 log("send to client from buf");
 #endif
 		if(!param->nolongdatfilter){
-			action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, param->srvinbuf - res, (int *)&param->srvinbuf);
+			action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, param->srvoffset, (int *)&param->srvinbuf);
 			if(action == HANDLED){
 				RETURN(0);
 			}
@@ -544,6 +544,7 @@ log("done read from server to buf");
 		}
 //		if(!CLIENTTERMREAD || !CLIENTTERMWRITE){
 			if(!after){
+				fds[fdsc].fd = param->clisock;
 				if(fromclient && !CLIENTTERMREAD && !FROMCLIENT && ((
 #ifdef WITHSPLICE
 					!usesplice &&
@@ -603,6 +604,7 @@ log("ready to write to client");
 
 //		if(!SERVERTERMREAD || !SERVERTERMWRITE){
 			if(!after){
+				fds[fdsc].fd = param->remsock;
 				if(fromserver && !SERVERTERMREAD && !FROMSERVER && ((
 #ifdef WITHSPLICE
 					!usesplice &&

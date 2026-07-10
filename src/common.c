@@ -17,6 +17,8 @@ char * copyright = COPYRIGHT;
 # define MYRAND_ARC4RANDOM 1
 #elif defined(__GLIBC__) && ((__GLIBC__ > 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ >= 36)))
 # define MYRAND_ARC4RANDOM 1
+#elif defined(__GLIBC__) && ((__GLIBC__ < 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ < 25)))
+# define MYRAND_FALLBACK 1
 #elif defined(__linux__)
 # define MYRAND_GETRANDOM 1
 # include <sys/random.h>

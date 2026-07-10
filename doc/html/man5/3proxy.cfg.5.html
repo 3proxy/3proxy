@@ -552,8 +552,7 @@ username ignored. <br>
 Appropriate for most cases <b><br>
 useronly</b> - authentication by username without checking
 for any password with authorization by ACLs. Useful for e.g.
-SOCKSv4 proxy and icqpr (icqpr set UIN / AOL screen name as
-a username) <b><br>
+SOCKSv4 proxy. <b><br>
 dnsname</b> - authentication by DNS hostname with
 authorization by ACLs. The DNS hostname is resolved via a
 PTR (reverse) record and validated (the resolved name must
@@ -564,6 +563,12 @@ strong</b> - username/password authentication required. It
 will work with SOCKSv5, FTP, POP3 and HTTP proxy. <b><br>
 cache</b> - cached authentication, may be used with
 &acute;authcache&acute;. <b><br>
+cacheacl</b> - cached authentication, same as <b>cache</b>
+but the ACL authorization result is also cached and not
+re-evaluated on each request. Faster than <b>cache</b>, but
+ACL changes do not take effect for cached users until the
+cache entry expires. Use <b>cache</b> if ACLs may change
+during the cache lifetime. <b><br>
 radius</b> - authentication with RADIUS. <br>
 Plugins may add additional authentication types.</p>
 
@@ -598,10 +603,20 @@ user,password</b> - both username and password are checked
 against cached ones. <b><br>
 limit</b> - limit user to use only one ip, &acute;ip&acute;
 and &acute;user&acute; are required <b><br>
-ack</b> - only use cached auth if user access service with
+acl</b> - only use cached auth if user access service with
 same ACL <b><br>
-ext</b> - cache external IP <br>
-Use auth type <b>cache</b> for cached authentication</p>
+ext</b> - cache external IP <b><br>
+dstaddr</b> - cache by destination IP address <b><br>
+dstport</b> - cache by destination port <b><br>
+dsthost</b> - cache by destination hostname <b><br>
+dstoper</b> - cache by destination operation (e.g. HTTP
+method) <b><br>
+srvaddr</b> - cache by service (listener) address <b><br>
+srvport</b> - cache by service (listener) port <br>
+Multiple types can be combined (e.g.
+<b>ip,user,dstaddr,dstport</b>). <br>
+Use auth type <b>cache</b> (or <b>cacheacl</b>) for cached
+authentication</p>
 
 <p style="margin-left:6%; margin-top: 1em"><b>allow</b>
 <i>&lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;
@@ -746,8 +761,14 @@ ha</b> send HAProxy PROXY protocol v1 header to parent
 proxy. Must be the last in the proxy chain. Useful for
 passing client IP information to the parent proxy. Example:
 parent 1000 ha <br>
-Use &quot;+&quot; proxy only with <b>fakeresolve</b>
-option</p>
+Use &quot;+&quot; proxy only with <b>fakeresolve</b> option
+<br>
+Any parent type above can be suffixed with <b>s</b> (e.g.
+<b>https</b>, <b>tcps</b>, <b>socks5s</b>, <b>connect+s</b>)
+to establish a TLS-encrypted connection to the parent proxy.
+Requires SSL/TLS support (WITH_SSL) and is used with
+<b>ssl_client_mode 3</b>, which only handshakes TLS for
+<b>s</b>-suffixed parents.</p>
 
 <p style="margin-left:6%; margin-top: 1em">IP and port are
 ip addres and port of parent proxy server. If IP is zero, ip
@@ -946,12 +967,16 @@ The rest of parameters is identical to
 pwtype is one of: <br>
 none (empty) - use system authentication <b><br>
 CL</b> - password is cleartext <b><br>
-CR</b> - password is crypt-style password <b><br>
+CR</b> - password is crypt-style password. <b>$1$</b> prefix
+uses MD5-crypt (requires OpenSSL), <b>$3$</b> prefix uses
+BLAKE2b-crypt (always available, see <b>3proxy_crypt</b>(8))
+<b><br>
 NT</b> - password is NT password (in hex) <br>
 example: <br>
 users test1:CL:password1
 &quot;test2:CR:$1$lFDGlder$pLRb4cU2D7GAT58YQvY49.&quot; <br>
 users test3:NT:BD7DFBF29A93F93C63CB84790DA00E63 <br>
+users &quot;test4:CR:$3$salt$G47yV9w....&quot; <br>
 Note: double quotes are required because the password
 contains a $ sign.</p>
 
@@ -1268,8 +1293,8 @@ to <b>3proxy@3proxy.org</b></p>
 
 
 <p style="margin-left:6%; margin-top: 1em">3proxy(8),
-proxy(8), ftppr(8), socks(8), pop3p(8), tcppm(8), udppm(8),
-syslogd(8), <br>
+3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8),
+smtpp(8), tlspr(8), tcppm(8), udppm(8), syslogd(8), <br>
 https://3proxy.org/</p>
 
 <h2>AUTHORS

@@ -18,6 +18,19 @@ DWORD WINAPI threadfunc(LPVOID p) {
 void * threadfunc (void *p) {
 #endif
  int i = -1;
+#ifdef MODULEMAINFUNC
+ if(makefilters(param->srv, param) > CONTINUE){
+#ifndef NOUDPMAIN
+	if(param->srv->service == S_UDPPM) _3proxy_sem_unlock(udpinit);
+#endif
+	freeparam(param);
+#ifdef _WIN32
+	return 0;
+#else
+	return NULL;
+#endif
+ }
+#endif
  if(param->srv->cbsock != INVALID_SOCKET){
 	SASIZETYPE size = sizeof(param->sinsr);
 	struct pollfd fds;
@@ -1020,17 +1033,19 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(hashresolv(&udp_table, &defparam, &toparam, NULL)) {
 		    int i, len=0;
 		
-		    if(toparam->udp_nhops){
-			for(i=1; i < toparam->udp_nhops; i++){
-			    len+=socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->udp_relay[i-1]);
-    			}
-    			len += socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->req);
+		    if(!toparam->bandlimfunc || !(*toparam->bandlimfunc)(toparam, 0, srv.udplen)){
+			if(toparam->udp_nhops){
+			    for(i=1; i < toparam->udp_nhops; i++){
+				len+=socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->udp_relay[i-1]);
+    			    }
+    			    len += socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->req);
+			}
+			memcpy(srv.udpbuf2+len, srv.udpbuf, srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen);
+			len += srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen;
+			srv.so._sendto(toparam->sostate, toparam->remsock, (char *)srv.udpbuf2, len, 0, (struct sockaddr *)&toparam->sinsr, SASIZE(&toparam->sinsr));
+			toparam->statscli64 += srv.udplen;
+			toparam->nwrites++;
 		    }
-		    memcpy(srv.udpbuf2+len, srv.udpbuf, srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen);
-		    len += srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen;
-		    srv.so._sendto(toparam->sostate, toparam->remsock, (char *)srv.udpbuf2, len, 0, (struct sockaddr *)&toparam->sinsr, SASIZE(&toparam->sinsr));
-		    toparam->statscli64 += srv.udplen;
-		    toparam->nwrites++;
 		    _3proxy_sem_unlock(udpinit);
 		    continue;
 		}
@@ -1052,17 +1067,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(defparam.hostname)newparam->hostname=(unsigned char *)strdup((char *)defparam.hostname);
 	clearstat(newparam);
 	if(!isudp) newparam->clisock = new_sock;
-#ifndef STDMAIN
-	if(makefilters(&srv, newparam) > CONTINUE){
-		freeparam(newparam);
-#ifndef NOUDPMAIN
-		if(isudp) {
-			_3proxy_sem_unlock(udpinit);
-		}
-#endif
-		continue;
-	}
-#endif
 	newparam->prev = newparam->next = NULL;
 	error = 0;
 	_3proxy_mutex_lock(&srv.counter_mutex);
@@ -1097,6 +1101,11 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(newparam->prev) newparam->prev->next = newparam->next;
 		else srv.child = newparam->next;
 		if(newparam->next) newparam->next->prev = newparam->prev;
+		if(newparam->clisock != INVALID_SOCKET){
+			srv.so._shutdown(srv.so.state, newparam->clisock, SHUT_RDWR);
+			srv.so._closesocket(srv.so.state, newparam->clisock);
+			newparam->clisock = INVALID_SOCKET;
+		}
 		newparam->srv = NULL;
 #ifndef NOUDPMAIN
 		if(isudp){
@@ -1287,15 +1296,17 @@ void freeparam(struct clientparam * param) {
 #ifndef STDMAIN
 		if(param->srv->service == S_UDPPM) hashdelete(&udp_table, param);
 #endif
-		if(param->prev){
-			param->prev->next = param->next;
+		if(param->prev || param->next || param->srv->child == param){
+			if(param->prev){
+				param->prev->next = param->next;
+			}
+			else
+				param->srv->child = param->next;
+			if(param->next){
+				param->next->prev = param->prev;
+			}
+			(param->srv->childcount)--;
 		}
-		else
-			param->srv->child = param->next;
-		if(param->next){
-			param->next->prev = param->prev;
-		}
-		(param->srv->childcount)--;
 		_3proxy_mutex_unlock(&param->srv->counter_mutex);
 	}
 	if(param->clibuf) free(param->clibuf);
