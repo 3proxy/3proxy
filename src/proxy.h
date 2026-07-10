@@ -240,9 +240,7 @@ extern int paused;
 extern int demon;
 
 unsigned char * mycrypt(const unsigned char *key, const unsigned char *salt, unsigned char *buf);
-#if defined(WITH_SSL) || defined(_WIN32)
 unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPassword, int tohex);
-#endif
 int de64 (const unsigned char *in, unsigned char *out, int maxlen);
 unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen);
 void tohex(unsigned char *in, unsigned char *out, int len);

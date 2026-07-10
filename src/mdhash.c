@@ -6,7 +6,7 @@
 
    MD4/MD5 hash implementation.
    - Windows: CryptoAPI (CAPI). Supports both CALG_MD4 and CALG_MD5.
-   - Other platforms: OpenSSL EVP (requires WITH_SSL).
+   - Other platforms: bundled public-domain MD4/MD5 (Solar Designer, 2001).
 */
 #include "mdhash.h"
 #include <stdlib.h>
@@ -77,53 +77,56 @@ void mdh_free(mdh_ctx *c)
 
 #else /* !_WIN32 */
 
-#ifdef WITH_SSL
-#include <openssl/evp.h>
+#include "libs/md4.h"
+#include "libs/md5.h"
+#include <string.h>
 
 struct mdh_ctx {
-    EVP_MD_CTX *ctx;
+    int alg; /* MDH_MD4 or MDH_MD5 */
+    union {
+        MD4_CTX md4;
+        MD5_CTX md5;
+    } u;
 };
 
 mdh_ctx *mdh_init(mdh_alg alg)
 {
-    mdh_ctx *c;
-    const EVP_MD *md;
-
-    c = (mdh_ctx *)malloc(sizeof(mdh_ctx));
+    mdh_ctx *c = (mdh_ctx *)malloc(sizeof(mdh_ctx));
     if(!c) return NULL;
-    c->ctx = EVP_MD_CTX_new();
-    if(!c->ctx) { free(c); return NULL; }
-    md = (alg == MDH_MD4) ? EVP_md4() : EVP_md5();
-    if(!EVP_DigestInit_ex(c->ctx, md, NULL)) {
-        EVP_MD_CTX_free(c->ctx);
-        free(c);
-        return NULL;
-    }
+    c->alg = alg;
+    if(alg == MDH_MD4)
+        MD4_Init(&c->u.md4);
+    else
+        MD5_Init(&c->u.md5);
     return c;
 }
 
 int mdh_update(mdh_ctx *c, const void *data, unsigned int len)
 {
-    if(!c || !c->ctx) return 0;
-    return EVP_DigestUpdate(c->ctx, data, (size_t)len) ? 1 : 0;
+    if(!c) return 0;
+    if(c->alg == MDH_MD4)
+        MD4_Update(&c->u.md4, data, (size_t)len);
+    else
+        MD5_Update(&c->u.md5, data, (unsigned long)len);
+    return 1;
 }
 
 int mdh_final(mdh_ctx *c, unsigned char *out, unsigned int *outlen)
 {
-    unsigned int l = 0;
-    if(!c || !c->ctx || !outlen) return 0;
-    if(!EVP_DigestFinal_ex(c->ctx, out, &l)) return 0;
-    *outlen = l;
+    if(!c || !outlen) return 0;
+    if(c->alg == MDH_MD4)
+        MD4_Final(out, &c->u.md4);
+    else
+        MD5_Final(out, &c->u.md5);
+    *outlen = 16;
     return 1;
 }
 
 void mdh_free(mdh_ctx *c)
 {
     if(!c) return;
-    if(c->ctx) EVP_MD_CTX_free(c->ctx);
+    memset(c, 0, sizeof(*c));
     free(c);
 }
-
-#endif /* WITH_SSL */
 
 #endif /* _WIN32 */

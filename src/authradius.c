@@ -9,7 +9,6 @@
 #ifndef NORADIUS
 #include "proxy.h"
 #include "mdhash.h"
-#include <openssl/evp.h>
 
 #define AUTH_VECTOR_LEN         16
 #define MAX_STRING_LEN          254
@@ -185,12 +184,6 @@ char *strNcpy(char *dest, const char *src, int n)
 
 	return dest;
 }
-
-#if !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
-extern EVP_MD *md4_hash;
-extern EVP_MD *md5_hash;
-#endif
-
 
 void md5_calc(unsigned char *output, unsigned char *input,
 		     unsigned int inlen)

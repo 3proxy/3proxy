@@ -350,17 +350,13 @@ target_include_directories(common_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_library(base64_obj OBJECT src/base64.c)
 target_include_directories(base64_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# mdhash object library (MD4/MD5: CAPI on Windows, OpenSSL EVP elsewhere)
-add_library(mdhash_obj OBJECT src/mdhash.c)
-target_include_directories(mdhash_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# mdhash object library (MD4/MD5: CAPI on Windows, bundled Solar Designer MD4/MD5 elsewhere)
 if(WIN32)
-    # CAPI lives in advapi32 (already in WINDOWS_LIBS); no extra include needed.
+    add_library(mdhash_obj OBJECT src/mdhash.c)
 else()
-    if(OpenSSL_FOUND)
-        target_include_directories(mdhash_obj PRIVATE ${OPENSSL_INCLUDE_DIR})
-        target_compile_definitions(mdhash_obj PRIVATE WITH_SSL)
-    endif()
+    add_library(mdhash_obj OBJECT src/mdhash.c src/libs/md4.c src/libs/md5.c)
 endif()
+target_include_directories(mdhash_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # ============================================================================
 # Object libraries for 3proxy (compiled WITHOUT WITHMAIN)

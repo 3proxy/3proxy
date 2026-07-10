@@ -7,13 +7,6 @@
 */
 #include "libs/blake2.h"
 #include "mdhash.h"
-#ifdef WITH_SSL
-#include <openssl/evp.h>
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#include <openssl/params.h>
-#include <openssl/core_names.h>
-#endif
-#endif
 #include <string.h>
 
 #define MD5_SIZE 16
@@ -29,11 +22,6 @@ static unsigned char itoa64[] =
         "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 
-#if defined(WITH_SSL) && !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
-EVP_MD *md4_hash = NULL;
-EVP_MD *md5_hash = NULL;
-#endif
-
 void
 _crypt_to64(unsigned char *s, unsigned long v, int n)
 {
@@ -44,7 +32,6 @@ _crypt_to64(unsigned char *s, unsigned long v, int n)
 }
 
 
-#if defined(WITH_SSL) || defined(_WIN32)
 unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPassword, int ctohex)
 {
 	unsigned char szUnicodePass[513];
@@ -80,7 +67,6 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 	memset(szUnicodePass, 0, sizeof szUnicodePass);
 	return szHash;
 }
-#endif
 
 
 unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsigned char *passwd){
@@ -93,7 +79,6 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
  int sl;
  unsigned long l;
 
-#if defined(WITH_SSL) || defined(_WIN32)
 #ifndef WITHMAIN
  if(salt[0] == '$' && salt[1] == '1' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
 	mdh_ctx	*ctx, *ctx1;
@@ -177,7 +162,6 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
  }
  else
 #endif
-#endif
   if(salt[0] == '$' && salt[1] == '3' && salt[2] == '$' && (ep = (unsigned char *)strchr((char *)salt+3, '$'))) {
     sp = salt +3;
     sl = (int)(ep - sp);
@@ -220,9 +204,6 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 }
 
 #ifdef WITHMAIN
-#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
-#include <openssl/provider.h>
-#endif
 #include <stdio.h>
 int main(int argc, char* argv[]){
 	unsigned char buf1[128];
@@ -230,37 +211,17 @@ int main(int argc, char* argv[]){
 	unsigned i;
 	if(argc < 2 || argc > 3) {
 		fprintf(stderr, "usage: \n"
-#if defined(WITH_SSL) || defined(_WIN32)
 			"\t%s <password>\n"
-#endif
 			"\t%s <salt> <password>\n"
-#if defined(WITH_SSL) || defined(_WIN32)
 			"Performs NT crypt if no salt specified, BLAKE2 crypt with salt\n"
-#else
-			"Performs BLAKE2 crypt with salt\n"
-#endif
 			,
-#if defined(WITH_SSL) || defined(_WIN32)
 			argv[0],
-#endif
 			argv[0]);
 			return 1;
 	}
-#if defined(WITH_SSL) && !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
-        OSSL_PROVIDER_load(NULL, "legacy");
-        OSSL_PROVIDER_load(NULL, "default");
-        md4_hash = EVP_MD_fetch(NULL, "MD4", NULL);
-        if (md4_hash == NULL) {
-	    fprintf(stderr, "Error fetching MD4\n");
-        }
-#endif
 	if(argc == 2) {
-#if defined(WITH_SSL) || defined(_WIN32)
 		{ unsigned char *nt = ntpwdhash(buf1, (unsigned char *)argv[1], 1);
 		  if(nt) printf("NT:%s\n", nt); }
-#else
-		fprintf(stderr, "NT crypt not available (compiled without OpenSSL)\n");
-#endif
 	}
 	else {
 		unsigned char *cr;

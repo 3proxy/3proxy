@@ -44,6 +44,7 @@ ifeq ($(PCRE_CHECK), true)
     PCRE_LIBS = -Wl,-Bstatic -lpcre2-8 -Wl,-Bdynamic
 endif
 
+BUNDLED_HASH_OBJS = md4$(OBJSUFFICS) md5$(OBJSUFFICS)
 include Makefile.inc
 
 allplugins:

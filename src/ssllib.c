@@ -280,12 +280,6 @@ int ssl_file_init = 0;
 
 int ssl_init_done = 0;
 
-#if !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
-extern EVP_MD *md4_hash;
-extern EVP_MD *md5_hash;
-#endif
-
-
 void ssl_init()
 {
 	if(!ssl_init_done){
@@ -296,17 +290,8 @@ void ssl_init()
 	    SSL_load_error_strings();
 	    _3proxy_mutex_init(&ssl_file_mutex);
 	    bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
-#if !defined(_WIN32) && OPENSSL_VERSION_NUMBER >= 0x30000000L
-	    OSSL_PROVIDER_load(NULL, "legacy");
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 	    OSSL_PROVIDER_load(NULL, "default");
-	    md4_hash = EVP_MD_fetch(NULL, "MD4", NULL);
-	    if (md4_hash == NULL) {
-    		fprintf(stderr, "Error fetching MD4\n");
-	    }
-	    md5_hash = EVP_MD_fetch(NULL, "MD5", NULL);
-	    if (md5_hash == NULL) {
-    		fprintf(stderr, "Error fetching MD5\n");
-	    }
 #endif
     	}
 }
