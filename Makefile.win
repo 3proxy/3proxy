@@ -37,21 +37,28 @@ BUILDDATE := $(BUILDDATE)
 AFTERCLEAN = (find . -type f -name "*.o" -delete && find . -type f -name "*.res" -delete && find src/ -type f -name "Makefile.var" -delete && find bin/ -type f -executable -delete) || true
 
 ifndef OPENSSL_CHECK
-OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) -l crypto -l ssl -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
+ifeq ($(LIBSTATIC), true)
+    STATIC_PREFIX = -Wl,-Bstatic
+    STATIC_SUFFIX = -Wl,-Bdynamic
+    ZLIB = -lz
+endif
+OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) $(STATIC_PREFIX) $(ZLIB) -l crypto -l ssl $(STATIC_SUFFIX) -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
 ifeq ($(OPENSSL_CHECK), true)
-    LIBS += -l crypto -l ssl
+    LIBS += $(STATIC_PREFIX) $(ZLIB) -l crypto -l ssl $(STATIC_SUFFIX)
     CFLAGS += -DWITH_SSL
     SSL_OBJS = ssllib$(OBJSUFFICS) ssl$(OBJSUFFICS)
+else
+    ZLIB :=
 endif
 PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
 ifeq ($(PAM_CHECK), true)
     PLUGINS += PamAuth
 endif
-PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n#include <pcre2.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) -lpcre2-8 -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
+PCRE_CHECK = $(shell echo "\#define PCRE2_CODE_UNIT_WIDTH 8\\n#include <pcre2.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) $(STATIC_PREFIX) -lpcre2-8 $(STATIC_SUFFIX) -o testpcre - 2>/dev/null && rm testpcre && echo true||echo false)
 ifeq ($(PCRE_CHECK), true)
     CFLAGS += -DWITH_PCRE
     PCRE_OBJS = pcre$(OBJSUFFICS)
-    PCRE_LIBS = -lpcre2-8
+    PCRE_LIBS = $(STATIC_PREFIX) -lpcre2-8 $(STATIC_SUFFIX)
 endif
 endif
 

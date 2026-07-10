@@ -22,6 +22,7 @@ jobs:
           mingw-w64-ucrt-x86_64-gcc
           mingw-w64-ucrt-x86_64-pcre2
           mingw-w64-ucrt-x86_64-openssl
+          mingw-w64-ucrt-x86_64-zlib
     - name: set date
       shell: pwsh
       run: |
@@ -31,6 +32,8 @@ jobs:
         echo "RELEASE=$RELEASE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: make Windows (Makefile.win)
       shell: msys2 {0}
+      env:
+        LIBSTATIC: 'true'
       run: make -f Makefile.win
     - name: make dist dir
       shell: cmd
