@@ -661,16 +661,18 @@ foreach(PROXY_NAME proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
 endforeach()
 
 # Install plugins
-file(GLOB PLUGINFILES "${PLUGIN_OUTPUT_DIR}/*${PLUGIN_SUFFIX}")
+# Use install(DIRECTORY ... FILES_MATCHING) so the glob resolves at install
+# time, after plugin targets have been built. A configure-time file(GLOB)
+# would run before any plugin exists and install nothing.
 if(WIN32)
-    install(FILES
-        ${PLUGINFILES}
+    install(DIRECTORY ${PLUGIN_OUTPUT_DIR}/
         DESTINATION ${CMAKE_INSTALL_BINDIR}
+        FILES_MATCHING PATTERN "*${PLUGIN_SUFFIX}"
     )
 else()
-    install(FILES
-        ${PLUGINFILES}
+    install(DIRECTORY ${PLUGIN_OUTPUT_DIR}/
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/3proxy
+        FILES_MATCHING PATTERN "*${PLUGIN_SUFFIX}"
     )
 endif()
 
