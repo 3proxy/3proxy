@@ -35,6 +35,12 @@
  * compile-time configuration.
  */
 
+#if defined(WITH_WOLFSSL)
+#include <wolfssl/options.h>
+#endif
+
+#if !defined(WITH_WOLFSSL) || defined(NO_MD5)
+
 #include <string.h>
 
 #include "md5.h"
@@ -285,3 +291,5 @@ void MD5_Final(unsigned char *result, MD5_CTX *ctx)
 
 	memset(ctx, 0, sizeof(*ctx));
 }
+
+#endif /* !WITH_WOLFSSL || NO_MD5 */

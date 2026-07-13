@@ -13,6 +13,12 @@
    https://blake2.net.
 */
 
+#if defined(WITH_WOLFSSL)
+#include <wolfssl/options.h>
+#endif
+
+#ifndef HAVE_BLAKE2B
+
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -377,3 +383,5 @@ fail:
   return -1;
 }
 #endif
+
+#endif /* !HAVE_BLAKE2B */

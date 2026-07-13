@@ -28,6 +28,9 @@
 
 #ifdef WITH_WOLFSSL
 #include <wolfssl/options.h>
+#endif
+
+#if defined(WITH_WOLFSSL) && !defined(NO_MD4)
 #include <wolfssl/openssl/md4.h>
 #else
 

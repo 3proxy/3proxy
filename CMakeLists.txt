@@ -351,15 +351,8 @@ set(3PROXY_CORE_SOURCES
     src/stringtable.c
 )
 
-# BLAKE2 source for 3proxy_crypt (bundled reference impl; wolfSSL provides
-# BLAKE2b natively via wc_Blake2b* when WITH_WOLFSSL is enabled)
-if(3PROXY_SSL_WOLFSSL)
-    set(MD_SOURCES)
-else()
-    set(MD_SOURCES
-        src/libs/blake2b-ref.c
-    )
-endif()
+# Bundled hash implementations (md4.c, md5.c, blake2b-ref.c) self-disable
+# via preprocessor guards when wolfSSL provides them natively.
 
 # ============================================================================
 # Object libraries for common sources (shared between executables)
@@ -378,15 +371,9 @@ target_include_directories(common_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_library(base64_obj OBJECT src/base64.c)
 target_include_directories(base64_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# mdhash object library (MD4/MD5: CAPI on Windows, bundled Solar Designer MD4/MD5 elsewhere,
-# wolfSSL when WITH_WOLFSSL is enabled)
-if(WIN32)
-    add_library(mdhash_obj OBJECT src/mdhash.c)
-elseif(3PROXY_SSL_WOLFSSL)
-    add_library(mdhash_obj OBJECT src/mdhash.c)
-else()
-    add_library(mdhash_obj OBJECT src/mdhash.c src/libs/md4.c src/libs/md5.c)
-endif()
+# mdhash object library. md4.c/md5.c self-disable via NO_MD4/NO_MD5 guards
+# when wolfSSL provides them; always compiled for fallback.
+add_library(mdhash_obj OBJECT src/mdhash.c src/libs/md4.c src/libs/md5.c src/libs/blake2b-ref.c)
 target_include_directories(mdhash_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if(3PROXY_SSL_WOLFSSL)
     target_include_directories(mdhash_obj PRIVATE ${WOLFSSL_INCLUDE_DIR})
@@ -461,7 +448,6 @@ add_executable(3proxy
     $<TARGET_OBJECTS:ftp_obj>
     $<TARGET_OBJECTS:3proxy_crypt_obj>
 )
-target_sources(3proxy PRIVATE ${MD_SOURCES})
 
 if(3PROXY_SSL_ENABLED)
     target_sources(3proxy PRIVATE src/ssllib.c src/ssl.c)
@@ -586,7 +572,6 @@ add_executable(3proxy_crypt
     $<TARGET_OBJECTS:base64_obj>
     $<TARGET_OBJECTS:mdhash_obj>
 )
-target_sources(3proxy_crypt PRIVATE ${MD_SOURCES})
 target_compile_definitions(3proxy_crypt PRIVATE WITHMAIN)
 target_include_directories(3proxy_crypt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src

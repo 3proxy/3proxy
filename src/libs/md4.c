@@ -35,6 +35,12 @@
  * compile-time configuration.
  */
 
+#if defined(WITH_WOLFSSL)
+#include <wolfssl/options.h>
+#endif
+
+#if !defined(WITH_WOLFSSL) || defined(NO_MD4)
+
 #include <string.h>
 
 #include "md4.h"
@@ -266,3 +272,5 @@ void MD4_Final(unsigned char *result, MD4_CTX *ctx)
 	memset(ctx, 0, sizeof(*ctx));
 #endif
 }
+
+#endif /* !WITH_WOLFSSL || NO_MD4 */

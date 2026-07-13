@@ -21,7 +21,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: install Windows libraries
-      run: vcpkg install pcre2:x64-windows wolfssl[opensslcompat]:x64-windows-static && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-wolfssl
+      run: vcpkg install pcre2:x64-windows wolfssl:x64-windows-static && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-wolfssl
     - name: make Windows
       run: make -f Makefile.win
       env:

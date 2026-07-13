@@ -77,11 +77,6 @@ PAM_CHECK ?= $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 
 ifeq ($(PAM_CHECK), true)
     PLUGINS += PamAuth
 endif
-ifeq ($(WOLFSSL_CHECK), true)
-    BUNDLED_HASH_OBJS =
-else
-    BUNDLED_HASH_OBJS = md4$(OBJSUFFICS) md5$(OBJSUFFICS) blake2$(OBJSUFFICS)
-endif
 include Makefile.inc
 
 allplugins:

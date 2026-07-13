@@ -14,10 +14,16 @@
 #include <string.h>
 
 /* ----- BLAKE2 backend selection ----- */
+/* wolfSSL may provide BLAKE2 natively (HAVE_BLAKE2B). If not enabled
+   (e.g. vcpkg port), fall back to the bundled reference implementation. */
 #ifdef WITH_WOLFSSL
 #include <wolfssl/options.h>
+#ifdef HAVE_BLAKE2B
 #include <wolfssl/wolfcrypt/blake2.h>
 #define MDH_BLAKE2_BACKEND_WOLFSSL
+#else
+#include "libs/blake2.h"
+#endif
 #else
 #include "libs/blake2.h"
 #endif
