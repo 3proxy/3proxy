@@ -20,9 +20,6 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#include <openssl/provider.h>
-#endif
 
 #include "proxy.h"
 #include "ssl.h"
@@ -108,19 +105,18 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 	EVP_PKEY *pk = NULL;
 	RSA *rsa = NULL;
 
-	int hash_size = 20;
-	unsigned char hash_sha1[20];
-	char hash_name_sha1[(20*2) + 1];
+	unsigned char hash_sha256[32];
+	char hash_name_sha256[(16*2) + 1];
 	char cache_name[256];
 
-	err = X509_digest(src_cert, EVP_sha1(), hash_sha1, NULL);
+	err = X509_digest(src_cert, EVP_sha256(), hash_sha256, NULL);
 	if(!err){
 		return NULL;
 	}
 
 	if(config->certcache){
-	    bin2hex(hash_sha1, 20, hash_name_sha1, sizeof(hash_name_sha1));
-	    sprintf(cache_name, "%s%s.pem", config->certcache, hash_name_sha1);
+	    bin2hex(hash_sha256, 16, hash_name_sha256, sizeof(hash_name_sha256));
+	    sprintf(cache_name, "%s%s.pem", config->certcache, hash_name_sha256);
 	    /* check if certificate is already cached */
 	    fcache = BIO_new_file(cache_name, "rb");
 	    if ( fcache != NULL ) {
@@ -290,8 +286,5 @@ void ssl_init()
 	    SSL_load_error_strings();
 	    _3proxy_mutex_init(&ssl_file_mutex);
 	    bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	    OSSL_PROVIDER_load(NULL, "default");
-#endif
     	}
 }
