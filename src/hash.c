@@ -197,6 +197,7 @@ void hashadd(struct hashtable *ht, void* name, void* value, time_t expires){
 
     if(!ht->ihashempty){
 	hashgrow(ht);
+	index = hashindex(ht, ht->tablesize, hash);
     }
 
     if(ht->ihashempty){
