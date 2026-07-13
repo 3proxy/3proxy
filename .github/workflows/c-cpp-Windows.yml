@@ -21,7 +21,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: install Windows libraries
-      run: vcpkg install pcre2:x64-windows && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-openssl
+      run: vcpkg install pcre2:x64-windows wolfssl[opensslcompat]:x64-windows-static && c:\msys64\usr\bin\pacman.exe -S --noconfirm mingw-w64-x86_64-pcre2 mingw-w64-x86_64-wolfssl
     - name: make Windows
       run: make -f Makefile.win
       env:
@@ -37,7 +37,7 @@ jobs:
        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
        D:
        cd "D:/a/3proxy/3proxy"
-       set "LIB=%LIB%;c:/program files/openssl/lib/VC/x64/MT;c:/vcpkg/installed/x64-windows/lib"
-       set "INCLUDE=%INCLUDE%;c:/program files/openssl/include;c:/vcpkg/installed/x64-windows/include"
-       nmake /F Makefile.msvc
+       set "LIB=%LIB%;c:/vcpkg/installed/x64-windows-static/lib;c:/vcpkg/installed/x64-windows/lib"
+       set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows-static/include;c:/vcpkg/installed/x64-windows/include"
+       nmake /F Makefile.msvc WOLFSSL=1
        nmake /F Makefile.msvc clean

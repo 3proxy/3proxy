@@ -57,3 +57,18 @@ jobs:
        cmake --build .
        cd ..
        rmdir /s /q build
+
+  wolfssl:
+    name: "ubuntu-latest (wolfSSL)"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Install wolfSSL
+      run: sudo apt install -y libwolfssl-dev
+    - name: make with CMake (wolfSSL preferred)
+      run: |
+       mkdir build
+       cd build
+       cmake ..
+       cmake --build .
+       cd .. && rm -rf build/

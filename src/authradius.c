@@ -188,7 +188,7 @@ char *strNcpy(char *dest, const char *src, int n)
 void md5_calc(unsigned char *output, unsigned char *input,
 		     unsigned int inlen)
 {
-	mdh_ctx *ctx = mdh_init(MDH_MD5);
+	mdh_ctx *ctx = mdh_init(MDH_MD5, 16);
 	unsigned int len = 16;
 	if(!ctx) return;
 	mdh_update(ctx, input, inlen);

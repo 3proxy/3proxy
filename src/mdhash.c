@@ -4,129 +4,202 @@
 
    please read License Agreement
 
-   MD4/MD5 hash implementation.
-   - Windows: CryptoAPI (CAPI). Supports both CALG_MD4 and CALG_MD5.
-   - Other platforms: bundled public-domain MD4/MD5 (Solar Designer, 2001).
+   MD4/MD5/BLAKE2 hash implementation.
+   - Windows (no wolfSSL): CryptoAPI (CAPI) for MD4/MD5; bundled BLAKE2.
+   - wolfSSL: wolfCrypt for MD4/MD5 (OpenSSL compat) and BLAKE2 (native wc_*).
+   - Other: bundled public-domain MD4/MD5 + bundled BLAKE2 reference.
 */
 #include "mdhash.h"
 #include <stdlib.h>
+#include <string.h>
 
-#ifdef _WIN32
+/* ----- BLAKE2 backend selection ----- */
+#ifdef WITH_WOLFSSL
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/blake2.h>
+#define MDH_BLAKE2_BACKEND_WOLFSSL
+#else
+#include "libs/blake2.h"
+#endif
 
+/* ----- MD4/MD5 backend selection ----- */
+#if defined(_WIN32) && !defined(WITH_WOLFSSL)
+#define MDH_MD_BACKEND_CAPI
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wincrypt.h>
-
-struct mdh_ctx {
-    HCRYPTPROV  hProv;
-    HCRYPTHASH  hHash;
-};
-
-mdh_ctx *mdh_init(mdh_alg alg)
-{
-    mdh_ctx *c;
-    ALG_ID alg_id;
-
-    c = (mdh_ctx *)malloc(sizeof(mdh_ctx));
-    if(!c) return NULL;
-    c->hProv = 0;
-    c->hHash = 0;
-
-    if(!CryptAcquireContext(&c->hProv, NULL, NULL, PROV_RSA_FULL,
-                            CRYPT_VERIFYCONTEXT)) {
-        free(c);
-        return NULL;
-    }
-
-    alg_id = (alg == MDH_MD4) ? CALG_MD4 : CALG_MD5;
-    if(!CryptCreateHash(c->hProv, alg_id, 0, 0, &c->hHash)) {
-        CryptReleaseContext(c->hProv, 0);
-        free(c);
-        return NULL;
-    }
-    return c;
-}
-
-int mdh_update(mdh_ctx *c, const void *data, unsigned int len)
-{
-    if(!c || !c->hHash) return 0;
-    if(len == 0) return 1;
-    return CryptHashData(c->hHash, (BYTE *)data, len, 0) ? 1 : 0;
-}
-
-int mdh_final(mdh_ctx *c, unsigned char *out, unsigned int *outlen)
-{
-    DWORD l;
-    BOOL ok;
-
-    if(!c || !c->hHash || !outlen) return 0;
-    l = (DWORD)*outlen;
-    ok = CryptGetHashParam(c->hHash, HP_HASHVAL, out, &l, 0);
-    if(!ok) return 0;
-    *outlen = (unsigned int)l;
-    return 1;
-}
-
-void mdh_free(mdh_ctx *c)
-{
-    if(!c) return;
-    if(c->hHash) CryptDestroyHash(c->hHash);
-    if(c->hProv) CryptReleaseContext(c->hProv, 0);
-    free(c);
-}
-
-#else /* !_WIN32 */
-
+#else
 #include "libs/md4.h"
 #include "libs/md5.h"
-#include <string.h>
+#endif
 
 struct mdh_ctx {
-    int alg; /* MDH_MD4 or MDH_MD5 */
+    mdh_alg alg;
+    unsigned int outlen;
+#ifdef MDH_MD_BACKEND_CAPI
+    HCRYPTPROV hProv;
+    HCRYPTHASH hHash;
+#else
     union {
         MD4_CTX md4;
         MD5_CTX md5;
     } u;
+#endif
+#ifdef MDH_BLAKE2_BACKEND_WOLFSSL
+    Blake2b blake2;
+#else
+    blake2b_state blake2;
+#endif
 };
 
-mdh_ctx *mdh_init(mdh_alg alg)
+mdh_ctx *mdh_init(mdh_alg alg, unsigned int outlen)
 {
     mdh_ctx *c = (mdh_ctx *)malloc(sizeof(mdh_ctx));
     if(!c) return NULL;
+    memset(c, 0, sizeof(*c));
     c->alg = alg;
-    if(alg == MDH_MD4)
-        MD4_Init(&c->u.md4);
-    else
-        MD5_Init(&c->u.md5);
+    c->outlen = outlen;
+
+    switch(alg) {
+        case MDH_MD4:
+#ifdef MDH_MD_BACKEND_CAPI
+            if(!CryptAcquireContext(&c->hProv, NULL, NULL, PROV_RSA_FULL,
+                                    CRYPT_VERIFYCONTEXT)) {
+                free(c);
+                return NULL;
+            }
+            if(!CryptCreateHash(c->hProv, CALG_MD4, 0, 0, &c->hHash)) {
+                CryptReleaseContext(c->hProv, 0);
+                free(c);
+                return NULL;
+            }
+#else
+            MD4_Init(&c->u.md4);
+#endif
+            break;
+        case MDH_MD5:
+#ifdef MDH_MD_BACKEND_CAPI
+            if(!CryptAcquireContext(&c->hProv, NULL, NULL, PROV_RSA_FULL,
+                                    CRYPT_VERIFYCONTEXT)) {
+                free(c);
+                return NULL;
+            }
+            if(!CryptCreateHash(c->hProv, CALG_MD5, 0, 0, &c->hHash)) {
+                CryptReleaseContext(c->hProv, 0);
+                free(c);
+                return NULL;
+            }
+#else
+            MD5_Init(&c->u.md5);
+#endif
+            break;
+        case MDH_BLAKE2:
+            if(!outlen || outlen > 64) {
+                free(c);
+                return NULL;
+            }
+#ifdef MDH_BLAKE2_BACKEND_WOLFSSL
+            if(wc_InitBlake2b(&c->blake2, outlen) != 0) {
+                free(c);
+                return NULL;
+            }
+#else
+            if(blake2b_init(&c->blake2, outlen) != 0) {
+                free(c);
+                return NULL;
+            }
+#endif
+            break;
+        default:
+            free(c);
+            return NULL;
+    }
     return c;
 }
 
 int mdh_update(mdh_ctx *c, const void *data, unsigned int len)
 {
     if(!c) return 0;
-    if(c->alg == MDH_MD4)
-        MD4_Update(&c->u.md4, data, (size_t)len);
-    else
-        MD5_Update(&c->u.md5, data, (unsigned long)len);
-    return 1;
+    if(len == 0) return 1;
+    switch(c->alg) {
+        case MDH_MD4:
+#ifdef MDH_MD_BACKEND_CAPI
+            return CryptHashData(c->hHash, (BYTE *)data, len, 0) ? 1 : 0;
+#else
+            MD4_Update(&c->u.md4, data, (size_t)len);
+            return 1;
+#endif
+        case MDH_MD5:
+#ifdef MDH_MD_BACKEND_CAPI
+            return CryptHashData(c->hHash, (BYTE *)data, len, 0) ? 1 : 0;
+#else
+            MD5_Update(&c->u.md5, data, (unsigned long)len);
+            return 1;
+#endif
+        case MDH_BLAKE2:
+#ifdef MDH_BLAKE2_BACKEND_WOLFSSL
+            return wc_Blake2bUpdate(&c->blake2, (const byte *)data, len) == 0;
+#else
+            return blake2b_update(&c->blake2, data, len) == 0;
+#endif
+    }
+    return 0;
 }
 
 int mdh_final(mdh_ctx *c, unsigned char *out, unsigned int *outlen)
 {
     if(!c || !outlen) return 0;
-    if(c->alg == MDH_MD4)
-        MD4_Final(out, &c->u.md4);
-    else
-        MD5_Final(out, &c->u.md5);
-    *outlen = 16;
-    return 1;
+    switch(c->alg) {
+        case MDH_MD4:
+#ifdef MDH_MD_BACKEND_CAPI
+            {
+                DWORD l = (DWORD)*outlen;
+                if(!CryptGetHashParam(c->hHash, HP_HASHVAL, out, &l, 0))
+                    return 0;
+                *outlen = (unsigned int)l;
+                return 1;
+            }
+#else
+            MD4_Final(out, &c->u.md4);
+            *outlen = 16;
+            return 1;
+#endif
+        case MDH_MD5:
+#ifdef MDH_MD_BACKEND_CAPI
+            {
+                DWORD l = (DWORD)*outlen;
+                if(!CryptGetHashParam(c->hHash, HP_HASHVAL, out, &l, 0))
+                    return 0;
+                *outlen = (unsigned int)l;
+                return 1;
+            }
+#else
+            MD5_Final(out, &c->u.md5);
+            *outlen = 16;
+            return 1;
+#endif
+        case MDH_BLAKE2:
+            if(*outlen < c->outlen) return 0;
+#ifdef MDH_BLAKE2_BACKEND_WOLFSSL
+            if(wc_Blake2bFinal(&c->blake2, out, c->outlen) != 0)
+                return 0;
+#else
+            if(blake2b_final(&c->blake2, out, c->outlen) != 0)
+                return 0;
+#endif
+            *outlen = c->outlen;
+            return 1;
+    }
+    return 0;
 }
 
 void mdh_free(mdh_ctx *c)
 {
     if(!c) return;
+#ifdef MDH_MD_BACKEND_CAPI
+    if(c->hHash) CryptDestroyHash(c->hHash);
+    if(c->hProv) CryptReleaseContext(c->hProv, 0);
+#endif
     memset(c, 0, sizeof(*c));
     free(c);
 }
-
-#endif /* _WIN32 */

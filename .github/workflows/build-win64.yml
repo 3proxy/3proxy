@@ -29,7 +29,7 @@ jobs:
        echo "VERSION=/D `"VERSION=\`"3proxy-$RELEASE\`"`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
        echo "BUILDDATE=/D `"BUILDDATE=\`"$NOW\`"`"" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: install packages
-      run: vcpkg install pcre2:x64-windows-static openssl:x64-windows-static
+      run: vcpkg install pcre2:x64-windows-static wolfssl[opensslcompat]:x64-windows-static
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v3
     - name: make Windows MSVC
@@ -42,7 +42,7 @@ jobs:
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows-static/include"
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
        echo %NOW% / %RELEASE% / %BUILDDATE% / %VERSION%
-       nmake /F Makefile.msvc
+       nmake /F Makefile.msvc WOLFSSL=1
     - name: Decode Certificate
       shell: pwsh
       run: |

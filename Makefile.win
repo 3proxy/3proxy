@@ -42,6 +42,15 @@ ifeq ($(LIBSTATIC), true)
     STATIC_SUFFIX = -Wl,-Bdynamic
     ZLIB = -lz
 endif
+WOLFSSL_CHECK = $(shell echo "\#include <wolfssl/options.h>\\n\#include <wolfssl/openssl/ssl.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) $(STATIC_PREFIX) -lwolfssl $(STATIC_SUFFIX) -o testwssl - 2>/dev/null && rm testwssl && echo true||echo false)
+ifeq ($(WOLFSSL_CHECK), true)
+    LIBS += $(STATIC_PREFIX) -lwolfssl $(STATIC_SUFFIX) -lws2_32
+    CFLAGS += -DWITH_SSL -DWITH_WOLFSSL
+    SSL_OBJS = ssllib$(OBJSUFFICS) ssl$(OBJSUFFICS)
+    ZLIB :=
+    BUNDLED_HASH_OBJS =
+else
+    BUNDLED_HASH_OBJS = blake2$(OBJSUFFICS)
 OPENSSL_CHECK = $(shell echo "\#include <openssl/ssl.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) $(STATIC_PREFIX) $(ZLIB) -l crypto -l ssl $(STATIC_SUFFIX) -o testssl - 2>/dev/null && rm testssl && echo true||echo false)
 ifeq ($(OPENSSL_CHECK), true)
     LIBS += $(STATIC_PREFIX) $(ZLIB) -l crypto -l ssl $(STATIC_SUFFIX) -lcrypt32
@@ -49,6 +58,7 @@ ifeq ($(OPENSSL_CHECK), true)
     SSL_OBJS = ssllib$(OBJSUFFICS) ssl$(OBJSUFFICS)
 else
     ZLIB :=
+endif
 endif
 PAM_CHECK = $(shell echo "\#include <security/pam_appl.h>\\n int main(){return 0;}" | tr -d '\\\\' | $(CC) -x c $(CFLAGS) $(LDFLAGS) -l pam -o testpam - 2>/dev/null && rm testpam && echo true||echo false)
 ifeq ($(PAM_CHECK), true)

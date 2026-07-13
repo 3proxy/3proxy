@@ -1,18 +1,21 @@
 #include "proxy.h"
-#include "libs/blake2.h"
+#include "mdhash.h"
 
 
 static void char_index2hash(const struct hashtable *ht, void *index, uint8_t *hash){
-    blake2b_state S;
     int len;
+    unsigned int blen;
 
     len = strlen((const char*)index);
     memset(hash, 0, ht->hash_size);
     if(len <= ht->hash_size) memcpy(hash, index, len);
     else {
-	blake2b_init(&S, ht->hash_size);
-	blake2b_update(&S, index, strlen((const char*)index) + 1);
-	blake2b_final(&S, hash, ht->hash_size);
+	mdh_ctx *bctx = mdh_init(MDH_BLAKE2, ht->hash_size);
+	if(!bctx) return;
+	mdh_update(bctx, index, (unsigned int)(strlen((const char*)index) + 1));
+	blen = ht->hash_size;
+	mdh_final(bctx, hash, &blen);
+	mdh_free(bctx);
     }
 }
 
@@ -23,7 +26,6 @@ static void param2hash_add(const struct hashtable *ht, void *index, uint8_t *has
 }
 
 void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
-    blake2b_state S;
     struct clientparam *param = (struct clientparam *)index;
     unsigned type = param->srv->authcachetype;
     int len = 0, oplen = 0, acllen = 0, ulen = 0, plen = 0, hlen = 0, a1len = 0, a2len = 0, a3len = 0, p1len=0, p2len = 0;
@@ -55,31 +57,36 @@ void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
 	if((type & 2048)){ memcpy(hash + offset, SAPORT(&param->srv->intsa), p2len); offset += 2; }
     }
     else {
-	blake2b_init(&S, ht->hash_size);
-	if((type & 2) && param->username)blake2b_update(&S, param->username, ulen);
-        if((type & 4) && param->password)blake2b_update(&S, param->password, plen);
-	if((type & 1) && !(type & 8))blake2b_update(&S, SAADDR(&param->sincr), a1len);
-	if((type & 16))blake2b_update(&S, &param->srv->acl, acllen);
-	if((type & 64))blake2b_update(&S, SAADDR(&param->req), a2len);
-	if((type & 128))blake2b_update(&S, SAPORT(&param->req), 2);
-	if((type & 256) && param->hostname)blake2b_update(&S, param->hostname, hlen);
-	if((type & 512))blake2b_update(&S, &param->operation, sizeof(param->operation));
-	if((type & 1024))blake2b_update(&S, SAADDR(&param->srv->intsa), a3len);
-	if((type & 2048))blake2b_update(&S, SAPORT(&param->srv->intsa), 2);
-	blake2b_final(&S, hash, ht->hash_size);
+	mdh_ctx *bctx = mdh_init(MDH_BLAKE2, ht->hash_size);
+	unsigned int blen = ht->hash_size;
+	if(!bctx) { memcpy(param->hash, hash, ht->hash_size); return; }
+	if((type & 2) && param->username)mdh_update(bctx, param->username, ulen);
+        if((type & 4) && param->password)mdh_update(bctx, param->password, plen);
+	if((type & 1) && !(type & 8))mdh_update(bctx, SAADDR(&param->sincr), a1len);
+	if((type & 16))mdh_update(bctx, &param->srv->acl, acllen);
+	if((type & 64))mdh_update(bctx, SAADDR(&param->req), a2len);
+	if((type & 128))mdh_update(bctx, SAPORT(&param->req), 2);
+	if((type & 256) && param->hostname)mdh_update(bctx, param->hostname, hlen);
+	if((type & 512))mdh_update(bctx, &param->operation, sizeof(param->operation));
+	if((type & 1024))mdh_update(bctx, SAADDR(&param->srv->intsa), a3len);
+	if((type & 2048))mdh_update(bctx, SAPORT(&param->srv->intsa), 2);
+	mdh_final(bctx, hash, &blen);
+	mdh_free(bctx);
     }
     memcpy(param->hash, hash, ht->hash_size);
 }
 
 static void udpparam2hash(const struct hashtable *ht, void *index, uint8_t *hash){
     struct clientparam *param = (struct clientparam *)index;
-    blake2b_state S;
-    blake2b_init(&S, ht->hash_size);
-    blake2b_update(&S, SAADDR(&param->srv->intsa), SAADDRLEN(&param->srv->intsa));
-    blake2b_update(&S, SAPORT(&param->srv->intsa), 2);
-    blake2b_update(&S, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
-    blake2b_update(&S, SAPORT(&param->sincr), 2);
-    blake2b_final(&S, hash, ht->hash_size);
+    mdh_ctx *bctx = mdh_init(MDH_BLAKE2, ht->hash_size);
+    unsigned int blen = ht->hash_size;
+    if(!bctx) return;
+    mdh_update(bctx, SAADDR(&param->srv->intsa), SAADDRLEN(&param->srv->intsa));
+    mdh_update(bctx, SAPORT(&param->srv->intsa), 2);
+    mdh_update(bctx, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
+    mdh_update(bctx, SAPORT(&param->sincr), 2);
+    mdh_final(bctx, hash, &blen);
+    mdh_free(bctx);
 }
 
 struct hashtable dns_table = {char_index2hash, char_index2hash, 4, 32};

@@ -7,7 +7,7 @@
 */
 
 #include "proxy.h"
-#include "libs/blake2.h"
+#include "mdhash.h"
 #ifdef WITH_SSL
 void ssl_install(void);
 #endif
@@ -543,13 +543,17 @@ static int h_users(int argc, unsigned char **argv){
 	l = strlen(pw[1]);
 	if(l > 255) l = 255;
 	if((unsigned)l >= pwl_table.recsize) {
-	    blake2b_state S;
+	    mdh_ctx *bctx;
 	    unsigned hashsz;
+	    unsigned int blen;
 	    if(*pass != CL) continue;
 	    hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
-	    blake2b_init(&S, hashsz);
-	    blake2b_update(&S, pw[1], l + 1);
-	    blake2b_final(&S, pass+1, hashsz);
+	    bctx = mdh_init(MDH_BLAKE2, hashsz);
+	    if(!bctx) continue;
+	    mdh_update(bctx, pw[1], l + 1);
+	    blen = hashsz;
+	    mdh_final(bctx, (unsigned char *)pass+1, &blen);
+	    mdh_free(bctx);
 	} else {
 	    memcpy(pass + 1, pw[1], l);
 	}

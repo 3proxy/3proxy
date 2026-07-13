@@ -11,13 +11,22 @@ CRYPT_PREFIX = 3proxy_
 CC = cl
 VERSION = $(VERSION)
 BUILDDATE = $(BUILDDATE)
-CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" /D "WITH_SSL" /D "WITH_PCRE" /D "WITH_ODBC" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /Fp"proxy.pch" /FD /c $(BUILDDATE) $(VERSION)
+!IFDEF WOLFSSL
+SSL_DEFS = /D "WITH_SSL" /D "WITH_WOLFSSL"
+SSL_LIBS = wolfssl.lib
+BUNDLED_HASH_OBJS =
+!ELSE
+SSL_DEFS = /D "WITH_SSL"
+SSL_LIBS = libcrypto.lib libssl.lib
+BUNDLED_HASH_OBJS = blake2$(OBJSUFFICS)
+!ENDIF
+CFLAGS = /nologo /MT /W3 /Ox /GS /EHs- /GA /GF /D "MSVC"  /D "WITH_WSAPOLL" /D "NDEBUG" /D "WIN32" $(SSL_DEFS) /D "WITH_PCRE" /D "WITH_ODBC" /D "_CONSOLE" /D "_MBCS" /D "_WIN32" /Fp"proxy.pch" /FD /c $(BUILDDATE) $(VERSION)
 COUT = /Fo
 LN = link
 LDFLAGS =  /nologo /subsystem:console /incremental:no
 DLFLAGS = /DLL
 DLSUFFICS = .dll
-LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib Crypt32.lib  libcrypto.lib libssl.lib pcre2-8.lib
+LIBS = ws2_32.lib advapi32.lib odbc32.lib user32.lib kernel32.lib Gdi32.lib Crypt32.lib $(SSL_LIBS) pcre2-8.lib
 LIBSPREFIX =
 LIBSSUFFIX = .lib
 LIBEXT = .lib

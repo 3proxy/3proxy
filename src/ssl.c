@@ -6,11 +6,20 @@
 */
 
 #include "structures.h"
+#ifdef WITH_WOLFSSL
+#include <wolfssl/options.h>
+#include <wolfssl/openssl/crypto.h>
+#include <wolfssl/openssl/x509.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/err.h>
+#else
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#endif
 #include "proxy.h"
 #include "ssl.h"
 
@@ -487,7 +496,7 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
     int err = 0;
 
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER < 0x10100000L
     ctx = SSL_CTX_new(SSLv23_server_method());
 #else
     ctx = SSL_CTX_new(TLS_server_method());
@@ -517,14 +526,17 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
     if(config->server_min_proto_version)SSL_CTX_set_min_proto_version(ctx, config->server_min_proto_version);
     if(config->server_max_proto_version)SSL_CTX_set_max_proto_version(ctx, config->server_max_proto_version);
     if(config->server_cipher_list)SSL_CTX_set_cipher_list(ctx, config->server_cipher_list);
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER >= 0x10101000L
     if(config->server_ciphersuites)SSL_CTX_set_ciphersuites(ctx, config->server_ciphersuites);
+#elif defined(WITH_WOLFSSL)
+    /* wolfSSL has no separate TLS1.3 ciphersuites API; route to cipher list. */
+    if(config->server_ciphersuites)wolfSSL_CTX_set_cipher_list(ctx, config->server_ciphersuites);
 #endif
     if(config->server_verify){
                 if(config->server_ca_file || config->server_ca_dir){
                     SSL_CTX_load_verify_locations(ctx, config->server_ca_file, config->server_ca_dir);
                 }
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
                 else if(config->server_ca_store){
                     SSL_CTX_load_verify_store(ctx, config->server_ca_store);
                 }
@@ -655,7 +667,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    srv->so._poll = ssl_poll;
 	}
 	if(sc && (sc->mitm || sc->cli)){
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER < 0x10100000L
 	    sc->srv_ctx = SSL_CTX_new(SSLv23_client_method());
 #else
 	    sc->srv_ctx = SSL_CTX_new(TLS_client_method());
@@ -671,17 +683,20 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    if(sc->client_min_proto_version)SSL_CTX_set_min_proto_version(sc->srv_ctx, sc->client_min_proto_version);
 	    if(sc->client_max_proto_version)SSL_CTX_set_max_proto_version(sc->srv_ctx, sc->client_max_proto_version);
 	    if(sc->client_cipher_list)SSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_cipher_list);
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER >= 0x10101000L
 	    if(sc->client_ciphersuites)SSL_CTX_set_ciphersuites(sc->srv_ctx, sc->client_ciphersuites);
+#elif defined(WITH_WOLFSSL)
+	    /* wolfSSL has no separate TLS1.3 ciphersuites API; route to cipher list. */
+	    if(sc->client_ciphersuites)wolfSSL_CTX_set_cipher_list(sc->srv_ctx, sc->client_ciphersuites);
 #endif
-#if OPENSSL_VERSION_NUMBER >= 0x10200000L
+#if (defined(WITH_WOLFSSL) && defined(HAVE_ALPN) && LIBWOLFSSL_VERSION_HEX >= 0x03007000) || (!defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER >= 0x10200000L)
 	    if(sc->client_alpn_protos.protos_len)SSL_CTX_set_alpn_protos(sc->srv_ctx, sc->client_alpn_protos.protos, sc->client_alpn_protos.protos_len);
 #endif
 	    if(sc->client_verify){
 		if(sc->client_ca_file || sc->client_ca_dir){
 		    SSL_CTX_load_verify_locations(sc->srv_ctx, sc->client_ca_file, sc->client_ca_dir);
 		}
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER >= 0x30000000L
 		else if(sc->client_ca_store){
 		    SSL_CTX_load_verify_store(sc->srv_ctx, sc->client_ca_store);
 		}

@@ -14,12 +14,22 @@
 #include <sys/file.h>
 #endif
 
+#ifdef WITH_WOLFSSL
+#include <wolfssl/options.h>
+#include <wolfssl/openssl/crypto.h>
+#include <wolfssl/openssl/x509.h>
+#include <wolfssl/openssl/x509v3.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/err.h>
+#else
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#endif
 
 #include "proxy.h"
 #include "ssl.h"
@@ -103,7 +113,6 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 	X509 *dst_cert = NULL;
 
 	EVP_PKEY *pk = NULL;
-	RSA *rsa = NULL;
 
 	unsigned char hash_sha256[32];
 	char hash_name_sha256[(16*2) + 1];

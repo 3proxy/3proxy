@@ -26,6 +26,11 @@
 #ifndef _MD4_H
 #define _MD4_H
 
+#ifdef WITH_WOLFSSL
+#include <wolfssl/options.h>
+#include <wolfssl/openssl/md4.h>
+#else
+
 #include <stddef.h> /* for size_t */
 
 /* Any 32-bit or wider unsigned integer data type will do */
@@ -43,5 +48,7 @@ typedef struct {
 extern void MD4_Init(MD4_CTX *ctx);
 extern void MD4_Update(MD4_CTX *ctx, const void *data, size_t size);
 extern void MD4_Final(unsigned char *result, MD4_CTX *ctx);
+
+#endif /* !WITH_WOLFSSL */
 
 #endif

@@ -5,7 +5,6 @@
    please read License Agreement
 
 */
-#include "libs/blake2.h"
 #include "mdhash.h"
 #include <string.h>
 
@@ -52,7 +51,7 @@ unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPasswor
 	}
 
 	/* Encrypt Unicode password to a 16-byte MD4 hash */
-	ctx = mdh_init(MDH_MD4);
+	ctx = mdh_init(MDH_MD4, 16);
 	if(!ctx) return NULL;
 	mdh_update(ctx, szUnicodePass, (nPasswordLen<<1));
 	if(!mdh_final(ctx, szUnicodePass, &len)) {
@@ -89,7 +88,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	sl = (int)(ep - sp);
 	magic = (unsigned char *)"$1$";
 
-	ctx = mdh_init(MDH_MD5);
+	ctx = mdh_init(MDH_MD5, 16);
 	if(!ctx) {
 	    *passwd = 0;
 	    return NULL;
@@ -105,7 +104,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	mdh_update(ctx, sp, (unsigned int)sl);
 
 	/* Then just as many unsigned characters of the MD5(pw,salt,pw) */
-	ctx1 = mdh_init(MDH_MD5);
+	ctx1 = mdh_init(MDH_MD5, 16);
 	if(!ctx1) {
 	    mdh_free(ctx);
 	    *passwd = 0;
@@ -139,7 +138,7 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
 	 */
 	for(i=0;i<1000;i++) {
 		mdh_free(ctx1);
-		ctx1 = mdh_init(MDH_MD5);
+		ctx1 = mdh_init(MDH_MD5, 16);
 		if(!ctx1) { *passwd = 0; return NULL; }
 		if(i & 1)
 			mdh_update(ctx1, pw, (unsigned int)strlen((char *)pw));
@@ -167,14 +166,17 @@ unsigned char * mycrypt(const unsigned char *pw, const unsigned char *salt, unsi
     sl = (int)(ep - sp);
     magic = (unsigned char *)"$3$";
     {
-        blake2b_state S;
-        if(blake2b_init(&S, MD5_SIZE) != 0 ||
-           blake2b_update(&S, pw, strlen((char *)pw) + 1) != 0 ||
-           blake2b_update(&S, sp, sl) != 0 ||
-           blake2b_final(&S, final, MD5_SIZE) != 0) {
+        mdh_ctx *bctx = mdh_init(MDH_BLAKE2, MD5_SIZE);
+        unsigned int blen = MD5_SIZE;
+        if(!bctx ||
+           !mdh_update(bctx, pw, (unsigned int)(strlen((char *)pw) + 1)) ||
+           !mdh_update(bctx, sp, (unsigned int)sl) ||
+           !mdh_final(bctx, final, &blen)) {
+            mdh_free(bctx);
             *passwd = 0;
             return NULL;
         }
+        mdh_free(bctx);
     }
  }
  else {

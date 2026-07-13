@@ -7,7 +7,7 @@
 */
 
 #include "proxy.h"
-#include "libs/blake2.h"
+#include "mdhash.h"
 
 void initbandlims(struct clientparam *param);
 
@@ -231,13 +231,17 @@ int strongauth(struct clientparam * param){
 			    if((unsigned)pwlen < pwl_table.recsize) {
 				if(!strncmp(pass + 1, (char *)param->password, pwl_table.recsize - 1)) return 0;
 			    } else {
-				blake2b_state S;
+				mdh_ctx *bctx;
 				unsigned hashsz;
+				unsigned int blen;
 				hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
 				memset(buf, 0, pwl_table.recsize - 1);
-				blake2b_init(&S, hashsz);
-				blake2b_update(&S, param->password, pwlen + 1);
-				blake2b_final(&S, buf, hashsz);
+				bctx = mdh_init(MDH_BLAKE2, hashsz);
+				if(!bctx) return 6;
+				mdh_update(bctx, param->password, pwlen + 1);
+				blen = hashsz;
+				mdh_final(bctx, buf, &blen);
+				mdh_free(bctx);
 				if(!memcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
 			    }
 			    return 6;
