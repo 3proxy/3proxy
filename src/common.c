@@ -659,6 +659,9 @@ int doconnect(struct clientparam * param){
 	    if(!idx || (*SAFAMILY(&param->sinsl) == AF_INET && param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
 			return 12;
 #ifndef NOIPV6
+#ifndef IPV6_BOUND_IF
+#define IPV6_BOUND_IF 125
+#endif
 	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
 #endif
 	}
