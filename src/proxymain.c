@@ -772,6 +772,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			return -12;
 		    }
 #ifndef NOIPV6
+#ifndef IPV6_BOUND_IF
+#define IPV6_BOUND_IF 125
+#endif
 	            if((*SAFAMILY(&srv.intsa) == AF_INET6 && srv.so._setsockopt(srv.so.state, sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx)))) {
 			dolog(&defparam, (unsigned char *)"failed to bind device");
 	        	return -12;
