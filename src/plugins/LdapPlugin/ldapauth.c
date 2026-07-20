@@ -42,7 +42,7 @@ struct schedule myschedule;
 void lower (char *string)
 {
  int length, i;
- 
+
  length = strlen(string);
  for (i=0; i<length; i++)
  {
@@ -51,8 +51,56 @@ void lower (char *string)
 }
 #endif
 
+/* RFC 4514 escaping for DN attribute values. Returns dst, NULL on overflow. */
+static char * ldap_escape_dn(const char *src, char *dst, int dstlen)
+{
+ int j = 0;
+ unsigned char c;
+ for (; *src; src++){
+	c = (unsigned char)*src;
+	if(c == ',' || c == '+' || c == '"' || c == '\\' || c == '<' || c == '>' || c == ';' || c == '=' || c < 0x20 || c == 0x7f){
+		if(j + 3 >= dstlen) return NULL;
+		sprintf(dst + j, "\\%02X", c);
+		j += 3;
+	}
+	else {
+		if(j + 1 >= dstlen) return NULL;
+		dst[j++] = (char)c;
+	}
+ }
+ dst[j] = 0;
+ return dst;
+}
+
+/* RFC 4515 escaping for search filter values. Returns dst, NULL on overflow. */
+static char * ldap_escape_filter(const char *src, char *dst, int dstlen)
+{
+ int j = 0;
+ unsigned char c;
+ for (; *src; src++){
+	c = (unsigned char)*src;
+	if(c == '*' || c == '(' || c == ')' || c == '\\' || c == 0 || c < 0x20 || c >= 0x7f){
+		if(j + 3 >= dstlen) return NULL;
+		sprintf(dst + j, "\\%02X", c);
+		j += 3;
+	}
+	else {
+		if(j + 1 >= dstlen) return NULL;
+		dst[j++] = (char)c;
+	}
+ }
+ dst[j] = 0;
+ return dst;
+}
+
+/* reject names unsafe for use in filesystem paths */
+static int unsafe_filename(const char *name)
+{
+ return (strchr(name, '/') || strchr(name, '\\') || strstr(name, "..") || !*name);
+}
+
 /* -------------------------------------------------------------------------- */
-int savecounters(void)
+int savecounters(void *v)
 {
  struct trafcount *tc=mypluginlink->conf->trafcounter;
  struct trafcount *tcd;
@@ -67,8 +115,8 @@ int savecounters(void)
     tcd = tc;
     tc = tc->next;
     f=NULL;
-    if(strcmp(tcd->comment,"ldapcounters")==0) {
-      tmpbuf=malloc(strlen(pat_file)+strlen(ldap_dircount)+strlen(tcd->ace->users->user));
+    if(strcmp(tcd->comment,"ldapcounters")==0 && !unsafe_filename(tcd->ace->users->user)) {
+      tmpbuf=malloc(strlen(ldap_dircount)+strlen(tcd->ace->users->user)+sizeof(".lc"));
       sprintf(tmpbuf,pat_file,ldap_dircount,tcd->ace->users->user);
       f=fopen(tmpbuf,"w+b");
       fseek(f,0,SEEK_SET);
@@ -97,9 +145,10 @@ static int ldapfunc(struct clientparam *param)
  {
 
   LDAP		*ld = NULL;
-  LDAPMessage	*res = NULL; 
+  LDAPMessage	*res = NULL;
   int    rc = -1;
   char   tmpbuf[1024];
+  char   escuser[512];
 
   /* test proxy user auth ------------------------*/
   if(!param->username || !param->password) return 4;
@@ -126,7 +175,12 @@ static int ldapfunc(struct clientparam *param)
   
   
   /* create user for test auth */
-  sprintf(tmpbuf,"%.200s=%.200s,%.200s",attrs[0],param->username,ldap_userenv);
+  if(!ldap_escape_dn(param->username, escuser, sizeof(escuser)))
+   {
+    ldap_unbind_s(ld);
+    return 5;
+   }
+  snprintf(tmpbuf, sizeof(tmpbuf), "%.200s=%.510s,%.200s",attrs[0],escuser,ldap_userenv);
   
   rc = ldap_bind_s( ld, tmpbuf, param->password, LDAP_AUTH_SIMPLE );
 
@@ -162,7 +216,12 @@ static int ldapfunc(struct clientparam *param)
   /* test enter user in filter ------------------------------
      create filter for search*/
   
-  sprintf(tmpbuf,"(&(%.200s=%.200s)(%.200s=%.200s))",attrs[0],param->username,
+  if(!ldap_escape_filter(param->username, escuser, sizeof(escuser)))
+   {
+    ldap_unbind_s(ld);
+    return 5;
+   }
+  snprintf(tmpbuf, sizeof(tmpbuf), "(&(%.200s=%.510s)(%.200s=%.200s))",attrs[0],escuser,
                                       ldap_group_attr,ldap_access);
 
   
@@ -326,7 +385,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
        while (rc > 0)
         {
          vals=ldap_get_values(ld, msg, getattr);
-         if (vals != NULL && vals[0] != NULL )
+         if (vals != NULL && vals[0] != NULL && !unsafe_filename(vals[0]) )
            {
              
              /* -------------bandlim----------
@@ -378,7 +437,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
              newtrafcount->traflim64  = traflimit;
              newtrafcount->comment=(*mypluginlink->strdupfunc)("ldapcounters");
              newtrafcount->number=0;
-             tmpbuf=malloc(strlen(pat_file)+strlen(ldap_dircount)+strlen(vals[0]));
+             tmpbuf=malloc(strlen(ldap_dircount)+strlen(vals[0])+sizeof(".lc"));
              sprintf(tmpbuf,pat_file,ldap_dircount,vals[0]);
              f=NULL;
              f=fopen(tmpbuf,"rb");

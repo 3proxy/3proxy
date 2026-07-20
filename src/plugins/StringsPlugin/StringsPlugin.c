@@ -49,9 +49,13 @@ char **load_string(FILE *f,int max_count_str, int *countloadstr,
 
  /*load from file new  strings */
   i=0;
- while ( !feof(f) || i< max_count_str)
+ while ( !feof(f) && i < max_count_str)
    {
-     if(!fgets(tmpbuf1, 1023,f)) return NULL;
+     if(!fgets(tmpbuf1, 1023,f)){
+       if(pt) free(pt);
+       free(old_table);
+       return NULL;
+     }
  
      if ((strstr(tmpbuf1,stop))!=NULL)  { break; }
 

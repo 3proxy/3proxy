@@ -233,9 +233,10 @@ void * smtppchild(struct clientparam* param) {
 		if(i<4 || strncasecmp((char *)buf, "334", 3)) {RETURN(682);}
 		*username = 0;
 		i = (int)strlen((char *)param->extusername) + 1;
+		res = (int)strlen((char *)param->extpassword);
+		if(i + 1 + res >= (int)sizeof(username) || ((i + 1 + res + 2) / 3) * 4 + 1 > (int)sizeof(buf)) {RETURN(683);}
 		memcpy(username+1, param->extusername,  i);
 		i++;
-		res = (int)strlen((char *)param->extpassword);
 		memcpy(username + i, param->extpassword, res);
 		i+=res;
 		en64(username, buf, i);

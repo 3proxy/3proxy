@@ -216,6 +216,24 @@ int dnsauth(struct clientparam * param){
 	return param->username? 0:3;
 }
 
+static int ctmemcmp(const void *a, const void *b, size_t len){
+	const unsigned char *pa = (const unsigned char *)a, *pb = (const unsigned char *)b;
+	unsigned char diff = 0;
+	size_t i;
+	for(i = 0; i < len; i++) diff |= (unsigned char)(pa[i] ^ pb[i]);
+	return diff;
+}
+
+static int ctstrcmp(const char *a, const char *b, size_t maxlen){
+	unsigned char diff = 0;
+	size_t i;
+	for(i = 0; i < maxlen; i++){
+		diff |= (unsigned char)((unsigned char)a[i] ^ (unsigned char)b[i]);
+		if(!a[i] && !b[i]) break;
+	}
+	return diff;
+}
+
 int strongauth(struct clientparam * param){
 	static char dummy;
 	unsigned char buf[256];
@@ -229,7 +247,7 @@ int strongauth(struct clientparam * param){
 			    int pwlen = strlen((char *)param->password);
 			    if(pwlen > 255) pwlen = 255;
 			    if((unsigned)pwlen < pwl_table.recsize) {
-				if(!strncmp(pass + 1, (char *)param->password, pwl_table.recsize - 1)) return 0;
+				if(strlen(pass + 1) == strlen((char *)param->password) && !ctmemcmp(pass + 1, param->password, pwl_table.recsize - 1)) return 0;
 			    } else {
 				mdh_ctx *bctx;
 				unsigned hashsz;
@@ -242,18 +260,18 @@ int strongauth(struct clientparam * param){
 				blen = hashsz;
 				mdh_final(bctx, buf, &blen);
 				mdh_free(bctx);
-				if(!memcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
+				if(!ctmemcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
 			    }
 			    return 6;
 			    }
 			    case CR:
 			    if (mycrypt(param->password, (unsigned char *)pass + 1, buf) &&
-			        !strcmp(pass + 1, (char *)buf))
+			        !ctstrcmp(pass + 1, (char *)buf, sizeof(pass) - 1))
 				return 0;
 			    else return 7;
 #ifdef WITH_SSL
 			    case NT:
-			    if(ntpwdhash(buf, param->password, 1) && !strcmp(pass + 1, (char *)buf)) return 0;
+			    if(ntpwdhash(buf, param->password, 1) && !ctstrcmp(pass + 1, (char *)buf, sizeof(pass) - 1)) return 0;
 			    else return 8;
 #endif
 			    default:

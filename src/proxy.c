@@ -240,6 +240,7 @@ void * proxychild(struct clientparam* param) {
  int keepalive = 0;
  uint64_t contentlength64 = 0;
  int hascontent =0;
+ int clhdrofs = -1;
  int isconnect = 0;
  int redirect = 0;
  int prefix = 0, ckeepalive=0;
@@ -413,6 +414,10 @@ for(;;){
 				param->password = (unsigned char *)strdup((char *)sb+1);
 				param->pwtype = 0;
 			}
+			else if(param->password){
+				free(param->password);
+				param->password = NULL;
+			}
 			if(param->username)free(param->username);
 			param->username = (unsigned char *)strdup((char *)username);
 			continue;
@@ -458,13 +463,14 @@ for(;;){
 			if(parsehostname((char *)sb, param, 80)) RETURN(100);
 		}
 		newbuf = malloc(strlen((char *)req) + strlen((char *)(buf+inbuf)) + 8);
-		if(newbuf){
-			sp = (unsigned char *)strchr((char *)req+1, '/');
+		sp = (unsigned char *)strchr((char *)req+1, '/');
+		if(newbuf && sp){
 			memcpy(newbuf, req, (sp - req));
 			sprintf((char*)newbuf + (sp - req), "http://%s%s",sb,sp);
 			free(req);
 			req = newbuf;
 		}
+		else if(newbuf) free(newbuf);
 		if(se)*se = c;
 	}
 	if(ftp && i > 13 && (!strncasecmp((char *)(buf+inbuf), "authorization", 13))){
@@ -484,6 +490,10 @@ for(;;){
 				*sb = 0;
 				if(param->extpassword)free(param->extpassword);
 				param->extpassword = (unsigned char *)strdup((char *)sb+1);
+			}
+			else if(param->extpassword){
+				free(param->extpassword);
+				param->extpassword = NULL;
 			}
 			if(param->extusername)free(param->extusername);
 			param->extusername = (unsigned char *)strdup((char *)username);
@@ -565,7 +575,7 @@ for(;;){
  if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
 	param->nolongdatfilter = 1;
  }
- else if(param->ndatfilterscli > 0 && contentlength64 > 0){
+ else if(param->ndatfilterscli > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64){
   uint64_t newlen64;
   newlen64 = (uint64_t) sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
   if(newlen64 == contentlength64) {
@@ -921,6 +931,7 @@ for(;;){
  authenticate = 0;
  param->chunked = 0;
  hascontent = 0;
+ clhdrofs = -1;
  
  while( (i = sockgetlinebuf(param, SERVER, buf + inbuf, LINESIZE - 1, '\n', conf.timeouts[(res)?STRING_S:STRING_L])) > 2) {
 	if(!res && i>9)param->status = res = atoi((char *)buf + inbuf + 9);
@@ -942,6 +953,7 @@ for(;;){
 		authenticate = 1;
 	}
 	else if(i > 15 && (!strncasecmp((char *)(buf+inbuf), "content-length", 14))){
+		if(param->chunked) continue;
 		buf[inbuf+i]=0;
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
@@ -949,6 +961,7 @@ for(;;){
 		while(isspace(*sb))sb++;
 		sscanf((char *)sb, "%"SCNu64"", &contentlength64);
 		hascontent = 1;
+		clhdrofs = inbuf;
 		if(param->unsafefilter && param->ndatfilterssrv > 0) {
 			hascontent = 2;
 			continue;
@@ -965,6 +978,12 @@ for(;;){
 		while(isspace(*sb))sb++;
 		if(!strncasecmp((char *)sb, "chunked", 7)){
 			param->chunked = 1;
+			if(clhdrofs >= 0){
+				buf[clhdrofs] = 'X';
+				clhdrofs = -1;
+				contentlength64 = 0;
+				hascontent = 0;
+			}
 		}
 	}
 	inbuf += i;
@@ -1009,7 +1028,7 @@ for(;;){
  if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
 	param->nolongdatfilter = 1;
  }
- else if(param->ndatfilterssrv > 0 && contentlength64 > 0 && param->operation != HTTP_HEAD && res != 204 && res != 304){
+ else if(param->ndatfilterssrv > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64 && param->operation != HTTP_HEAD && res != 204 && res != 304){
   uint64_t newlen;
   newlen = (uint64_t)sockfillbuffsrv(param, (unsigned long) contentlength64, CONNECTION_S);
   if(newlen == contentlength64) {

@@ -69,7 +69,7 @@ int parsehello(int type, unsigned char *hello, unsigned len, char *sni, int * sn
     elen = size16(hello+offset);
     offset += 2;
     if(elen+offset != len) return -9;
-    while(elen > 1){
+    while(elen > 3){
 	unsigned xlen;
 	xlen = size16(hello+offset+2);
 	if(xlen+4 > elen) return -10;

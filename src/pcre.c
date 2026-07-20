@@ -214,6 +214,7 @@ struct pcre_filter_data {
 	int users;
 	pcre2_code * re;
 	pcre2_match_data * match_data;
+	pcre2_match_context * match_context;
 	int action;
 	char * replace;
 	struct ace *acl;
@@ -223,6 +224,7 @@ static void pcre_data_free(struct pcre_filter_data *pcrefd){
 	_3proxy_mutex_lock(&pcre_mutex);
 	pcrefd->users--;
 	if(!pcrefd->users){
+		if(pcrefd->match_context) pcre2_match_context_free(pcrefd->match_context);
 		if(pcrefd->match_data) pcre2_match_data_free(pcrefd->match_data);
 		if(pcrefd->re) pcre2_code_free(pcrefd->re);
 		if(pcrefd->acl) pl->freeacl(pcrefd->acl);
@@ -283,10 +285,12 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 	if(!match) return CONTINUE;
 	if(!pcrefd->re) return pcrefd->action;
 	for(; offset < *length_p; nreplaces++){
+		int repsz;
 
-		count = pcre2_match(pcrefd->re, (PCRE2_SPTR)*buf_p, *length_p, offset, 0, pcrefd->match_data, NULL);
+		count = pcre2_match(pcrefd->re, (PCRE2_SPTR)*buf_p, *length_p, offset, 0, pcrefd->match_data, pcrefd->match_context);
 		if(count <= 0) break;
 		ovector = pcre2_get_ovector_pointer(pcrefd->match_data);
+		if(ovector[0] > (PCRE2_SIZE)*length_p || ovector[1] > (PCRE2_SIZE)*length_p || ovector[1] < ovector[0]) break;
 		if(!(replace = pcrefd->replace) || param->nooverwritefilter) return pcrefd->action;
 
 		replen = *length_p - ovector[1];
@@ -300,6 +304,8 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 				num = atoi(replace);
 				while(isnumber(*replace)) replace++;
 				if(num > (count - 1)) continue;
+				if(ovector[(num<<1)] == PCRE2_UNSET) continue;
+				if(ovector[(num<<1) + 1] > (PCRE2_SIZE)*length_p || ovector[(num<<1)] > ovector[(num<<1) + 1]) continue;
 				replen += (ovector[(num<<1) + 1] - ovector[(num<<1)]);
 			}
 			else {
@@ -319,6 +325,8 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 				replace ++;
 				num = atoi(replace);
 				if(num > (count - 1)) continue;
+				if(ovector[(num<<1)] == PCRE2_UNSET) continue;
+				if(ovector[(num<<1) + 1] > (PCRE2_SIZE)*length_p || ovector[(num<<1)] > ovector[(num<<1) + 1]) continue;
 				memcpy(target, *buf_p + ovector[(num<<1)], ovector[(num<<1) + 1] - ovector[(num<<1)]);
 				target += (ovector[(num<<1) + 1] - ovector[(num<<1)]);
 				while(isnumber(*replace)) replace++;
@@ -327,6 +335,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 				*target++ = *replace++;
 			}
 		}
+		repsz = (int)(target - tmpbuf);
 		memcpy(target, *buf_p + ovector[1], *length_p - ovector[1]);
 		if((ovector[0] + replen + 1) > *bufsize_p){
 			newbuf = pl->mallocfunc(ovector[0] + replen + 1);
@@ -343,10 +352,11 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 		pl->freefunc(tmpbuf);
 		(*buf_p)[ovector[0] + replen] = 0;
 		*length_p = ovector[0] + replen;
-		if(ovector[0] + replen <= offset){
-			break;
+		offset = ovector[0] + repsz;
+		if(ovector[1] == ovector[0] && offset <= (int)ovector[0]){
+			/* zero-width match with empty replacement: force progress */
+			offset = ovector[1] + 1;
 		}
-		offset = ovector[0] + (int)strlen(pcrefd->replace);
 	}
 	return nreplaces? pcrefd->action : CONTINUE;
 #undef pcrefd
@@ -442,6 +452,13 @@ static int h_pcre(int argc, unsigned char **argv){
 	flt->acl = acl;
 	flt->replace = replace;
 	flt->users = 1;
+	if(re){
+		flt->match_context = pcre2_match_context_create(NULL);
+		if(flt->match_context){
+			pcre2_set_match_limit(flt->match_context, 1000000);
+			pcre2_set_depth_limit(flt->match_context, 10000);
+		}
+	}
 	newf->instance = "pcre";
 	newf->data = flt;
 	newf->filter_open = pcre_filter_open;
@@ -549,6 +566,13 @@ static int h_pcre_rewrite(int argc, unsigned char **argv){
 	flt->acl = acl;
 	flt->replace = replace;
 	flt->users = 1;
+	if(re){
+		flt->match_context = pcre2_match_context_create(NULL);
+		if(flt->match_context){
+			pcre2_set_match_limit(flt->match_context, 1000000);
+			pcre2_set_depth_limit(flt->match_context, 10000);
+		}
+	}
 	newf->instance = "pcre";
 	newf->data = flt;
 	newf->filter_open = pcre_filter_open;
