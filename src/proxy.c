@@ -241,6 +241,8 @@ void * proxychild(struct clientparam* param) {
  uint64_t contentlength64 = 0;
  int hascontent =0;
  int clhdrofs = -1;
+ int chunkedcli = 0;
+ int clhdrofs_req = -1;
  int isconnect = 0;
  int redirect = 0;
  int prefix = 0, ckeepalive=0;
@@ -267,6 +269,9 @@ void * proxychild(struct clientparam* param) {
 for(;;){
  memset(buf, 0, bufsize);
  inbuf = 0;
+ chunkedcli = 0;
+ clhdrofs_req = -1;
+ param->nolongdatfilter = 0;
 
 
  if(keepalive && (param->cliinbuf == param->clioffset) && (param->remsock != INVALID_SOCKET)){
@@ -501,6 +506,7 @@ for(;;){
 		}
 	}
 	if(i> 15 && (!strncasecmp((char *)(buf+inbuf), "content-length", 14))){
+		if(chunkedcli) continue;
 		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
 		if(!sb)continue;
 		++sb;
@@ -510,6 +516,23 @@ for(;;){
 			RETURN(10);
 		}
 		if(param->ndatfilterscli > 0 && contentlength64 > 0) continue;
+		clhdrofs_req = inbuf;
+	}
+	else if(i>25 && (!strncasecmp((char *)(buf+inbuf), "transfer-encoding", 17))){
+		sb = (unsigned char *)strchr((char *)(buf+inbuf), ':');
+		if(sb){
+			++sb;
+			while(isspace(*sb))sb++;
+			if(!strncasecmp((char *)sb, "chunked", 7)){
+				chunkedcli = 1;
+				if(clhdrofs_req >= 0){
+					buf[clhdrofs_req] = 'X';
+					clhdrofs_req = -1;
+				}
+				contentlength64 = 0;
+				param->nolongdatfilter = 1;
+			}
+		}
 	}
 	inbuf += i;
 	if((bufsize - inbuf) < LINESIZE){
@@ -916,12 +939,41 @@ for(;;){
  if(param->bandlimfunc) {
 	sleeptime = param->bandlimfunc(param, 0, (int)strlen((char *)buf));
  }
- if(contentlength64 > 0){
+ if(chunkedcli || contentlength64 > 0){
+	if(chunkedcli){
+		do {
+			unsigned char smallbuf[32];
+			while ((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', conf.timeouts[STRING_S])) == 2) {
+				if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+				if(chunkedcli == 2) break;
+			}
+			if(i<3) break;
+			if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+			if(chunkedcli == 2) {
+				if((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', conf.timeouts[STRING_S])) != 2) RETURN(537);
+				if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+				break;
+			}
+			smallbuf[i] = 0;
+			contentlength64 = 0;
+			sscanf((char *)smallbuf, "%"SCNx64"", &contentlength64);
+			if(contentlength64 == 0) chunkedcli = 2;
+			else {
+				param->waitclient64 = contentlength64;
+				res = mapsocket(param, conf.timeouts[CONNECTION_S]);
+				param->waitclient64 = 0;
+				if(res != 99) RETURN(res);
+			}
+		} while(chunkedcli);
+		res = 99;
+	}
+	else {
 	 param->waitclient64 = contentlength64;
 	 res = mapsocket(param, conf.timeouts[CONNECTION_S]);
 	 param->waitclient64 = 0;
 	 if(res != 99) {
 		RETURN(res);
+	}
 	}
  }
  contentlength64 = 0;
