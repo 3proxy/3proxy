@@ -33,6 +33,7 @@
     <li><a href="#NAMES">Как разрешать имена на родительском прокси?</a></li>
     <li><a href="#ISFTP">Как настроить FTP прокси?</a></li>
     <li><a href="#TLSPR">Как настроить SNI proxy (tlspr)</a></li>
+    <li><a href="#DNSPR">Как настроить DNS proxy (dnspr)</a></li>
     <li><a href="#SSLPLUGIN">Как настроить TLS/SSL (https прокси, mTLS)</a></li>
     <li><a href="#CERTIFICATES">Как создать CA и сертификаты для SSL</a></li>
     <li><a href="#PCRE">Как использовать PCRE-фильтрацию (регулярные выражения)</a></li>
@@ -590,6 +591,7 @@
     Еще одна задача которую может решать модуль - требование наличия TLS или mTLS (mutual TLS).
     Если tlspr используется как отдельный сервис без использования плагина Transparent, то необходимо задать порт назначения через опцию -P (по умолчанию 443),
     т.к. TLS хендшейк не содержит информации о порте назначения.
+    Примечание: tlspr не поддерживает аутентификацию пользователей (в TLS-хендшейке нет учетных данных); используйте ACL по IP или родительский прокси с аутентификацией, если требуется контроль доступа.
   </p><p>
     <b>Опции:</b>
 </p><pre>
@@ -600,7 +602,53 @@
   2 - требовать TLS, проверять наличие client и server HELLO
   3 - требовать TLS, проверять наличие серверного сертификата (не совместим с TLS 1.3+)
   4 - требовать взаимный (mutual) TLS, проверять что сервер запрашивает сертификат и клиент его отправляет (не совместим с TLS 1.3+)
+-Ximap | -Xpop3 | -Xsmtp - режим explicit TLS (STARTTLS): tlspr говорит с клиентом
+  на plaintext-протоколе (приветствие, команда STARTTLS), затем поднимает TLS с обеих сторон
 </pre>
+<p>
+<b>Implicit и explicit TLS:</b>
+</p><p>
+Implicit TLS означает TLS с первого байта соединения: https (443), imaps (993), SMTP submission secure (submissions) (465).
+Explicit TLS означает, что соединение начинается в plaintext и поднимается до TLS командой STARTTLS/STLS: imap (143), SMTP submission (587), pop3 (110).
+tlspr поддерживает оба варианта: для implicit TLS хост назначения берется из SNI, а порт из -P; для explicit TLS
+опция -X заставляет tlspr говорить с клиентом на plaintext-фазе протокола (приветствие, команда STARTTLS) перед
+поднятием TLS с обеих сторон. Пример:
+</p><pre>
+# https (implicit)
+tlspr -p443 -P443 -c1
+# imaps (implicit)
+tlspr -p993 -P993 -c1
+# submissions (implicit)
+tlspr -p465 -P465 -c1
+# imap STARTTLS (explicit)
+tlspr -p143 -P143 -Ximap
+# submission STARTTLS (explicit)
+tlspr -p587 -P587 -Xsmtp
+# pop3 STLS (explicit)
+tlspr -p110 -P110 -Xpop3
+</pre>
+<p>
+Примечание: для explicit TLS вместо tlspr -X можно использовать протокольные сервисы smtpp, imapp и pop3p; они
+также поддерживают STARTTLS.
+</p><p>
+<b>Рекомендуемая конфигурация - перенаправление трафика:</b> наиболее универсальная конфигурация - перенаправлять
+TLS-трафик (порты 443, 993, 465, 143, 587, 110) на tlspr правилами внешнего маршрутизатора или локальными
+правилами (плагин Transparent). Исходные адрес и порт назначения сохраняются, -P и отдельные сервисы для каждого
+порта не требуются, implicit и explicit TLS работают в рамках одной установки.
+</p><pre>
+auth iponly
+allow *
+tlspr -p1443 -c1
+</pre>
+<p>
+например, с iptables:
+</p><pre>
+iptables -t nat -A PREROUTING -p tcp -m multiport --dports 443,993,465 -j REDIRECT --to-port 1443
+</pre>
+<p>
+Также, если клиенты используют dnspr в качестве DNS-резолвера, трафик можно перенаправлять через DNS —
+см. <a href="#DNSPR">Как настроить DNS proxy (dnspr)</a>.
+</p>
 <p>
 <b>SNI Break (обход DPI):</b>
 <br>tlspr может использоваться как родительский прокси типа "tls" для реализации SNI-фрагментации (аналог NoDPI/GoodByeDPI).
@@ -646,6 +694,48 @@ parent 1000 tls 0.0.0.0 0
 deny * * blocked.example.com
 allow *
 proxy
+</pre>
+  </p>
+
+  <li><a name="DNSPR"><i>Как настроить DNS proxy (dnspr)</i></a></li>
+<p>
+dnspr - сервис пересылки DNS-запросов. Он отвечает на запросы из кэша имен 3proxy (включая статические записи
+nsrecord), пересылает остальные запросы на резолверы, заданные командой nserver, и кэширует результаты, если
+настроены nscache/nscache6. Опции:
+</p><pre>
+-s  - простая пересылка DNS: не использовать резолвер / кэш имен 3proxy
+-F&lt;ip&gt; - fake: отвечать на все A (или AAAA) запросы заданным IP-адресом.
+  Может быть указана дважды - один раз с IPv4 и один раз с IPv6 адресом.
+</pre>
+<p>
+dnspr можно использовать для перенаправления трафика по имени хоста, например, чтобы направить почтовых
+клиентов на установку <a href="#TLSPR">tlspr</a>, добавив записи nsrecord для имен почтовых сервисов
+(nscache/nscache6 сохраняют ответы для всех остальных имен):
+</p><pre>
+nscache 65536
+nscache6 65536
+dnspr -p53
+
+# google
+nsrecord smtp.gmail.com 10.0.0.1
+nsrecord imap.gmail.com 10.0.0.1
+nsrecord pop.gmail.com 10.0.0.1
+# mail.ru
+nsrecord smtp.mail.ru 10.0.0.1
+nsrecord imap.mail.ru 10.0.0.1
+nsrecord pop.mail.ru 10.0.0.1
+# yandex.ru
+nsrecord smtp.yandex.ru 10.0.0.1
+nsrecord imap.yandex.ru 10.0.0.1
+nsrecord pop.yandex.ru 10.0.0.1
+</pre>
+<p>
+где 10.0.0.1 - адрес, на котором слушает tlspr. Если перенаправлять нужно все имена, вместо отдельных
+записей nsrecord можно использовать один fake-адрес:
+</p><pre>
+nscache 65536
+nscache6 65536
+dnspr -p53 -F10.0.0.1
 </pre>
   </p>
 

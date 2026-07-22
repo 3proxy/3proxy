@@ -33,6 +33,7 @@
 		<li><a href="#NAMES">How to resolve names through a parent proxy</a></li>
 		<li><a href="#ISFTP">How to set up an FTP proxy</a></li>
 		<li><a href="#TLSPR">How to set up an SNI proxy (tlspr)</a></li>
+		<li><a href="#DNSPR">How to set up a DNS proxy (dnspr)</a></li>
 		<li><a href="#SSLPLUGIN">How to set up TLS/SSL (https proxy, mTLS)</a></li>
 		<li><a href="#CERTIFICATES">How to create CA and certificates for SSL</a></li>
 		<li><a href="#PCRE">How to use PCRE filtering (regular expressions)</a></li>
@@ -599,8 +600,8 @@ proxy -p8080 -i192.168.2.1
 <p>
 <b>Implicit vs explicit TLS:</b>
 </p><p>
-Implicit TLS means TLS from the first byte of the connection: https (443), imaps (993), submissions (465).
-Explicit TLS means the connection starts in plaintext and is upgraded with a STARTTLS/STLS command: imap (143), submission (587), pop3 (110).
+Implicit TLS means TLS from the first byte of the connection: https (443), imaps (993), SMTP submission secure (submissions) (465).
+Explicit TLS means the connection starts in plaintext and is upgraded with a STARTTLS/STLS command: imap (143), SMTP submission (587), pop3 (110).
 tlspr supports both: for implicit TLS the destination host is taken from SNI and the port from -P; for explicit TLS
 the -X option makes tlspr speak the plaintext protocol phase with the client (greeting, STARTTLS command) before
 upgrading both sides to TLS. Example:
@@ -636,6 +637,10 @@ with, for example, iptables:
 </p><pre>
 iptables -t nat -A PREROUTING -p tcp -m multiport --dports 443,993,465 -j REDIRECT --to-port 1443
 </pre>
+<p>
+Alternatively, if clients use dnspr as their DNS resolver, traffic can be redirected via DNS —
+see <a href="#DNSPR">How to set up a DNS proxy (dnspr)</a>.
+</p>
 <p>
 <b>SNI Break (DPI Bypass):</b>
 <br>tlspr can be used as a parent with the "tls" type to implement SNI splitting for DPI bypass (similar to NoDPI/GoodByeDPI).
@@ -681,6 +686,47 @@ parent 1000 tls 0.0.0.0 0
 deny * * blocked.example.com
 allow *
 proxy
+</pre>
+  </p>
+  <li><a name="DNSPR"><i>How to set up a DNS proxy (dnspr)</i></a></li>
+<p>
+dnspr is a DNS forwarding service. It answers queries from the 3proxy name cache (including static nsrecord
+entries), forwards other queries to the resolvers configured with nserver, and caches the results if
+nscache/nscache6 are configured. Options:
+</p><pre>
+-s  - simple DNS forwarding: do not use 3proxy resolver / name cache
+-F&lt;ip&gt; - fake: answer all A (or AAAA) queries with the given IP address.
+  May be given twice - once with an IPv4 and once with an IPv6 address.
+</pre>
+<p>
+dnspr can be used to redirect traffic by hostname, e.g. to point mail clients to a
+<a href="#TLSPR">tlspr</a> installation, by adding nsrecord entries for the service hostnames
+(nscache/nscache6 keep the answers for all other names intact):
+</p><pre>
+nscache 65536
+nscache6 65536
+dnspr -p53
+
+# google
+nsrecord smtp.gmail.com 10.0.0.1
+nsrecord imap.gmail.com 10.0.0.1
+nsrecord pop.gmail.com 10.0.0.1
+# mail.ru
+nsrecord smtp.mail.ru 10.0.0.1
+nsrecord imap.mail.ru 10.0.0.1
+nsrecord pop.mail.ru 10.0.0.1
+# yandex.ru
+nsrecord smtp.yandex.ru 10.0.0.1
+nsrecord imap.yandex.ru 10.0.0.1
+nsrecord pop.yandex.ru 10.0.0.1
+</pre>
+<p>
+where 10.0.0.1 is the address tlspr listens on. If every hostname must be redirected, a single fake
+address can be used instead of individual nsrecords:
+</p><pre>
+nscache 65536
+nscache6 65536
+dnspr -p53 -F10.0.0.1
 </pre>
   </p>
 		<li><a name="SSLPLUGIN"><i>How to set up TLS/SSL (https proxy, mTLS)</i></a>

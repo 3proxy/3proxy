@@ -537,6 +537,18 @@ int MODULEMAINFUNC (int argc, char** argv){
 			else if(!strncasecmp(argv[i]+2, "smtp", 4)) srv.srvstarttls = S_SMTPP;
 			else error = 1;
 			break;
+		 case 'F':
+			{
+				PROXYSOCKADDRTYPE fsa;
+				memset(&fsa, 0, sizeof(fsa));
+				if(!getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&fsa)) error = 1;
+				else if(*SAFAMILY(&fsa) == AF_INET) srv.fakeip = *(uint32_t *)SAADDR(&fsa);
+#ifndef NOIPV6
+				else if(*SAFAMILY(&fsa) == AF_INET6) memcpy(srv.fakeip6, SAADDR(&fsa), 16);
+#endif
+				else error = 1;
+			}
+			break;
 		 case 'T':
 			srv.transparent = 1;
 			break;

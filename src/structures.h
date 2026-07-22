@@ -539,6 +539,8 @@ struct srvparam {
 	int haproxy;
 	int nostarttls;
 	PROXYSERVICE srvstarttls;
+	uint32_t fakeip;
+	unsigned char fakeip6[16];
 #ifdef WITHSPLICE
 	int usesplice;
 #endif
