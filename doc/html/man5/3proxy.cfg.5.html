@@ -87,6 +87,7 @@ start gateway services:</p>
 [options] <b><br>
 socks</b> [options] <b><br>
 pop3p</b> [options] <b><br>
+imapp</b> [options] <b><br>
 smtpp</b> [options] <b><br>
 ftppr</b> [options] <b><br>
 admin</b> [options] <b><br>
@@ -104,6 +105,7 @@ handshake), may be used to redirect any TLS-based traffic
 auto</b> Proxy with protocol autoselection between proxy /
 socks / tlspr <b><br>
 pop3p</b> POP3 proxy (default port 110) <b><br>
+imapp</b> IMAPv4 proxy (default port 143) <b><br>
 smtpp</b> SMTP proxy (default port 25) <b><br>
 ftppr</b> FTP proxy (default port 21) <b><br>
 admin</b> Web interface (default port 80) <b><br>
@@ -220,8 +222,8 @@ information reported) <b><br>
 -a2</b> (for proxy) generate Via: and X-Forwarded-For:
 instead of Forwarded: <br>
 Also, all options mentioned for <b>proxy</b>(8)
-<b>socks</b>(8) <b>pop3p</b>(8) <b>tcppm</b>(8)
-<b>udppm</b>(8) <b>ftppr</b>(8) <br>
+<b>socks</b>(8) <b>pop3p</b>(8) <b>imapp</b>(8)
+<b>tcppm</b>(8) <b>udppm</b>(8) <b>ftppr</b>(8) <br>
 are also supported. <br>
 Portmapping services listen at SRCPORT and connect to
 DSTADDR:DSTPORT HTTP and SOCKS proxies are standard. <br>
@@ -779,8 +781,9 @@ special case of local redirection, it works only with
 <b>socks</b> proxy. In case of local redirection request is
 redirected to different service, <b>ftp</b> locally
 redirects to <b>ftppr pop3</b> locally redirects to <b>pop3p
-http</b> locally redirects to <b>proxy admin</b> locally
-redirects to the admin -s service. <br>
+imap</b> locally redirects to <b>imapp http</b> locally
+redirects to <b>proxy admin</b> locally redirects to the
+admin -s service. <br>
 Unix domain sockets can be used instead of IP address with
 the syntax <i>unix:/path/to/socket</i> (e.g., parent 1000
 socks5 unix:/var/run/parent.sock 1080). On Linux, abstract
@@ -1294,7 +1297,8 @@ to <b>3proxy@3proxy.org</b></p>
 
 <p style="margin-left:6%; margin-top: 1em">3proxy(8),
 3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8),
-smtpp(8), tlspr(8), tcppm(8), udppm(8), syslogd(8), <br>
+imapp(8), smtpp(8), tlspr(8), tcppm(8), udppm(8),
+syslogd(8), <br>
 https://3proxy.org/</p>
 
 <h2>AUTHORS

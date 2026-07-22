@@ -36,15 +36,16 @@ SMTP proxy gateway service</p>
 [<b>-d</b>] [<b>-l</b>[[<i>@</i>]<i>logfile</i>]]
 [<b>-p</b><i>port</i>] [<b>-i</b><i>internal_ip</i>]
 [<b>-e</b><i>external_ip</i>]
-[<b>-h</b><i>default_ip[:port]</i>]</p>
+[<b>-h</b><i>default_ip[:port]</i>] [<b>-x</b><i>]</i></p>
 
 <h2>DESCRIPTION
 <a name="DESCRIPTION"></a>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>smtpp</b> is
-SMTP gateway service to allow internal users to access
+
+<p style="margin-left:6%; margin-top: 1em"><i><b>smtpp</b></i>
+is SMTP gateway service to allow internal users to access
 external SMTP servers.</p>
 
 <h2>OPTIONS
@@ -166,7 +167,7 @@ sockets use <i>-iunix:@socketname</i> syntax.</p></td></tr>
 
 
 <p style="margin-top: 1em">Port. Port proxy listens for
-incoming connections. Default is 25.</p></td></tr>
+incoming connections. Default is 587.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
 <td width="3%">
@@ -179,6 +180,19 @@ incoming connections. Default is 25.</p></td></tr>
 
 <p style="margin-top: 1em">Default destination. It&rsquo;s
 used if the target address is not specified by the user.</p></td></tr>
+<tr valign="top" align="left">
+<td width="6%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-x</b></p></td>
+<td width="6%"></td>
+<td width="85%">
+
+
+<p style="margin-top: 1em">Disable STARTTLS support.
+STARTTLS is not announced in the EHLO response and the
+STARTTLS command is not accepted.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
 <td width="3%">
@@ -225,7 +239,17 @@ server. The login itself may contain an &acute;@&acute;
 sign. Only cleartext authentication is supported, because
 challenge-response authentication (CRAM-MD5, SPA, etc.)
 requires a challenge from the server before we know which
-server to connect to.</p>
+server to connect to. When running as a 3proxy service (not
+as a standalone binary), STARTTLS is supported and announced
+in the EHLO response unless disabled with <b>-x</b>. After
+the client issues STARTTLS, the connection is handled by
+<b>tlspr</b>(8): the destination host is taken from the SNI
+of the client TLS handshake (or from the -h option), the
+proxy performs STARTTLS negotiation with the destination
+server, and then transparently passes TLS traffic between
+the client and the server. If the destination server does
+not support STARTTLS, the TLS handshake with the client
+fails.</p>
 
 <h2>BUGS
 <a name="BUGS"></a>

@@ -49,7 +49,9 @@ SNI proxy gateway service</p>
 an SNI gateway service (destination host is taken from TLS
 handshake). The destination port must be specified via the
 -P option (or it may be detected with the Transparent
-plugin).</p>
+plugin). tlspr does not support user authentication; use
+ACLs by client IP or a parent proxy with authentication if
+access control is required.</p>
 
 <h2>OPTIONS
 <a name="OPTIONS"></a>
@@ -241,27 +243,45 @@ with TLS 1.3)</p></td></tr>
 packet across multiple TCP segments to make SNI-based DPI
 detection harder. An optional numeric value can follow (e.g.
 <b>-s1</b>) to control the splitting behaviour.</p></td></tr>
+</table>
+
+<p style="margin-left:6%;"><b>-Ximap | -Xpop3 |
+-Xsmtp</b></p>
+
+<p style="margin-left:15%;">STARTTLS mode for the given
+protocol. The proxy speaks the plaintext protocol with the
+client (greeting, capability advertisement with STARTTLS
+only, STARTTLS command), then, after the client issues
+STARTTLS and sends a TLS Client HELLO, connects to the
+destination taken from SNI (default port 143/110/587),
+performs STARTTLS negotiation with the destination server
+and transparently passes TLS traffic. If the destination
+server does not support STARTTLS, the TLS handshake with the
+client fails.</p>
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="4%">
+<td width="3%">
 
 
-<p style="margin-top: 1em"><b>-l</b></p></td>
-<td width="5%"></td>
+<p><b>-l</b></p></td>
+<td width="6%"></td>
 <td width="85%">
 
 
-<p style="margin-top: 1em">Log. By default logging is to
-stdout. If <i>logfile</i> is specified logging is to file.
-Under Unix, if &acute;<i>@</i>&acute; precedes
-<i>logfile</i>, syslog is used for logging.</p></td></tr>
+<p>Log. By default logging is to stdout. If <i>logfile</i>
+is specified logging is to file. Under Unix, if
+&acute;<i>@</i>&acute; precedes <i>logfile</i>, syslog is
+used for logging.</p></td></tr>
 <tr valign="top" align="left">
 <td width="6%"></td>
-<td width="4%">
+<td width="3%">
 
 
 <p style="margin-top: 1em"><b>-S</b></p></td>
-<td width="5%"></td>
+<td width="6%"></td>
 <td width="85%">
 
 

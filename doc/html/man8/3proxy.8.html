@@ -58,11 +58,11 @@ multiple gateways with HTTP and HTTPS proxy with FTP over
 HTTP support, SOCKS v4, v4.5 and v5, POP3 proxy, UDP and TCP
 portmappers. Each gateway is started from the configuration
 file like an independent service <b>proxy</b>(8)
-<b>socks</b>(8) <b>pop3p</b>(8) <b>tcppm</b>(8)
-<b>udppm</b>(8) <b>ftppr</b>(8) <b>dnspr</b> but
-<b>3proxy</b> is not a kind of wrapper or superserver for
-these daemons. It just has the same code compiled in, but
-provides much more functionality. SOCKSv5 implementation
+<b>socks</b>(8) <b>pop3p</b>(8) <b>imapp</b>(8)
+<b>tcppm</b>(8) <b>udppm</b>(8) <b>ftppr</b>(8) <b>dnspr</b>
+but <b>3proxy</b> is not a kind of wrapper or superserver
+for these daemons. It just has the same code compiled in,
+but provides much more functionality. SOCKSv5 implementation
 allows you to use 3proxy with any UDP or TCP based client
 applications designed without proxy support (with
 <i>SocksCAP</i>, <i>FreeCAP</i> or another client-side
@@ -195,8 +195,8 @@ to <b>3proxy@3proxy.org</b></p>
 
 
 <p style="margin-left:6%; margin-top: 1em">3proxy.cfg(5),
-proxy(8), ftppr(8), socks(8), pop3p(8), tcppm(8), udppm(8),
-kill(1), syslogd(8), <br>
+proxy(8), ftppr(8), socks(8), pop3p(8), imapp(8), tcppm(8),
+udppm(8), kill(1), syslogd(8), <br>
 https://3proxy.org/</p>
 
 <h2>AUTHORS
