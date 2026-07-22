@@ -10,9 +10,21 @@
 
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
+#ifdef WITHMAIN
+#define NOSTARTTLS 1
+#else
+#define NOSTARTTLS param->srv->nostarttls
+#endif
+
 char  ehlo[] = 	"250-Proxy\r\n"
 		"250-AUTH PLAIN LOGIN\r\n"
 		"250-8BITMIME\r\n"
+		"250 DSN\r\n";
+
+char  ehlotls[] = 	"250-Proxy\r\n"
+		"250-AUTH PLAIN LOGIN\r\n"
+		"250-8BITMIME\r\n"
+		"250-STARTTLS\r\n"
 		"250 DSN\r\n";
 
 int readreply (struct clientparam* param) {
@@ -112,9 +124,18 @@ void * smtppchild(struct clientparam* param) {
 		socksend(param, param->clisock, (unsigned char *)"250 Proxy\r\n", 11,conf.timeouts[STRING_S]);	
 	}
 	else if(!strncasecmp((char *)buf, "EHLO ", 5)){
-		socksend(param, param->clisock, (unsigned char *)ehlo, sizeof(ehlo) - 1,conf.timeouts[STRING_S]);	
+		if(!NOSTARTTLS) socksend(param, param->clisock, (unsigned char *)ehlotls, sizeof(ehlotls) - 1,conf.timeouts[STRING_S]);
+		else socksend(param, param->clisock, (unsigned char *)ehlo, sizeof(ehlo) - 1,conf.timeouts[STRING_S]);
 	}
-	else if(!param->hostname) socksend(param, param->clisock, (unsigned char *)"571 need AUTH first\r\n", 22, conf.timeouts[STRING_S]);	
+#ifndef WITHMAIN
+	else if(!strncasecmp((char *)buf, "STARTTLS", 8) && !param->srv->nostarttls){
+		if(socksend(param, param->clisock, (unsigned char *)"220 2.0.0 Ready to start TLS\r\n", 30, conf.timeouts[STRING_S])!=30) {RETURN(673);}
+		param->clientstarttls = S_SMTPP;
+		if(!param->srv->targetport) param->srv->targetport = htons(587);
+		return tlsprchild(param);
+	}
+#endif
+	else if(!param->hostname) socksend(param, param->clisock, (unsigned char *)"571 need AUTH first\r\n", 22, conf.timeouts[STRING_S]);
 	else {
 		login = -1;
 		buf[i] = 0;
@@ -132,7 +153,7 @@ void * smtppchild(struct clientparam* param) {
 	i = de64(buf,username,255);
 	if(i < 1) {RETURN(664);}
 	username[i] = 0;
-	parseconnusername((char *)username, param, 0, 25);
+	parseconnusername((char *)username, param, 0, 587);
 	socksend(param, param->clisock, (unsigned char *)"334 UGFzc3dvcmQ6\r\n", 18,conf.timeouts[STRING_S]);	
 	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
 	if(i < 2) {RETURN(665);}
@@ -157,7 +178,7 @@ void * smtppchild(struct clientparam* param) {
 	}
 	if(i < 3 || *username) {RETURN(668);}
 	username[i] = 0;
-	parseconnusername((char *)username+1, param, 0, 25);
+	parseconnusername((char *)username+1, param, 0, 587);
 	res = (int)strlen((char *)username+1) + 2;
 	if(res < i){
 		if(param->extpassword) free(param->extpassword);
@@ -180,9 +201,7 @@ void * smtppchild(struct clientparam* param) {
  param->operation = CONNECT;
  res = (*param->srv->authfunc)(param);
  if(res) {RETURN(res);}
- do {
-	i = sockgetlinebuf(param, SERVER, buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L]);
- } while (i > 3 && buf[3] == '-');
+ i = getmultiline(param, SERVER, buf, sizeof(buf) - 1, NULL, NULL);
  if( i < 3 ) {RETURN(671);}
  buf[i] = 0;
  if(strncasecmp((char *)buf, "220", 3)||!strncasecmp((char *)buf+4, "PROXY", 5)){RETURN(672);}
@@ -292,7 +311,7 @@ void * smtppchild(struct clientparam* param) {
 CLEANRET:
 
  if(param->hostname&&param->extusername) {
-	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, *SAPORT(&param->sinsr)==25?0:':',ntohs(*SAPORT(&param->sinsr)));
+	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, *SAPORT(&param->sinsr)==587?0:':',ntohs(*SAPORT(&param->sinsr)));
 	 dolog(param, buf);
  }
  else dolog(param, NULL);
@@ -307,10 +326,10 @@ CLEANRET:
 #ifdef WITHMAIN
 struct proxydef childdef = {
 	smtppchild,
-	25,
+	587,
 	0,
 	S_SMTPP,
-	" -hdefault_host[:port] - use this host and port as default if no host specified\n"
+	" -hdefault_host[:port] - use this host and port as default if no host specified\n -x - disable STARTTLS\n"
 
 };
 #include "proxymain.c"

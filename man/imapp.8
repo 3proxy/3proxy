@@ -1,9 +1,9 @@
-.TH pop3p "8" "May 2026" "3proxy 0.9" "Universal proxy server"
+.TH imapp "8" "July 2026" "3proxy 0.9" "Universal proxy server"
 .SH NAME
-.B pop3p
-\- POP3 proxy gateway service
+.B imapp
+\- IMAPv4 proxy gateway service
 .SH SYNOPSIS
-.BR "pop3p " [ -d ]
+.BR "imapp " [ -d ]
 .IB \fR[ -l \fR[ \fR[ @ \fR] logfile \fR]]
 .IB \fR[ -p port\fR]
 .IB \fR[ -i internal_ip\fR]
@@ -11,9 +11,9 @@
 .IB \fR[ -h default_ip[:port]\fR]
 .IB \fR[ -x ]
 .SH DESCRIPTION
-.B pop3p
-is POP3 gateway service to allow internal users to access external POP3
-servers.
+.B imapp
+is IMAPv4 (IMAP4rev1) gateway service to allow internal users to access external
+IMAP servers.
 .SH OPTIONS
 .TP
 .B -I
@@ -57,19 +57,19 @@ Internal address. IP address the proxy accepts connections to.
 By default, connections to any interface are accepted. It\'s usually unsafe.
 Unix domain sockets can be specified with
 .I -iunix:/path/to/socket
-syntax (e.g., -iunix:/var/run/pop3p.sock). On Linux, abstract sockets use
+syntax (e.g., -iunix:/var/run/imapp.sock). On Linux, abstract sockets use
 .I -iunix:@socketname
 syntax.
 .TP
 .B -p
-Port. Port proxy listens for incoming connections. Default is 110.
+Port. Port proxy listens for incoming connections. Default is 143.
 .TP
 .B -h
 Default destination. It's used if the target address is not specified by the user.
 .TP
 .B -x
-Disable STARTTLS (STLS) support. STLS is not announced in the CAPA response
-and the STLS command is not accepted.
+Disable STARTTLS support. STARTTLS is not announced in the CAPABILITY
+response and the STARTTLS command is not accepted.
 .TP
 .B -l
 Log. By default logging is to stdout. If
@@ -84,36 +84,40 @@ syslog is used for logging.
 Increase or decrease stack size. You may want to try something like -S8192 if you experience 3proxy
 crashes.
 .SH CLIENTS
-You can use any MUA (Mail User Agent) with POP3 support. Set the client to use
+You can use any MUA (Mail User Agent) with IMAPv4 support. Set the client to use
 .I internal_ip
 and
 .IR port
-as a POP3 server. The address of the real POP3 server must be configured as a part of
-the POP3 username. The format for the username is
+as an IMAP server. The address of the real IMAP server must be configured as a part of
+the IMAP username. The format for the username is
 .IR username @ server ,
 where
 .I server
-is the address of the POP3 server and
+is the address of the IMAP server and
 .I username
-is the user\'s login on this POP3 server. The login itself may contain an \'@\' sign.
-Only cleartext authentication is supported, because challenge-response
-authentication (APOP, CRAM-MD5, etc.) requires a challenge from the server before
-we know which server to connect to.
-When running as a 3proxy service (not as a standalone binary), STLS is
-supported and announced in the CAPA response unless disabled with
+is the user\'s login on this IMAP server. The login itself may contain an \'@\' sign.
+Supported client authentication methods are the LOGIN command, AUTHENTICATE PLAIN
+and AUTHENTICATE LOGIN. With the server, the proxy authenticates using the method
+chosen by the client if the server supports it (as advertised in the CAPABILITY
+response); otherwise it falls back to AUTHENTICATE LOGIN, AUTHENTICATE PLAIN or
+the LOGIN command, in this order of preference. Challenge-response authentication
+(CRAM-MD5, etc.) is not supported, because it requires a challenge from the server
+before we know which server to connect to.
+When running as a 3proxy service (not as a standalone binary), STARTTLS is
+supported and announced in the CAPABILITY response unless disabled with
 .BR -x .
-After the client issues STLS, the connection is handled by
+After the client issues STARTTLS, the connection is handled by
 .BR tlspr (8):
 the destination host is taken from the SNI of the client TLS handshake (or from
-the -h option), the proxy performs STLS negotiation with the destination
+the -h option), the proxy performs STARTTLS negotiation with the destination
 server, and then transparently passes TLS traffic between the client and the
-server. If the destination server does not support STLS, the TLS handshake
+server. If the destination server does not support STARTTLS, the TLS handshake
 with the client fails.
 .SH BUGS
 Report all bugs to
 .BR 3proxy@3proxy.org
 .SH SEE ALSO
-3proxy(8), ftppr(8), proxy(8), socks(8), tcppm(8), udppm(8), syslogd(8),
+3proxy(8), ftppr(8), pop3p(8), proxy(8), smtpp(8), socks(8), tcppm(8), tlspr(8), udppm(8), syslogd(8),
 .br
 https://3proxy.org/
 .SH AUTHORS

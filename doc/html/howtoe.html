@@ -592,6 +592,48 @@ proxy -p8080 -i192.168.2.1
   2 - require TLS, check both client and server HELLO
   3 - require TLS, check that the server sends a certificate (not compatible with TLS 1.3)
   4 - require mutual TLS, check that the server sends a certificate request and the client sends a certificate (not compatible with TLS 1.3)
+-Ximap | -Xpop3 | -Xsmtp - explicit TLS (STARTTLS) mode: tlspr speaks the plaintext
+  protocol with the client (greeting, STARTTLS command), then upgrades both sides to TLS
+</pre>
+<p>
+<b>Implicit vs explicit TLS:</b>
+</p><p>
+Implicit TLS means TLS from the first byte of the connection: https (443), imaps (993), submissions (465).
+Explicit TLS means the connection starts in plaintext and is upgraded with a STARTTLS/STLS command: imap (143), submission (587), pop3 (110).
+tlspr supports both: for implicit TLS the destination host is taken from SNI and the port from -P; for explicit TLS
+the -X option makes tlspr speak the plaintext protocol phase with the client (greeting, STARTTLS command) before
+upgrading both sides to TLS. Example:
+</p><pre>
+# https (implicit)
+tlspr -p443 -P443 -c1
+# imaps (implicit)
+tlspr -p993 -P993 -c1
+# submissions (implicit)
+tlspr -p465 -P465 -c1
+# imap STARTTLS (explicit)
+tlspr -p143 -P143 -Ximap
+# submission STARTTLS (explicit)
+tlspr -p587 -P587 -Xsmtp
+# pop3 STLS (explicit)
+tlspr -p110 -P110 -Xpop3
+</pre>
+<p>
+Note: for explicit TLS the protocol services smtpp, imapp and pop3p can be used instead of tlspr -X; they also
+support STARTTLS.
+</p><p>
+<b>Recommended setup - traffic redirection:</b> the most universal configuration is to redirect TLS traffic
+(ports 443, 993, 465, 143, 587, 110) to tlspr with external router rules or local redirection (Transparent plugin).
+The original destination address and port are preserved, no -P or per-port services are required, and both implicit
+and explicit TLS work with the same installation.
+</p><pre>
+auth iponly
+allow *
+tlspr -p1443 -c1
+</pre>
+<p>
+with, for example, iptables:
+</p><pre>
+iptables -t nat -A PREROUTING -p tcp -m multiport --dports 443,993,465 -j REDIRECT --to-port 1443
 </pre>
 <p>
 <b>SNI Break (DPI Bypass):</b>

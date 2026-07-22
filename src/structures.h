@@ -208,6 +208,7 @@ typedef enum {
 	S_SMTPP,
 	S_AUTO,
 	S_TLSPR,
+	S_IMAPP,
 	S_ZOMBIE
 }PROXYSERVICE;
 
@@ -304,7 +305,8 @@ typedef enum {
 	R_EXTIP,
 	R_TLS,
 	R_HA,
-	R_DNS
+	R_DNS,
+	R_IMAP
 } REDIRTYPE;
 
 struct redirdesc {
@@ -535,6 +537,8 @@ struct srvparam {
 	int gracetraf, gracenum, gracedelay;
 	int requirecert;
 	int haproxy;
+	int nostarttls;
+	PROXYSERVICE srvstarttls;
 #ifdef WITHSPLICE
 	int usesplice;
 #endif
@@ -593,6 +597,8 @@ struct clientparam {
 			**predatfilters, **datfilterscli, **datfilterssrv;
 
 	PROXYSERVICE service;
+
+	PROXYSERVICE clientstarttls;
 
 	SOCKET	clisock,
 		remsock,

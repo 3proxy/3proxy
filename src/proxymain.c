@@ -528,6 +528,15 @@ int MODULEMAINFUNC (int argc, char** argv){
 			srv.needuser = 0;
 			if(*(argv[i] + 2)) srv.needuser = atoi(argv[i] + 2);
 			break;
+		 case 'x':
+			srv.nostarttls = 1;
+			break;
+		 case 'X':
+			if(!strncasecmp(argv[i]+2, "imap", 4)) srv.srvstarttls = S_IMAPP;
+			else if(!strncasecmp(argv[i]+2, "pop3", 4)) srv.srvstarttls = S_POP3P;
+			else if(!strncasecmp(argv[i]+2, "smtp", 4)) srv.srvstarttls = S_SMTPP;
+			else error = 1;
+			break;
 		 case 'T':
 			srv.transparent = 1;
 			break;

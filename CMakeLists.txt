@@ -70,6 +70,7 @@ option(3PROXY_BUILD_NONE   "Do not build standalone binaries"   OFF)
 option(3PROXY_BUILD_PROXY  "Build standalone proxy binary"  ON)
 option(3PROXY_BUILD_SOCKS  "Build standalone socks binary"  ON)
 option(3PROXY_BUILD_POP3P  "Build standalone pop3p binary"  ON)
+option(3PROXY_BUILD_IMAPP  "Build standalone imapp binary"  ON)
 option(3PROXY_BUILD_SMTPP  "Build standalone smtpp binary"  ON)
 option(3PROXY_BUILD_FTPPR  "Build standalone ftppr binary"  ON)
 option(3PROXY_BUILD_TCPPM  "Build standalone tcppm binary"  ON)
@@ -77,7 +78,7 @@ option(3PROXY_BUILD_UDPPM  "Build standalone udppm binary"  ON)
 option(3PROXY_BUILD_TLSPR  "Build standalone tlspr binary"  ON)
 
 if(3PROXY_BUILD_NONE)
-    foreach(_M PROXY SOCKS POP3P SMTPP FTPPR TCPPM UDPPM TLSPR)
+    foreach(_M PROXY SOCKS POP3P IMAPP SMTPP FTPPR TCPPM UDPPM TLSPR)
         set(3PROXY_BUILD_${_M} OFF)
     endforeach()
 endif()
@@ -388,6 +389,7 @@ endif()
 add_library(srv_modules OBJECT
     src/proxy.c
     src/pop3p.c
+    src/imapp.c
     src/smtpp.c
     src/ftppr.c
     src/tcppm.c
@@ -628,7 +630,7 @@ else()
 endif()
 
 # Build standalone proxy executables
-foreach(PROXY_NAME proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
+foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
     string(TOUPPER "${PROXY_NAME}" _MODULE_OPT)
     if(NOT 3PROXY_BUILD_${_MODULE_OPT})
         continue()
@@ -723,7 +725,7 @@ install(TARGETS 3proxy 3proxy_crypt
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-foreach(PROXY_NAME proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
+foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
     string(TOUPPER "${PROXY_NAME}" _MODULE_OPT)
     if(3PROXY_BUILD_${_MODULE_OPT})
         install(TARGETS ${PROXY_NAME}
@@ -886,7 +888,7 @@ if(NOT WIN32)
         )
     endif()
     # Module man pages — installed with binary prefix only if module is built
-    foreach(_MAN proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
+    foreach(_MAN proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
         string(TOUPPER "${_MAN}" _MODULE_OPT)
         if(3PROXY_BUILD_${_MODULE_OPT})
             set(_MAN_SRC "${CMAKE_CURRENT_SOURCE_DIR}/man/${_MAN}.8")
@@ -938,7 +940,7 @@ message(STATUS "  Plugins to build: ${ALL_PLUGINS}")
 message(STATUS "")
 message(STATUS "  Standalone modules:")
 message(STATUS "    Binary prefix:   \"${3PROXY_BINARY_PREFIX}\"")
-foreach(_M proxy socks pop3p smtpp ftppr tcppm udppm tlspr)
+foreach(_M proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
     string(TOUPPER "${_M}" _MO)
     message(STATUS "    BUILD_${_MO}: ${3PROXY_BUILD_${_MO}}")
 endforeach()

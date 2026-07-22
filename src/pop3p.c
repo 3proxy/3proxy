@@ -10,6 +10,12 @@
 
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
+#ifdef WITHMAIN
+#define NOSTARTTLS 1
+#else
+#define NOSTARTTLS param->srv->nostarttls
+#endif
+
 void * pop3pchild(struct clientparam* param) {
  int i=0, res;
  unsigned char buf[320];
@@ -19,10 +25,23 @@ void * pop3pchild(struct clientparam* param) {
  i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
  while(i > 4 && strncasecmp((char *)buf, "USER", 4)){
 	if(!strncasecmp((char *)buf, "QUIT", 4)){
-		socksend(param, param->clisock, (unsigned char *)"+OK\r\n", 5,conf.timeouts[STRING_S]);	
+		socksend(param, param->clisock, (unsigned char *)"+OK\r\n", 5,conf.timeouts[STRING_S]);
 		RETURN(0);
 	}
-	socksend(param, param->clisock, (unsigned char *)"-ERR need USER first\r\n", 22, conf.timeouts[STRING_S]);	
+	if(!strncasecmp((char *)buf, "CAPA", 4) && !NOSTARTTLS){
+		socksend(param, param->clisock, (unsigned char *)"+OK Capability list follows\r\nSTLS\r\n.\r\n", 38, conf.timeouts[STRING_S]);
+		i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
+		continue;
+	}
+#ifndef WITHMAIN
+	if(!strncasecmp((char *)buf, "STLS", 4) && !param->srv->nostarttls){
+		if(socksend(param, param->clisock, (unsigned char *)"+OK Begin TLS negotiation\r\n", 27, conf.timeouts[STRING_S])!=27) {RETURN(623);}
+		param->clientstarttls = S_POP3P;
+		if(!param->srv->targetport) param->srv->targetport = htons(110);
+		return tlsprchild(param);
+	}
+#endif
+	socksend(param, param->clisock, (unsigned char *)"-ERR need USER first\r\n", 22, conf.timeouts[STRING_S]);
 	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
  }
  if(i<6) {RETURN(612);}
@@ -65,7 +84,7 @@ struct proxydef childdef = {
 	110,
 	0,
 	S_POP3P,
-	" -hdefault_host[:port] - use this host and port as default if no host specified\n"
+	" -hdefault_host[:port] - use this host and port as default if no host specified\n -x - disable STARTTLS\n"
 
 };
 #include "proxymain.c"

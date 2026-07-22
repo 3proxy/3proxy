@@ -191,14 +191,21 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.port = 110;
 		childdef.isudp = 0;
 		childdef.service = S_POP3P;
-		childdef.helpmessage = " -hdefault_host[:port] - use this host and port as default if no host specified\n";
+		childdef.helpmessage = " -hdefault_host[:port] - use this host and port as default if no host specified\n -x - disable STARTTLS\n";
+	}
+	else if(!strcmp((char *)argv[0], "imapp")) {
+		childdef.pf = imappchild;
+		childdef.port = 143;
+		childdef.isudp = 0;
+		childdef.service = S_IMAPP;
+		childdef.helpmessage = " -hdefault_host[:port] - use this host and port as default if no host specified\n -x - disable STARTTLS\n";
 	}
 	else if(!strcmp((char *)argv[0], "smtpp")) {
 		childdef.pf = smtppchild;
-		childdef.port = 25;
+		childdef.port = 587;
 		childdef.isudp = 0;
 		childdef.service = S_SMTPP;
-		childdef.helpmessage = " -hdefault_host[:port] - use this host and port as default if no host specified\n";
+		childdef.helpmessage = " -hdefault_host[:port] - use this host and port as default if no host specified\n -x - disable STARTTLS\n";
 	}
 	else if(!strcmp((char *)argv[0], "ftppr")) {
 		childdef.pf = ftpprchild;
@@ -743,6 +750,7 @@ struct redirdesc redirs[] = {
     {R_SOCKS5, "socks5", sockschild},
     {R_HTTP, "http", proxychild},
     {R_POP3, "pop3", pop3pchild},
+    {R_IMAP, "imap", imappchild},
     {R_SMTP, "smtp", smtppchild},
     {R_FTP, "ftp", ftpprchild},
     {R_CONNECTP, "connect+", proxychild},
@@ -1603,88 +1611,94 @@ static int h_chroot(int argc, unsigned char **argv){
 #endif
 
 
-struct commands specificcommands[]={
-#ifndef _WIN32
-	{specificcommands+1, "setuid", h_setuid, 2, 2},
-	{specificcommands+2, "setgid", h_setgid, 2, 2},
-	{specificcommands+3, "chroot", h_chroot, 2, 4},
+struct commands commandhandlers[]={
+	{NULL,  "", h_noop, 1, 0},
+	{NULL,  "proxy", h_proxy, 1, 0},
+	{NULL,  "pop3p", h_proxy, 1, 0},
+	{NULL,  "imapp", h_proxy, 1, 0},
+	{NULL,  "ftppr", h_proxy, 1, 0},
+	{NULL,  "socks", h_proxy, 1, 0},
+	{NULL,  "tcppm", h_proxy, 4, 0},
+	{NULL,  "udppm", h_proxy, 4, 0},
+	{NULL,  "admin", h_proxy, 1, 0},
+	{NULL,  "dnspr", h_proxy, 1, 0},
+	{NULL,  "internal", h_internal, 2, 2},
+	{NULL, "external", h_external, 2, 2},
+	{NULL, "log", h_log, 1, 0},
+	{NULL, "service", h_service, 1, 1},
+	{NULL, "daemon", h_daemon, 1, 1},
+	{NULL, "config", h_config, 2, 2},
+	{NULL, "include", h_include, 2, 2},
+	{NULL, "archiver", h_archiver, 3, 0},
+	{NULL, "counter", h_counter, 2, 4},
+	{NULL, "rotate", h_rotate, 2, 2},
+	{NULL, "logformat", h_logformat, 2, 2},
+	{NULL, "timeouts", h_timeouts, 2, 0},
+	{NULL, "auth", h_auth, 2, 0},
+	{NULL, "users", h_users, 1, 0},
+	{NULL, "maxconn", h_maxconn, 2, 2},
+	{NULL, "flush", h_flush, 1, 1},
+	{NULL, "nserver", h_nserver, 2, 2},
+	{NULL, "fakeresolve", h_fakeresolve, 1, 1},
+	{NULL, "nscache", h_nscache, 2, 2},
+	{NULL, "nscache6", h_nscache6, 2, 2},
+	{NULL, "nsrecord", h_nsrecord, 3, 3},
+	{NULL, "dialer", h_dialer, 2, 2},
+	{NULL, "system", h_system, 2, 2},
+	{NULL, "pidfile", h_pidfile, 2, 2},
+	{NULL, "monitor", h_monitor, 2, 2},
+	{NULL, "parent", h_parent, 5, 0},
+	{NULL, "allow", h_ace, 1, 0},
+	{NULL, "deny", h_ace, 1, 0},
+	{NULL, "redirect", h_ace, 3, 0},
+	{NULL, "bandlimin", h_ace, 2, 0},
+	{NULL, "bandlimout", h_ace, 2, 0},
+	{NULL, "nobandlimin", h_ace, 1, 0},
+	{NULL, "nobandlimout", h_ace, 1, 0},
+	{NULL, "countin", h_ace, 4, 0},
+	{NULL, "nocountin", h_ace, 1, 0},
+	{NULL, "countout", h_ace, 4, 0},
+	{NULL, "nocountout", h_ace, 1, 0},
+	{NULL, "countall", h_ace, 4, 0},
+	{NULL, "nocountall", h_ace, 1, 0},
+	{NULL, "connlim", h_ace, 4, 0},
+	{NULL, "noconnlim", h_ace, 1, 0},
+	{NULL, "plugin", h_plugin, 3, 0},
+	{NULL, "logdump", h_logdump, 2, 3},
+	{NULL, "filtermaxsize", h_filtermaxsize, 2, 2},
+	{NULL, "nolog", h_nolog, 1, 1},
+	{NULL, "weight", h_nolog, 2, 2},
+	{NULL, "authcache", h_authcache, 2, 4},
+	{NULL, "smtpp", h_proxy, 1, 0},
+	{NULL, "delimchar",h_delimchar, 2, 2},
+	{NULL, "authnserver", h_authnserver, 2, 2},
+	{NULL, "stacksize", h_stacksize, 2, 2},
+	{NULL, "force", h_force, 1, 1},
+	{NULL, "noforce", h_noforce, 1, 1},
+	{NULL, "parentretries", h_parentretries, 2, 2},
+	{NULL, "auto", h_proxy, 1, 0},
+	{NULL, "backlog", h_backlog, 2, 2},
+	{NULL, "tlspr", h_proxy, 1, 0},
+	{NULL, "maxseg", h_maxseg, 2, 2},
+#ifndef NORADIUS
+	{NULL, "radius", h_radius, 3, 0},
 #endif
-	{NULL, 		"", h_noop, 1, 0}
+#ifndef _WIN32
+	{NULL, "setuid", h_setuid, 2, 2},
+	{NULL, "setgid", h_setgid, 2, 2},
+	{NULL, "chroot", h_chroot, 2, 4},
+#endif
+	{NULL, 	 "", h_noop, 1, 0}
 };
 
-struct commands commandhandlers[]={
-	{commandhandlers+1,  "", h_noop, 1, 0},
-	{commandhandlers+2,  "proxy", h_proxy, 1, 0},
-	{commandhandlers+3,  "pop3p", h_proxy, 1, 0},
-	{commandhandlers+4,  "ftppr", h_proxy, 1, 0},
-	{commandhandlers+5,  "socks", h_proxy, 1, 0},
-	{commandhandlers+6,  "tcppm", h_proxy, 4, 0},
-	{commandhandlers+7,  "udppm", h_proxy, 4, 0},
-	{commandhandlers+8,  "admin", h_proxy, 1, 0},
-	{commandhandlers+9,  "dnspr", h_proxy, 1, 0},
-	{commandhandlers+10,  "internal", h_internal, 2, 2},
-	{commandhandlers+11, "external", h_external, 2, 2},
-	{commandhandlers+12, "log", h_log, 1, 0},
-	{commandhandlers+13, "service", h_service, 1, 1},
-	{commandhandlers+14, "daemon", h_daemon, 1, 1},
-	{commandhandlers+15, "config", h_config, 2, 2},
-	{commandhandlers+16, "include", h_include, 2, 2},
-	{commandhandlers+17, "archiver", h_archiver, 3, 0},
-	{commandhandlers+18, "counter", h_counter, 2, 4},
-	{commandhandlers+19, "rotate", h_rotate, 2, 2},
-	{commandhandlers+20, "logformat", h_logformat, 2, 2},
-	{commandhandlers+21, "timeouts", h_timeouts, 2, 0},
-	{commandhandlers+22, "auth", h_auth, 2, 0},
-	{commandhandlers+23, "users", h_users, 1, 0},
-	{commandhandlers+24, "maxconn", h_maxconn, 2, 2},
-	{commandhandlers+25, "flush", h_flush, 1, 1},
-	{commandhandlers+26, "nserver", h_nserver, 2, 2},
-	{commandhandlers+27, "fakeresolve", h_fakeresolve, 1, 1},
-	{commandhandlers+28, "nscache", h_nscache, 2, 2},
-	{commandhandlers+29, "nscache6", h_nscache6, 2, 2},
-	{commandhandlers+30, "nsrecord", h_nsrecord, 3, 3},
-	{commandhandlers+31, "dialer", h_dialer, 2, 2},
-	{commandhandlers+32, "system", h_system, 2, 2},
-	{commandhandlers+33, "pidfile", h_pidfile, 2, 2},
-	{commandhandlers+34, "monitor", h_monitor, 2, 2},
-	{commandhandlers+35, "parent", h_parent, 5, 0},
-	{commandhandlers+36, "allow", h_ace, 1, 0},
-	{commandhandlers+37, "deny", h_ace, 1, 0},
-	{commandhandlers+38, "redirect", h_ace, 3, 0},
-	{commandhandlers+39, "bandlimin", h_ace, 2, 0},
-	{commandhandlers+40, "bandlimout", h_ace, 2, 0},
-	{commandhandlers+41, "nobandlimin", h_ace, 1, 0},
-	{commandhandlers+42, "nobandlimout", h_ace, 1, 0},
-	{commandhandlers+43, "countin", h_ace, 4, 0},
-	{commandhandlers+44, "nocountin", h_ace, 1, 0},
-	{commandhandlers+45, "countout", h_ace, 4, 0},
-	{commandhandlers+46, "nocountout", h_ace, 1, 0},
-	{commandhandlers+47, "countall", h_ace, 4, 0},
-	{commandhandlers+48, "nocountall", h_ace, 1, 0},
-	{commandhandlers+49, "connlim", h_ace, 4, 0},
-	{commandhandlers+50, "noconnlim", h_ace, 1, 0},
-	{commandhandlers+51, "plugin", h_plugin, 3, 0},
-	{commandhandlers+52, "logdump", h_logdump, 2, 3},
-	{commandhandlers+53, "filtermaxsize", h_filtermaxsize, 2, 2},
-	{commandhandlers+54, "nolog", h_nolog, 1, 1},
-	{commandhandlers+55, "weight", h_nolog, 2, 2},
-	{commandhandlers+56, "authcache", h_authcache, 2, 4},
-	{commandhandlers+57, "smtpp", h_proxy, 1, 0},
-	{commandhandlers+58, "delimchar",h_delimchar, 2, 2},
-	{commandhandlers+59, "authnserver", h_authnserver, 2, 2},
-	{commandhandlers+60, "stacksize", h_stacksize, 2, 2},
-	{commandhandlers+61, "force", h_force, 1, 1},
-	{commandhandlers+62, "noforce", h_noforce, 1, 1},
-	{commandhandlers+63, "parentretries", h_parentretries, 2, 2},
-	{commandhandlers+64, "auto", h_proxy, 1, 0},
-	{commandhandlers+65, "backlog", h_backlog, 2, 2},
-	{commandhandlers+66, "tlspr", h_proxy, 1, 0},
-	{commandhandlers+67, "maxseg", h_maxseg, 2, 2},
-#ifndef NORADIUS
-	{commandhandlers+68, "radius", h_radius, 3, 0},
-#endif
-	{specificcommands, 	 "", h_noop, 1, 0}
-};
+void initcommands(void){
+	static int initialized = 0;
+	unsigned i;
+	if(initialized) return;
+	initialized = 1;
+	for(i = 0; i + 1 < sizeof(commandhandlers)/sizeof(commandhandlers[0]); i++)
+		commandhandlers[i].next = commandhandlers + i + 1;
+}
 
 int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned char ** buff, int *inbuf, int *bufsize){
 #define buf (*buff)

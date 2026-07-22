@@ -499,6 +499,14 @@ int parsehostname(char *hostname, struct clientparam *param, uint16_t port){
 	if(se){
 		*se = 0;
 	}
+	if(!*hostname){
+		if(sp){
+			port = atoi(sp+1);
+			*sp = ':';
+		}
+		*SAPORT(&param->req) = htons(port);
+		return 0;
+	}
 	if(hostname != (char *)param->hostname){
 		if(param->hostname) free(param->hostname);
 		param->hostname = (unsigned char *)strdup(hostname + (se!=0));
@@ -553,14 +561,14 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 	if(!username || !*username) return 1;
         if ((sb=strchr(username, conf.delimchar)) == NULL){
 		if(!param->hostname && param->remsock == INVALID_SOCKET) return 2;
-		if(param->hostname)parsehostname((char *)param->hostname, param, port);
+		if(param->hostname)parsehostname((char *)param->hostname, param, *SAPORT(&param->req)? ntohs(*SAPORT(&param->req)) : port);
 		return parseusername(username, param, extpasswd);
 	}
 	while ((se=strchr(sb+1, conf.delimchar)))sb=se;
 	*(sb) = 0;
 	if(parseusername(username, param, extpasswd)) return 3;
 	*(sb) = conf.delimchar;
-	if(parsehostname(sb+1, param, port)) return 4;
+	if(parsehostname(sb+1, param, *SAPORT(&param->req)? ntohs(*SAPORT(&param->req)) : port)) return 4;
 	return 0;
 }
 
@@ -871,4 +879,22 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #endif
 	return 0;
 #endif
+}
+
+int hascap(const unsigned char *line, const char *cap){
+ int len = (int)strlen(cap);
+ for(; *line; line++) if(!strncasecmp((char *)line, cap, len)) return 1;
+ return 0;
+}
+
+int getmultiline(struct clientparam *param, DIRECTION which, unsigned char *buf, int bufsize, const char *cap, int *found){
+ int i;
+ do {
+	i = sockgetlinebuf(param, which, buf, bufsize, '\n', conf.timeouts[STRING_L]);
+	if(i > 0 && cap && found && !*found){
+		buf[i] = 0;
+		if(hascap(buf, cap)) *found = 1;
+	}
+ } while (i > 3 && buf[3] == '-');
+ return i;
 }

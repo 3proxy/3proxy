@@ -78,6 +78,15 @@ TLS_CHECK_LEVEL. 0 (default) - allow non-TLS traffic to pass, 1 - require TLS, o
 .B -s
 Split the TLS Client HELLO packet across multiple TCP segments to make SNI-based DPI detection harder. An optional numeric value can follow (e.g. \fB-s1\fR) to control the splitting behaviour.
 .TP
+.B -Ximap | -Xpop3 | -Xsmtp
+STARTTLS mode for the given protocol. The proxy speaks the plaintext protocol
+with the client (greeting, capability advertisement with STARTTLS only, STARTTLS
+command), then, after the client issues STARTTLS and sends a TLS Client HELLO,
+connects to the destination taken from SNI (default port 143/110/587), performs
+STARTTLS negotiation with the destination server and transparently passes TLS
+traffic. If the destination server does not support STARTTLS, the TLS handshake
+with the client fails.
+.TP
 .B -l
 Log. By default logging is to stdout. If
 .I logfile

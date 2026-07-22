@@ -55,6 +55,9 @@ Recursion is not allowed.
 .B pop3p
 [options]
 .br
+.B imapp
+[options]
+.br
 .B smtpp
 [options]
 .br
@@ -91,6 +94,9 @@ Proxy with protocol autoselection between proxy / socks / tlspr
 .br
 .B pop3p
 POP3 proxy (default port 110)
+.br
+.B imapp
+IMAPv4 proxy (default port 143)
 .br
 .B smtpp
 SMTP proxy (default port 25)
@@ -209,6 +215,7 @@ Never ask for username/password
 .BR proxy (8)
 .BR socks (8)
 .BR pop3p (8)
+.BR imapp (8)
 .BR tcppm (8)
 .BR udppm (8)
 .BR ftppr (8)
@@ -847,6 +854,9 @@ locally redirects to
 .B pop3
 locally redirects to
 .B pop3p
+.B imap
+locally redirects to
+.B imapp
 .B http
 locally redirects to
 .B proxy
@@ -1384,7 +1394,7 @@ authentication and/or allow/deny ACLs.
 Report all bugs to
 .BR 3proxy@3proxy.org
 .SH SEE ALSO
-3proxy(8), 3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8), smtpp(8), tlspr(8), tcppm(8), udppm(8), syslogd(8),
+3proxy(8), 3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8), imapp(8), smtpp(8), tlspr(8), tcppm(8), udppm(8), syslogd(8),
 .br
  https://3proxy.org/
 .SH AUTHORS

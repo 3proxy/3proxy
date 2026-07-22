@@ -84,7 +84,7 @@ install: all
 	if [ ! -d "$(DESTDIR)$(BINPREFIX)" ]; then mkdir -p $(DESTDIR)$(BINPREFIX)/; fi
 	install bin/3proxy $(DESTDIR)$(BINPREFIX)/3proxy
 	install bin/$(CRYPT_PREFIX)crypt $(DESTDIR)$(BINPREFIX)/$(CRYPT_PREFIX)crypt
-	for f in proxy socks pop3p smtpp ftppr tcppm udppm tlspr; do \
+	for f in proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr; do \
 	  if [ -f bin/$(PREFIX)$$f ]; then install bin/$(PREFIX)$$f $(DESTDIR)$(BINPREFIX)/$(PREFIX)$$f; fi; \
 	done
 	install -d $(DESTDIR)$(prefix)/etc/3proxy/conf
@@ -101,7 +101,7 @@ install: all
 	touch $(DESTDIR)$(prefix)/etc/3proxy/conf/bandlimiters
 	install -d $(DESTDIR)$(MANDIR)/man8
 	install -m 644 man/3proxy.8 $(DESTDIR)$(MANDIR)/man8/3proxy.8
-	for f in proxy socks pop3p smtpp ftppr tcppm udppm tlspr; do \
+	for f in proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr; do \
 	  if [ -f man/$$f.8 ]; then install -m 644 man/$$f.8 $(DESTDIR)$(MANDIR)/man8/$(PREFIX)$$f.8; fi; \
 	done
 	install -m 644 man/3proxy_crypt.8 $(DESTDIR)$(MANDIR)/man8/$(CRYPT_PREFIX)crypt.8

@@ -47,6 +47,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 	switch(redir->type){
 		case R_TCP:
 		case R_HTTP:
+		case R_IMAP:
 			return 0;
 		case R_CONNECT:
 		case R_CONNECTP:

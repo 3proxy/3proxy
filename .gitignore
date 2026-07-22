@@ -18,6 +18,7 @@ bin/socks
 bin/tcppm
 bin/udppm
 bin/pop3p
+bin/imapp
 bin/smtpp
 bin/ftppr
 bin/mycrypt
@@ -45,6 +46,7 @@ src/socks
 src/tcppm
 src/udppm
 src/pop3p
+src/imapp
 src/smtpp
 src/ftppr
 src/icqpr
@@ -261,6 +263,7 @@ CLAUDE.md
 bin/3proxy_crypt
 bin/3proxy_ftppr
 bin/3proxy_pop3p
+bin/3proxy_imapp
 bin/3proxy_proxy
 bin/3proxy_smtpp
 bin/3proxy_socks

@@ -9,6 +9,7 @@
 .IB \fR[ -i internal_ip\fR]
 .IB \fR[ -e external_ip\fR]
 .IB \fR[ -h default_ip[:port]\fR]
+.IB \fR[ -x ]
 .SH DESCRIPTION
 .B smtpp
 is SMTP gateway service to allow internal users to access external SMTP
@@ -61,10 +62,14 @@ syntax (e.g., -iunix:/var/run/smtpp.sock). On Linux, abstract sockets use
 syntax.
 .TP
 .B -p
-Port. Port proxy listens for incoming connections. Default is 25.
+Port. Port proxy listens for incoming connections. Default is 587.
 .TP
 .B -h
 Default destination. It's used if the target address is not specified by the user.
+.TP
+.B -x
+Disable STARTTLS support. STARTTLS is not announced in the EHLO response
+and the STARTTLS command is not accepted.
 .TP
 .B -l
 Log. By default logging is to stdout. If
@@ -95,6 +100,16 @@ is the user\'s login on this SMTP server. The login itself may contain an \'@\' 
 Only cleartext authentication is supported, because challenge-response
 authentication (CRAM-MD5, SPA, etc.) requires a challenge from the server before
 we know which server to connect to.
+When running as a 3proxy service (not as a standalone binary), STARTTLS is
+supported and announced in the EHLO response unless disabled with
+.BR -x .
+After the client issues STARTTLS, the connection is handled by
+.BR tlspr (8):
+the destination host is taken from the SNI of the client TLS handshake (or from
+the -h option), the proxy performs STARTTLS negotiation with the destination
+server, and then transparently passes TLS traffic between the client and the
+server. If the destination server does not support STARTTLS, the TLS handshake
+with the client fails.
 .SH BUGS
 Report all bugs to
 .BR 3proxy@3proxy.org

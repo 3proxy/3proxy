@@ -188,6 +188,8 @@ unsigned long sockfillbuffcli(struct clientparam * param, unsigned long size, in
 unsigned long sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec);
 
 int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
+int getmultiline(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, const char *cap, int *found);
+int hascap(const unsigned char *line, const char *cap);
 
 
 
@@ -312,6 +314,7 @@ void srvinit2(struct srvparam * srv, struct clientparam *param);
 void srvfree(struct srvparam * srv);
 unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 int readconfig(FILE * fp);
+void initcommands(void);
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
 
 
@@ -325,6 +328,7 @@ extern char *copyright;
 
 void * dnsprchild(struct clientparam * param);
 void * pop3pchild(struct clientparam * param);
+void * imappchild(struct clientparam * param);
 void * smtppchild(struct clientparam * param);
 void * proxychild(struct clientparam * param);
 void * sockschild(struct clientparam * param);
