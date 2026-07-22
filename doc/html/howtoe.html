@@ -582,6 +582,7 @@ proxy -p8080 -i192.168.2.1
     An SNI proxy can be used to transparently redirect any TLS traffic with an external router or via local redirection rules. It can also be used
     to extract hostnames from TLS to use in ACLs in combination with SOCKS or HTTP(s) proxy and/or the Transparent plugin. It can also be used to require TLS or mTLS between services. The TLS handshake contains no
     port information; if tlspr is used as a standalone service, the destination port may be either detected with the Transparent plugin or configured with the -P option (default 443).
+    Note: tlspr does not support user authentication (there are no credentials in the TLS handshake to authenticate against); use ACLs by IP or a parent proxy with authentication if access control is required.
   </p><p>
     <b>Options:</b>
 </p><pre>

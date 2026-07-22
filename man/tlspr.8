@@ -13,6 +13,7 @@
 .SH DESCRIPTION
 .B tlspr
 is an SNI gateway service (destination host is taken from TLS handshake). The destination port must be specified via the -P option (or it may be detected with the Transparent plugin).
+tlspr does not support user authentication; use ACLs by client IP or a parent proxy with authentication if access control is required.
 .SH OPTIONS
 .TP
 .B -I

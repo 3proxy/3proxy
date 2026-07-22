@@ -681,7 +681,7 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
         target_link_libraries(${PROXY_NAME} PRIVATE ${WINDOWS_LIBS})
     endif()
 
-    if(PROXY_NAME STREQUAL "proxy" OR PROXY_NAME STREQUAL "smtpp")
+    if(PROXY_NAME STREQUAL "proxy" OR PROXY_NAME STREQUAL "smtpp" OR PROXY_NAME STREQUAL "imapp")
         target_sources(${PROXY_NAME} PRIVATE $<TARGET_OBJECTS:base64_obj>)
     endif()
 
