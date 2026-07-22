@@ -1472,16 +1472,19 @@ socks -H -p1080
   <p>
   <b>Sending PROXY protocol header to parent proxy:</b>
   <br>Use the <code>ha</code> parent type to send a PROXY protocol v1 header to
-  the parent proxy. This must be the last parent in the chain:
+  the parent proxy. Place <code>ha</code> before the parent that should receive
+  the header; after the header is sent, parent protocol negotiation continues:
   </p><pre>
 allow *
-parent 1000 ha
+parent 1000 ha 0.0.0.0 0
 parent 1000 socks5 parent.example.com 1080
-socks
+proxy
 </pre>
   <p>
-  This configuration sends the client IP information to the SOCKS5 parent proxy
-  via the PROXY protocol.
+  This configuration connects to the SOCKS5 parent, sends the PROXY protocol
+  header with the original client IP, then performs SOCKS5 negotiation before
+  relaying the client payload. The parent should use <code>-H</code> to accept
+  the header (for example <code>socks -H</code>).
   </p>
   <li><a name="MAXSEG"><i>How to set TCP maximum segment size (MSS)</i></a>
   <p>

@@ -375,7 +375,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				ntohs(*SAPORT(&param->sincl))
 			    );
 			    if(socksend(param, param->remsock, (unsigned char *)buf, len, conf.timeouts[CHAIN_TO])!=len) return 39;
-			    return 0;
+			    /* ha alone: PROXY header then plain TCP relay.
+			       ha before another parent: continue negotiating that parent. */
+			    if(cur->type == R_HA) return 0;
 			}
 		}
 		else {
