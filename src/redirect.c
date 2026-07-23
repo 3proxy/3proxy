@@ -375,7 +375,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				ntohs(*SAPORT(&param->sincl))
 			    );
 			    if(socksend(param, param->remsock, (unsigned char *)buf, len, conf.timeouts[CHAIN_TO])!=len) return 39;
-			    return 0;
+			    if(cur->type == R_HA) return 0;
 			}
 		}
 		else {

@@ -759,10 +759,15 @@ useful). Never use this option unless you know exactly you
 need it. <b><br>
 admin</b> redirect request to local &acute;admin&acute;
 service (with -s parameter). <b><br>
-ha</b> send HAProxy PROXY protocol v1 header to parent
-proxy. Must be the last in the proxy chain. Useful for
-passing client IP information to the parent proxy. Example:
-parent 1000 ha <br>
+ha</b> send HAProxy PROXY protocol v1 header to the next
+parent proxy (or to the destination if <b>ha</b> is used
+alone). Place <b>ha</b> before the parent that should
+receive the header; after the header is sent, negotiation
+of that parent protocol continues (SOCKS, CONNECT, etc.).
+Useful for passing client IP information to the parent
+proxy. Example: <br>
+parent 1000 ha 0.0.0.0 0 <br>
+parent 1000 socks5 parent.example.com 1080 <br>
 Use &quot;+&quot; proxy only with <b>fakeresolve</b> option
 <br>
 Any parent type above can be suffixed with <b>s</b> (e.g.
