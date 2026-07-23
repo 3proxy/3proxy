@@ -247,7 +247,13 @@ int strongauth(struct clientparam * param){
 			    int pwlen = strlen((char *)param->password);
 			    if(pwlen > 255) pwlen = 255;
 			    if((unsigned)pwlen < pwl_table.recsize) {
-				if(strlen(pass + 1) == strlen((char *)param->password) && !ctmemcmp(pass + 1, param->password, pwl_table.recsize - 1)) return 0;
+				/* Compare only the password bytes plus NUL. Using
+				 * recsize-1 here read past the client password buffer
+				 * (typically strdup of pwlen+1) and rejected valid
+				 * short CL: passwords whenever trailing heap bytes
+				 * were non-zero. */
+				if(strlen(pass + 1) == (size_t)pwlen &&
+				   !ctmemcmp(pass + 1, param->password, (size_t)pwlen + 1)) return 0;
 			    } else {
 				mdh_ctx *bctx;
 				unsigned hashsz;
