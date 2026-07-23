@@ -956,7 +956,13 @@ for(;;){
 			}
 			smallbuf[i] = 0;
 			contentlength64 = 0;
-			sscanf((char *)smallbuf, "%"SCNx64"", &contentlength64);
+			if(sscanf((char *)smallbuf, "%"SCNx64"", &contentlength64) != 1) RETURN(537);
+			/* chunk-size line may be longer than smallbuf: drain and relay the
+			   remainder up to LF so client/backend framing stays in sync */
+			while(i > 0 && smallbuf[i-1] != '\n'){
+				if((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', conf.timeouts[STRING_S])) <= 0) RETURN(537);
+				if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+			}
 			if(contentlength64 == 0) chunkedcli = 2;
 			else {
 				param->waitclient64 = contentlength64;
@@ -1144,7 +1150,16 @@ for(;;){
 			}
 			smallbuf[i] = 0;
 			contentlength64 = 0;
-			sscanf((char *)smallbuf, "%"SCNx64"", &contentlength64);
+			if(sscanf((char *)smallbuf, "%"SCNx64"", &contentlength64) != 1) {
+				keepalive = 0;
+				break;
+			}
+			/* chunk-size line may be longer than smallbuf: drain and relay the
+			   remainder up to LF so client/backend framing stays in sync */
+			while(i > 0 && smallbuf[i-1] != '\n'){
+				if((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) <= 0) RETURN(534);
+				if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(535);
+			}
 			if(contentlength64 == 0) {
 				param->chunked = 2;
 			}

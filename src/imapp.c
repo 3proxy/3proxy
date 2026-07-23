@@ -157,7 +157,7 @@ void * imappchild(struct clientparam* param) {
  i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', conf.timeouts[STRING_L]);
  if( i < 4 ) {RETURN(695);}
  srvbuf[i] = 0;
- if(strncasecmp((char *)srvbuf, "* OK", 4)||strstr((char *)srvbuf, "IMAP4rev1 Proxy Ready")){RETURN(696);}
+ if(strncasecmp((char *)srvbuf, "* OK", 4)){RETURN(696);}
  if((se = (unsigned char *)strstr((char *)srvbuf, "[CAPABILITY "))){
 	if(hascap(se, "AUTH=PLAIN")) caps |= CAP_PLAIN;
 	if(hascap(se, "AUTH=LOGIN")) caps |= CAP_LOGIN;

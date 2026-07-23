@@ -243,7 +243,7 @@ int parsehello(int type, unsigned char *hello, unsigned len, char *sni, int * sn
 	unsigned xlen;
 	xlen = size16(hello+offset+2);
 	if(xlen+4 > elen) return -10;
-	if(type == 1 && hello[offset] == 0 && hello[offset+1] == 0){
+	if(type == 1 && xlen >= 5 && hello[offset] == 0 && hello[offset+1] == 0){
 	    snllen=size16(hello+offset+4);
 	    if(snllen>3){
 		if(snllen+2 != xlen) return -12;
@@ -265,7 +265,7 @@ int parsehello(int type, unsigned char *hello, unsigned len, char *sni, int * sn
     		*lv = hello[offset+5];
 	    }
 	}
-	else if(hello[offset] == 0 && hello[offset+1] == 16){
+	else if(xlen >= 3 && hello[offset] == 0 && hello[offset+1] == 16){
 	    alpnlen=hello[offset+6];
 	    if(alpnlen+7>elen) return -16;
 	    if(alpnlen+1>PROTOLEN) return -17;

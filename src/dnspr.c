@@ -122,8 +122,8 @@ void * dnsprchild(struct clientparam* param) {
 	len+=(type==1?16:28);
  }
  else if(type == 0x0c) {
-	unsigned a, b, c, d;
-	sscanf(host, "%u.%u.%u.%u", &a, &b, &c, &d);
+	unsigned a = 0, b = 0, c = 0, d = 0;
+	if(sscanf(host, "%u.%u.%u.%u", &a, &b, &c, &d) != 4) a = b = c = d = 0;
 	ip = htonl((d<<24) ^ (c<<16) ^ (b<<8) ^ a);
 	if(*SAFAMILY(&param->sincl) == AF_INET &&  ip == *(uint32_t *)SAADDR(&param->sincl)){
 		buf[2] = 0x85;
