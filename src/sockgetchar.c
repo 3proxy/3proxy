@@ -16,15 +16,16 @@ int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bu
  fds.events = POLLOUT;
  do {
 	if(conf.timetoexit) return 0;
+	/* try to send first; poll only when the socket would block */
+	res = param?param->srv->so._send(param->sostate, sock, (char *)buf + sent, bufsize - sent, 0) : so._send(so.state, sock, (char *)buf + sent, bufsize - sent, 0);
+	if(res > 0) {
+		sent += res;
+		continue;
+	}
+	if(res < 0 && errno != EAGAIN && errno != EINTR) break;
 	res = param?param->srv->so._poll(param->sostate, &fds, 1, to*1000):so._poll(so.state, &fds, 1, to*1000);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 	if(res < 1) break;
-	res = param?param->srv->so._send(param->sostate, sock, (char *)buf + sent, bufsize - sent, 0) : so._send(so.state, sock, (char *)buf + sent, bufsize - sent, 0);
-	if(res < 0) {
-		if(errno == EAGAIN || errno == EINTR) continue;
-		break;
-	}
-	sent += res;
  } while (sent < bufsize);
  return sent;
 }
@@ -158,10 +159,33 @@ int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * 
  int c;
  int i=0;
 
- while(i < bufsize && (c = (which)?sockgetcharsrv(param, to, 0):sockgetcharcli(param, to, 0)) != EOF){
+ for(;;){
+	unsigned char *base = which? param->srvbuf : param->clibuf;
+	unsigned *offp = which? &param->srvoffset : &param->clioffset;
+	unsigned *inp  = which? &param->srvinbuf  : &param->cliinbuf;
+
+	/* drain already-buffered bytes in bulk instead of one call per byte */
+	if(base && *offp < *inp && i < bufsize){
+		int avail = (int)(*inp - *offp);
+		int n = (bufsize - i < avail)? bufsize - i : avail;
+		if(delim != EOF){
+			unsigned char *d = (unsigned char *)memchr(base + *offp, delim, n);
+			if(d) n = (int)(d - (base + *offp)) + 1;
+			memcpy(buf + i, base + *offp, n);
+			i += n; *offp += n;
+			if(d || i >= bufsize) return i;
+		}
+		else {
+			memcpy(buf + i, base + *offp, n);
+			i += n; *offp += n;
+			if(i >= bufsize) return i;
+		}
+	}
+	if(i >= bufsize) return i;
+	/* buffer empty: one call forces a refill (with poll + accounting), then bulk-drain the rest */
+	if((c = which? sockgetcharsrv(param, to, 0) : sockgetcharcli(param, to, 0)) == EOF) return i;
 	buf[i++] = c;
-	if(delim != EOF && c == delim) break;
+	if((delim != EOF && c == delim) || i >= bufsize) return i;
  }
- return i;
 }
 
