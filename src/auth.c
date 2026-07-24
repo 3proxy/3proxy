@@ -247,7 +247,9 @@ int strongauth(struct clientparam * param){
 			    int pwlen = strlen((char *)param->password);
 			    if(pwlen > 255) pwlen = 255;
 			    if((unsigned)pwlen < pwl_table.recsize) {
-				if(strlen(pass + 1) == strlen((char *)param->password) && !ctmemcmp(pass + 1, param->password, pwl_table.recsize - 1)) return 0;
+				memset(buf, 0, pwl_table.recsize - 1);
+				memcpy(buf, param->password, pwlen);
+				if(!ctmemcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
 			    } else {
 				mdh_ctx *bctx;
 				unsigned hashsz;
