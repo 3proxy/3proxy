@@ -1611,6 +1611,48 @@ static int h_chroot(int argc, unsigned char **argv){
 #endif
 
 
+#ifdef WITH_SSL
+int h_mitm(int argc, unsigned char **argv);
+int h_nomitm(int argc, unsigned char **argv);
+int h_serv(int argc, unsigned char **argv);
+int h_noserv(int argc, unsigned char **argv);
+int h_cli(int argc, unsigned char **argv);
+int h_nocli(int argc, unsigned char **argv);
+int h_certcache(int argc, unsigned char **argv);
+int h_srvcert(int argc, unsigned char **argv);
+int h_srvkey(int argc, unsigned char **argv);
+int h_clicert(int argc, unsigned char **argv);
+int h_clikey(int argc, unsigned char **argv);
+int h_client_cipher_list(int argc, unsigned char **argv);
+int h_server_cipher_list(int argc, unsigned char **argv);
+int h_client_ciphersuites(int argc, unsigned char **argv);
+int h_server_ciphersuites(int argc, unsigned char **argv);
+int h_server_ca_file(int argc, unsigned char **argv);
+int h_server_ca_key(int argc, unsigned char **argv);
+int h_client_ca_file(int argc, unsigned char **argv);
+int h_client_ca_dir(int argc, unsigned char **argv);
+int h_client_ca_store(int argc, unsigned char **argv);
+int h_client_sni(int argc, unsigned char **argv);
+int h_client_alpn(int argc, unsigned char **argv);
+int h_server_ca_dir(int argc, unsigned char **argv);
+int h_server_ca_store(int argc, unsigned char **argv);
+int h_client_min_proto_version(int argc, unsigned char **argv);
+int h_client_max_proto_version(int argc, unsigned char **argv);
+int h_server_min_proto_version(int argc, unsigned char **argv);
+int h_server_max_proto_version(int argc, unsigned char **argv);
+int h_client_verify(int argc, unsigned char **argv);
+int h_no_client_verify(int argc, unsigned char **argv);
+int h_server_verify(int argc, unsigned char **argv);
+int h_no_server_verify(int argc, unsigned char **argv);
+int h_client_mode(int argc, unsigned char **argv);
+#endif
+#ifdef WITH_PCRE
+int h_pcre(int argc, unsigned char **argv);
+int h_pcre_rewrite(int argc, unsigned char **argv);
+int h_pcre_extend(int argc, unsigned char **argv);
+int h_pcre_options(int argc, unsigned char **argv);
+#endif
+
 struct commands commandhandlers[]={
 	{NULL,  "", h_noop, 1, 0},
 	{NULL,  "proxy", h_proxy, 1, 0},
@@ -1687,6 +1729,51 @@ struct commands commandhandlers[]={
 	{NULL, "setuid", h_setuid, 2, 2},
 	{NULL, "setgid", h_setgid, 2, 2},
 	{NULL, "chroot", h_chroot, 2, 4},
+#endif
+#ifdef WITH_SSL
+	{NULL, "ssl_mitm", h_mitm, 1, 1},
+	{NULL, "ssl_nomitm", h_nomitm, 1, 1},
+	{NULL, "ssl_serv", h_serv, 1, 1},
+	{NULL, "ssl_noserv", h_noserv, 1, 1},
+	{NULL, "ssl_server_cert", h_srvcert, 1, 2},
+	{NULL, "ssl_server_key", h_srvkey, 1, 2},
+	{NULL, "ssl_server_ca_file", h_server_ca_file, 1, 2},
+	{NULL, "ssl_server_ca_key", h_server_ca_key, 1, 2},
+	{NULL, "ssl_client_ca_file", h_client_ca_file, 1, 2},
+	{NULL, "ssl_client_ca_dir", h_client_ca_dir, 1, 2},
+	{NULL, "ssl_client_ca_store", h_client_ca_store, 1, 2},
+	{NULL, "ssl_client_ciphersuites", h_client_ciphersuites, 1, 2},
+	{NULL, "ssl_server_ciphersuites", h_server_ciphersuites, 1, 2},
+	{NULL, "ssl_client_cipher_list", h_client_cipher_list, 1, 2},
+	{NULL, "ssl_server_cipher_list", h_server_cipher_list, 1, 2},
+	{NULL, "ssl_client_min_proto_version", h_client_min_proto_version, 1, 2},
+	{NULL, "ssl_server_min_proto_version", h_server_min_proto_version, 1, 2},
+	{NULL, "ssl_client_max_proto_version", h_client_max_proto_version, 1, 2},
+	{NULL, "ssl_server_max_proto_version", h_server_max_proto_version, 1, 2},
+	{NULL, "ssl_client_verify", h_client_verify, 1, 1},
+	{NULL, "ssl_client_no_verify", h_no_client_verify, 1, 1},
+	{NULL, "ssl_cli", h_cli, 1, 1},
+	{NULL, "ssl_nocli", h_nocli, 1, 1},
+	{NULL, "ssl_client_cert", h_clicert, 1, 2},
+	{NULL, "ssl_client_key", h_clikey, 1, 2},
+	{NULL, "ssl_server", h_serv, 1, 1},
+	{NULL, "ssl_noserver", h_noserv, 1, 1},
+	{NULL, "ssl_client", h_cli, 1, 1},
+	{NULL, "ssl_noclient", h_nocli, 1, 1},
+	{NULL, "ssl_server_verify", h_server_verify, 1, 1},
+	{NULL, "ssl_server_no_verify", h_no_server_verify, 1, 1},
+	{NULL, "ssl_server_ca_dir", h_server_ca_dir, 1, 2},
+	{NULL, "ssl_server_ca_store", h_server_ca_store, 1, 2},
+	{NULL, "ssl_client_sni", h_client_sni, 1, 2},
+	{NULL, "ssl_client_alpn", h_client_alpn, 1, 0},
+	{NULL, "ssl_client_mode", h_client_mode, 1, 2},
+	{NULL, "ssl_certcache", h_certcache, 2, 2},
+#endif
+#ifdef WITH_PCRE
+	{NULL, "pcre", h_pcre, 4, 0},
+	{NULL, "pcre_rewrite", h_pcre_rewrite, 5, 0},
+	{NULL, "pcre_extend", h_pcre_extend, 2, 0},
+	{NULL, "pcre_options", h_pcre_options, 2, 0},
 #endif
 	{NULL, 	 "", h_noop, 1, 0}
 };

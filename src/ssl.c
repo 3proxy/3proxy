@@ -880,7 +880,7 @@ static void unsetfilters(){
 	}
 }
 
-static int h_mitm(int argc, unsigned char **argv){
+int h_mitm(int argc, unsigned char **argv){
 	if(mitm) return 0;
 	if(serv) return 2;
 	mitm = 1;
@@ -888,14 +888,14 @@ static int h_mitm(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_nomitm(int argc, unsigned char **argv){
+int h_nomitm(int argc, unsigned char **argv){
 	if(!mitm) return 0;
 	mitm = 0;
 	unsetfilters();
 	return 0;
 }
 
-static int h_serv(int argc, unsigned char **argv){
+int h_serv(int argc, unsigned char **argv){
 	if(serv) return 0;
 	if(mitm) return 2;
 	serv = 1;
@@ -903,14 +903,14 @@ static int h_serv(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_noserv(int argc, unsigned char **argv){
+int h_noserv(int argc, unsigned char **argv){
 	if(!serv) return 0;
 	serv = 0;
 	unsetfilters();
 	return 0;
 }
 
-static int h_cli(int argc, unsigned char **argv){
+int h_cli(int argc, unsigned char **argv){
 	if(cli) return 0;
 	if(mitm) return 2;
 	cli = 1;
@@ -918,7 +918,7 @@ static int h_cli(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_nocli(int argc, unsigned char **argv){
+int h_nocli(int argc, unsigned char **argv){
 	if(!cli) return 0;
 	cli = 0;
 	unsetfilters();
@@ -926,7 +926,7 @@ static int h_nocli(int argc, unsigned char **argv){
 }
 
 
-static int h_certcache(int argc, unsigned char **argv){
+int h_certcache(int argc, unsigned char **argv){
 	size_t len;
 	len = strlen((char *)argv[1]);
 	if(!len || (argv[1][len - 1] != '/' && argv[1][len - 1] != '\\')) return 1;
@@ -935,92 +935,92 @@ static int h_certcache(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_srvcert(int argc, unsigned char **argv){
+int h_srvcert(int argc, unsigned char **argv){
 	free(srvcert);
 	srvcert = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_srvkey(int argc, unsigned char **argv){
+int h_srvkey(int argc, unsigned char **argv){
 	free(srvkey);
 	srvkey = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_clicert(int argc, unsigned char **argv){
+int h_clicert(int argc, unsigned char **argv){
 	free(clicert);
 	clicert = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_clikey(int argc, unsigned char **argv){
+int h_clikey(int argc, unsigned char **argv){
 	free(clikey);
 	clikey = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
 
-static int h_client_cipher_list(int argc, unsigned char **argv){
+int h_client_cipher_list(int argc, unsigned char **argv){
 	free(client_cipher_list);
 	client_cipher_list = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_server_cipher_list(int argc, unsigned char **argv){
+int h_server_cipher_list(int argc, unsigned char **argv){
 	free(server_cipher_list);
 	server_cipher_list = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_client_ciphersuites(int argc, unsigned char **argv){
+int h_client_ciphersuites(int argc, unsigned char **argv){
 	free(client_ciphersuites);
 	client_ciphersuites = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_server_ciphersuites(int argc, unsigned char **argv){
+int h_server_ciphersuites(int argc, unsigned char **argv){
 	free(server_ciphersuites);
 	server_ciphersuites = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_server_ca_file(int argc, unsigned char **argv){
+int h_server_ca_file(int argc, unsigned char **argv){
 	free(server_ca_file);
 	server_ca_file = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_server_ca_key(int argc, unsigned char **argv){
+int h_server_ca_key(int argc, unsigned char **argv){
 	free(server_ca_key);
 	server_ca_key = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_client_ca_file(int argc, unsigned char **argv){
+int h_client_ca_file(int argc, unsigned char **argv){
 	free(client_ca_file);
 	client_ca_file = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_client_ca_dir(int argc, unsigned char **argv){
+int h_client_ca_dir(int argc, unsigned char **argv){
 	free(client_ca_dir);
 	client_ca_dir = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_client_ca_store(int argc, unsigned char **argv){
+int h_client_ca_store(int argc, unsigned char **argv){
 	free(client_ca_store);
 	client_ca_store = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_client_sni(int argc, unsigned char **argv){
+int h_client_sni(int argc, unsigned char **argv){
 	free(client_sni);
 	client_sni = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_client_alpn(int argc, unsigned char **argv){
+int h_client_alpn(int argc, unsigned char **argv){
     int len, i;
 
     if(client_alpn_protos.protos_len){
@@ -1050,13 +1050,13 @@ static int h_client_alpn(int argc, unsigned char **argv){
     return 0;
 }
 
-static int h_server_ca_dir(int argc, unsigned char **argv){
+int h_server_ca_dir(int argc, unsigned char **argv){
 	free(server_ca_dir);
 	server_ca_dir = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
 }
 
-static int h_server_ca_store(int argc, unsigned char **argv){
+int h_server_ca_store(int argc, unsigned char **argv){
 	free(server_ca_store);
 	server_ca_store = argc > 1? strdup((char *)argv[1]) : NULL;
 	return 0;
@@ -1097,41 +1097,41 @@ int string_to_version(unsigned char *ver){
     return 0;
 }
 
-static int h_client_min_proto_version(int argc, unsigned char **argv){
+int h_client_min_proto_version(int argc, unsigned char **argv){
 	client_min_proto_version = argc>1? string_to_version(argv[1]) : 0;
 	return 0;
 }
 
-static int h_client_max_proto_version(int argc, unsigned char **argv){
+int h_client_max_proto_version(int argc, unsigned char **argv){
 	client_max_proto_version = argc>1? string_to_version(argv[1]) : 0;
 	return 0;
 }
 
-static int h_server_min_proto_version(int argc, unsigned char **argv){
+int h_server_min_proto_version(int argc, unsigned char **argv){
 	server_min_proto_version = argc>1? string_to_version(argv[1]) : 0;
 	return 0;
 }
 
-static int h_server_max_proto_version(int argc, unsigned char **argv){
+int h_server_max_proto_version(int argc, unsigned char **argv){
 	server_max_proto_version = argc>1? string_to_version(argv[1]) : 0;
 	return 0;
 }
 
-static int h_client_verify(int argc, unsigned char **argv){
+int h_client_verify(int argc, unsigned char **argv){
 	client_verify = 1;
 	return 0;
 }
-static int h_no_client_verify(int argc, unsigned char **argv){
+int h_no_client_verify(int argc, unsigned char **argv){
 	client_verify = 0;
 	return 0;
 }
 
-static int h_server_verify(int argc, unsigned char **argv){
+int h_server_verify(int argc, unsigned char **argv){
 	server_verify = 1;
 	return 0;
 }
 
-static int h_client_mode(int argc, unsigned char **argv){
+int h_client_mode(int argc, unsigned char **argv){
 	client_mode = 0;
 	if(argc <= 1) return 0;
 	client_mode = atoi((char *)argv[1]);
@@ -1139,50 +1139,10 @@ static int h_client_mode(int argc, unsigned char **argv){
 }
 
 
-static int h_no_server_verify(int argc, unsigned char **argv){
+int h_no_server_verify(int argc, unsigned char **argv){
 	server_verify = 0;
 	return 0;
 }
-
-static struct commands ssl_commandhandlers[] = {
-	{ssl_commandhandlers+1, "ssl_mitm", h_mitm, 1, 1},
-	{ssl_commandhandlers+2, "ssl_nomitm", h_nomitm, 1, 1},
-	{ssl_commandhandlers+3, "ssl_serv", h_serv, 1, 1},
-	{ssl_commandhandlers+4, "ssl_noserv", h_noserv, 1, 1},
-	{ssl_commandhandlers+5, "ssl_server_cert", h_srvcert, 1, 2},
-	{ssl_commandhandlers+6, "ssl_server_key", h_srvkey, 1, 2},
-	{ssl_commandhandlers+7, "ssl_server_ca_file", h_server_ca_file, 1, 2},
-	{ssl_commandhandlers+8, "ssl_server_ca_key", h_server_ca_key, 1, 2},
-	{ssl_commandhandlers+9, "ssl_client_ca_file", h_client_ca_file, 1, 2},
-	{ssl_commandhandlers+10, "ssl_client_ca_dir", h_client_ca_dir, 1, 2},
-	{ssl_commandhandlers+11, "ssl_client_ca_store", h_client_ca_store, 1, 2},
-	{ssl_commandhandlers+12, "ssl_client_ciphersuites", h_client_ciphersuites, 1, 2},
-	{ssl_commandhandlers+13, "ssl_server_ciphersuites", h_server_ciphersuites, 1, 2},
-	{ssl_commandhandlers+14, "ssl_client_cipher_list", h_client_cipher_list, 1, 2},
-	{ssl_commandhandlers+15, "ssl_server_cipher_list", h_server_cipher_list, 1, 2},
-	{ssl_commandhandlers+16, "ssl_client_min_proto_version", h_client_min_proto_version, 1, 2},
-	{ssl_commandhandlers+17, "ssl_server_min_proto_version", h_server_min_proto_version, 1, 2},
-	{ssl_commandhandlers+18, "ssl_client_max_proto_version", h_client_max_proto_version, 1, 2},
-	{ssl_commandhandlers+19, "ssl_server_max_proto_version", h_server_max_proto_version, 1, 2},
-	{ssl_commandhandlers+20, "ssl_client_verify", h_client_verify, 1, 1},
-	{ssl_commandhandlers+21, "ssl_client_no_verify", h_no_client_verify, 1, 1},
-	{ssl_commandhandlers+22, "ssl_cli", h_cli, 1, 1},
-	{ssl_commandhandlers+23, "ssl_nocli", h_nocli, 1, 1},
-	{ssl_commandhandlers+24, "ssl_client_cert", h_clicert, 1, 2},
-	{ssl_commandhandlers+25, "ssl_client_key", h_clikey, 1, 2},
-	{ssl_commandhandlers+26, "ssl_server", h_serv, 1, 1},
-	{ssl_commandhandlers+27, "ssl_noserver", h_noserv, 1, 1},
-	{ssl_commandhandlers+28, "ssl_client", h_cli, 1, 1},
-	{ssl_commandhandlers+29, "ssl_noclient", h_nocli, 1, 1},
-	{ssl_commandhandlers+30, "ssl_server_verify", h_server_verify, 1, 1},
-	{ssl_commandhandlers+31, "ssl_server_no_verify", h_no_server_verify, 1, 1},
-	{ssl_commandhandlers+32, "ssl_server_ca_dir", h_server_ca_dir, 1, 2},
-	{ssl_commandhandlers+33, "ssl_server_ca_store", h_server_ca_store, 1, 2},
-	{ssl_commandhandlers+34, "ssl_client_sni", h_client_sni, 1, 2},
-	{ssl_commandhandlers+35, "ssl_client_alpn", h_client_alpn, 1, 0},
-	{ssl_commandhandlers+36, "ssl_client_mode", h_client_mode, 1, 2},
-	{NULL, "ssl_certcache", h_certcache, 2, 2},
-};
 
 static struct symbol ssl_symbols[] = {
         {NULL, "ssl_parent", (void *)&ssl_parent},
@@ -1241,8 +1201,6 @@ void ssl_install(void){
 	if(!ssl_loaded){
 		ssl_loaded = 1;
 		ssl_init();
-		ssl_commandhandlers[(sizeof(ssl_commandhandlers)/sizeof(struct commands))-1].next = pl->commandhandlers->next;
-		pl->commandhandlers->next = ssl_commandhandlers;
 		ssl_symbols[0].next = pl->symbols.next;
 		pl->symbols.next = ssl_symbols;
 	}

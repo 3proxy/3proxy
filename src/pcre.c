@@ -370,7 +370,7 @@ static void pcre_filter_close(void *fo){
 	pcre_data_free((struct pcre_filter_data *)fo);
 }
 
-static int h_pcre(int argc, unsigned char **argv){
+int h_pcre(int argc, unsigned char **argv){
 	int action = 0;
 	pcre2_code *re = NULL;
 	pcre2_match_data *match_data = NULL;
@@ -484,7 +484,7 @@ static int h_pcre(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_pcre_rewrite(int argc, unsigned char **argv){
+int h_pcre_rewrite(int argc, unsigned char **argv){
 	int action = 0;
 	pcre2_code *re = NULL;
 	pcre2_match_data *match_data = NULL;
@@ -598,7 +598,7 @@ static int h_pcre_rewrite(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_pcre_extend(int argc, unsigned char **argv){
+int h_pcre_extend(int argc, unsigned char **argv){
 	struct ace *acl;
 	if(!pcre_last_filter || !pcre_last_filter->data) return 1;
 	acl = ((struct pcre_filter_data *)pcre_last_filter->data)->acl;
@@ -609,7 +609,7 @@ static int h_pcre_extend(int argc, unsigned char **argv){
 	return 0;
 }
 
-static int h_pcre_options(int argc, unsigned char **argv){
+int h_pcre_options(int argc, unsigned char **argv){
 	int i,j;
 
 	pcre_options = 0;
@@ -621,13 +621,6 @@ static int h_pcre_options(int argc, unsigned char **argv){
 	return 0;
 }
 
-
-static struct commands pcre_commandhandlers[] = {
-	{pcre_commandhandlers+1, "pcre", h_pcre, 4, 0},
-	{pcre_commandhandlers+2, "pcre_rewrite", h_pcre_rewrite, 5, 0},
-	{pcre_commandhandlers+3, "pcre_extend", h_pcre_extend, 2, 0},
-	{NULL, "pcre_options", h_pcre_options, 2, 0}
-};
 
 static struct symbol regexp_symbols[] = {
 	{regexp_symbols+1, "pcre2_compile", (void*) pcre2_compile},
@@ -646,8 +639,6 @@ void pcre_install(void){
 		_3proxy_mutex_init(&pcre_mutex);
 		regexp_symbols[2].next = pl->symbols.next;
 		pl->symbols.next = regexp_symbols;
-		pcre_commandhandlers[3].next = pl->commandhandlers->next;
-		pl->commandhandlers->next = pcre_commandhandlers;
 		pcre_first_filter.next = pl->conf->filters;
 		pl->conf->filters = &pcre_first_filter;
 	}
