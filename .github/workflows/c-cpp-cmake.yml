@@ -64,7 +64,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - name: Install wolfSSL
-      run: sudo apt install -y libwolfssl-dev
+      run: sudo apt-get update && sudo apt-get install -y libwolfssl-dev
     - name: make with CMake (wolfSSL preferred)
       run: |
        mkdir build
