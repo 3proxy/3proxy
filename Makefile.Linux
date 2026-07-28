@@ -9,12 +9,12 @@ PREFIX ?= 3proxy_
 CRYPT_PREFIX ?= $(PREFIX)
 CC ?= gcc
 
-CFLAGS ?= -O3 -flto -fPIC
+CFLAGS ?= -O3 -flto
 CFLAGS += -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER -D WITH_UN
 COUT = -o 
 LN ?= ${CC}
-DCFLAGS ?= 
-LDFLAGS ?= -O3 -flto -fPIC
+DCFLAGS ?= -fPIC
+LDFLAGS ?= -O3 -flto
 LDFLAGS += -fno-strict-aliasing -pthread
 DLFLAGS ?= -shared
 DLSUFFICS = .ld.so

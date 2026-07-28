@@ -3,7 +3,7 @@ all: $(BUILDDIR)TransparentPlugin$(DLSUFFICS)
 
 
 transparent_plugin$(OBJSUFFICS): transparent_plugin.c
-	$(CC) $(DCFLAGS) $(CFLAGS) transparent_plugin.c
+	$(CC) $(CFLAGS) $(DCFLAGS) transparent_plugin.c
 
 
 $(BUILDDIR)TransparentPlugin$(DLSUFFICS): transparent_plugin$(OBJSUFFICS)
