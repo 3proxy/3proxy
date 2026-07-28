@@ -391,6 +391,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	if(conf.stringtable){
 		*ptr++ = PW_NAS_IDENTIFIER;
 		len = strlen((char *)conf.stringtable[SERVICES+param->service]);
+		if(len > 253) len = 253;
 		*ptr++ = (2 + len);
 		memcpy(ptr, conf.stringtable[SERVICES+param->service], len);
 		ptr += len;
@@ -416,6 +417,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	if(param->hostname){
 		*ptr++ = PW_CALLED_STATION_ID;
 		len = strlen((char *)param->hostname);
+		if(len > 253) len = 253;
 		*ptr++ = (2 + len);
 		memcpy(ptr, param->hostname, len);
 		ptr += len;

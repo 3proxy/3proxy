@@ -507,6 +507,11 @@ int parsehostname(char *hostname, struct clientparam *param, uint16_t port){
 		*SAPORT(&param->req) = htons(port);
 		return 0;
 	}
+	if(strlen(hostname + (se!=0)) > 253){
+		if(se) *se = ']';
+		if(sp) *sp = ':';
+		return 1;
+	}
 	if(hostname != (char *)param->hostname){
 		if(param->hostname) free(param->hostname);
 		param->hostname = (unsigned char *)strdup(hostname + (se!=0));
