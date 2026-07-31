@@ -3,7 +3,8 @@
 #
 # Examples are for podman. For docker change 'podman' to 'docker'.
 #
-# This is busybox based docker with only 3proxy static executable.
+# This is a scratch-based docker with statically linked 3proxy executable
+# built against musl and wolfSSL.
 #
 # Limitations for minimal version:
 # no support for plugins and system resolver.
@@ -15,7 +16,7 @@
 #
 # Run example:
 #
-# podman run --read-only -i -p 3129:3129 --name 3proxy 3proxy.minimal  
+# podman run --read-only -i -p 3129:3129 --name 3proxy 3proxy.minimal
 #or
 # podman start -ai 3proxy
 #<nserver 8.8.8.8
@@ -25,12 +26,29 @@
 #<end
 #
 
-FROM docker.io/gcc AS buildenv
+FROM docker.io/alpine:latest AS wolfssl
+RUN apk add --no-cache build-base curl autoconf automake libtool
+RUN TAG=$(curl -s https://api.github.com/repos/wolfSSL/wolfssl/releases/latest \
+          | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p') && \
+    echo "wolfssl tag: $TAG" && \
+    curl -sL https://api.github.com/repos/wolfSSL/wolfssl/tarball/$TAG -o /tmp/w.tar.gz && \
+    mkdir /src && tar -xzf /tmp/w.tar.gz -C /src --strip-components=1 && \
+    cd /src && \
+    autoreconf -i && \
+    ./configure --enable-opensslextra --enable-opensslall --enable-certgen \
+                --enable-tls13 --enable-sni --enable-session-ticket \
+                --enable-static --disable-shared --prefix=/usr/local && \
+    make -j$(nproc) && make install
+
+FROM docker.io/alpine:latest AS buildenv
+RUN apk add --no-cache gcc make musl-dev
+COPY --from=wolfssl /usr/local /usr/local
 COPY . 3proxy
-RUN cd 3proxy &&\
- make -f Makefile.Linux STATIC=true &&\
+RUN cd 3proxy && mkdir -p bin &&\
+ make -f Makefile.Linux STATIC=true WOLFSSL_CHECK=true \
+      LDFLAGS="-static -L/usr/local/lib" &&\
  strip bin/3proxy
- 
+
 FROM scratch
 COPY --from=buildenv 3proxy/bin/3proxy /bin/3proxy
 CMD ["/bin/3proxy"]

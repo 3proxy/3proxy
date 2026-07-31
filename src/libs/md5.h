@@ -44,6 +44,13 @@ typedef struct {
 	MD5_u32plus block[16];
 } MD5_CTX;
 
+/* Remap public symbols to a 3proxy-private namespace so the bundled
+   implementation does not collide with OpenSSL/libcrypto's MD5 symbols
+   when statically linked. Callers keep using the MD5_* names. */
+#define MD5_Init    _3proxy_MD5_Init
+#define MD5_Update  _3proxy_MD5_Update
+#define MD5_Final   _3proxy_MD5_Final
+
 extern void MD5_Init(MD5_CTX *ctx);
 extern void MD5_Update(MD5_CTX *ctx, const void *data, unsigned long size);
 extern void MD5_Final(unsigned char *result, MD5_CTX *ctx);

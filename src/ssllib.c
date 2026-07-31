@@ -45,8 +45,6 @@ static char hexMap[] = {
                           '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
                         };
 
-static BIO *bio_err=NULL;
-
 
 
 char * getSSLErr(){
@@ -94,25 +92,13 @@ static int add_ext(X509 *cert, int nid, char *value)
 	return 1;
 }
 
-void del_ext(X509 *dst_cert, int nid, int where){
-	int ex;
-
-	ex = X509_get_ext_by_NID(dst_cert, nid, where);
-	if(ex>=0){
-		X509_EXTENSION *ext;
-		if((ext = X509_delete_ext(dst_cert, ex))) X509_EXTENSION_free(ext);
-	}
-
-}
-
 SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 {
 	int err = -1;
+	int san_idx;
 	BIO *fcache;
 	X509 *src_cert = (X509 *) cert;
 	X509 *dst_cert = NULL;
-
-	EVP_PKEY *pk = NULL;
 
 	unsigned char hash_sha256[32];
 	char hash_name_sha256[(16*2) + 1];
@@ -142,27 +128,35 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 		}
 	    }
 	}
-	/* proceed if certificate is not cached */
-	dst_cert = X509_dup(src_cert);
+	/* Build a fresh certificate instead of duplicating the source: only
+	 * the fields required for a usable server cert are copied (version,
+	 * serial, subject, validity, SAN). This avoids inheriting upstream
+	 * extensions (AKI, CRL dist points, certificate policies, ...) that
+	 * break chain validation, and works around wolfSSL's no-op
+	 * X509_delete_ext compat shim. */
+	dst_cert = X509_new();
 	if ( dst_cert == NULL ) {
 		return NULL;
 	}
-	del_ext(dst_cert, NID_crl_distribution_points, -1);
-	del_ext(dst_cert, NID_info_access, -1);
-	del_ext(dst_cert, NID_authority_key_identifier, -1);
-	del_ext(dst_cert, NID_certificate_policies, 0);
-
+	X509_set_version(dst_cert, X509_get_version(src_cert));
+	X509_set_serialNumber(dst_cert, X509_get_serialNumber(src_cert));
+	if(!X509_set_subject_name(dst_cert, X509_get_subject_name(src_cert))
+	|| !X509_set_issuer_name(dst_cert, X509_get_subject_name(config->CA_cert))){
+		X509_free(dst_cert);
+		return NULL;
+	}
 	err = X509_set_pubkey(dst_cert, config->server_key?config->server_key:config->CA_key);
 	if ( err == 0 ) {
 		X509_free(dst_cert);
 		return NULL;
 	}
-
-
-	err = X509_set_issuer_name(dst_cert, X509_get_subject_name(config->CA_cert));
-	if(!err){
-		X509_free(dst_cert);
-		return NULL;
+	X509_set_notBefore(dst_cert, X509_get_notBefore(src_cert));
+	X509_set_notAfter(dst_cert, X509_get_notAfter(src_cert));
+	san_idx = X509_get_ext_by_NID(src_cert, NID_subject_alt_name, -1);
+	if(san_idx >= 0){
+	    X509_EXTENSION *san;
+	    san = X509_get_ext(src_cert, san_idx);
+	    if(san) X509_add_ext(dst_cert, san, -1);
 	}
 	err = X509_sign(dst_cert, config->CA_key, EVP_sha256());
 	if(!err){
@@ -229,6 +223,14 @@ void _ssl_cert_free(SSL_CERT cert)
 
 
 
+/* OpenSSL before 1.1.0 requires the application to install threading
+   callbacks; OpenSSL >= 1.1.0 and wolfSSL handle locking internally. */
+#if !defined(WITH_WOLFSSL) && defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x10100000L
+#define LEGACY_SSL_THREADING 1
+#else
+#define LEGACY_SSL_THREADING 0
+#endif
+
 /* This array will store all of the mutexes available to OpenSSL. */
 static _3proxy_mutex_t *mutex_buf= NULL;
 
@@ -252,6 +254,7 @@ static unsigned long id_function(void)
 
 int thread_setup(void)
 {
+#if LEGACY_SSL_THREADING
   int i;
 
   mutex_buf = malloc(CRYPTO_num_locks(  ) * sizeof(_3proxy_mutex_t));
@@ -262,10 +265,14 @@ int thread_setup(void)
   CRYPTO_set_id_callback(id_function);
   CRYPTO_set_locking_callback(locking_function);
   return 1;
+#else
+  return 1;
+#endif
 }
 
 int thread_cleanup(void)
 {
+#if LEGACY_SSL_THREADING
   int i;
 
   if (!mutex_buf)
@@ -277,6 +284,9 @@ int thread_cleanup(void)
   free(mutex_buf);
   mutex_buf = NULL;
   return 1;
+#else
+  return 1;
+#endif
 }
 
 
@@ -291,9 +301,14 @@ void ssl_init()
 
 	    ssl_init_done = 1;
 	    thread_setup();
+#ifdef WITH_WOLFSSL
+	    wolfSSL_Init();
+#elif defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+	    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+#else
 	    SSLeay_add_ssl_algorithms();
 	    SSL_load_error_strings();
+#endif
 	    _3proxy_mutex_init(&ssl_file_mutex);
-	    bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
     	}
 }

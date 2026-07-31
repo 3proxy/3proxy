@@ -490,6 +490,24 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx){
     return preverify_ok;
 }
 
+#ifdef WITH_WOLFSSL
+/* wolfSSL's SSL_CTX_use_PrivateKey(EVP_PKEY*) compat is unreliable: it
+ * silently fails (returns 0, no error queued) for keys loaded via
+ * PEM_read_bio_PrivateKey. Export the key to DER and load via the
+ * native buffer API instead. */
+static int ssl_ctx_use_pkey(SSL_CTX *ctx, EVP_PKEY *key){
+    unsigned char *der = NULL;
+    int len, rc;
+    len = i2d_PrivateKey(key, &der);
+    if(len <= 0 || !der) return 0;
+    rc = wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, (long)len, SSL_FILETYPE_ASN1);
+    OPENSSL_free(der);
+    return rc;
+}
+#else
+#define ssl_ctx_use_pkey(ctx, key) SSL_CTX_use_PrivateKey((ctx), (key))
+#endif
+
 
 SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_key, char** errSSL){
     SSL_CTX *ctx;
@@ -516,11 +534,18 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
 	}
     }
 
-    err = SSL_CTX_use_PrivateKey(ctx, server_key);
-    if ( err <= 0 ) {
-	*errSSL = getSSLErr();
-	SSL_CTX_free(ctx);
-	return NULL;
+    /* Load the private key only when a cert is already loaded into ctx.
+     * wolfSSL validates the key against the cert and requires the cert
+     * to be present first; OpenSSL tolerates either order but is happy
+     * with cert-first too. When server_cert is NULL (serv path), the
+     * caller loads the cert chain and the key itself after this call. */
+    if(server_cert) {
+	err = ssl_ctx_use_pkey(ctx, server_key);
+	if ( err <= 0 ) {
+	    *errSSL = getSSLErr();
+	    SSL_CTX_free(ctx);
+	    return NULL;
+	}
     }
     SSL_CTX_set_session_id_context(ctx, (const unsigned char *)"3proxy", 6);
     if(config->server_min_proto_version)SSL_CTX_set_min_proto_version(ctx, config->server_min_proto_version);
@@ -655,6 +680,10 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		fprintf(stderr, "failed to read server cert: %s\n", srvcert);
 		return sc;
 	    }
+	    if(ssl_ctx_use_pkey(sc->cli_ctx, sc->server_key) <= 0){
+		fprintf(stderr, "failed to use server key\n");
+		return sc;
+	    }
 	    sc->serv = 1;
 	}
 	if(mitm || cli || serv){
@@ -678,7 +707,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    }
 	    if(sc->client_cert){
 		SSL_CTX_use_certificate(sc->srv_ctx, (X509 *) sc->client_cert);
-		SSL_CTX_use_PrivateKey(sc->srv_ctx, sc->client_key);
+		ssl_ctx_use_pkey(sc->srv_ctx, sc->client_key);
 	    }
 	    if(sc->client_min_proto_version)SSL_CTX_set_min_proto_version(sc->srv_ctx, sc->client_min_proto_version);
 	    if(sc->client_max_proto_version)SSL_CTX_set_max_proto_version(sc->srv_ctx, sc->client_max_proto_version);
@@ -705,6 +734,15 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		    SSL_CTX_set_default_verify_paths(sc->srv_ctx);
 		    SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
+#ifdef WITH_WOLFSSL
+	    else {
+		/* wolfSSL defaults to peer verification; OpenSSL defaults to
+		 * SSL_VERIFY_NONE. Make the no-verify intent explicit so the
+		 * upstream handshake (ssl_cli / ssl_mitm) succeeds without a
+		 * trusted CA store. */
+		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_NONE, NULL);
+	    }
+#endif
 	}
 #ifdef WITHSPLICE
 	srv->usesplice = 0;

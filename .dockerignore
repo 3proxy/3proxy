@@ -1,0 +1,73 @@
+# Exclude top-level dirs not needed for build
+/bin/
+/bin64/
+/build/
+/cfg/
+/cmake/
+/CMakeFiles/
+/debian/
+/doc/
+/man/
+
+# Build artifacts
+**/*.o
+**/*.obj
+**/*.so
+**/*.dll
+**/*.exe
+**/*.exp
+**/*.lib
+**/*.pdb
+**/*.ilk
+**/*.idb
+**/*.err
+**/*.ld.so
+**/*.dSYM
+**/*.var
+build*/
+buildlinux.sh
+tmp/
+
+# macOS
+.DS_Store
+
+# Editor / IDE
+**/*.swp
+**/*.swo
+**/*~
+**/*.bak
+**/*.tmp
+**/*.log
+.project
+.cproject
+.classpath
+.settings/
+.vscode/
+.idea/
+
+# Git
+.git
+.gitignore
+
+# Claude / docs
+CLAUDE.md
+.claude/
+
+# Generated version files
+version
+version.c
+version.sh
+verfile.sh
+
+# Local config / keys
+**/*.key
+**/*.pem
+**/*.pfx
+3proxy.cfg
+3proxy-ssl.cfg
+3proxy-pcre.cfg
+
+# Misc
+res
+3proxy.res
+copytgz.sh

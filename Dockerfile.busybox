@@ -1,4 +1,5 @@
-# 3proxy.full is fully functional 3proxy build based on busybox:glibc
+# 3proxy.busybox is fully functional 3proxy build based on busybox:musl
+# built against wolfSSL and PCRE2.
 #
 # Examples are for podman, for docker change 'podman' to 'docker'
 #
@@ -19,11 +20,27 @@
 # configuration is supported for compatibility only.
 
 
-FROM docker.io/gcc AS buildenv
+FROM docker.io/alpine:latest AS wolfssl
+RUN apk add --no-cache build-base curl autoconf automake libtool
+RUN TAG=$(curl -s https://api.github.com/repos/wolfSSL/wolfssl/releases/latest \
+          | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p') && \
+    echo "wolfssl tag: $TAG" && \
+    curl -sL https://api.github.com/repos/wolfSSL/wolfssl/tarball/$TAG -o /tmp/w.tar.gz && \
+    mkdir /src && tar -xzf /tmp/w.tar.gz -C /src --strip-components=1 && \
+    cd /src && \
+    autoreconf -i && \
+    ./configure --enable-opensslextra --enable-opensslall --enable-certgen \
+                --enable-tls13 --enable-sni --enable-session-ticket \
+                --enable-static --disable-shared --prefix=/usr/local && \
+    make -j$(nproc) && make install
+
+FROM docker.io/alpine:latest AS buildenv
+RUN apk add --no-cache gcc make musl-dev pcre2-dev
+COPY --from=wolfssl /usr/local /usr/local
 COPY . 3proxy
-RUN cd 3proxy &&\
- apt --assume-yes update && apt --assume-yes install libssl-dev libpcre2-dev &&\
- make -f Makefile.Linux LIBSTATIC=true PAM_CHECK=false &&\
+RUN cd 3proxy && mkdir -p bin &&\
+ make -f Makefile.Linux LIBSTATIC=true PAM_CHECK=false WOLFSSL_CHECK=true \
+      LDFLAGS="-L/usr/local/lib" &&\
  strip bin/3proxy &&\
  strip bin/*so &&\
  mkdir /dist &&\
@@ -42,11 +59,9 @@ RUN cd /dist &&\
  ln -s /lib lib64 &&\
  ln -s /lib usr/lib &&\
  ln -s /lib usr/lib64
-RUN cp /lib/ld-*.so.* /dist/usr/local/3proxy/libexec || true
-RUN cp /lib64/ld-*.so.* /dist/usr/local/3proxy/libexec || true
-RUN cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec
+RUN cp /lib/ld-musl-*.so.* /dist/usr/local/3proxy/libexec || true
 
-FROM docker.io/busybox:glibc
+FROM docker.io/busybox:musl
 COPY --from=buildenv /dist /
-RUN ln -sf /usr/local/3proxy/libexec/* /lib/ && cd /usr/local/3proxy/ && ln -s libexec lib && ln -s libexec lib64 && mkdir usr && ln -s libexec usr/lib && ln -s libexec usr//lib64
+RUN mkdir -p /lib /lib64 && ln -sf /usr/local/3proxy/libexec/* /lib/ && cd /usr/local/3proxy/ && ln -s libexec lib && ln -s libexec lib64 && mkdir usr && ln -s libexec usr/lib && ln -s libexec usr/lib64
 CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]

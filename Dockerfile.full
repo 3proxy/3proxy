@@ -23,6 +23,7 @@ FROM docker.io/gcc AS buildenv
 COPY . 3proxy
 RUN cd 3proxy &&\
  apt --assume-yes update && apt --assume-yes install libssl-dev libpcre2-dev &&\
+ mkdir -p bin &&\
  make -f Makefile.Linux LIBSTATIC=true PAM_CHECK=false &&\
  strip bin/3proxy &&\
  mkdir /dist &&\

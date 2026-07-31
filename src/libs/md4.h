@@ -48,6 +48,13 @@ typedef struct {
 #endif
 } MD4_CTX;
 
+/* Remap public symbols to a 3proxy-private namespace so the bundled
+   implementation does not collide with OpenSSL/libcrypto's MD4 symbols
+   when statically linked. Callers keep using the MD4_* names. */
+#define MD4_Init    _3proxy_MD4_Init
+#define MD4_Update  _3proxy_MD4_Update
+#define MD4_Final   _3proxy_MD4_Final
+
 extern void MD4_Init(MD4_CTX *ctx);
 extern void MD4_Update(MD4_CTX *ctx, const void *data, size_t size);
 extern void MD4_Final(unsigned char *result, MD4_CTX *ctx);
