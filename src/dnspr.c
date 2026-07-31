@@ -222,7 +222,6 @@ CLEANRET:
 #ifndef _WIN32
  param->clisock = INVALID_SOCKET;
 #endif
- freeparam(param);
  return (NULL);
 }
 

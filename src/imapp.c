@@ -64,7 +64,7 @@ void * imappchild(struct clientparam* param) {
 		if(socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]) <= 0) {RETURN(698);}
 		param->clientstarttls = S_IMAPP;
 		if(!param->srv->targetport) param->srv->targetport = htons(143);
-		return tlsprchild(param);
+		return (void *)tlsprchild;
 	}
 #endif
 	if(!strncasecmp((char *)cmd, "LOGIN ", 6)){
@@ -238,7 +238,6 @@ CLEANRET:
 		socksend(param, param->clisock, buf, (int)strlen((char *)buf),conf.timeouts[STRING_S]);
 	}
  }
- freeparam(param);
  return (NULL);
 }
 

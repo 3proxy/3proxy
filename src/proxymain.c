@@ -13,13 +13,19 @@
 
 /* Child functions do not call each other, a child requesting redirection to
    another child returns it instead of calling it, to keep the stack flat.
-   NULL is returned by the child which completed the request, it has already
-   released param and it must not be accessed after the call.
+   The child which completed the request returns NULL. param is logged by
+   the child and released here.
  */
 void * childfunc(struct clientparam * param){
  PROXYFUNC pf = param->srv->pf;
+ int i;
 
- while(pf) pf = (PROXYFUNC)(*pf)(param);
+ for(i = 0; pf && i < MAXCHILDREDIRECTS; i++) pf = (PROXYFUNC)(*pf)(param);
+ if(pf){
+	param->res = 101;
+	dolog(param, (unsigned char *)"Redirection loop");
+ }
+ freeparam(param);
  return NULL;
 }
 
@@ -133,7 +139,7 @@ void * threadfunc (void *p) {
 		}
 	    }
 	}
-	((struct clientparam *) p)->srv->pf((struct clientparam *)p);
+	childfunc((struct clientparam *)p);
  }
 #ifdef _WIN32
  return 0;
@@ -701,7 +707,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		return 2;
 	};
 	*newparam = defparam;
-	return((*srv.pf)((void *)newparam)? 1:0);
+	return(childfunc(newparam)? 1:0);
 	
  }
 #endif

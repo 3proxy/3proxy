@@ -325,7 +325,6 @@ CLEANRET:
  }
  if(req) free(req);
  if(buf) free(buf);
- freeparam(param);
  return (NULL);
 }
 

@@ -396,7 +396,7 @@ void * tlsprchild(struct clientparam* param) {
         if(action != PASS) RETURN(19);
  }
  if(param->redirectfunc && param->redirectfunc != tlsprchild){
-    return (*param->redirectfunc)(param);
+    return (void *)param->redirectfunc;
  }
 
  if(stlsproto){
@@ -471,7 +471,6 @@ CLEANRET:
  
  sprintf(req, "%sv%d.%d %s %s", lv<0?"NONE":lv?"TLS":"SSL", lv<0?0:lv?1:3, lv<0?0:lv?lv-1:0, param->hostname?(char *)param->hostname:"-", proto);
  dolog(param, (unsigned char *)req);
- freeparam(param);
  return (NULL);
 }
 

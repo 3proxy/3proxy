@@ -385,9 +385,8 @@ fflush(stderr);
 		switch(command) {
 			case 1:
 				if(param->redirectfunc){
-					void *ret = (*param->redirectfunc)(param);
 					if(buf)free(buf);
-					return ret;
+					return (void *)param->redirectfunc;
 				}
 				param->res = mapsocket(param, conf.timeouts[CONNECTION_L]);
 				break;
@@ -467,7 +466,6 @@ fflush(stderr);
 	 dolog(param, buf);
 	 free(buf);
  }
- freeparam(param);
  return (NULL);
 }
 

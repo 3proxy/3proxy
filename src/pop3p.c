@@ -38,7 +38,7 @@ void * pop3pchild(struct clientparam* param) {
 		if(socksend(param, param->clisock, (unsigned char *)"+OK Begin TLS negotiation\r\n", 27, conf.timeouts[STRING_S])!=27) {RETURN(623);}
 		param->clientstarttls = S_POP3P;
 		if(!param->srv->targetport) param->srv->targetport = htons(110);
-		return tlsprchild(param);
+		return (void *)tlsprchild;
 	}
 #endif
 	socksend(param, param->clisock, (unsigned char *)"-ERR need USER first\r\n", 22, conf.timeouts[STRING_S]);
@@ -74,7 +74,6 @@ CLEANRET:
  if(param->clisock != INVALID_SOCKET) {
 	if ((param->res > 0 && param->res < 100) || (param->res > 611 && param->res <700)) socksend(param, param->clisock, (unsigned char *)"-ERR\r\n", 6,conf.timeouts[STRING_S]);
  }
- freeparam(param);
  return (NULL);
 }
 

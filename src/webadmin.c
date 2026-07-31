@@ -615,6 +615,5 @@ CLEANRET:
  if(buf) free(buf);
  dolog(param, (unsigned char *)req);
  if(req)free(req);
- freeparam(param);
  return (NULL);
 }

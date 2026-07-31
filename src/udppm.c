@@ -87,7 +87,6 @@ CLEANRET:
  _3proxy_sem_unlock(udpinit);
  dolog(param, NULL);
  param->clisock = INVALID_SOCKET;
- freeparam(param);
  return (NULL);
 }
 

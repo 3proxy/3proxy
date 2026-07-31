@@ -132,7 +132,7 @@ void * smtppchild(struct clientparam* param) {
 		if(socksend(param, param->clisock, (unsigned char *)"220 2.0.0 Ready to start TLS\r\n", 30, conf.timeouts[STRING_S])!=30) {RETURN(673);}
 		param->clientstarttls = S_SMTPP;
 		if(!param->srv->targetport) param->srv->targetport = htons(587);
-		return tlsprchild(param);
+		return (void *)tlsprchild;
 	}
 #endif
 	else if(!param->hostname) socksend(param, param->clisock, (unsigned char *)"571 need AUTH first\r\n", 22, conf.timeouts[STRING_S]);
@@ -319,7 +319,6 @@ CLEANRET:
 	if ((param->res > 0 && param->res < 100) || (param->res > 661 && param->res <700)) socksend(param, param->clisock, (unsigned char *)"571 \r\n", 6,conf.timeouts[STRING_S]);
  }
  if(command) free(command);
- freeparam(param);
  return (NULL);
 }
 

@@ -112,6 +112,18 @@ void daemonize(void);
 #endif
 #endif
 
+/* Keeps a callee with a large frame out of the caller's frame, e.g. the
+   8K log buffer of logstdout() out of dolog(), which calls it in a branch
+   taken only when there is no service.
+ */
+#if defined(__GNUC__)
+#define NOINLINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE
+#endif
+
 /* Thread stack size, stacksize command value is added to it. BSD libc uses
    significantly more stack, e.g. in vfprintf() called by syslog().
  */
@@ -213,7 +225,7 @@ void dolog(struct clientparam * param, const unsigned char *s);
 int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 extern FILE * stdlog;
-void logstdout(struct clientparam * param, const unsigned char *s);
+NOINLINE void logstdout(struct clientparam * param, const unsigned char *s);
 void logsyslog(struct clientparam * param, const unsigned char *s);
 void lognone(struct clientparam * param, const unsigned char *s);
 void logradius(struct clientparam * param, const unsigned char *s);
@@ -357,6 +369,13 @@ void * udppmchild(struct clientparam * param);
 void * adminchild(struct clientparam * param);
 void * ftpprchild(struct clientparam * param);
 void * tlsprchild(struct clientparam * param);
+/* Child functions return the child to redirect the request to, or NULL if
+   the request is complete. childfunc() calls them and releases param.
+   Recursive redirection, e.g. a socks service redirected to socks5, used to
+   be limited by the stack size only, MAXCHILDREDIRECTS limits it now.
+ */
+#define MAXCHILDREDIRECTS 16
+void * childfunc(struct clientparam * param);
 
 
 struct datatype;

@@ -72,6 +72,18 @@ static size_t bin2hex (const unsigned char* bin, size_t bin_length, char* str, s
 	return p - str;
 }
 
+static int copy_ext(X509 *dst_cert, X509 *src_cert, int nid)
+{
+	X509_EXTENSION *ext;
+	int idx;
+
+	idx = X509_get_ext_by_NID(src_cert, nid, -1);
+	if(idx < 0) return 0;
+	if(!(ext = X509_get_ext(src_cert, idx))) return 0;
+	return X509_add_ext(dst_cert, ext, -1) > 0;
+}
+
+#ifndef WITH_WOLFSSL
 static int add_ext(X509 *cert, int nid, const char *value)
 {
 	X509_EXTENSION *ex;
@@ -93,11 +105,11 @@ static int add_ext(X509 *cert, int nid, const char *value)
 	X509_EXTENSION_free(ex);
 	return err > 0;
 }
+#endif
 
 SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 {
 	int err = -1;
-	int san_idx;
 	BIO *fcache;
 	X509 *src_cert = (X509 *) cert;
 	X509 *dst_cert = NULL;
@@ -153,7 +165,11 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 		X509_free(dst_cert);
 		return NULL;
 	}
-#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER < 0x10100000L
+/* wolfSSL has no X509_set1_notBefore/X509_set1_notAfter before 5.7.2,
+   X509_set_notBefore/X509_set_notAfter are available in every version and
+   copy the time the same way.
+ */
+#if defined(WITH_WOLFSSL) || OPENSSL_VERSION_NUMBER < 0x10100000L
 	if(!X509_set_notBefore(dst_cert, X509_get_notBefore(src_cert))
 	|| !X509_set_notAfter(dst_cert, X509_get_notAfter(src_cert))){
 #else
@@ -163,26 +179,30 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 		X509_free(dst_cert);
 		return NULL;
 	}
-	san_idx = X509_get_ext_by_NID(src_cert, NID_subject_alt_name, -1);
-	if(san_idx >= 0){
-	    X509_EXTENSION *san;
-	    san = X509_get_ext(src_cert, san_idx);
-	    if(san && !X509_add_ext(dst_cert, san, -1)){
-		X509_free(dst_cert);
-		return NULL;
-	    }
-	}
-	/* Extensions required from an end entity certificate. Without EKU
-	 * serverAuth Apple's TLS stack (and Chrome on macOS/iOS, which uses it)
-	 * rejects the certificate. keyUsage is intentionally not set: it depends
-	 * on the type of the key being reused for every generated certificate,
-	 * and an absent keyUsage places no restriction.
+	/* Copy the extensions an end entity certificate is expected to have.
+	 * The extensions which break chain validation (AKI, CRL distribution
+	 * points, certificate policies, ...) are intentionally not copied.
+	 * A copy may fail: wolfSSL keeps extKeyUsage in its own form and can
+	 * not add back the one it returns, it is not fatal.
 	 */
-	if(!add_ext(dst_cert, NID_basic_constraints, "critical,CA:FALSE")
-	|| !add_ext(dst_cert, NID_ext_key_usage, "serverAuth")){
-		X509_free(dst_cert);
-		return NULL;
-	}
+	copy_ext(dst_cert, src_cert, NID_subject_alt_name);
+#ifndef WITH_WOLFSSL
+	/* Without EKU serverAuth Apple's TLS stack (and Chrome on macOS/iOS,
+	 * which uses it) rejects the certificate, generate the extensions the
+	 * server certificate has no usable ones to copy. keyUsage is not set:
+	 * it depends on the type of the key reused for every generated
+	 * certificate, and an absent keyUsage places no restriction.
+	 * wolfSSL_X509V3_EXT_conf_nid() is a stub returning NULL in every
+	 * wolfSSL version, the extensions can not be generated there.
+	 */
+	if(!copy_ext(dst_cert, src_cert, NID_basic_constraints))
+		add_ext(dst_cert, NID_basic_constraints, "critical,CA:FALSE");
+	if(!copy_ext(dst_cert, src_cert, NID_ext_key_usage))
+		add_ext(dst_cert, NID_ext_key_usage, "serverAuth");
+#else
+	copy_ext(dst_cert, src_cert, NID_basic_constraints);
+	copy_ext(dst_cert, src_cert, NID_ext_key_usage);
+#endif
 	err = X509_sign(dst_cert, config->CA_key, EVP_sha256());
 	if(!err){
 		X509_free(dst_cert);
@@ -256,9 +276,9 @@ void _ssl_cert_free(SSL_CERT cert)
 #define LEGACY_SSL_THREADING 0
 #endif
 
+#if LEGACY_SSL_THREADING
 /* This array will store all of the mutexes available to OpenSSL. */
 static _3proxy_mutex_t *mutex_buf= NULL;
-
 
 static void locking_function(int mode, int n, const char * file, int line)
 {
@@ -276,6 +296,7 @@ static unsigned long id_function(void)
   return ((unsigned long)pthread_self());
 #endif
 }
+#endif
 
 int thread_setup(void)
 {

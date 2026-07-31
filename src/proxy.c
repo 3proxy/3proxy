@@ -864,7 +864,7 @@ for(;;){
  if(isconnect && param->redirtype != R_HTTP) {
 	if(param->redirectfunc) {
 		freeptr(&req); freeptr(&buf); freeptr(&ftpbase);
-		return (*param->redirectfunc)(param);
+		return (void *)param->redirectfunc;
 	}
 	param->res =  mapsocket(param, conf.timeouts[CONNECTION_L]);
 	RETURN(param->res);
@@ -1226,7 +1226,6 @@ CLEANRET:
  }
  logurl(param, (char *)buf, (char *)req, ftp);
  freeptr(&req); freeptr(&buf); freeptr(&ftpbase);
- freeparam(param);
  return (NULL);
 }
 

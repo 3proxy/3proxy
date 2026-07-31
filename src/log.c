@@ -338,7 +338,7 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 	clearstat(param);
 }
 
-void logstdout(struct clientparam * param, const unsigned char *s) {
+NOINLINE void logstdout(struct clientparam * param, const unsigned char *s) {
 	FILE *log;
 	unsigned char tmpbuf[8192];
 
