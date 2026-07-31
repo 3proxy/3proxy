@@ -165,9 +165,6 @@ struct socketoptions sockopts[] = {
 #ifdef TCP_TIMESTAMPS
 	{TCP_TIMESTAMPS, "TCP_TIMESTAMPS"},
 #endif
-#ifdef USE_TCP_FASTOPEN
-	{USE_TCP_FASTOPEN, "USE_TCP_FASTOPEN"},
-#endif
 #ifdef SO_REUSEADDR
 	{SO_REUSEADDR, "SO_REUSEADDR"},
 #endif
@@ -297,6 +294,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifdef __linux__
  int saved_nsfd = -1;
 #endif
+#if !defined(PORTMAP) || !defined(NOPORTMAP)
  char loghelp[] =
 #ifdef STDMAIN
 #ifndef _WIN32
@@ -312,8 +310,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -Di(DEVICENAME) bind internal interface to device, e.g. eth1\n"
 	" -De(DEVICENAME) bind external interface to device, e.g. eth1\n"
 #endif
-#ifdef WITHSLICE
-	" -s Use slice() - faster proxing, but no filtering for data\n"
+#ifdef WITHSPLICE
+	" -s Use splice() - faster proxing, but no filtering for data\n"
 #endif
 	"-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY) - delay GRACE_DELAY milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second to minimize polling\n"
 	" -fFORMAT logging format (see documentation)\n"
@@ -335,6 +333,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" to-client (oc), to-server (os), listening (ol) socket, connect back client\n"
 	" (or) socket, connect back server (oR) listening socket\n"
 	" where possible options are: ";
+#endif
 
 #ifdef _WIN32
  unsigned long ul = 1;

@@ -34,13 +34,12 @@ static void* transparent_filter_open(void * idata, struct srvparam * param){
 
 static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * param, void** fc){
 
-	socklen_t len;
 	char addrbuf[64];
-	int i=0;
-
-	len = sizeof(param->req);
 
 #ifdef WITH_NETFILTER
+	socklen_t len;
+
+	len = sizeof(param->req);
 #ifdef SO_ORIGINAL_DST
 
 	if(getsockopt(param->clisock, 

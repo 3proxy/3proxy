@@ -14,7 +14,7 @@
 #if WITHLOG > 1
 char logbuf[1024];
 #endif
-#define log(X) dolog(param,X)
+#define log(X) dolog(param,(const unsigned char *)(X))
 #else
 #define log(X)
 #endif
@@ -47,13 +47,15 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 int sockmap(struct clientparam * param, int timeo, int usesplice){
  uint64_t fromclient=0x7fffffffffffffff, fromserver =0x7fffffffffffffff;
  uint64_t inclientbuf = 0, inserverbuf = 0;
- int FROMCLIENT = 1, TOCLIENTBUF = 1, FROMCLIENTBUF = 1, TOSERVER = 1, 
-	FROMSERVER = 1, TOSERVERBUF = 1, FROMSERVERBUF = 1, TOCLIENT = 1;
+ int FROMCLIENT = 1, TOCLIENTBUF = 1, TOSERVER = 1, 
+	FROMSERVER = 1, TOSERVERBUF = 1, TOCLIENT = 1;
+#if WITHLOG > 1
+ int FROMCLIENTBUF = 1, FROMSERVERBUF = 1;
+#endif
  int HASERROR=0;
  int CLIENTTERMREAD = 0, CLIENTTERMWRITE = 0, SERVERTERMREAD = 0, SERVERTERMWRITE = 0;
  int after = 0;
  struct pollfd fds[8];
- struct pollfd *fdsp = fds;
  int fdsc = 0;
  int sleeptime = 0;
  FILTER_ACTION action;

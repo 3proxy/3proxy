@@ -53,7 +53,6 @@ static char *client_ca_store = NULL;
 static int mitm = 0;
 static int serv = 0;
 static int cli = 0;
-static int ssl_inited = 0;
 static int client_min_proto_version = 0;
 static int client_max_proto_version = 0;
 static int server_min_proto_version = 0;
@@ -486,10 +485,6 @@ EVP_PKEY * getKey(const char *fname){
     return key;
 }
 
-static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx){
-    return preverify_ok;
-}
-
 #ifdef WITH_WOLFSSL
 /* wolfSSL's SSL_CTX_use_PrivateKey(EVP_PKEY*) compat is unreliable: it
  * silently fails (returns 0, no error queued) for keys loaded via
@@ -732,7 +727,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 #endif
 		else
 		    SSL_CTX_set_default_verify_paths(sc->srv_ctx);
-		    SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+		SSL_CTX_set_verify(sc->srv_ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
 #ifdef WITH_WOLFSSL
 	    else {

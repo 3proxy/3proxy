@@ -19,20 +19,6 @@ unsigned size16(unsigned char *buf){
     return res;
 }
 
-int readtls(struct clientparam *param, int direction, unsigned char *buf, int bufsize){
-    int res = 0;
-    int len;
-    
-    if(bufsize < 3) return -1;
-    res = sockgetlinebuf(param, direction, buf, 3, EOF, conf.timeouts[STRING_S]);
-    if(res !=3 || buf[0] != 22 || buf[1] != 3) return -2;
-    len = size16(buf+3);
-    if((len+3) > bufsize) return -3;
-    res = sockgetlinebuf(param, direction, buf+3, len, EOF, conf.timeouts[STRING_S]);
-    if(res != len) return -4;
-    return len+3;
-}
-
 #define BSIZE (4096)
 #define SNILEN (256)
 #define PROTOLEN (32)

@@ -182,7 +182,7 @@ int
 #ifdef WITH_UN
 #define PROXYSOCKADDRTYPE struct sockaddr_storage
 #else
-#ifndef NOIPv6
+#ifndef NOIPV6
 #define PROXYSOCKADDRTYPE struct sockaddr_in6
 #else
 #define PROXYSOCKADDRTYPE struct sockaddr_in
@@ -798,7 +798,7 @@ extern struct hashtable udp_table;
 
 struct authcache {
         unsigned char username[64];
-#ifndef NOIPv6
+#ifndef NOIPV6
         uint8_t sincr_addr[16];
         uint8_t sinsl_addr[16];
 #else

@@ -56,7 +56,10 @@ int readreply (struct clientparam* param) {
 
 int readcommand (struct clientparam* param) {
  unsigned char * buf;
- int res, i, bufsize = 320;
+ int i, bufsize = 320;
+#ifndef WITHMAIN
+ int res;
+#endif
  int ret = 1;
 
  if(!(buf = malloc(bufsize))) return 0;
@@ -82,7 +85,10 @@ int readcommand (struct clientparam* param) {
 
 int readdata (struct clientparam* param) {
  unsigned char * buf;
- int res, i, bufsize = 4096;
+ int i, bufsize = 4096;
+#ifndef WITHMAIN
+ int res;
+#endif
 
  if(!(buf = malloc(bufsize))) return 0;
  while ((i = sockgetlinebuf(param, CLIENT, buf, bufsize-1, '\n', conf.timeouts[STRING_L])) > 0 && !(i==3 && buf[0] == '.')){

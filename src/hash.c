@@ -36,7 +36,6 @@ void destroyhashtable(struct hashtable *ht){
 
 int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, unsigned growlimit){
     unsigned i;
-    clock_t c;
 
 #ifdef _WIN32
     struct timeb tb;
@@ -48,7 +47,6 @@ int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, u
     struct timezone tz;
     gettimeofday(&tb, &tz);
 #endif
-    c = clock();
 
     if(tablesize < 2 || poolsize < tablesize || growlimit < poolsize) return 1;
     if(ht->ihashtable){
@@ -169,7 +167,6 @@ static void hashgrow(struct hashtable *ht){
 void hashadd(struct hashtable *ht, void* name, void* value, time_t expires){
     uint32_t hen, he;
     uint32_t *hep;
-    int overwrite = 0;
     uint8_t hash[MAX_HASH_SIZE];
     uint32_t index;
     uint32_t last = 0;

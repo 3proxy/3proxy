@@ -99,7 +99,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 			   ntohs(*SAPORT(&param->req)) <= portentry->endport) {
 			break;
 		}
-		if(!portentry) return 0;
+	 if(!portentry) return 0;
 	}
 	if(acentry->wdays){
 		if(!(acentry -> wdays & wday)) return 0;
@@ -110,7 +110,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 		if(start_time >= periodentry->fromtime && start_time < periodentry->totime){
 			break;
 		}
-		if(!periodentry) return 0;
+	 if(!periodentry) return 0;
 	}
 	if(acentry->users){
 	 for(userentry = acentry->users; userentry; userentry = userentry->next)

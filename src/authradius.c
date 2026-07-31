@@ -174,17 +174,6 @@ void md5_calc(unsigned char *output, unsigned char *input,
 		     unsigned int inputlen);
 
 
-char *strNcpy(char *dest, const char *src, int n)
-{
-	if (n > 0)
-		strncpy(dest, src, n);
-	else
-		n = 1;
-	dest[n - 1] = 0;
-
-	return dest;
-}
-
 void md5_calc(unsigned char *output, unsigned char *input,
 		     unsigned int inlen)
 {
@@ -308,14 +297,12 @@ int radsend(struct clientparam * param, int auth, int stop){
 	unsigned char *ptr;
 	int total_length;
 	int len;
-	int op;
 	PROXYSOCKADDRTYPE     saremote;
 	struct pollfd fds[1];
 	char vector[AUTH_VECTOR_LEN];
 	radius_packet_t packet, rpacket;
 	SASIZETYPE salen;
 	int data_len;
-	uint8_t	*vendor_len;
 	int count=0;
 	uint8_t *attr;
 	long vendor=0;
@@ -613,7 +600,6 @@ int radsend(struct clientparam * param, int auth, int stop){
 
 		attr = rpacket.data;
 		count = total_length - 20;
-		vendor_len = 0;
 
 		while (count >= 2) {
 			if (!vendor && attr[0] == 0) {

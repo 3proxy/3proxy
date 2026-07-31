@@ -236,6 +236,12 @@ else()
     )
 endif()
 
+# Unix domain sockets off: NO_UN also undefines WITH_UN if it arrives from
+# elsewhere, e.g. CFLAGS
+if(NOT 3PROXY_USE_UNIX_SOCKETS)
+    add_compile_definitions(NO_UN)
+endif()
+
 # Common definitions
 if(WIN32)
     # Windows: use WSAPOLL

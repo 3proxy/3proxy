@@ -90,10 +90,7 @@ static int pamfunc(struct clientparam *param)
   conv.appdata_ptr = (char *) param->password;
 
   _3proxy_mutex_lock(&pam_mutex);
-  if (!pamh)
-    {
-	retval = pam_start ((char *)service, (char *)param->username, &conv, &pamh);
-    }
+  retval = pam_start ((char *)service, (char *)param->username, &conv, &pamh);
    if (retval == PAM_SUCCESS)
        retval = pam_set_item (pamh, PAM_USER, param->username); 
 /*fprintf(stderr,"pam_set_item1 rc=%d\n",retval);*/

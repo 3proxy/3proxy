@@ -28,7 +28,7 @@ static void param2hash_add(const struct hashtable *ht, void *index, uint8_t *has
 void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
     struct clientparam *param = (struct clientparam *)index;
     unsigned type = param->srv->authcachetype;
-    int len = 0, oplen = 0, acllen = 0, ulen = 0, plen = 0, hlen = 0, a1len = 0, a2len = 0, a3len = 0, p1len=0, p2len = 0;
+    int oplen = 0, acllen = 0, ulen = 0, plen = 0, hlen = 0, a1len = 0, a2len = 0, a3len = 0, p1len=0, p2len = 0;
 
 
     if((type & 2) && param->username) ulen = strlen((const char *)param->username) + 1;
@@ -74,19 +74,6 @@ void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
 	mdh_free(bctx);
     }
     memcpy(param->hash, hash, ht->hash_size);
-}
-
-static void udpparam2hash(const struct hashtable *ht, void *index, uint8_t *hash){
-    struct clientparam *param = (struct clientparam *)index;
-    mdh_ctx *bctx = mdh_init(MDH_BLAKE2, ht->hash_size);
-    unsigned int blen = ht->hash_size;
-    if(!bctx) return;
-    mdh_update(bctx, SAADDR(&param->srv->intsa), SAADDRLEN(&param->srv->intsa));
-    mdh_update(bctx, SAPORT(&param->srv->intsa), 2);
-    mdh_update(bctx, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
-    mdh_update(bctx, SAPORT(&param->sincr), 2);
-    mdh_final(bctx, hash, &blen);
-    mdh_free(bctx);
 }
 
 struct hashtable dns_table = {char_index2hash, char_index2hash, 4, 32};

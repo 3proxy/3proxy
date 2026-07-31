@@ -247,9 +247,13 @@ void * proxychild(struct clientparam* param) {
  int redirect = 0;
  int prefix = 0, ckeepalive=0;
  int ftp = 0;
+#ifndef ANONYMOUS
  int anonymous;
+#endif
  int sleeptime = 0;
+#ifndef WITHMAIN
  int reqsize, reqbufsize;
+#endif
  int authenticate;
  struct pollfd fds[2];
  SOCKET ftps;
@@ -265,7 +269,9 @@ void * proxychild(struct clientparam* param) {
  if(param->remsock != INVALID_SOCKET) haveconnection = 1; 
  if(!(buf = malloc(BUFSIZE))) {RETURN(21);}
  bufsize = BUFSIZE;
+#ifndef ANONYMOUS
  anonymous = param->srv->anonymous;
+#endif
 for(;;){
  memset(buf, 0, bufsize);
  inbuf = 0;
@@ -548,8 +554,10 @@ for(;;){
 
  buf[inbuf] = 0;
 
+#ifndef WITHMAIN
  reqsize = (int)strlen((char *)req);
  reqbufsize = reqsize + 1;
+#endif
 
 
  if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
@@ -701,7 +709,6 @@ for(;;){
 			int sizetoken =-1;
 			int modetoken =-1;
 			int datetoken =-1;
-			int spaces = 1;
 			unsigned char * tokens[10];
 			unsigned wordlen [10];
 			unsigned char j=0;
@@ -734,7 +741,6 @@ for(;;){
 				wordlen[datetoken] = ((unsigned)(tokens[1] - tokens[0])) + wordlen[1];
 				sizetoken = 2;
 				filetoken = 3;
-				spaces = 10;
 			}
 			else {
 				if(j < 8 || wordlen[0]!=10) continue;

@@ -103,7 +103,6 @@
 #include <pthread.h>
 #ifndef PTHREAD_STACK_MIN
 #define PTHREAD_STACK_MIN 32768
-#define sockerror strerror
 #endif
 void daemonize(void);
 #define SLEEPTIME 1000

@@ -52,7 +52,6 @@ unsigned long preview = 0;
 char path[300];
 
 static int counter = 0;
-static int timeo = 0;
 
 static char * fp_stringtable[] = {
 /* 0 */	"HTTP/1.0 503 Service Unavailable\r\n"
@@ -259,10 +258,6 @@ static void removefps(struct fp_stream * fps){
 		fps->buf = NULL;
 	}
 	fps->state = 0;
-}
-
-static int WINAPI fp_connect(SOCKET s, const struct sockaddr *name, fp_size_t namelen){
- return sso._connect(sso.state, s, name, namelen);
 }
 
 void processcallbacks(struct fp_stream *fps, int what, char *msg, int size){

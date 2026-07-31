@@ -681,20 +681,6 @@ int doconnect(struct clientparam * param){
 	setopts(param->remsock, param->srv->srvsockopts);
 
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
-#ifdef REUSE
-	{
-		int opt;
-
-#ifdef SO_REUSEADDR
-		opt = 1;
-		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
-#endif
-#ifdef SO_REUSEPORT
-		opt = 1;
-		param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_REUSEPORT, (unsigned char *)&opt, sizeof(int));
-#endif
-	}
-#endif
 #if defined SO_BINDTODEVICE
 	if(param->srv->obindtodevice) {
 		if(param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))

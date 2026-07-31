@@ -80,7 +80,7 @@ int cacheauth(struct clientparam * param){
 	((type & 4) && !param->password) ||
 	(
 	 (type & 1) && *SAFAMILY(&param->sincr) != AF_INET
-#ifndef NOIPv6
+#ifndef NOIPV6
 	    && *SAFAMILY(&param->sincr) != AF_INET6
 #endif
 	) || (!hashresolv(&auth_table, param, &ac, &ttl))) {
@@ -108,7 +108,6 @@ int cacheauth(struct clientparam * param){
 int doauth(struct clientparam * param){
 	int res = 0;
 	struct auth *authfuncs;
-	char * tmp;
 	int ret = 0;
 
 	for(authfuncs=param->srv->authfuncs; authfuncs; authfuncs=authfuncs->next){
@@ -125,7 +124,7 @@ int doauth(struct clientparam * param){
 				ac.username[63] = 0;
 			    }
 			    if(*SAFAMILY(&param->sincr) == AF_INET
-#ifndef NOIPv6
+#ifndef NOIPV6
 				 || *SAFAMILY(&param->sincr) == AF_INET6
 #endif
 			    ) {
@@ -134,7 +133,7 @@ int doauth(struct clientparam * param){
 			    }
 
 			    if(*SAFAMILY(&param->sinsl) == AF_INET
-#ifndef NOIPv6
+#ifndef NOIPV6
 				 || *SAFAMILY(&param->sinsl) == AF_INET6
 #endif
 			    ) {
@@ -235,7 +234,6 @@ static int ctstrcmp(const char *a, const char *b, size_t maxlen){
 }
 
 int strongauth(struct clientparam * param){
-	static char dummy;
 	unsigned char buf[256];
 	char pass[256] = {0};
 
