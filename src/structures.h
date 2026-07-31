@@ -42,6 +42,12 @@ extern "C" {
 #define _3proxy_mutex_destroy pthread_mutex_destroy
 #define _3proxy_mutex_lock pthread_mutex_lock
 #define _3proxy_mutex_unlock pthread_mutex_unlock
+typedef struct _3proxy_sem_s {
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	unsigned count;
+	unsigned maxcount;
+} _3proxy_sem_t;
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -50,6 +56,7 @@ extern "C" {
 #define _3proxy_mutex_lock(x) EnterCriticalSection(x)
 #define _3proxy_mutex_unlock(x) LeaveCriticalSection(x)
 #define _3proxy_mutex_destroy(x) DeleteCriticalSection(x)
+#define _3proxy_sem_t HANDLE
 #ifdef MSVC
 #pragma warning (disable : 4996)
 #endif
@@ -682,11 +689,7 @@ struct filemon {
 
 
 struct extparam {
-#ifdef _WIN32
-	HANDLE threadinit;
-#else
-	_3proxy_mutex_t threadinit;
-#endif
+	_3proxy_sem_t threadinit;
 	int *timeouts;
 	struct ace * acl;
 	char * conffile;

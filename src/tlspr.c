@@ -190,7 +190,7 @@ int clistarttls(struct clientparam *param, PROXYSERVICE proto){
 			return 0;
 		}
 		if(!strncasecmp((char *)buf, "EHLO ", 5)){
-			socksend(param, param->clisock, (unsigned char *)"250-Proxy\r\n250 STARTTLS\r\n", 24, conf.timeouts[STRING_S]);
+			socksend(param, param->clisock, (unsigned char *)"250-Proxy\r\n250 STARTTLS\r\n", 25, conf.timeouts[STRING_S]);
 			continue;
 		}
 		if(!strncasecmp((char *)buf, "HELO ", 5)){
@@ -201,8 +201,10 @@ int clistarttls(struct clientparam *param, PROXYSERVICE proto){
 			socksend(param, param->clisock, (unsigned char *)"221 Proxy\r\n", 11, conf.timeouts[STRING_S]);
 			return -1;
 		}
-		socksend(param, param->clisock, (unsigned char *)"530 5.7.0 Must issue a STARTTLS command first\r\n", 45, conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)"530 5.7.0 Must issue a STARTTLS command first\r\n", 47, conf.timeouts[STRING_S]);
 	}
+ default:
+	break;
  }
  return 1;
 }

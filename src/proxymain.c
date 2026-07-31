@@ -11,6 +11,18 @@
 #include <sched.h>
 #endif
 
+/* Child functions do not call each other, a child requesting redirection to
+   another child returns it instead of calling it, to keep the stack flat.
+   NULL is returned by the child which completed the request, it has already
+   released param and it must not be accessed after the call.
+ */
+void * childfunc(struct clientparam * param){
+ PROXYFUNC pf = param->srv->pf;
+
+ while(pf) pf = (PROXYFUNC)(*pf)(param);
+ return NULL;
+}
+
 #define param ((struct clientparam *) p)
 #ifdef _WIN32
 DWORD WINAPI threadfunc(LPVOID p) {
@@ -367,6 +379,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if(!srv.udpbuf || !srv.udpbuf2) {
 #ifndef STDMAIN
 		haveerror = 2;
+		_3proxy_sem_unlock(conf.threadinit);
 #endif
 		return 11;
 	}
@@ -608,7 +621,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if (error || i!=argc) {
 #ifndef STDMAIN
 		haveerror = 1;
-		_3proxy_sem_unlock(conf.threadinit);
 #endif
 		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options\n"
@@ -628,6 +640,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			""
 #endif
 		);
+#ifndef STDMAIN
+		_3proxy_sem_unlock(conf.threadinit);
+#endif
 
 		return (1);
 	}
@@ -640,7 +655,6 @@ int MODULEMAINFUNC (int argc, char** argv){
 	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv.intsa) = htons((uint16_t)atoi(argv[i])))==0 || (srv.targetport = htons((uint16_t)atoi(argv[i+2])))==0) {
 #ifndef STDMAIN
 		haveerror = 1;
-		_3proxy_sem_unlock(conf.threadinit);
 #endif
 		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options"
@@ -661,6 +675,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			""
 #endif
 		);
+#ifndef STDMAIN
+		_3proxy_sem_unlock(conf.threadinit);
+#endif
 		return (1);
 	}
 	srv.target = (unsigned char *)strdup(argv[i+1]);
@@ -917,7 +934,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  
 #ifndef _WIN32
  pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (32768 + srv.stacksize));
+ pthread_attr_setstacksize(&pa,threadstacksize(srv.stacksize));
  pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 #endif
 
@@ -1051,9 +1068,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 	else {
 		struct clientparam *toparam;
 
-		srv.udplen = sockrecvfrom(NULL, srv.srvsock, (struct sockaddr *)&defparam.sincr, srv.udpbuf, UDPBUFSIZE, 0);
-		if(srv.udplen <= 0) continue;
 		_3proxy_sem_lock(udpinit);
+		srv.udplen = sockrecvfrom(NULL, srv.srvsock, (struct sockaddr *)&defparam.sincr, srv.udpbuf, UDPBUFSIZE, 0);
+		if(srv.udplen <= 0) {
+			_3proxy_sem_unlock(udpinit);
+			continue;
+		}
 		if(hashresolv(&udp_table, &defparam, &toparam, NULL)) {
 		    int i, len=0;
 		
@@ -1172,12 +1192,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 #ifndef NOUDPMAIN
 int udpinited = 0;
-#ifdef _WIN32
-HANDLE udpinit;
-#else
-_3proxy_mutex_t udpinit;
-#endif
-
+_3proxy_sem_t udpinit;
 #endif
 
 void srvinit(struct srvparam * srv, struct clientparam *param){
@@ -1216,11 +1231,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  _3proxy_mutex_init(&srv->counter_mutex);
 #ifndef NOUDPMAIN
  if(!udpinited){
-#ifdef _WIN32
-    udpinit = CreateSemaphore(NULL, 1, 1, NULL);
-#else
-    _3proxy_mutex_init(&udpinit);
-#endif
+    (void)_3proxy_sem_init(udpinit, 1, 1);
  }
  udpinited = 1;
 #endif

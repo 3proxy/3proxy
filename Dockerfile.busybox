@@ -40,7 +40,7 @@ COPY --from=wolfssl /usr/local /usr/local
 COPY . 3proxy
 RUN cd 3proxy && mkdir -p bin &&\
  make -f Makefile.Linux LIBSTATIC=true PAM_CHECK=false WOLFSSL_CHECK=true \
-      LDFLAGS="-L/usr/local/lib" &&\
+      EXTRA_LDFLAGS="-L/usr/local/lib" &&\
  strip bin/3proxy &&\
  strip bin/*so &&\
  mkdir /dist &&\

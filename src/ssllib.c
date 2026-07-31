@@ -72,10 +72,11 @@ static size_t bin2hex (const unsigned char* bin, size_t bin_length, char* str, s
 	return p - str;
 }
 
-static int add_ext(X509 *cert, int nid, char *value)
+static int add_ext(X509 *cert, int nid, const char *value)
 {
 	X509_EXTENSION *ex;
 	X509V3_CTX ctx;
+	int err;
 	/* This sets the 'context' of the extensions. */
 	/* No configuration database */
 	X509V3_set_ctx_nodb(&ctx);
@@ -83,13 +84,14 @@ static int add_ext(X509 *cert, int nid, char *value)
 	 * no request and no CRL
 	 */
 	X509V3_set_ctx(&ctx, cert, cert, NULL, NULL, 0);
-	ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, value);
+	/* value is char * prior to OpenSSL 1.1.0 */
+	ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, (char *)value);
 	if (!ex)
 		return 0;
 
-	X509_add_ext(cert,ex,-1);
+	err = X509_add_ext(cert,ex,-1);
 	X509_EXTENSION_free(ex);
-	return 1;
+	return err > 0;
 }
 
 SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
@@ -138,9 +140,10 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 	if ( dst_cert == NULL ) {
 		return NULL;
 	}
-	X509_set_version(dst_cert, X509_get_version(src_cert));
-	X509_set_serialNumber(dst_cert, X509_get_serialNumber(src_cert));
-	if(!X509_set_subject_name(dst_cert, X509_get_subject_name(src_cert))
+	/* v3 is required, extensions are added below */
+	X509_set_version(dst_cert, 2);
+	if(!X509_set_serialNumber(dst_cert, X509_get_serialNumber(src_cert))
+	|| !X509_set_subject_name(dst_cert, X509_get_subject_name(src_cert))
 	|| !X509_set_issuer_name(dst_cert, X509_get_subject_name(config->CA_cert))){
 		X509_free(dst_cert);
 		return NULL;
@@ -150,13 +153,35 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 		X509_free(dst_cert);
 		return NULL;
 	}
-	X509_set_notBefore(dst_cert, X509_get_notBefore(src_cert));
-	X509_set_notAfter(dst_cert, X509_get_notAfter(src_cert));
+#if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER < 0x10100000L
+	if(!X509_set_notBefore(dst_cert, X509_get_notBefore(src_cert))
+	|| !X509_set_notAfter(dst_cert, X509_get_notAfter(src_cert))){
+#else
+	if(!X509_set1_notBefore(dst_cert, X509_get0_notBefore(src_cert))
+	|| !X509_set1_notAfter(dst_cert, X509_get0_notAfter(src_cert))){
+#endif
+		X509_free(dst_cert);
+		return NULL;
+	}
 	san_idx = X509_get_ext_by_NID(src_cert, NID_subject_alt_name, -1);
 	if(san_idx >= 0){
 	    X509_EXTENSION *san;
 	    san = X509_get_ext(src_cert, san_idx);
-	    if(san) X509_add_ext(dst_cert, san, -1);
+	    if(san && !X509_add_ext(dst_cert, san, -1)){
+		X509_free(dst_cert);
+		return NULL;
+	    }
+	}
+	/* Extensions required from an end entity certificate. Without EKU
+	 * serverAuth Apple's TLS stack (and Chrome on macOS/iOS, which uses it)
+	 * rejects the certificate. keyUsage is intentionally not set: it depends
+	 * on the type of the key being reused for every generated certificate,
+	 * and an absent keyUsage places no restriction.
+	 */
+	if(!add_ext(dst_cert, NID_basic_constraints, "critical,CA:FALSE")
+	|| !add_ext(dst_cert, NID_ext_key_usage, "serverAuth")){
+		X509_free(dst_cert);
+		return NULL;
 	}
 	err = X509_sign(dst_cert, config->CA_key, EVP_sha256());
 	if(!err){

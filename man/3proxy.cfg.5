@@ -1178,6 +1178,19 @@ crash on request processing, try to set some positive value. You may start with
 stacksize 65536
 and then find the minimal value for the service to work. If you experience
 memory shortage, you can try to experiment with negative values.
+.br
+ With SQL logging (log &ODBC_string) the value is automatically raised to
+32768 if it is smaller, because ODBC drivers require more stack. A
+.BR stacksize
+command placed after the
+.BR log
+command overrides this.
+.br
+ The base stack size the value is added to is 49152. On FreeBSD, NetBSD,
+OpenBSD and DragonFly it is 65536, because libc functions such as vfprintf()
+called by syslog() use significantly more stack there. The result is never
+lowered below PTHREAD_STACK_MIN, so a large negative value can not disable
+the thread stack.
 
 .SH PLUGINS
 

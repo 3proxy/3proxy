@@ -519,15 +519,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #ifndef NORADIUS
   _3proxy_mutex_init(&rad_mutex);
 #endif
-#ifdef _WIN32
-  conf.threadinit = CreateSemaphore(NULL, 1, 1, NULL);
-  if(!conf.threadinit){
+  if(_3proxy_sem_init(conf.threadinit, 1, 1)){
     fprintf(stderr, "semaphore init failed\n");
     return 1;
   }
-#else
-  _3proxy_mutex_init(&conf.threadinit);
-#endif
 
 #ifdef WITH_SSL
   ssl_install();

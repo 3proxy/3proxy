@@ -156,7 +156,7 @@ int start_proxy_thread(struct child * chp){
 	if(h)CloseHandle(h);
 #else
 	pthread_attr_init(&pa);
-	pthread_attr_setstacksize(&pa,PTHREAD_STACK_MIN + (32768+conf.stacksize));
+	pthread_attr_setstacksize(&pa,threadstacksize(conf.stacksize));
 	pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 	pthread_create(&thread, &pa, startsrv, (void *)chp);
 	pthread_attr_destroy(&pa);
@@ -301,7 +301,13 @@ static int h_external(int argc, unsigned char ** argv){
 }
 
 
-static int h_log(int argc, unsigned char ** argv){ 
+/* ODBC drivers require noticeably more stack than the file logger, raise
+   the client thread stack size unless a larger one is configured
+   explicitly. An explicit stacksize placed after the log command still wins.
+ */
+#define LOGSTACKSIZE 32768
+
+static int h_log(int argc, unsigned char ** argv){
 	unsigned char tmpbuf[8192];
 	int notchanged = 0;
 
@@ -330,6 +336,7 @@ static int h_log(int argc, unsigned char ** argv){
 #ifdef WITH_ODBC
 		else if(*argv[1]=='&'){
 			conf.logfunc = logsql;
+			if(conf.stacksize < LOGSTACKSIZE) conf.stacksize = LOGSTACKSIZE;
 			if(notchanged) return 0;
 			_3proxy_mutex_lock(&log_mutex);
 			close_sql();

@@ -112,6 +112,21 @@ void daemonize(void);
 #endif
 #endif
 
+/* Thread stack size, stacksize command value is added to it. BSD libc uses
+   significantly more stack, e.g. in vfprintf() called by syslog().
+ */
+#ifndef BASESTACKSIZE
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#define BASESTACKSIZE 65536
+#else
+#define BASESTACKSIZE 49152
+#endif
+#endif
+
+#ifndef _WIN32
+size_t threadstacksize(int extra);
+#endif
+
 #ifdef WITH_ODBC
 #ifndef _WIN32
 #include <sqltypes.h>
@@ -248,14 +263,18 @@ unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen);
 void tohex(unsigned char *in, unsigned char *out, int len);
 void fromhex(unsigned char *in, unsigned char *out, int len);
 
+extern _3proxy_sem_t udpinit;
 #ifdef _WIN32
-extern HANDLE udpinit;
+#define _3proxy_sem_init(x, count, maxcount) (((x) = CreateSemaphore(NULL, (count), (maxcount), NULL))? 0 : 1)
 #define _3proxy_sem_lock(x) WaitForSingleObject(x, INFINITE)
 #define _3proxy_sem_unlock(x) ReleaseSemaphore(x, 1, NULL)
 #else
-extern _3proxy_mutex_t udpinit;
-#define _3proxy_sem_lock(x) pthread_mutex_lock(&x)
-#define _3proxy_sem_unlock(x) pthread_mutex_unlock(&x)
+int _3proxy_sem_init_f(_3proxy_sem_t *sem, unsigned count, unsigned maxcount);
+void _3proxy_sem_lock_f(_3proxy_sem_t *sem);
+void _3proxy_sem_unlock_f(_3proxy_sem_t *sem);
+#define _3proxy_sem_init(x, count, maxcount) _3proxy_sem_init_f(&x, (count), (maxcount))
+#define _3proxy_sem_lock(x) _3proxy_sem_lock_f(&x)
+#define _3proxy_sem_unlock(x) _3proxy_sem_unlock_f(&x)
 #endif
 
 

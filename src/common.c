@@ -134,12 +134,47 @@ int timeouts[12] = {
 	0
 };
 
-struct extparam conf = {
-#ifdef _WIN32
-	.threadinit = NULL,
-#else
-	.threadinit = 0,
+#ifndef _WIN32
+/* PTHREAD_STACK_MIN is 128K on glibc/aarch64 and glibc/powerpc and may be
+   a sysconf() call with _GNU_SOURCE. pthread_attr_setstacksize() fails with
+   EINVAL below it and the thread silently gets the 8M system default stack.
+ */
+size_t threadstacksize(int extra){
+	long size = BASESTACKSIZE + extra;
+
+	if(size < (long)PTHREAD_STACK_MIN) size = (long)PTHREAD_STACK_MIN;
+	return (size_t)size;
+}
+
+int _3proxy_sem_init_f(_3proxy_sem_t *sem, unsigned count, unsigned maxcount){
+	sem->count = count;
+	sem->maxcount = maxcount;
+	if(pthread_mutex_init(&sem->mutex, NULL)) return 1;
+	if(pthread_cond_init(&sem->cond, NULL)){
+		pthread_mutex_destroy(&sem->mutex);
+		return 1;
+	}
+	return 0;
+}
+
+void _3proxy_sem_lock_f(_3proxy_sem_t *sem){
+	pthread_mutex_lock(&sem->mutex);
+	while(!sem->count) pthread_cond_wait(&sem->cond, &sem->mutex);
+	sem->count--;
+	pthread_mutex_unlock(&sem->mutex);
+}
+
+void _3proxy_sem_unlock_f(_3proxy_sem_t *sem){
+	pthread_mutex_lock(&sem->mutex);
+	if(sem->count < sem->maxcount){
+		sem->count++;
+		pthread_cond_signal(&sem->cond);
+	}
+	pthread_mutex_unlock(&sem->mutex);
+}
 #endif
+
+struct extparam conf = {
 	.timeouts = timeouts,
 	.acl = NULL,
 	.conffile = NULL,

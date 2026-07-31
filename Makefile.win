@@ -15,6 +15,11 @@ COUT = -o
 LN ?= $(CC)
 LDFLAGS ?= -O3 -flto
 LDFLAGS += -fno-strict-aliasing -mthreads
+# Use EXTRA_CFLAGS/EXTRA_LDFLAGS to add flags from the make command line.
+# Setting CFLAGS or LDFLAGS there instead overrides every assignment in this
+# makefile, including the += above and the STATIC/LIBSTATIC handling below.
+CFLAGS += $(EXTRA_CFLAGS)
+LDFLAGS += $(EXTRA_LDFLAGS)
 DLFLAGS ?= -shared
 DLSUFFICS = .dll
 LIBS += -lws2_32 -lodbc32 -ladvapi32 -luser32 -lbcrypt
