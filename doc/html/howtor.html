@@ -687,9 +687,7 @@ socks
 <p>
 3. Использование tlspr с HTTP proxy для ACL по имени хоста TLS:
 </p><pre>
-allow * * * 80
-parent 1000 http 0.0.0.0 0
-allow * * * 443
+allow * * * * HTTP_CONNECT
 parent 1000 tls 0.0.0.0 0
 deny * * blocked.example.com
 allow *
