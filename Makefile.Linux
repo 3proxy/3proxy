@@ -3,6 +3,10 @@
 #
 # add -DWITH_ODBC to CFLAGS and -lodbc to LIBS to compile with ODBC
 # library support. Add -DSAFESQL for poorely written ODBC library / drivers.
+#
+# Linux splice() support is not built by default, it is slower than the
+# read/write path for most traffic. Add -DWITHSPLICE to CFLAGS to build it,
+# it must additionally be enabled per service with the -s option.
 
 BUILDDIR = ../bin/
 PREFIX ?= 3proxy_
@@ -10,7 +14,7 @@ CRYPT_PREFIX ?= $(PREFIX)
 CC ?= gcc
 
 CFLAGS ?= -O3 -flto
-CFLAGS += -fno-strict-aliasing -c -pthread -DWITHSPLICE -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER -D WITH_UN
+CFLAGS += -fno-strict-aliasing -c -pthread -D_GNU_SOURCE -DGETHOSTBYNAME_R -D_THREAD_SAFE -D_REENTRANT -DFD_SETSIZE=4096 -DWITH_POLL -DWITH_NETFILTER -D WITH_UN
 COUT = -o 
 LN ?= ${CC}
 DCFLAGS ?= -fPIC

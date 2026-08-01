@@ -35,7 +35,6 @@ void * dnsprchild(struct clientparam* param) {
 
 
  if(!(bbuf = malloc(BUFSIZE+2))){
-	param->srv->fds.events = POLLIN;
 	RETURN (21);
  }
  buf = bbuf+2;
@@ -59,7 +58,6 @@ void * dnsprchild(struct clientparam* param) {
 #else
 	param->clisock = param->srv->srvsock;
 #endif
- param->srv->fds.events = POLLIN;
 
  if(i < 0) {
 	RETURN(813);

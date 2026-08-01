@@ -51,7 +51,7 @@ option(3PROXY_USE_OPENSSL "Enable TLS/SSL support via OpenSSL (fallback when wol
 option(3PROXY_USE_PCRE2 "Enable PCRE2 regex filtering" ON)
 option(3PROXY_USE_PAM "Enable PAM/PamAuth" ON)
 option(3PROXY_USE_ODBC "Enable ODBC support (Unix only, always ON on Windows)" OFF)
-option(3PROXY_USE_SPLICE "Use Linux splice() for zero-copy (Linux only)" ON)
+option(3PROXY_USE_SPLICE "Build Linux splice() support, slower than read/write for most traffic (Linux only)" OFF)
 option(3PROXY_USE_POLL "Use poll() instead of select() (Unix only)" ON)
 option(3PROXY_USE_WSAPOLL "Use WSAPoll instead of select() (Windows only)" ON)
 option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)

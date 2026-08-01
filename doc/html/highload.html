@@ -30,10 +30,7 @@ Each connected client requires:
 <ul>
 <li>1 thread (process)
 <li>2 sockets (file descriptors). For FTP, 4 sockets are required.
-<br>Under Linux since 0.9, splice() is used. It's much more efficient but requires
-<br>2 sockets (file descriptors) + 2 pipes (file descriptors) = 4 file descriptors.
-<br>For FTP with splice(), 4 sockets and 2 pipes are required.
-<br>Up to 128K (up to 256K in the case of splice()) of kernel buffer memory. This is the theoretical maximum; actual numbers depend on connection quality and traffic amount.
+<br>Up to 128K of kernel buffer memory. This is the theoretical maximum; actual numbers depend on connection quality and traffic amount.
 <br>1 additional socket (file descriptor) during name resolution for non-cached names
 <br>1 additional socket during authentication or logging for RADIUS authentication or logging.
 <li>1 ephemeral port (3 ephemeral ports for FTP connections).
@@ -90,15 +87,6 @@ Available options are system-dependent.
 
 If 3proxy is used in a VPS environment, there can be additional limitations.
 For example, kernel resources, system CPU usage, and IOCTLs can be limited differently, and this can become a bottleneck.
-Since 0.9-devel, 3proxy uses splice() by default on Linux. splice() prevents network traffic from being copied from
-kernel space to the 3proxy process and generally increases throughput, especially in the case of high-volume traffic. This is especially
-true for virtual environments (it can improve throughput up to 10 times) unless there are additional kernel limitations.
-Since some work is moved to the kernel, it requires up to 2 times more kernel resources in terms of CPU, memory, and IOCTLs.
-If your hosting additionally limits kernel resources (you can see this as nearly 100% CPU usage without any real CPU activity for
-any application performing IOCTLs), use the -s0 option to disable splice() usage for a given service, e.g.:
-<pre>
-socks -s0
-</pre>
 
 <h4>Extending the Ephemeral Port Range</h4>
 
@@ -268,24 +256,6 @@ sets TCP_NODELAY for client (oc) and server (os) connections.
 <p>Do not use TCP_NODELAY on slow connections with high delays when
 connection bandwidth is a bottleneck.
 
-<h4>Use Splice to Speed Up Large Data Amount Transfers</h4>
-
-splice() allows copying data between connections without copying to the process
-address space. It can speed up the proxy on high-bandwidth connections if most
-connections require large data transfers. Splice is enabled by default on Linux
-since 0.9; "-s0" disables splice usage. Example:
-<pre>
-proxy -s0
-</pre>
-Splice is only available on Linux. Splice requires more system buffers and file descriptors
-and produces more IOCTLs but reduces process memory and overall CPU usage.
-Disable splice if there are a lot of short-lived connections with no bandwidth
-requirements.
-<p>Use splice only on high-speed connections (e.g., 10GbE) when the processor, memory speed, or
-system bus are bottlenecks.
-<p>TCP_NODELAY and splice are not contrary to each other and should be combined on
-high-speed connections.
-
 <h4>Add Grace Delay to Reduce System Calls</h4>
 
 <pre>proxy -g8000,3,10</pre>
@@ -294,7 +264,7 @@ the minimal number of packets in the same direction to apply the algorithm,
 and the last value is the delay added after polling and prior to reading data.
 The example above adds a 10-millisecond delay before reading data if the average
 polling size is below 8000 bytes and 3 read operations have been made in the same
-direction. It's especially useful with splice. <pre>logdump 1 1</pre> is useful
+direction. <pre>logdump 1 1</pre> is useful
 to see how grace delays work; choose a delay value to avoid filling the read
 pipe/buffer (typically 64K) but keep the request sizes close to the chosen average
 on large file uploads/downloads.

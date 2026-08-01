@@ -311,7 +311,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -De(DEVICENAME) bind external interface to device, e.g. eth1\n"
 #endif
 #ifdef WITHSPLICE
-	" -s Use splice() - faster proxing, but no filtering for data\n"
+	" -s Use splice() - no filtering for data, off by default\n"
 #endif
 	"-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY) - delay GRACE_DELAY milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second to minimize polling\n"
 	" -fFORMAT logging format (see documentation)\n"
@@ -586,7 +586,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 				srv.s_option = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
 			else
-				if(*(argv[i]+2)) srv.usesplice = atoi(argv[i]+2);
+				srv.usesplice = *(argv[i]+2)? atoi(argv[i]+2) : 1;
 #endif
 			break;
 		 case 'o':
@@ -956,13 +956,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		}
 		if (iscbc) break;
 		if (conf.paused != srv.paused) break;
-		if (srv.fds.events & POLLIN) {
-			error = srv.so._poll(srv.so.state, &srv.fds, 1, 1000);
-		}
-		else {
-			usleep(SLEEPTIME);
-			continue;
-		}
+		error = srv.so._poll(srv.so.state, &srv.fds, 1, 1000);
 		if (error >= 1) break;
 		if (error == 0) continue;
 		if (errno != EAGAIN &&	errno != EINTR) {
@@ -1225,7 +1219,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->saved_nsfd = srv->i_nsfd = srv->o_nsfd = -1;
 #endif
 #ifdef WITHSPLICE
- srv->usesplice = 1;
+ srv->usesplice = 0;
 #endif
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;

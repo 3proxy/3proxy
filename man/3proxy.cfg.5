@@ -188,9 +188,16 @@ any protocol-specific data.
 .br
 .B -g(\fIGRACE_TRAFF\fB,\fIGRACE_NUM\fB,\fIGRACE_DELAY\fR)
 delay GRACE_DELAY milliseconds before polling if average polling size is below GRACE_TRAFF bytes and GRACE_NUM read operations in a single direction are detected within 1 second. Useful to minimize polling
+.br
 .B -s
  (for admin) secure, allow only secure operations, currently only traffic counters
 view without ability to reset.
+.br
+ (for TCP services, Linux) enable splice(). splice() is not built by default and
+is disabled even when built, because current Linux does not implement
+SPLICE_F_MOVE, so no real zero-copy takes place and the read/write path is faster
+for most traffic. Rebuild with -DWITHSPLICE to make -s available, -s0 disables it
+explicitly.
 .br
  (for dnspr) simple, do not use resolver and 3proxy cache, always use external DNS server.
 .br
