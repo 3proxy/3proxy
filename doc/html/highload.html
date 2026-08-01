@@ -5,8 +5,8 @@
 <h4>Configuring 'maxconn'</h4>
 
 The number of simultaneous connections per service is limited by the 'maxconn' option.
-The default maxconn value since 3proxy 0.8 is 500. You may want to set 'maxconn'
-to a higher value. Under this configuration:
+The default maxconn value is 500. You may want to set 'maxconn'
+to a higher value; it must be set before the services it should apply to. Under this configuration:
 <pre>
 maxconn 1000
 proxy -p3129
@@ -19,6 +19,10 @@ simultaneous connections to 3proxy.
 <p>Avoid setting 'maxconn' to an arbitrarily high value; it should be carefully
 chosen to protect the system and proxy from resource exhaustion. Setting maxconn
 above available resources can lead to denial of service conditions.
+<p>'maxconn' is not reduced automatically to fit the open file limit. If the limit is
+too low 3proxy only prints a warning at startup
+("current open file ulimits are too low") and then fails to accept connections once
+the limit is reached, so check for this warning after changing 'maxconn'.
 <h4>Understanding Resource Requirements</h4>
 Each running service requires:
 <ul>
@@ -56,19 +60,45 @@ system "ulimit -Sa >>/tmp/3proxy.ulim.soft"
 at the beginning (before the first service is started) and at the end of the config file.
 Perform both a hard restart (i.e., kill and start the 3proxy process) and a soft restart
 by sending SIGUSR1 to the 3proxy process; check that the ulimits recorded to files match your
-expectations. In systemd-based distros (e.g., latest Debian/Ubuntu), changing limits.conf
-is not enough; limits must be adjusted in the systemd configuration, e.g., by setting:
+expectations. In systemd-based distros (e.g., latest Debian/Ubuntu) changing limits.conf is not
+enough for a service: limits must be set in the unit file. Set them in the 3proxy
+unit itself rather than globally, so the rest of the system is unaffected. The
+shipped 3proxy.service already contains:
 <pre>
-DefaultLimitDATA=infinity
-DefaultLimitSTACK=infinity
-DefaultLimitCORE=infinity
-DefaultLimitRSS=infinity
-DefaultLimitNOFILE=102400
-DefaultLimitAS=infinity
-DefaultLimitNPROC=10240
-DefaultLimitMEMLOCK=infinity
+LimitNOFILE=1048576
+LimitNPROC=infinity
+TasksMax=infinity
 </pre>
-in user.conf / system.conf
+To change them on an installed system use an override instead of editing the unit:
+<pre>
+systemctl edit 3proxy
+systemctl daemon-reload &amp;&amp; systemctl restart 3proxy
+systemctl show 3proxy -p LimitNOFILE -p LimitNPROC -p TasksMax
+</pre>
+<b>TasksMax is the one that is easy to miss.</b> It is the cgroup limit on the number
+of threads, and if it is not set the unit inherits DefaultTasksMax, which is 15% of
+kernel.threads-max (about 9000 on a typical host). Since 3proxy uses one thread per
+connection, that caps concurrent connections at that number regardless of LimitNPROC
+and maxconn, and the only symptom is "pthread_create()" errors in the log.
+<p>On systemd older than 227, which has no TasksMax, and for limits that must apply to
+several services, the same values can be set globally as DefaultLimitNOFILE /
+DefaultLimitNPROC in /etc/systemd/system.conf, but prefer the per-unit settings.
+
+<p>With SysV init the limits are not applied by limits.conf either, because
+start-stop-daemon does not open a PAM session, so the daemon simply inherits the limits
+of init. The shipped init script raises them itself before starting 3proxy:
+<pre>
+ulimit -n 65536
+ulimit -u 32768
+</pre>
+adjust these values in the script to match 'maxconn'.
+
+<p>On FreeBSD rc.subr applies limits(1) with the login class of the service (the
+"daemon" class by default), so the limits can be set either in /etc/login.conf for that
+class, or per service in rc.conf:
+<pre>
+3proxy_limits="-n 65536"
+</pre>
 
 <h4>Extending System Limitations</h4>
 
@@ -82,6 +112,168 @@ socket, and -os for the proxy-to-server socket. Example:
 proxy -olSO_REUSEADDR,SO_REUSEPORT -ocTCP_TIMESTAMPS,TCP_NODELAY -osTCP_NODELAY
 </pre>
 Available options are system-dependent.
+
+<h4>Linux Tuning Hints</h4>
+
+Values below are examples, not recommendations: check the current value first
+(<tt>sysctl NAME</tt>), change only what your workload actually hits, and make changes
+persistent in <tt>/etc/sysctl.d/</tt>. Defaults given in parentheses are from a recent
+(6.x) kernel and vary between distributions and versions.
+
+<p><b>File descriptors.</b> 3proxy needs 2 descriptors per connection (4 for FTP), plus
+one per service, plus temporary ones for name resolution and RADIUS.
+<pre>
+fs.nr_open = 1048576          # (1048576) upper bound for any process' RLIMIT_NOFILE
+</pre>
+<tt>ulimit -n</tt> (RLIMIT_NOFILE) is the limit that actually applies and is commonly
+left at 1024; it must be raised for the 3proxy process itself, see "Setting ulimits"
+above. <tt>fs.file-max</tt> is effectively unlimited on 64-bit kernels and rarely needs
+changing.
+
+<p><b>Threads.</b> Because of the "one connection - one thread" model these limits are
+reached earlier with 3proxy than with event-driven servers. Each thread also consumes
+one or two mappings, so <tt>vm.max_map_count</tt> matters too.
+<pre>
+kernel.threads-max = 200000   # (~60000 on a 16G host, scales with RAM)
+kernel.pid_max = 4194304      # (4194304)
+vm.max_map_count = 1048576    # (1048576)
+</pre>
+RLIMIT_NPROC (<tt>ulimit -u</tt>) limits threads per user and must be raised as well.
+Check the actual thread count with <tt>grep Threads /proc/PID/status</tt>.
+
+<p><b>Listen queue.</b> 3proxy uses a listen backlog of 1+(maxconn/8) unless the
+'backlog' command is given, so a large 'maxconn' does not automatically give a large
+queue, and the kernel caps it at somaxconn:
+<pre>
+net.core.somaxconn = 4096          # (4096)
+net.ipv4.tcp_max_syn_backlog = 4096 # (512) raise for bursty connection rates
+net.ipv4.tcp_syncookies = 1        # (1) keep enabled
+</pre>
+
+<p><b>Ephemeral ports and TIME_WAIT.</b> See "Extending the Ephemeral Port Range" above
+for the multi-IP case. The range gives about 28000 outgoing connections per
+destination address by default:
+<pre>
+net.ipv4.ip_local_port_range = 10240 65535   # (32768 60999)
+net.ipv4.tcp_tw_reuse = 2                    # (2) reuse TIME_WAIT for outgoing connections
+net.ipv4.tcp_fin_timeout = 30                # (60)
+</pre>
+Do not enable tcp_tw_recycle; it was removed in kernel 4.12 and breaks NAT clients.
+
+<p><b>Socket buffers.</b> Autotuning is usually right. Buffer memory is per connection,
+so raising the maximums with tens of thousands of connections costs a lot of RAM:
+<pre>
+net.core.rmem_max = 4194304     # (212992)
+net.core.wmem_max = 4194304     # (212992)
+net.ipv4.tcp_rmem = 4096 131072 6291456   # (same) min default max
+net.ipv4.tcp_wmem = 4096 16384 4194304    # (same)
+</pre>
+Raise these only for high bandwidth-delay product links, and prefer raising the third
+(max) value and leaving the default alone.
+
+<p><b>Conntrack.</b> Only relevant if netfilter/nftables tracks the proxy's traffic. If
+it does, the table is exhausted long before 3proxy's own limits, with
+"nf_conntrack: table full, dropping packet" in dmesg:
+<pre>
+net.netfilter.nf_conntrack_max = 1048576
+net.netfilter.nf_conntrack_buckets = 262144
+net.netfilter.nf_conntrack_tcp_timeout_established = 3600   # (432000, i.e. 5 days)
+net.netfilter.nf_conntrack_tcp_timeout_time_wait = 30       # (120)
+</pre>
+nf_conntrack_max defaults to nf_conntrack_buckets, which itself is derived from the
+amount of RAM, so it is often much lower than expected on small machines. Each
+connection takes two entries (one per direction). The default established timeout of
+5 days matters more than the table size with high connection churn: entries for
+connections that are long gone keep occupying the table.
+<p>If no rules need conntrack, not loading it at all is faster: the modules are loaded
+on demand by the first rule that needs them ("-m state", "-m conntrack", any NAT
+rule), so a ruleset without such rules keeps the proxy traffic untracked. If conntrack
+is needed for other traffic but not for the proxy's, exempt the proxy's traffic
+explicitly in the raw table:
+<pre>
+iptables -t raw -A PREROUTING -p tcp --dport 3128 -j CT --notrack
+iptables -t raw -A OUTPUT -p tcp -m owner --uid-owner proxy -j CT --notrack
+</pre>
+
+<p><b>Conntrack helpers (ALGs).</b> The helper modules - nf_conntrack_ftp,
+nf_conntrack_sip, nf_conntrack_h323, nf_conntrack_pptp, nf_conntrack_irc,
+nf_conntrack_tftp - inspect the payload of every matching packet and create additional
+"expectation" entries, so they cost both CPU and table space, and they have a long
+history of security issues. Unload and blacklist the ones you do not actually need:
+<pre>
+lsmod | grep nf_conntrack
+modprobe -r nf_conntrack_sip nf_conntrack_h323 nf_conntrack_ftp nf_conntrack_pptp
+echo "blacklist nf_conntrack_sip" >> /etc/modprobe.d/no-alg.conf
+</pre>
+On current kernels a helper only acts when it is attached explicitly
+("-j CT --helper ftp"), so simply not attaching it is enough; automatic helper
+assignment was deprecated and later removed. Older kernels, and most router firmware,
+still enable them by default.
+
+<p><b>Checking the result.</b> <tt>ss -s</tt> for socket state totals,
+<tt>ss -lnt</tt> for listen queue overflow, <tt>nstat -az TcpExtListenOverflows
+TcpExtListenDrops</tt> for accept queue drops, and
+<tt>cat /proc/PID/limits</tt> for the limits actually applied to the running process.
+
+<h4>Windows Tuning Hints</h4>
+
+<p><b>Dynamic (ephemeral) port range.</b> Since Windows Vista / Server 2008 the default
+range is 49152-65535, i.e. only 16384 outgoing connections per local address, which is
+reached quickly by a busy proxy. Show and change it with:
+<pre>
+netsh int ipv4 show dynamicport tcp
+netsh int ipv4 set dynamicport tcp start=10000 num=55535
+</pre>
+The minimum start port is 1025, the minimum size of the range is 255, and the end of
+the range cannot exceed 65535. The range is set separately for TCP and UDP, and for
+IPv4 and IPv6. On pre-Vista systems the equivalent is the MaxUserPort registry value
+in HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters.
+
+<p><b>Listening socket.</b> 3proxy sets SO_REUSEADDR on the listening socket by
+default on Unix, but not on Windows: there it is not needed to rebind the port, and it
+only allows another local process to bind the same address and port, with undefined
+behaviour as to which of them receives the connections. If the machine is shared or
+untrusted, harden the listening socket instead:
+<pre>
+proxy -olSO_EXCLUSIVEADDRUSE
+</pre>
+Note that a socket with SO_EXCLUSIVEADDRUSE may not be immediately rebindable after a
+restart if accepted connections are still active, so test restarts before using it.
+
+<p><b>Port reuse.</b> 3proxy always binds the outgoing socket before connecting, so
+Windows does not apply its automatic ephemeral port reuse (which it does only for
+connections with an implicit bind). Setting the option explicitly on the
+proxy-to-server socket therefore helps against port exhaustion:
+<pre>
+proxy -osSO_REUSE_UNICASTPORT
+</pre>
+SO_REUSE_UNICASTPORT requires Windows 10 / Server 2019 or later. On older systems
+(Windows 7 / Server 2008 and later) use SO_PORT_SCALABILITY instead; where both are
+available Microsoft recommends SO_REUSE_UNICASTPORT. Note that SO_REUSEADDR has
+different, weaker semantics on Windows than on Unix and allows another socket to bind
+the same address and port, so do not use it on the listening socket as a substitute.
+
+<p><b>TIME_WAIT.</b> Closed connections hold their port for the TcpTimedWaitDelay
+period, set in
+HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters (DWORD, seconds). The
+effective default differs between Windows versions (2 to 4 minutes); check the current
+behaviour before changing it, and lower it only together with an extended port range.
+Count the connections in that state with:
+<pre>
+netstat -ano -p tcp | find /c "TIME_WAIT"
+</pre>
+
+<p><b>Threads and address space.</b> Windows has no ulimit equivalent, and the handle
+count is not normally the limit. On 32-bit builds the 2 GB of user address space is:
+each connection thread reserves its stack there, so a few thousand connections can
+exhaust the address space while physical memory is still free. Use a 64-bit build for high load, and
+see "Setting Stack Size" above.
+
+<p><b>Filter drivers.</b> Antivirus, endpoint protection and other LSP/WFP filter
+drivers inspect every connection and are frequently the actual bottleneck on Windows,
+costing far more than any tuning above can recover. Exclude the 3proxy process and its
+ports, or test with the protection temporarily disabled to see the difference before
+tuning anything else.
 
 <h4>Using 3proxy in a Virtual Environment</h4>
 
@@ -148,10 +340,10 @@ Under the latest Linux versions, you can also start multiple services with diffe
 external addresses on a single port with SO_REUSEPORT on the listening socket to
 evenly distribute incoming connections between outgoing interfaces:
 <pre>
-socks -olSO_REUSEPORT -p3128 -e 1.1.1.1
-socks -olSO_REUSEPORT -p3128 -e 2.2.2.2
-socks -olSO_REUSEPORT -p3128 -e 3.3.3.3
-socks -olSO_REUSEPORT -p3128 -e 4.4.4.4
+socks -olSO_REUSEPORT -p3128 -e1.1.1.1
+socks -olSO_REUSEPORT -p3128 -e2.2.2.2
+socks -olSO_REUSEPORT -p3128 -e3.3.3.3
+socks -olSO_REUSEPORT -p3128 -e4.4.4.4
 </pre>
 For web browsing, the last two examples are not recommended because the same client can get
 a different external address for different requests; you should choose the external
@@ -172,6 +364,39 @@ randomly fail due to IP+port pair collisions if the remote or local system
 doesn't support this trick.
 </ol>
 
+<h4>NAT on the Path Must Be Tuned Too</h4>
+
+Everything above tunes the machine 3proxy runs on. If the outgoing traffic passes
+through NAT - a router, a firewall, a CGNAT of the provider, or a cloud NAT gateway -
+that device keeps its own translation table and its own pool of source ports, and it
+limits the number of connections independently of the proxy. Extending
+ip_local_port_range on the 3proxy host changes nothing if the NAT device rewrites the
+source port from its own, smaller pool.
+
+<p>On a Linux based router the same knobs apply and have to be raised there as well:
+nf_conntrack_max / nf_conntrack_buckets and the conntrack timeouts (see "Linux Tuning
+Hints" above), plus the port range used for translation, which is ip_local_port_range
+for MASQUERADE, or the explicit range if SNAT is configured with --to-ports. Note that
+the range is per translated address: with a single public IP, all clients share it.
+
+<p>Entry level and SOHO routers are the usual bottleneck here. They typically have a
+small fixed NAT/conntrack table (a few thousand entries), aggressive or non-adjustable
+timeouts, and no way to change either. Symptoms are seen on the proxy but caused by the
+router: connections that fail or hang at random under load while the proxy is far from
+its own limits, no error in the 3proxy log except a failed outgoing connect, and
+recovery after a pause or a router reboot. Before tuning 3proxy further, check the
+router's session/NAT table counters. For high load either give the proxy a public
+address without NAT in the path, or use a router where the table size and timeouts are
+configurable.
+
+<p>On the router, also turn off the application layer gateways that are not actually
+used - they usually appear in the web interface as "SIP ALG", "FTP ALG", "H.323 ALG",
+"PPTP passthrough", "IPsec/VPN passthrough". They are commonly enabled by default, they
+parse the payload of matching connections, and they consume additional session table
+entries for the connections they expect. If nothing behind the proxy uses FTP, VoIP or
+those VPN protocols, disabling them frees table space and CPU on exactly the device
+that is the bottleneck.
+
 <h4>Setting Stack Size</h4>
 
 'stacksize' is a size added to all stack allocations and can be both positive and
@@ -187,7 +412,11 @@ the need to add additional physical memory,
 but it's system/libc dependent and requires additional testing under your
 installation. Don't forget about memory-related ulimits.
 <p>For 32-bit systems, address space can be a bottleneck you should consider. If
-you're short on address space, you can try using a negative stack size.
+you're short on address space, you can try using a negative stack size. The result is
+never lowered below the system minimum (PTHREAD_STACK_MIN), so a large negative value
+can not disable the thread stack. The base value the 'stacksize' is added to is 48K
+(64K on FreeBSD/NetBSD/OpenBSD/DragonFly, where libc uses more stack, e.g. in
+vfprintf() called by syslog()).
 
 <h4>Known System Issues</h4>
 
@@ -266,5 +495,5 @@ The example above adds a 10-millisecond delay before reading data if the average
 polling size is below 8000 bytes and 3 read operations have been made in the same
 direction. <pre>logdump 1 1</pre> is useful
 to see how grace delays work; choose a delay value to avoid filling the read
-pipe/buffer (typically 64K) but keep the request sizes close to the chosen average
+buffer (typically 64K) but keep the request sizes close to the chosen average
 on large file uploads/downloads.

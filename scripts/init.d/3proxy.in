@@ -24,9 +24,19 @@ if [ -f /etc/init.d/functions ]; then
     . /etc/init.d/functions
 fi
 
+# SysV init does not apply limits.conf consistently: start-stop-daemon does not
+# open a PAM session, so pam_limits is not involved and the daemon inherits the
+# limits of init. 3proxy needs two descriptors per connection (four for ftppr),
+# so raise them here. Adjust to match 'maxconn' in the configuration file.
+set_limits() {
+    ulimit -n 65536 2>/dev/null || ulimit -n 4096 2>/dev/null || true
+    ulimit -u 32768 2>/dev/null || true
+}
+
 case "$1" in
    start)
        echo -n "Starting 3Proxy: "
+       set_limits
 
        if [ ! -d /var/run/3proxy ]; then
            mkdir -p /var/run/3proxy

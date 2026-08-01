@@ -2025,7 +2025,7 @@ void freeconf(struct extparam *confp){
 #endif
  *SAFAMILY(&confp->intsa) = AF_INET;
  *SAFAMILY(&confp->extsa) = AF_INET;
- confp->maxchild = 100;
+ confp->maxchild = DEFAULT_MAXCHILD;
  confp->backlog = 0;
  resolvfunc = NULL;
  numservers = 0;

@@ -1,6 +1,6 @@
 [Unit]
 Description=3proxy tiny proxy server
-Documentation=man:3proxy(1)
+Documentation=man:3proxy(8) man:3proxy.cfg(5)
 After=network.target
 
 [Service]
@@ -13,8 +13,15 @@ ExecReload=/bin/kill -SIGUSR1 $MAINPID
 KillMode=process
 Restart=on-failure
 RestartSec=60s
-LimitNOFILE=65536
-LimitNPROC=32768
+# 3proxy uses one thread and two descriptors per connection (four for ftppr),
+# so it reaches these limits much earlier than event driven servers. They are
+# ceilings only: the actual number of connections is governed by 'maxconn' in
+# the configuration file. TasksMax must be set explicitly, systemd's
+# DefaultTasksMax (15% of kernel.threads-max, e.g. ~9000) otherwise caps the
+# number of threads, and thus connections, regardless of LimitNPROC.
+LimitNOFILE=1048576
+LimitNPROC=infinity
+TasksMax=infinity
 RuntimeDirectory=3proxy
 RuntimeDirectoryMode=0755
 

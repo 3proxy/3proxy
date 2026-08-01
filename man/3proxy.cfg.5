@@ -178,7 +178,8 @@ connect to given remote HOST:port instead of listening local connection on -p or
 .br
 .B -oc\fIOPTIONS\fB, -os\fIOPTIONS\fB, -ol\fIOPTIONS\fB, -or\fIOPTIONS\fB, -oR\fIOPTIONS\fR
 options for proxy-to-client (\fB-oc\fR), proxy-to-server (\fB-os\fR), proxy listening (\fB-ol\fR), connect back client (\fB-or\fR), connect back listening (\fB-oR\fR) sockets.
-Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, USE_TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
+Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_EXCLUSIVEADDRUSE, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
+SO_REUSEADDR and SO_REUSEPORT are set on the listening socket by default on Unix. On Windows SO_REUSEADDR is not set: it is not required to rebind a listening port and it only lets another local process bind the same address and port. Use SO_EXCLUSIVEADDRUSE (Windows) on the listening socket (\fB-ol\fR) to prevent that.
 .br
 .B -H
 (for all services) Expect HAProxy PROXY protocol v1 header on incoming connection.

@@ -34,6 +34,7 @@
 #define MAXUSERNAME 128
 #define _PASSWORD_LEN 256
 #define MAXNSERVERS 5
+#define DEFAULT_MAXCHILD 500
 
 #define TCPBUFSIZE 65536
 #define SRVBUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))

@@ -149,6 +149,20 @@ void * threadfunc (void *p) {
 }
 #undef param
 
+#ifdef _WIN32
+/* Present since Windows 7 (SO_PORT_SCALABILITY) and Windows 10 / Server 2019
+   (SO_REUSE_UNICASTPORT), define them if the SDK is older so the options can
+   still be requested. setsockopt() just fails on a system which does not
+   support them and the failure is ignored.
+ */
+#ifndef SO_PORT_SCALABILITY
+#define SO_PORT_SCALABILITY 0x3006
+#endif
+#ifndef SO_REUSE_UNICASTPORT
+#define SO_REUSE_UNICASTPORT 0x3007
+#endif
+#endif
+
 struct socketoptions sockopts[] = {
 #ifdef TCP_NODELAY
 	{TCP_NODELAY, "TCP_NODELAY"},
@@ -170,6 +184,9 @@ struct socketoptions sockopts[] = {
 #endif
 #ifdef SO_REUSEPORT
 	{SO_REUSEPORT, "SO_REUSEPORT"},
+#endif
+#ifdef SO_EXCLUSIVEADDRUSE
+	{SO_EXCLUSIVEADDRUSE, "SO_EXCLUSIVEADDRUSE"},
 #endif
 #ifdef SO_PORT_SCALABILITY
 	{SO_PORT_SCALABILITY, "SO_PORT_SCALABILITY"},
@@ -794,8 +811,15 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(*SAFAMILY(&srv.intsa) != AF_UNIX)
 #endif
 		{
+/* SO_REUSEADDR is not set on Windows: it is not needed to rebind a listening
+   port there, and it only allows another local process to bind the same
+   address and port, with undefined behaviour as to which socket receives the
+   connections. Use -olSO_EXCLUSIVEADDRUSE to prevent that instead.
+ */
+#ifndef _WIN32
 		opt = 1;
 		if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
+#endif
 #ifdef SO_REUSEPORT
 		opt = 1;
 		srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
@@ -911,8 +935,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 		freesrvstrings(&srv, cbc_string, cbl_string);
 		return -6;
 	}
+#ifndef _WIN32
 	opt = 1;
 	srv.so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
+#endif
 #ifdef SO_REUSEPORT
 	opt = 1;
 	srv.so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
