@@ -123,7 +123,7 @@ persistent in <tt>/etc/sysctl.d/</tt>. Defaults given in parentheses are from a 
 <p><b>File descriptors.</b> 3proxy needs 2 descriptors per connection (4 for FTP), plus
 one per service, plus temporary ones for name resolution and RADIUS.
 <pre>
-fs.nr_open = 1048576          # (1048576) upper bound for any process' RLIMIT_NOFILE
+fs.nr_open = 1048576          &#35; (1048576) upper bound for any process' RLIMIT_NOFILE
 </pre>
 <tt>ulimit -n</tt> (RLIMIT_NOFILE) is the limit that actually applies and is commonly
 left at 1024; it must be raised for the 3proxy process itself, see "Setting ulimits"
@@ -134,9 +134,9 @@ changing.
 reached earlier with 3proxy than with event-driven servers. Each thread also consumes
 one or two mappings, so <tt>vm.max_map_count</tt> matters too.
 <pre>
-kernel.threads-max = 200000   # (~60000 on a 16G host, scales with RAM)
-kernel.pid_max = 4194304      # (4194304)
-vm.max_map_count = 1048576    # (1048576)
+kernel.threads-max = 200000   &#35; (~60000 on a 16G host, scales with RAM)
+kernel.pid_max = 4194304      &#35; (4194304)
+vm.max_map_count = 1048576    &#35; (1048576)
 </pre>
 RLIMIT_NPROC (<tt>ulimit -u</tt>) limits threads per user and must be raised as well.
 Check the actual thread count with <tt>grep Threads /proc/PID/status</tt>.
@@ -145,28 +145,28 @@ Check the actual thread count with <tt>grep Threads /proc/PID/status</tt>.
 'backlog' command is given, so a large 'maxconn' does not automatically give a large
 queue, and the kernel caps it at somaxconn:
 <pre>
-net.core.somaxconn = 4096          # (4096)
-net.ipv4.tcp_max_syn_backlog = 4096 # (512) raise for bursty connection rates
-net.ipv4.tcp_syncookies = 1        # (1) keep enabled
+net.core.somaxconn = 4096          &#35; (4096)
+net.ipv4.tcp_max_syn_backlog = 4096 &#35; (512) raise for bursty connection rates
+net.ipv4.tcp_syncookies = 1        &#35; (1) keep enabled
 </pre>
 
 <p><b>Ephemeral ports and TIME_WAIT.</b> See "Extending the Ephemeral Port Range" above
 for the multi-IP case. The range gives about 28000 outgoing connections per
 destination address by default:
 <pre>
-net.ipv4.ip_local_port_range = 10240 65535   # (32768 60999)
-net.ipv4.tcp_tw_reuse = 2                    # (2) reuse TIME_WAIT for outgoing connections
-net.ipv4.tcp_fin_timeout = 30                # (60)
+net.ipv4.ip_local_port_range = 10240 65535   &#35; (32768 60999)
+net.ipv4.tcp_tw_reuse = 2                    &#35; (2) reuse TIME_WAIT for outgoing connections
+net.ipv4.tcp_fin_timeout = 30                &#35; (60)
 </pre>
 Do not enable tcp_tw_recycle; it was removed in kernel 4.12 and breaks NAT clients.
 
 <p><b>Socket buffers.</b> Autotuning is usually right. Buffer memory is per connection,
 so raising the maximums with tens of thousands of connections costs a lot of RAM:
 <pre>
-net.core.rmem_max = 4194304     # (212992)
-net.core.wmem_max = 4194304     # (212992)
-net.ipv4.tcp_rmem = 4096 131072 6291456   # (same) min default max
-net.ipv4.tcp_wmem = 4096 16384 4194304    # (same)
+net.core.rmem_max = 4194304     &#35; (212992)
+net.core.wmem_max = 4194304     &#35; (212992)
+net.ipv4.tcp_rmem = 4096 131072 6291456   &#35; (same) min default max
+net.ipv4.tcp_wmem = 4096 16384 4194304    &#35; (same)
 </pre>
 Raise these only for high bandwidth-delay product links, and prefer raising the third
 (max) value and leaving the default alone.
@@ -177,8 +177,8 @@ it does, the table is exhausted long before 3proxy's own limits, with
 <pre>
 net.netfilter.nf_conntrack_max = 1048576
 net.netfilter.nf_conntrack_buckets = 262144
-net.netfilter.nf_conntrack_tcp_timeout_established = 3600   # (432000, i.e. 5 days)
-net.netfilter.nf_conntrack_tcp_timeout_time_wait = 30       # (120)
+net.netfilter.nf_conntrack_tcp_timeout_established = 3600   &#35; (432000, i.e. 5 days)
+net.netfilter.nf_conntrack_tcp_timeout_time_wait = 30       &#35; (120)
 </pre>
 nf_conntrack_max defaults to nf_conntrack_buckets, which itself is derived from the
 amount of RAM, so it is often much lower than expected on small machines. Each
