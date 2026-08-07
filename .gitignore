@@ -272,3 +272,4 @@ bin/3proxy_tlspr
 bin/3proxy_udppm
 build*/*
 testcerts/
+/.claude

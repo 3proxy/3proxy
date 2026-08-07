@@ -1,5 +1,3 @@
-3proxy-0.9.8 Released August, 7 2026
-
 !! Fix: use-after-free on the ftp:// request path in HTTP proxy, a request buffer reallocation left a stale pointer; heap corruption, requires authenticated access
 !! Fix: buffer overflow in radsend() with an oversized request hostname; RADIUS is experimental, log radius or auth radius with fakeresolve is required to reach it
 !! Fix: buffer overflow in smtpp when relaying AUTH LOGIN credentials to a server which offers AUTH PLAIN only; requires authorised access to smtpp
