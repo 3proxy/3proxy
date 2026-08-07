@@ -29,7 +29,7 @@ RUN TAG=$(curl -s https://api.github.com/repos/wolfSSL/wolfssl/releases/latest \
     mkdir /src && tar -xzf /tmp/w.tar.gz -C /src --strip-components=1 && \
     cd /src && \
     autoreconf -i && \
-    ./configure --enable-opensslextra --enable-opensslall --enable-certgen \
+    ./configure --enable-opensslextra --enable-certgen \
                 --enable-tls13 --enable-sni --enable-session-ticket \
                 --enable-static --disable-shared --prefix=/usr/local && \
     make -j$(nproc) && make install

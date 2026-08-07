@@ -27,6 +27,10 @@
 #define WINAPI
 #endif
 
+#if defined(WITH_WOLFSSL) && !defined(SSL_set_mode)
+#define SSL_set_mode(ssl,op) ((void)0)
+#endif
+
 #ifndef isnumber
 #define isnumber(i_n_arg) ((i_n_arg>='0')&&(i_n_arg<='9'))
 #endif

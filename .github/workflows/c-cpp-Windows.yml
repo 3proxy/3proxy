@@ -39,5 +39,5 @@ jobs:
        cd "D:/a/3proxy/3proxy"
        set "LIB=%LIB%;c:/vcpkg/installed/x64-windows-static/lib;c:/vcpkg/installed/x64-windows/lib"
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows-static/include;c:/vcpkg/installed/x64-windows/include"
-       nmake /F Makefile.msvc WOLFSSL=1
+       nmake /F Makefile.msvc WOLFSSL=1 || exit /b 1
        nmake /F Makefile.msvc clean
