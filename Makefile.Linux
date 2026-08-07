@@ -104,7 +104,7 @@ INSTALL_OBJS	= bin/3proxy \
 		  bin/$(CRYPT_PREFIX)crypt \
 		  bin/$(PREFIX)ftppr \
 		  bin/$(PREFIX)imapp \
-	  bin/$(PREFIX)pop3p \
+		  bin/$(PREFIX)pop3p \
 		  bin/$(PREFIX)proxy \
 		  bin/$(PREFIX)smtpp \
 		  bin/$(PREFIX)socks \
