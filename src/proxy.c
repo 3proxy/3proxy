@@ -247,6 +247,7 @@ void * proxychild(struct clientparam* param) {
  int redirect = 0;
  int prefix = 0, ckeepalive=0;
  int ftp = 0;
+ int ssoff = 0;
 #ifndef ANONYMOUS
  int anonymous;
 #endif
@@ -338,6 +339,7 @@ for(;;){
 
  if ((sb=(unsigned char *)(unsigned char *)strchr((char *)buf, ' ')) == NULL) {RETURN(512);}
  ss = ++sb;
+ ssoff = (int)(ss - buf);
  if(!isconnect) {
 	if (!strncasecmp((char *)sb, "http://", 7)) {
 		sb += 7;
@@ -640,6 +642,7 @@ for(;;){
 	ckeepalive = 1;
 	if(ftpbase) free(ftpbase);
 	ftpbase = NULL;
+	ss = buf + ssoff;
 	if(!(sp = (unsigned char *)strchr((char *)ss, ' '))){RETURN(799);}
 	*sp = 0;
 
