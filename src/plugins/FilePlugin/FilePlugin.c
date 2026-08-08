@@ -114,12 +114,12 @@ static void genpaths(struct fp_stream *fps){
  if(fps->what & (FP_CLIDATA|FP_CLIHEADER)){
 	if(fps->fpd.path_cli) free(fps->fpd.path_cli);
 	fps->fpd.path_cli = malloc(len);
-	if(fps->fpd.path_cli) sprintf(fps->fpd.path_cli, path, counter++);
+	if(fps->fpd.path_cli) sprintf(fps->fpd.path_cli, "%s%07d.tmp", path, counter++);
  }
  if(fps->what & (FP_SRVDATA|FP_SRVHEADER)){
 	if(fps->fpd.path_srv) free(fps->fpd.path_srv);
 	fps->fpd.path_srv = malloc(len);
-	if(fps->fpd.path_srv) sprintf(fps->fpd.path_srv, path, counter++);
+	if(fps->fpd.path_srv) sprintf(fps->fpd.path_srv, "%s%07d.tmp", path, counter++);
  }
 
 }
@@ -882,10 +882,10 @@ static int h_cachedir(int argc, unsigned char **argv){
 	}
 #ifdef _WIN32
 	if(dirp[len-1] == '\\') dirp[len-1] = 0;
-	sprintf(path, "%.256s\\%%07d.tmp", dirp);
+	sprintf(path, "%.256s\\", dirp);
 #else
 	if(dirp[len-1] == '/') dirp[len-1] = 0;
-	sprintf(path, "%.256s/%%07d.tmp", dirp);
+	sprintf(path, "%.256s/", dirp);
 #endif
 	return 0;
 }
