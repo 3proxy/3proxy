@@ -201,11 +201,14 @@ for most traffic. Rebuild with -DWITHSPLICE to make -s available, -s0 disables i
 explicitly.
 .br
 .B -C
- (for TCP services) keep the session until both sides close the connection
-(TCP half-close). By default a connection closed by any of the sides terminates
-the session, buffered data is delivered before the sockets are closed. Half-close
-is required for the protocols where one of the sides closes its sending side and
-expects the answer, it may cause the sockets to be kept in CLOSE_WAIT state.
+ (for TCP services) a connection closed by any of the sides terminates the
+session, buffered data is delivered before the sockets are closed. By default
+the session is kept until both sides close the connection (TCP half-close).
+Half-close is required for the protocols where one of the sides closes its
+sending side and expects the answer, but it keeps the socket of the side which
+has already closed the connection in CLOSE_WAIT state. Use -C to close both
+sockets as soon as any of the sides closes the connection, -C1 to request
+the default behaviour explicitly.
 .br
  (for dnspr) simple, do not use resolver and 3proxy cache, always use external DNS server.
 .br
