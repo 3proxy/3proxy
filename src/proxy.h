@@ -271,7 +271,7 @@ extern int demon;
 unsigned char * mycrypt(const unsigned char *key, const unsigned char *salt, unsigned char *buf);
 unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPassword, int tohex);
 int de64 (const unsigned char *in, unsigned char *out, int maxlen);
-unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen);
+unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen, int outsize);
 void tohex(unsigned char *in, unsigned char *out, int len);
 void fromhex(unsigned char *in, unsigned char *out, int len);
 

@@ -832,7 +832,7 @@ struct pluginlink {
 	int (*ACLMatches)(struct ace* acentry, struct clientparam * param);
 	int (*alwaysauth)(struct clientparam * param);
 	int (*checkACL)(struct clientparam * param);
-	unsigned char* (*en64)(const unsigned char *in, unsigned char *out, int inlen);
+	unsigned char* (*en64)(const unsigned char *in, unsigned char *out, int inlen, int outsize);
 	int (*de64)(const unsigned char *in, unsigned char *out, int maxlen);
 	void (*tohex)(unsigned char *in, unsigned char *out, int len);
 	void (*fromhex)(unsigned char *in, unsigned char *out, int len);

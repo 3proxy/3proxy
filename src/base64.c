@@ -6,6 +6,7 @@
 */
 
 #include <string.h>
+#include <limits.h>
 
 static const unsigned char base64digits[] =
    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -23,8 +24,10 @@ static const unsigned char base64val[] = {
 };
 #define DECODE64(c)  ((c > 32 && c<127)? base64val[(int)c] : BAD)
 
-unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen)
+unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen, int outsize)
 {
+    if (inlen < 0 || inlen > (INT_MAX - 2) || outsize < 1) return NULL;
+    if (((inlen + 2) / 3) > ((outsize - 1) / 4)) return NULL;
     for (; inlen > 0; inlen -= 3, in+=3)
     {
 	
@@ -42,6 +45,7 @@ int de64 (const char *in, char *out, int maxlen)
     int len = 0;
     register unsigned char digit1, digit2, digit3, digit4;
 
+    if (maxlen < 0) return(-1);
     if (in[0] == '+' && in[1] == ' ')
 	in += 2;
     if (*in == '\r')
@@ -61,20 +65,23 @@ int de64 (const char *in, char *out, int maxlen)
 	if (digit4 != '=' && DECODE64(digit4) == BAD)
 	    return(-1);
 	in += 4;
+	if (len >= maxlen) return (len);
 	*out++ = (DECODE64(digit1) << 2) | (DECODE64(digit2) >> 4);
 	++len;
 	if (digit3 != '=')
 	{
+	    if (len >= maxlen) return (len);
 	    *out++ = ((DECODE64(digit2) << 4) & 0xf0) | (DECODE64(digit3) >> 2);
 	    ++len;
 	    if (digit4 != '=')
 	    {
+		if (len >= maxlen) return (len);
 		*out++ = ((DECODE64(digit3) << 6) & 0xc0) | DECODE64(digit4);
 		++len;
 	    }
 	}
-    } while 
-	(*in && *in != '\r' && digit4 != '=' && (maxlen-=4) >= 4);
+    } while
+	(*in && *in != '\r' && digit4 != '=');
 
     return (len);
 }

@@ -929,7 +929,8 @@ for(;;){
  if(param->extusername){
 	hlen += sprintf((char*)buf + hlen, "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
 	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
-	hlen = (int)(en64(username, buf + hlen, (int)strlen((char *)username)) - buf);
+	if(!(sb = en64(username, buf + hlen, (int)strlen((char *)username), bufsize - hlen))) {RETURN(21);}
+	hlen = (int)(sb - buf);
 	hlen += sprintf((char*)buf + hlen, "\r\n");
  }
  hlen += sprintf((char*)buf + hlen, "\r\n");

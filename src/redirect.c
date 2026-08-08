@@ -70,7 +70,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			if(user){
 				len += sprintf((char *)buf + len, "Proxy-Authorization: Basic ");
 				sprintf((char *)username, "%.128s:%.128s", user, pass?pass:(unsigned char *)"");
-				en64(username, buf+len, (int)strlen((char *)username));
+				if(!en64(username, buf+len, (int)strlen((char *)username), 2048 - len)) return 21;
 				len = (int)strlen((char *)buf);
 				len += sprintf((char *)buf + len, "\r\n");
 			}

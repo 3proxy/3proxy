@@ -182,12 +182,12 @@ void * imappchild(struct clientparam* param) {
  if(method == CL_PLAIN){
 	i = (int)strlen((char *)param->extusername);
 	res = (int)strlen((char *)pb);
-	if(((i + res + 4) / 3) * 4 + 1 > (int)sizeof(srvbuf)) {RETURN(693);}
+	if(i + res + 2 > (int)sizeof(ibuf)) {RETURN(693);}
 	ibuf[0] = 0;
 	memcpy(ibuf + 1, param->extusername, i);
 	ibuf[i + 1] = 0;
 	memcpy(ibuf + i + 2, pb, res);
-	en64(ibuf, srvbuf, i + res + 2);
+	if(!en64(ibuf, srvbuf, i + res + 2, (int)sizeof(srvbuf))) {RETURN(693);}
 	if( socksend(param, param->remsock, tag, (int)strlen((char *)tag), conf.timeouts[STRING_S]) <= 0 ||
 		socksend(param, param->remsock, (unsigned char *)" AUTHENTICATE PLAIN ", 20, conf.timeouts[STRING_S])!= 20 ||
 		socksend(param, param->remsock, srvbuf, (int)strlen((char *)srvbuf), conf.timeouts[STRING_S]) <= 0 ||
@@ -200,15 +200,13 @@ void * imappchild(struct clientparam* param) {
 		{RETURN(699);}
 	i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', conf.timeouts[STRING_L]);
 	if(i < 1 || *srvbuf != '+') {RETURN(699);}
-	if(((int)strlen((char *)param->extusername) + 2) / 3 * 4 + 1 > (int)sizeof(ibuf) - 3) {RETURN(693);}
-	en64(param->extusername, ibuf, (int)strlen((char *)param->extusername));
+	if(!en64(param->extusername, ibuf, (int)strlen((char *)param->extusername), (int)sizeof(ibuf))) {RETURN(693);}
 	if( socksend(param, param->remsock, ibuf, (int)strlen((char *)ibuf), conf.timeouts[STRING_S]) <= 0 ||
 		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
 		{RETURN(699);}
 	i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', conf.timeouts[STRING_L]);
 	if(i < 1 || *srvbuf != '+') {RETURN(699);}
-	if(((int)strlen((char *)pb) + 2) / 3 * 4 + 1 > (int)sizeof(ibuf) - 3) {RETURN(693);}
-	en64(pb, ibuf, (int)strlen((char *)pb));
+	if(!en64(pb, ibuf, (int)strlen((char *)pb), (int)sizeof(ibuf))) {RETURN(693);}
 	if( socksend(param, param->remsock, ibuf, (int)strlen((char *)ibuf), conf.timeouts[STRING_S]) <= 0 ||
 		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
 		{RETURN(699);}
