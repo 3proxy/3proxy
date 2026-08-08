@@ -44,7 +44,13 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 #define MIN(a,b) ((a>b)?b:a)
 #define RETURN(xxx) { res = xxx; goto CLEANRET; }
 
+/* Unless half-close is requested for the service, a connection closed by any
+   of the sides terminates the session, remaining buffered data is delivered
+   before the sockets are closed. */
+#define SESSIONEND (!halfclose && (CLIENTTERMREAD || SERVERTERMREAD))
+
 int sockmap(struct clientparam * param, int timeo, int usesplice){
+ int halfclose = param->srv->halfclose;
  uint64_t fromclient=0x7fffffffffffffff, fromserver =0x7fffffffffffffff;
  uint64_t inclientbuf = 0, inserverbuf = 0;
  int FROMCLIENT = 1, TOCLIENTBUF = 1, TOSERVER = 1, 
@@ -129,13 +135,13 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 #ifdef WITHSPLICE
 		|| inserverpipe
 #endif
-		|| (!SERVERTERMREAD )))
+		|| (!SERVERTERMREAD && !SESSIONEND)))
 	||
 	((!SERVERTERMWRITE) && fromclient && (inclientbuf
 #ifdef WITHSPLICE
 		|| inclientpipe
 #endif
-		|| (!CLIENTTERMREAD )))
+		|| (!CLIENTTERMREAD && !SESSIONEND)))
  ){
 
 
@@ -354,7 +360,7 @@ log(logbuf);
 				}
 			}
 		}
-		if(fromclient>inclientpipe && FROMCLIENT && TOCLIENTPIPE){
+		if(fromclient>inclientpipe && FROMCLIENT && TOCLIENTPIPE && !SESSIONEND){
 			int error;
 			socklen_t len=sizeof(error);
 #ifdef WITHLOG
@@ -396,7 +402,7 @@ log("done read from client to pipe");
 				continue;
 			}
 		}
-		if(fromserver > inserverpipe && FROMSERVER && TOSERVERPIPE){
+		if(fromserver > inserverpipe && FROMSERVER && TOSERVERPIPE && !SESSIONEND){
 			int error; 
 			socklen_t len=sizeof(error);
 			errno = 0;
@@ -449,7 +455,7 @@ log("done read from server to pipe\n");
 	else
 #endif
 	{
-		if(fromclient > inclientbuf && FROMCLIENT && TOCLIENTBUF){
+		if(fromclient > inclientbuf && FROMCLIENT && TOCLIENTBUF && !SESSIONEND){
 #ifdef WITHLOG
 log("read from client to buf");
 #endif
@@ -482,7 +488,7 @@ log("done read from client to buf");
 			}
 		}
 
-		if(fromserver > inserverbuf && FROMSERVER && TOSERVERBUF){
+		if(fromserver > inserverbuf && FROMSERVER && TOSERVERBUF && !SESSIONEND){
 #ifdef WITHLOG
 log("read from server to buf");
 #endif
@@ -547,7 +553,7 @@ log("done read from server to buf");
 //		if(!CLIENTTERMREAD || !CLIENTTERMWRITE){
 			if(!after){
 				fds[fdsc].fd = param->clisock;
-				if(fromclient && !CLIENTTERMREAD && !FROMCLIENT && ((
+				if(fromclient && !CLIENTTERMREAD && !FROMCLIENT && !SESSIONEND && ((
 #ifdef WITHSPLICE
 					!usesplice &&
 #endif
@@ -607,7 +613,7 @@ log("ready to write to client");
 //		if(!SERVERTERMREAD || !SERVERTERMWRITE){
 			if(!after){
 				fds[fdsc].fd = param->remsock;
-				if(fromserver && !SERVERTERMREAD && !FROMSERVER && ((
+				if(fromserver && !SERVERTERMREAD && !FROMSERVER && !SESSIONEND && ((
 #ifdef WITHSPLICE
 					!usesplice &&
 #endif
@@ -827,3 +833,4 @@ CLEANRET:
 
  return res;
 }
+#undef SESSIONEND

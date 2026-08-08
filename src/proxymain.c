@@ -329,6 +329,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 #ifdef WITHSPLICE
 	" -s Use splice() - no filtering for data, off by default\n"
+	" -C keep the session until both sides close the connection (TCP half-close),\n"
+	"    by default connection closed by any of the sides terminates the session\n"
 #endif
 	"-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY) - delay GRACE_DELAY milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second to minimize polling\n"
 	" -fFORMAT logging format (see documentation)\n"
@@ -595,6 +597,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		case 'g':
 			sscanf(argv[i]+2, "%d,%d,%d", &srv.gracetraf, &srv.gracenum, &srv.gracedelay);
+			break;
+		case 'C':
+			srv.halfclose = *(argv[i]+2)? atoi(argv[i]+2) : 1;
 			break;
 		case 's':
 #ifdef WITHSPLICE
@@ -1247,6 +1252,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
 #ifdef WITHSPLICE
  srv->usesplice = 0;
 #endif
+ srv->halfclose = 0;
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->version = srv->version;

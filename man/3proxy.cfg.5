@@ -200,6 +200,13 @@ SPLICE_F_MOVE, so no real zero-copy takes place and the read/write path is faste
 for most traffic. Rebuild with -DWITHSPLICE to make -s available, -s0 disables it
 explicitly.
 .br
+.B -C
+ (for TCP services) keep the session until both sides close the connection
+(TCP half-close). By default a connection closed by any of the sides terminates
+the session, buffered data is delivered before the sockets are closed. Half-close
+is required for the protocols where one of the sides closes its sending side and
+expects the answer, it may cause the sockets to be kept in CLOSE_WAIT state.
+.br
  (for dnspr) simple, do not use resolver and 3proxy cache, always use external DNS server.
 .br
  (for udppm) singlepacket, expect only one packet from both client and server

@@ -551,6 +551,7 @@ struct srvparam {
 #ifdef WITHSPLICE
 	int usesplice;
 #endif
+	int halfclose;
 	unsigned bufsize;
 	unsigned authcachetype, authcachetime;
 	unsigned logdumpsrv, logdumpcli;

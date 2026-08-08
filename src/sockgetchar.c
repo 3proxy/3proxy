@@ -171,12 +171,13 @@ int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * 
 		if(delim != EOF){
 			unsigned char *d = (unsigned char *)memchr(base + *offp, delim, n);
 			if(d) n = (int)(d - (base + *offp)) + 1;
-			memcpy(buf + i, base + *offp, n);
+			/* caller may use param->srvbuf / param->clibuf as buf */
+			memmove(buf + i, base + *offp, n);
 			i += n; *offp += n;
 			if(d || i >= bufsize) return i;
 		}
 		else {
-			memcpy(buf + i, base + *offp, n);
+			memmove(buf + i, base + *offp, n);
 			i += n; *offp += n;
 			if(i >= bufsize) return i;
 		}
