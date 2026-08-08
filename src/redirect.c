@@ -270,8 +270,6 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	int r2;
 	int saved = 0;
 
-	if(param->remsock != INVALID_SOCKET && param->operation != UDPASSOC) {
-	}
 	if((SAISNULL(&param->req) || !*SAPORT(&param->req)) && param->operation != UDPASSOC) {
 		return 100;
 	}
