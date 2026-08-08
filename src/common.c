@@ -130,7 +130,7 @@ int timeouts[12] = {
 	60,   /* CHAIN_TO */
 	15,   /* CONNECT_TO */
 	5,    /* CONNBACK_TO */
-	0,
+	5,    /* LINGER_TO */
 	0
 };
 
@@ -650,7 +650,7 @@ int doconnect(struct clientparam * param){
 	if(param->srv->so._getpeername(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (14);}
  }
  else {
-	struct linger lg = {1,conf.timeouts[SINGLEBYTE_S]};
+	struct linger lg = {1,conf.timeouts[LINGER_TO]};
 
 	if(SAISNULL(&param->sinsr)){
 		if(SAISNULL(&param->req)) {

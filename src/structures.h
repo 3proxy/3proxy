@@ -882,7 +882,8 @@ typedef enum {
 	DNS_TO,
 	CHAIN_TO,
 	CONNECT_TO,
-	CONNBACK_TO
+	CONNBACK_TO,
+	LINGER_TO
 }TIMEOUT;
 
 typedef enum {

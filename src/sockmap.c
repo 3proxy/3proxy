@@ -780,7 +780,9 @@ log("ready reading from server pipe");
 #ifdef WITHLOG
 log("entering poll");
 #endif
-			res = param->srv->so._poll(param->sostate, fds, fdsc, timeo*1000);
+			res = param->srv->so._poll(param->sostate, fds, fdsc,
+				((CLIENTTERMREAD || SERVERTERMREAD)?
+					MIN(timeo, conf.timeouts[LINGER_TO]) : timeo) * 1000);
 #ifdef WITHLOG
 log("leaving poll");
 #endif

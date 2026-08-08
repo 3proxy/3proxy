@@ -427,9 +427,9 @@ can use %A as produced archive name and %F as filename.
 
 .br
 .BR timeouts
-\fI<BYTE_SHORT>\fR \fI<BYTE_LONG>\fR \fI<STRING_SHORT>\fR \fI<STRING_LONG>\fR \fI<CONNECTION_SHORT>\fR \fI<CONNECTION_LONG>\fR \fI<DNS>\fR \fI<CHAIN>\fR \fI<CONNECT>\fR \fI<CONNECTBACK>\fR
+\fI<BYTE_SHORT>\fR \fI<BYTE_LONG>\fR \fI<STRING_SHORT>\fR \fI<STRING_LONG>\fR \fI<CONNECTION_SHORT>\fR \fI<CONNECTION_LONG>\fR \fI<DNS>\fR \fI<CHAIN>\fR \fI<CONNECT>\fR \fI<CONNECTBACK>\fR \fI<LINGER>\fR
 .br
- Sets timeout values, defaults 1, 5, 30, 60, 180, 1800, 15, 60, 15, 5.
+ Sets timeout values, defaults 1, 5, 30, 60, 180, 1800, 15, 60, 15, 5, 5.
 .br
  \fBBYTE_SHORT\fR short timeout for single byte, is usually used for receiving single byte from stream.
 .br
@@ -447,7 +447,12 @@ can use %A as produced archive name and %F as filename.
 .br
  \fBCHAIN\fR timeout for reading data from chained connection
 .br
- default timeouts 1 5 30 60 180 1800 15 60 15 5
+ \fBLINGER\fR timeout to deliver buffered data after one of the sides has closed
+its sending side, also used as SO_LINGER value on outgoing connections. Too small
+value may cause the tail of the data to be lost on slow connections, too large one
+delays release of the sockets.
+.br
+ default timeouts 1 5 30 60 180 1800 15 60 15 5 5
 
 .br
 .BR maxseg
