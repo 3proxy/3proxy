@@ -159,6 +159,10 @@ int checkACL(struct clientparam * param){
 					if(!res) break;
 					if(param->remsock != INVALID_SOCKET) param->srv->so._closesocket(param->sostate, param->remsock);
 					param->remsock = INVALID_SOCKET;
+					if(param->ctrlsocksrv != INVALID_SOCKET) {
+						param->srv->so._closesocket(param->sostate, param->ctrlsocksrv);
+						param->ctrlsocksrv = INVALID_SOCKET;
+					}
 				}
 				return res;
 			}
