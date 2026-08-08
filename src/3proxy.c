@@ -298,7 +298,7 @@ void cyclestep(void){
 					default:
 						break;
 				}
-				dologname (tmpbuf, conf.logname, (conf.archiver)?conf.archiver[1]:NULL, conf.logtype, (conf.logtime - t * conf.rotate));
+				dologname (tmpbuf, conf.logname, (conf.archiver)?conf.archiver[1]:NULL, conf.logtype, (conf.logtime - (time_t)t * conf.rotate));
 				remove ((char *) tmpbuf);
 				if(conf.archiver) {
 					int i;

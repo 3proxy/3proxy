@@ -109,15 +109,17 @@ struct sockfuncs sso;
 
 static void genpaths(struct fp_stream *fps){
 
+ size_t len = strlen(path) + 32;
+
  if(fps->what & (FP_CLIDATA|FP_CLIHEADER)){
 	if(fps->fpd.path_cli) free(fps->fpd.path_cli);
-	fps->fpd.path_cli = malloc(strlen(path) + 10);
-	sprintf(fps->fpd.path_cli, path, counter++);
+	fps->fpd.path_cli = malloc(len);
+	if(fps->fpd.path_cli) sprintf(fps->fpd.path_cli, path, counter++);
  }
  if(fps->what & (FP_SRVDATA|FP_SRVHEADER)){
 	if(fps->fpd.path_srv) free(fps->fpd.path_srv);
-	fps->fpd.path_srv = malloc(strlen(path) + 10);
-	sprintf(fps->fpd.path_srv, path, counter++);
+	fps->fpd.path_srv = malloc(len);
+	if(fps->fpd.path_srv) sprintf(fps->fpd.path_srv, path, counter++);
  }
 
 }
@@ -139,6 +141,7 @@ static
 	return fps->fpd.h_cli;
 #else
 	if(fps->fpd.fd_cli != -1) close(fps->fpd.fd_cli);
+	if(!fps->fpd.path_cli) return (fps->fpd.fd_cli = -1);
 	fps->fpd.fd_cli = open(fps->fpd.path_cli, O_BINARY|O_RDWR|O_CREAT|O_TRUNC, 0600);
 	return fps->fpd.fd_cli;
 #endif
@@ -160,6 +163,7 @@ static
 	return fps->fpd.h_srv;
 #else
 	if(fps->fpd.fd_srv != -1) close(fps->fpd.fd_srv);
+	if(!fps->fpd.path_srv) return (fps->fpd.fd_srv = -1);
 	fps->fpd.fd_srv = open(fps->fpd.path_srv, O_BINARY|O_RDWR|O_CREAT|O_TRUNC, 0600);
 	return fps->fpd.fd_srv;
 #endif
@@ -871,7 +875,7 @@ static int h_cachedir(int argc, unsigned char **argv){
 	size_t len;
 
 	dirp = (argc > 1)? (char *)argv[1] : getenv("TEMP");
-	len = strlen(dirp);
+	len = dirp? strlen(dirp) : 0;
 	if(!dirp || !len || len > 200 || strchr(dirp, '%')) {
 		fprintf(stderr, "FilePlugin: invalid directory path: %s\n", dirp);
 		return (1);

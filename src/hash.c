@@ -70,9 +70,9 @@ int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, u
 	_3proxy_mutex_init(&ht->hash_mutex);
         _3proxy_mutex_lock(&ht->hash_mutex);
     }
-    if(!(ht->ihashtable = malloc(tablesize *  sizeof(uint32_t)))
-    || !(ht->hashvalues = malloc(poolsize * (sizeof(struct hashentry) + ht->recsize - 4)))
-    || !(ht->hashhashvalues = malloc(poolsize * ht->hash_size))
+    if(!(ht->ihashtable = malloc((size_t)tablesize *  sizeof(uint32_t)))
+    || !(ht->hashvalues = malloc((size_t)poolsize * (sizeof(struct hashentry) + ht->recsize - 4)))
+    || !(ht->hashhashvalues = malloc((size_t)poolsize * ht->hash_size))
     ){
 	free(ht->ihashtable);
 	ht->ihashtable = NULL;
@@ -126,13 +126,13 @@ static void hashgrow(struct hashtable *ht){
     if(ht->ihashempty) return;
     if(ht->poolsize >= ht->growlimit) return;
     if(newsize > ht->growlimit) newsize = ht->growlimit;
-    newvalues = realloc(ht->hashvalues, newsize * (sizeof(struct hashentry) + ht->recsize - 4));
+    newvalues = realloc(ht->hashvalues, (size_t)newsize * (sizeof(struct hashentry) + ht->recsize - 4));
     if(!newvalues) return;
     ht->hashvalues = newvalues;
-    newvalues = realloc(ht->hashhashvalues, newsize * ht->hash_size);
+    newvalues = realloc(ht->hashhashvalues, (size_t)newsize * ht->hash_size);
     if(!newvalues) return;
     ht->hashhashvalues = newvalues;
-    memset(ht->hashvalues + (ht->poolsize * (sizeof(struct hashentry) + ht->recsize - 4)), 0, (newsize - ht->poolsize) * (sizeof(struct hashentry) + ht->recsize - 4));
+    memset(ht->hashvalues + ((size_t)ht->poolsize * (sizeof(struct hashentry) + ht->recsize - 4)), 0, (size_t)(newsize - ht->poolsize) * (sizeof(struct hashentry) + ht->recsize - 4));
     for(i = ht->poolsize + 1; i < newsize; i++) {
 	hvalue(ht,i)->inext = i+1;
     }
