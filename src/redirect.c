@@ -352,6 +352,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 			if(param->operation == UDPASSOC){
 			    SOCKET s;
+			    if(cur->type != R_SOCKS5 && cur->type != R_SOCKS5P) return 70;
 			    s = param->remsock;
 			    param->remsock = INVALID_SOCKET;
 			    param->ctrlsocksrv = s;
