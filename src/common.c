@@ -52,6 +52,11 @@ int switch_ns(struct srvparam *srv, int target_fd) {
 }
 #endif
 
+#ifdef __linux__
+#ifndef IP_LOCAL_PORT_RANGE
+#define IP_LOCAL_PORT_RANGE 51
+#endif
+#endif
 
 char * copyright = COPYRIGHT;
 
@@ -722,6 +727,7 @@ int doconnect(struct clientparam * param){
 	}
 	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, param->srv->srvsockopts);
+	if(set_local_port_range(param->srv, param->remsock, (struct sockaddr *)&param->sinsl, LOCAL_PORT_RANGE_TCP)) return 12;
 
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #if defined SO_BINDTODEVICE
@@ -765,6 +771,24 @@ int doconnect(struct clientparam * param){
     if(action != PASS) return 19;
  }
  return 0;
+}
+
+int set_local_port_range(struct srvparam *srv, SOCKET sock, const struct sockaddr *sa, int range_type){
+#ifdef __linux__
+	uint32_t range = range_type == LOCAL_PORT_RANGE_TCP ? srv->tcp_local_port_range :
+		range_type == LOCAL_PORT_RANGE_UDP ? srv->udp_local_port_range : srv->udp_associate_port_range;
+
+	if(range && sa->sa_family == AF_INET &&
+	   ((const struct sockaddr_in *)sa)->sin_port == 0 &&
+	   srv->so._setsockopt(srv->so.state, sock, IPPROTO_IP, IP_LOCAL_PORT_RANGE,
+		(char *)&range, sizeof(range))) return -1;
+#else
+	(void)srv;
+	(void)sock;
+	(void)sa;
+	(void)range_type;
+#endif
+	return 0;
 }
 
 int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask) {

@@ -60,6 +60,10 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	    *SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
 	}
 	if((sock=so._socket(so.state, SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
+	if(param && set_local_port_range(param->srv, sock, (struct sockaddr *)sinsl, usetcp ? LOCAL_PORT_RANGE_TCP : LOCAL_PORT_RANGE_UDP)) {
+		so._closesocket(so.state, sock);
+		break;
+	}
 	if(so._bind(so.state, sock,(struct sockaddr *)sinsl,SASIZE(sinsl))){
 	    so._shutdown(so.state, sock, SHUT_RDWR);
 	    so._closesocket(so.state, sock);

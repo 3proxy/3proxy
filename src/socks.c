@@ -218,6 +218,8 @@ void * sockschild(struct clientparam* param) {
 	if((res = udpbind(param))) {RETURN(res);}
  }
  else if(command == 2) {
+	if(set_local_port_range(param->srv, param->remsock, (struct sockaddr *)&param->sinsl,
+		LOCAL_PORT_RANGE_TCP)) RETURN(12);
 	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		*SAPORT(&param->sinsl) = 0;
 		if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
@@ -243,6 +245,7 @@ fflush(stderr);
 #endif
 		sin = param->sincl;
 		*SAPORT(&sin) = 0;
+		if(set_local_port_range(param->srv, param->clisock, (struct sockaddr *)&sin, LOCAL_PORT_RANGE_UDP_ASSOCIATE)) {RETURN (12);}
 		if(param->srv->so._bind(param->sostate, param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}
 		sasize = SASIZE(&sin);
 		param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin, &sasize);

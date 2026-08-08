@@ -345,6 +345,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	"\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
 	" -eIP ip address or external interface (outgoing connection will have this)\n"
+	" -TrFIRST-LAST, -UrFIRST-LAST, -UArFIRST-LAST Linux: local TCP, UDP or UDP ASSOCIATE ranges\n"
 	" -rHOST:PORT Use IP:port for connect back proxy instead of listen port\n"
 	" -RHOST:PORT Use PORT to listen connect back proxy connection to pass data to\n"
 	" -4 Use IPv4 for outgoing connections\n"
@@ -568,6 +569,35 @@ int MODULEMAINFUNC (int argc, char** argv){
 			srv.needuser = 0;
 			if(*(argv[i] + 2)) srv.needuser = atoi(argv[i] + 2);
 			break;
+		 case 'U':
+#ifdef __linux__
+			{
+				char *end;
+				const char *range_arg;
+				unsigned long first, last;
+				uint32_t *range;
+
+				if(argv[i][2] == 'r') {
+					range_arg = argv[i] + 3;
+					range = &srv.udp_local_port_range;
+				}
+				else if(argv[i][2] == 'A' && argv[i][3] == 'r') {
+					range_arg = argv[i] + 4;
+					range = &srv.udp_associate_port_range;
+				}
+				else { error = 1; break; }
+				errno = 0;
+				first = strtoul(range_arg, &end, 10);
+				if(errno || end == range_arg || *end != '-') { error = 1; break; }
+				errno = 0;
+				last = strtoul(end + 1, &end, 10);
+				if(errno || *end || !first || !last || first > last || last > 65535) { error = 1; break; }
+				*range = ((uint32_t)last << 16) | (uint32_t)first;
+			}
+#else
+			error = 1;
+#endif
+			break;
 		 case 'x':
 			srv.nostarttls = 1;
 			break;
@@ -590,7 +620,27 @@ int MODULEMAINFUNC (int argc, char** argv){
 			}
 			break;
 		 case 'T':
-			srv.transparent = 1;
+			if(!argv[i][2]) {
+				srv.transparent = 1;
+				break;
+			}
+#ifdef __linux__
+			{
+				char *end;
+				unsigned long first, last;
+
+				if(argv[i][2] != 'r') { error = 1; break; }
+				errno = 0;
+				first = strtoul(argv[i] + 3, &end, 10);
+				if(errno || end == argv[i] + 3 || *end != '-') { error = 1; break; }
+				errno = 0;
+				last = strtoul(end + 1, &end, 10);
+				if(errno || *end || !first || !last || first > last || last > 65535) { error = 1; break; }
+				srv.tcp_local_port_range = ((uint32_t)last << 16) | (uint32_t)first;
+			}
+#else
+			error = 1;
+#endif
 			break;
 		 case 'S':
 			srv.stacksize = atoi(argv[i]+2);
@@ -1797,5 +1847,3 @@ FILTER_ACTION handledatfltsrv(struct clientparam *cparam, unsigned char ** buf_p
 	}
 	return PASS;
 }
-
-

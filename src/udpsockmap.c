@@ -121,6 +121,12 @@ int udpbind(struct clientparam *param)
 	fcntl(s, F_SETFL, O_NONBLOCK | fcntl(s, F_GETFL));
 #endif
 	param->remsock = s;
+	if (set_local_port_range(param->srv, param->remsock,
+			(struct sockaddr *)&param->sinsl, LOCAL_PORT_RANGE_UDP)) {
+		param->srv->so._closesocket(param->sostate, param->remsock);
+		param->remsock = INVALID_SOCKET;
+		return 12;
+	}
 	if (param->srv->so._bind(param->sostate, param->remsock,
 			(struct sockaddr *)&param->sinsl, SASIZE(&param->sinsl))) {
 		*SAPORT(&param->sinsl) = 0;

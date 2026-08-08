@@ -590,6 +590,9 @@ struct srvparam {
 	unsigned char *udpbuf;
 	unsigned char *udpbuf2;
 	int udplen;
+	uint32_t tcp_local_port_range;
+	uint32_t udp_local_port_range;
+	uint32_t udp_associate_port_range;
 };
 
 struct clientparam {

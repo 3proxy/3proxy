@@ -176,6 +176,9 @@ listen on given local HOST:port for incoming connections instead of making remot
 .B -r\fIHOST\fB:\fIport\fR
 connect to given remote HOST:port instead of listening local connection on -p or default port. Can be used with another 3proxy service running -R option for connect back functionality. Most commonly used with proxy or socks. HOST can be given as IP or hostname, useful in case of dynamic DNS.
 .br
+.B -Tr\fIFIRST\fB-\fILAST\fR, -Ur\fIFIRST\fB-\fILAST\fR, -UAr\fIFIRST\fB-\fILAST\fR
+(Linux) use the inclusive local ephemeral port range FIRST-LAST for outgoing IPv4 TCP (-Tr) or UDP (-Ur) sockets of this service. -UAr applies only to the UDP relay socket returned to a SOCKS5 UDP ASSOCIATE client. Use it when this port range must be forwarded by NAT and allowed by a firewall. Requires kernel support for IP_LOCAL_PORT_RANGE (Linux 6.3 or newer). The option is applied before bind(2); no system-wide sysctl is changed. For example, \fBsocks -p1080 -Ur20000-30000 -UAr30000-31000\fR.
+.br
 .B -oc\fIOPTIONS\fB, -os\fIOPTIONS\fB, -ol\fIOPTIONS\fB, -or\fIOPTIONS\fB, -oR\fIOPTIONS\fR
 options for proxy-to-client (\fB-oc\fR), proxy-to-server (\fB-os\fR), proxy listening (\fB-ol\fR), connect back client (\fB-or\fR), connect back listening (\fB-oR\fR) sockets.
 Options like TCP_CORK, TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS, TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT, SO_EXCLUSIVEADDRUSE, SO_PORT_SCALABILITY, SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be supported depending on OS.
