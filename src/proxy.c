@@ -831,12 +831,20 @@ for(;;){
 						send_st(param, 9);
 					}
 					if((unsigned)socksend(param, param->clisock, buf, inbuf, conf.timeouts[STRING_S]) != inbuf){
+						param->srv->so._closesocket(param->sostate, ftps);
+						ftps = INVALID_SOCKET;
+						param->remsock = s;
 						RETURN(781);
 					}
 					inbuf = 0;
 				}
 				else {
-					if(!(newbuf = realloc(buf, bufsize + BUFSIZE))){RETURN (21);}
+					if(!(newbuf = realloc(buf, bufsize + BUFSIZE))){
+						param->srv->so._closesocket(param->sostate, ftps);
+						ftps = INVALID_SOCKET;
+						param->remsock = s;
+						RETURN (21);
+					}
 					buf = newbuf;
 					bufsize += BUFSIZE;
 				}
