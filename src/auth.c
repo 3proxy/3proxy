@@ -148,7 +148,13 @@ int doauth(struct clientparam * param){
 		if(ret > 9) return ret;
 	}
 	if(!res){
-		ret = alwaysauth(param);
+		/* UDP parent negotiation already established its control connection. */
+		if(param->operation == UDPASSOC && param->ctrlsocksrv != INVALID_SOCKET) {
+			ret = 0;
+		}
+		else {
+			ret = alwaysauth(param);
+		}
 		if (param->afterauthfilters){
 		    FILTER_ACTION action;
 
