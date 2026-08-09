@@ -436,7 +436,8 @@ fflush(stderr);
 				param->res = mapsocket(param, conf.timeouts[CONNECTION_S]);
 				break;
 			case 3:
-				param->sinsr = param->req;
+				if(param->udp_nhops) param->sinsr = param->udp_relay[0];
+				else param->sinsr = param->req;
 				param->res = udpsockmap(param, conf.timeouts[CONNECTION_L]);
 				break;
 			default:

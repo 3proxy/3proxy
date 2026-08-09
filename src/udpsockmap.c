@@ -35,6 +35,42 @@ static int socks5_udp_skip_hdr(unsigned char *buf, int len)
 	return (off <= len) ? off : -1;
 }
 
+static int socks5_udp_parse_dst(struct clientparam *param, const unsigned char *buf,
+				int len, PROXYSOCKADDRTYPE *dst)
+{
+	int hostlen;
+	char hostname[256];
+
+	if (len < 4 || buf[0] || buf[1] || buf[2]) return 483;
+	memset(dst, 0, sizeof(*dst));
+	switch (buf[3]) {
+	case 1:
+		if (len < 10) return 483;
+		*SAFAMILY(dst) = AF_INET;
+		memcpy(SAADDR(dst), buf + 4, 4);
+		memcpy(SAPORT(dst), buf + 8, 2);
+		return 0;
+	case 4:
+		if (len < 22) return 484;
+		*SAFAMILY(dst) = AF_INET6;
+		memcpy(SAADDR(dst), buf + 4, 16);
+		memcpy(SAPORT(dst), buf + 20, 2);
+		return 0;
+	case 3:
+		if (len < 5) return 485;
+		hostlen = buf[4];
+		if (len < 7 + hostlen) return 485;
+		memcpy(hostname, buf + 5, hostlen);
+		hostname[hostlen] = 0;
+		if (!getip46(param->srv->family, (unsigned char *)hostname,
+				     (struct sockaddr *)dst)) return 100;
+		memcpy(SAPORT(dst), buf + 5 + hostlen, 2);
+		return 0;
+	default:
+		return 997;
+	}
+}
+
 /*
  * udpsockmap: bidirectional UDP relay.
  *
@@ -156,6 +192,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 				default: return 997;
 				}
 				memcpy(SAPORT(&param->sinsr), param->srvbuf + i, 2);
+				param->req = param->sinsr;
 				i += 2;
 				if (len > i) {
 					param->srv->so._sendto(param->sostate, param->remsock,
@@ -166,6 +203,13 @@ int udpsockmap(struct clientparam *param, int timeo)
 				}
 			} else {
 				int off = 0;
+				int dstres;
+
+				if (param->srv->service == S_SOCKS) {
+					dstres = socks5_udp_parse_dst(param, param->srvbuf + recvoff,
+							       len, &param->req);
+					if (dstres) return dstres;
+				}
 				for (k = 1; k < nhops; k++)
 					off += socks5_udp_build_hdr(param->srvbuf + off, &param->udp_relay[k]);
 				param->srv->so._sendto(param->sostate, param->remsock,
