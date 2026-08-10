@@ -644,6 +644,7 @@ int doconnect(struct clientparam * param){
 
  if (param->operation == ADMIN || (( param->operation == DNSRESOLVE || param->operation == BIND || param->operation == UDPASSOC) && !param->redirected))
 	return 0;
+ if (param->operation == UDPASSOC && param->ctrlsocksrv != INVALID_SOCKET) return 0;
  if (param->remsock != INVALID_SOCKET){
 	if(param->operation == UDPASSOC) return 0;
 	size = sizeof(param->sinsr);

@@ -150,7 +150,7 @@ int checkACL(struct clientparam * param){
 				if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
 					continue;
 				}
-				if(param->remsock != INVALID_SOCKET && (param->operation != UDPASSOC || param->ctrlsocksrv != INVALID_SOCKET)) {
+				if((param->operation == UDPASSOC)? (param->ctrlsocksrv != INVALID_SOCKET) : (param->remsock != INVALID_SOCKET)) {
 					return 0;
 				}
 				for(; i < conf.parentretries; i++){
