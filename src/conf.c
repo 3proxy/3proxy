@@ -838,7 +838,34 @@ static int h_parent(int argc, unsigned char **argv){
 		*cidr = '/';
 		chains->cidr = atoi(cidr + 1);
 	}
-	*SAPORT(&chains->addr) = htons((uint16_t)atoi((char *)argv[4]));
+	{
+		char *end;
+		unsigned long port;
+
+		errno = 0;
+		port = strtoul((char *)argv[4], &end, 10);
+#ifdef WITH_LOCAL_PORT_RANGE
+		if(chains->type == R_EXTIP && *end == '-') {
+			unsigned long last;
+
+			errno = 0;
+			last = strtoul(end + 1, &end, 10);
+			if(errno || *end || !port || !last || port > last || last > 65535) {
+				free(chains->exthost);
+				free(chains);
+				return 3;
+			}
+			chains->local_port_range = ((uint32_t)last << 16) | (uint32_t)port;
+			port = 0;
+		}
+#endif
+		if(errno || *end || port > 65535) {
+			free(chains->exthost);
+			free(chains);
+			return 3;
+		}
+		*SAPORT(&chains->addr) = htons((uint16_t)port);
+	}
 	switch(chains->type){
 	    case R_POP3:
 	    case R_SMTP:

@@ -52,7 +52,7 @@ int switch_ns(struct srvparam *srv, int target_fd) {
 }
 #endif
 
-#ifdef __linux__
+#ifdef WITH_LOCAL_PORT_RANGE
 #ifndef IP_LOCAL_PORT_RANGE
 #define IP_LOCAL_PORT_RANGE 51
 #endif
@@ -727,7 +727,9 @@ int doconnect(struct clientparam * param){
 	}
 	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, param->srv->srvsockopts);
-	if(set_local_port_range(param->srv, param->remsock, (struct sockaddr *)&param->sinsl, LOCAL_PORT_RANGE_TCP)) return 12;
+#ifdef WITH_LOCAL_PORT_RANGE
+	if(set_local_port_range(param, param->remsock, (struct sockaddr *)&param->sinsl)) return 12;
+#endif
 
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #if defined SO_BINDTODEVICE
@@ -773,23 +775,15 @@ int doconnect(struct clientparam * param){
  return 0;
 }
 
-int set_local_port_range(struct srvparam *srv, SOCKET sock, const struct sockaddr *sa, int range_type){
-#ifdef __linux__
-	uint32_t range = range_type == LOCAL_PORT_RANGE_TCP ? srv->tcp_local_port_range :
-		range_type == LOCAL_PORT_RANGE_UDP ? srv->udp_local_port_range : srv->udp_associate_port_range;
-
-	if(range && sa->sa_family == AF_INET &&
+#ifdef WITH_LOCAL_PORT_RANGE
+int set_local_port_range(struct clientparam *param, SOCKET sock, const struct sockaddr *sa){
+	if(param->local_port_range && sa->sa_family == AF_INET &&
 	   ((const struct sockaddr_in *)sa)->sin_port == 0 &&
-	   srv->so._setsockopt(srv->so.state, sock, IPPROTO_IP, IP_LOCAL_PORT_RANGE,
-		(char *)&range, sizeof(range))) return -1;
-#else
-	(void)srv;
-	(void)sock;
-	(void)sa;
-	(void)range_type;
-#endif
+	   param->srv->so._setsockopt(param->srv->so.state, sock, IPPROTO_IP, IP_LOCAL_PORT_RANGE,
+		(char *)&param->local_port_range, sizeof(param->local_port_range))) return -1;
 	return 0;
 }
+#endif
 
 int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask) {
 	unsigned d1, d2, d3, d4, m;

@@ -25,6 +25,10 @@ LDFLAGS += -fno-strict-aliasing -pthread
 # makefile, including the += above and the STATIC/LIBSTATIC handling below.
 CFLAGS += $(EXTRA_CFLAGS)
 LDFLAGS += $(EXTRA_LDFLAGS)
+LOCAL_PORT_RANGE ?= true
+ifeq ($(LOCAL_PORT_RANGE),true)
+    CFLAGS += -DWITH_LOCAL_PORT_RANGE
+endif
 DLFLAGS ?= -shared
 DLSUFFICS = .ld.so
 # -lpthreads may be reuqired on some platforms instead of -pthreads

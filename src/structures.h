@@ -335,6 +335,9 @@ struct chain {
 	unsigned char * extpass;
 	unsigned short weight;
 	unsigned short cidr;
+#ifdef WITH_LOCAL_PORT_RANGE
+	uint32_t local_port_range;
+#endif
 };
 
 struct period {
@@ -590,9 +593,6 @@ struct srvparam {
 	unsigned char *udpbuf;
 	unsigned char *udpbuf2;
 	int udplen;
-	uint32_t tcp_local_port_range;
-	uint32_t udp_local_port_range;
-	uint32_t udp_associate_port_range;
 };
 
 struct clientparam {
@@ -672,6 +672,9 @@ struct clientparam {
 			maxtrafout64;
 	PROXYSOCKADDRTYPE sincl, sincr;
 	PROXYSOCKADDRTYPE	sinsl, sinsr, req;
+#ifdef WITH_LOCAL_PORT_RANGE
+	uint32_t local_port_range;
+#endif
 
 	uint64_t	statscli64,
 			statssrv64;

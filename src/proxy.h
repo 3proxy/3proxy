@@ -352,10 +352,9 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 int readconfig(FILE * fp);
 void initcommands(void);
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
-#define LOCAL_PORT_RANGE_TCP 1
-#define LOCAL_PORT_RANGE_UDP 2
-#define LOCAL_PORT_RANGE_UDP_ASSOCIATE 3
-int set_local_port_range(struct srvparam *srv, SOCKET sock, const struct sockaddr *sa, int range_type);
+#ifdef WITH_LOCAL_PORT_RANGE
+int set_local_port_range(struct clientparam *param, SOCKET sock, const struct sockaddr *sa);
+#endif
 
 
 uint32_t myrand(void);

@@ -149,10 +149,6 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	memset(&param->sinsl, 0, sizeof(param->sinsl));
 	*SAFAMILY(&param->sinsl) = *SAFAMILY(&nservers[0].addr);
-	if(set_local_port_range(param->srv, param->remsock, (struct sockaddr *)&param->sinsl,
-		nservers[0].usetcp ? LOCAL_PORT_RANGE_TCP : LOCAL_PORT_RANGE_UDP)) {
-		RETURN(819);
-	}
 	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		RETURN(819);
 	}
