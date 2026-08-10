@@ -23,9 +23,6 @@ jobs:
        pwd
        echo "RELEASE=$(cat RELEASE)" >> $GITHUB_ENV
        echo "VERSION=$(date +%y%m%d%H%M%S)" >> $GITHUB_ENV
-       echo "MAJOR=$(cat RELEASE | cut -d "-" -f 1)" >> $GITHUB_ENV
-       echo "SUBMAJOR=$(cat RELEASE | cut -d "-" -f 2)" >> $GITHUB_ENV
-       echo "MINOR=$(cat RELEASE | cut -d "-" -f 3)" >> $GITHUB_ENV
     - name: Linux libraries
       run: |
        sudo apt update
