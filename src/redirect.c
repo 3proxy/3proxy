@@ -285,7 +285,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 			continue;
 		}
-		param->redirected++;
+		if(cur->type != R_EXTIP && cur->type != R_HA) param->redirected++;
 		done = 1;
 		if(weight <= 0) {
 			weight += 1000;
@@ -340,6 +340,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				}
 				if(cur->next)continue;
 				if(!ha) return 0;
+				if(param->operation == UDPASSOC) return 0;
 			}
 			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
 				uint16_t port = *SAPORT(&param->sinsr);
