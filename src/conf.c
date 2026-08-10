@@ -814,6 +814,11 @@ static int h_parent(int argc, unsigned char **argv){
 		free(chains);
 		return(4);
 	}
+	if(argc < 5 && chains->type != R_EXTIP) {
+		fprintf(stderr, "Chaining error: port is required for parent type %s\n", argv[2]);
+		free(chains);
+		return(3);
+	}
 #ifdef WITH_UN
 	if(!strncmp((char *)argv[3], "unix:", 5)){
 	    make_un(argv[3] + 5, (struct sockaddr_un*)&chains->addr);
@@ -838,7 +843,7 @@ static int h_parent(int argc, unsigned char **argv){
 		*cidr = '/';
 		chains->cidr = atoi(cidr + 1);
 	}
-	{
+	if(argc > 4) {
 		char *end;
 		unsigned long port;
 
@@ -1741,7 +1746,7 @@ struct commands commandhandlers[]={
 	{NULL, "system", h_system, 2, 2},
 	{NULL, "pidfile", h_pidfile, 2, 2},
 	{NULL, "monitor", h_monitor, 2, 2},
-	{NULL, "parent", h_parent, 5, 0},
+	{NULL, "parent", h_parent, 4, 0},
 	{NULL, "allow", h_ace, 1, 0},
 	{NULL, "deny", h_ace, 1, 0},
 	{NULL, "redirect", h_ace, 3, 0},
