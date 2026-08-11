@@ -36,26 +36,19 @@ void * udppmchild(struct clientparam* param) {
 	int i;
 	int len = 0;
 
-	if(parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) { RETURN(201) }
+	if(parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) { RETURN(100) }
 
 #ifndef NOIPV6
-	memcpy(&param->sinsl, *SAFAMILY(&param->req) == AF_INET6 ? (struct sockaddr *)&param->srv->extsa6 : (struct sockaddr *)&param->srv->extsa, SASIZE(&param->req));
+	param->sinsl = *SAFAMILY(&param->req) == AF_INET6? param->srv->extsa6 : param->srv->extsa;
 #else
-	memcpy(&param->sinsl, (struct sockaddr *)&param->srv->extsa, SASIZE(&param->req));
+	param->sinsl = param->srv->extsa;
 #endif
 	*SAPORT(&param->sinsl) = 0;
-	param->remsock = param->srv->so._socket(param->srv->so.state, SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP);
-	if(param->remsock == INVALID_SOCKET) { RETURN(202); }
-	if(param->srv->so._bind(param->srv->so.state, param->remsock, (struct sockaddr *)&param->sinsl, SASIZE(&param->sinsl))) { RETURN(203); }
-#ifdef _WIN32
-	{ unsigned long ul2 = 1; ioctlsocket(param->remsock, FIONBIO, &ul2); }
-#else
-	fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
-#endif
-	memcpy(&param->sinsr, &param->req, sizeof(param->req));
+	param->sinsr = param->req;
 	param->operation = UDPASSOC;
 	authres = (*param->srv->authfunc)(param);
 	if(authres) { RETURN(authres); }
+	if((authres = udpbind(param))) { RETURN(authres); }
 	if(!param->srv->s_option)hashadd(&udp_table, param, &param, MAX_COUNTER_TIME);
 	if(!param->srvbuf){
 	    if(!(param->srvbuf = malloc(UDPBUFSIZE)))RETURN(11);

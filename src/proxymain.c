@@ -331,6 +331,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -s Use splice() - no filtering for data, off by default\n"
 	" -C connection closed by any of the sides terminates the session, by default\n"
 	"    the session is kept until both sides close it (TCP half-close)\n"
+	" -U(0-3) (for socks) what to do when the destination changes within an UDP\n"
+	"    association: 1 - log, 2 - authorize, 3 - both (default), 0 (same as -U) -\n"
+	"    neither. The first destination is always authorized and logged\n"
 #endif
 	"-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY) - delay GRACE_DELAY milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second to minimize polling\n"
 	" -fFORMAT logging format (see documentation)\n"
@@ -600,6 +603,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		case 'C':
 			srv.halfclose = *(argv[i]+2)? atoi(argv[i]+2) : 0;
+			break;
+		case 'U':
+			srv.udpauth = *(argv[i]+2)? atoi(argv[i]+2) : 0;
 			break;
 		case 's':
 #ifdef WITHSPLICE
@@ -1253,6 +1259,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->usesplice = 0;
 #endif
  srv->halfclose = 1;
+ srv->udpauth = 3;
  memset(param, 0, sizeof(struct clientparam));
  param->srv = srv;
  param->version = srv->version;
@@ -1355,7 +1362,6 @@ void srvfree(struct srvparam * srv){
 
 
 void freeparam(struct clientparam * param) {
-	if(param->res == 2) return;
 	if(param->srv){
 		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
 		_3proxy_mutex_lock(&param->srv->counter_mutex);

@@ -7,15 +7,6 @@
 */
 
 #include "proxy.h"
-#ifdef __linux__
-#include <sched.h>
-
-static int switch_ns(struct srvparam *srv, int target_fd) {
-	if(target_fd < 0) return 0;
-	if(srv->saved_nsfd >= 0 && setns(srv->saved_nsfd, CLONE_NEWNET)) return -1;
-	return setns(target_fd, CLONE_NEWNET);
-}
-#endif
 
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
@@ -219,7 +210,11 @@ void * sockschild(struct clientparam* param) {
 	 RETURN(997);
  }
 
- if((res = (*param->srv->authfunc)(param))) {
+ if(command == 3) param->preauth = 1;
+ res = (*param->srv->authfunc)(param);
+ param->preauth = 0;
+ if(command == 3 && res == 2) res = 0;
+ if(res) {
 	RETURN(res);
  }
 
@@ -238,18 +233,9 @@ void * sockschild(struct clientparam* param) {
 #endif
 
  if(command == 3) {
-#ifdef __linux__
-	if(switch_ns(param->srv, param->srv->o_nsfd)) {RETURN(11);}
-#endif
-	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {RETURN (11);}
-#ifdef _WIN32
-	{ unsigned long ul = 1; ioctlsocket(param->remsock, FIONBIO, &ul); }
-#else
-	fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
-#endif
+	if((res = udpbind(param))) {RETURN(res);}
  }
-
- if(command > 1) {
+ else if(command == 2) {
 	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		*SAPORT(&param->sinsl) = 0;
 		if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
@@ -260,7 +246,8 @@ fflush(stderr);
 	}
 	sasize = SASIZE(&param->sinsl);
 	param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl,  &sasize);
-	if(command == 3) {
+ }
+ if(command == 3) {
 		param->ctrlsock = param->clisock;
 #ifdef __linux__
 		if(switch_ns(param->srv, param->srv->i_nsfd)) {RETURN(11);}
@@ -283,7 +270,6 @@ fprintf(stderr, "%hu binded to communicate with client\n",
 	);
 fflush(stderr);
 #endif
-	}
  }
  param->res = 0;
 

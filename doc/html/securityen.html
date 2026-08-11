@@ -25,6 +25,26 @@ with an unreachable DNS server (because gethostbyname will block other threads).
 user requests can be logged.
 <li>Use -xyz+A character filtering sequences for 'logformat', especially with
 ODBC logging, to prevent SQL and log record injections.
+<li>With the 'cacheacl' authentication type the ACL result is cached and is not
+re-evaluated on a cache hit, so every field the ACL limits must be a part of
+the 'authcache' key. Any field the ACL limits but the key does not contain
+makes the cached result apply to a request it was not computed for, and that
+limitation is not enforced. Use 'user' and 'pass' for the userlist, 'ip' for
+the sourcelist, 'dstaddr' and 'dsthost' for the targetlist, 'dstport' for the
+targetportlist and 'dstoper' for the operationlist. Use plain 'cache' instead
+of 'cacheacl' if ACLs may change during the cache lifetime; cache entries are
+not invalidated by a configuration reload.
+<li>'cacheacl' must not be used together with parent proxies. The ACL is not
+walked on a cache hit, so no redirection is applied and the request is sent
+directly instead of through the 'parent' proxy of the matching ACL entry,
+without any error. If the parent proxy is the only sanctioned path to the
+network, this silently bypasses it. Use 'cache' instead. 'parent ... extip'
+is the only redirection which survives, and only if 'ext' is a part of the
+'authcache' key.
+<li>The destination of every datagram of a SOCKSv5 UDP association is
+authorized, but only with the default '-U3' (or '-U2') of the 'socks' service.
+With '-U0' or '-U1' only the first destination of an association is authorized,
+so ACLs limiting the destination do not restrict the rest of the association.
 <li>Immediately report all service crashes to the developers.
 <li>Participate in code audit :)
 </ul>

@@ -9,6 +9,15 @@
 
 
 #include "proxy.h"
+#ifdef __linux__
+#include <sched.h>
+
+int switch_ns(struct srvparam *srv, int target_fd) {
+	if(target_fd < 0) return 0;
+	if(srv->saved_nsfd >= 0 && setns(srv->saved_nsfd, CLONE_NEWNET)) return -1;
+	return setns(target_fd, CLONE_NEWNET);
+}
+#endif
 
 
 char * copyright = COPYRIGHT;

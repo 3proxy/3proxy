@@ -210,6 +210,16 @@ has already closed the connection in CLOSE_WAIT state. Use -C to close both
 sockets as soon as any of the sides closes the connection, -C1 to request
 the default behaviour explicitly.
 .br
+.B -U\fI[MODE]\fR
+ (for socks) what to do when the destination changes within an UDP association:
+\fB1\fR - log it, \fB2\fR - authorize it, \fB3\fR - both, the default,
+\fB0\fR (same as bare \fB-U\fR) - neither. The destination of the first datagram
+is always authorized and logged. With \fB-U0\fR and \fB-U1\fR the destination is
+not authorized again, so ACLs limiting the destination only apply to the first
+destination of the association, and the parent proxy and the external address
+selected for it are kept for the whole association. Use \fB-U2\fR to keep the
+authorization and to drop the per-destination log records only.
+.br
  (for dnspr) simple, do not use resolver and 3proxy cache, always use external DNS server.
 .br
  (for udppm) singlepacket, expect only one packet from both client and server
@@ -638,6 +648,13 @@ SOCKSv5, FTP, POP3 and HTTP proxy.
 authorization result is also cached and not re-evaluated on each request. Faster
 than \fBcache\fR, but ACL changes do not take effect for cached users until the
 cache entry expires. Use \fBcache\fR if ACLs may change during the cache lifetime.
+Because the ACL is not walked on a cache hit, no redirection is applied to a
+request served from the cache: it is sent directly instead of through the
+\fBparent\fR proxy of the matching ACL entry, with no error reported. Do not use
+\fBcacheacl\fR together with parent proxies, use \fBcache\fR instead. The only
+redirection type which survives is \fBextip\fR, and only if \fBext\fR is a part
+of the \fBauthcache\fR key, because the external address is then restored from
+the cache entry.
 .br
  \fBradius\fR - authentication with RADIUS.
 .br
@@ -692,6 +709,17 @@ assigned to the same user without actual authentication.
  \fBsrvport\fR - cache by service (listener) port
 .br
 Multiple types can be combined (e.g. \fBip,user,dstaddr,dstport\fR).
+.br
+With \fBcacheacl\fR the ACL result is not re-evaluated on a cache hit, so every
+field the ACL limits must be a part of the cache key, otherwise the result
+cached for one request is applied to a different one: \fBuser\fR/\fBpass\fR
+for the userlist, \fBip\fR for the sourcelist, \fBdstaddr\fR/\fBdsthost\fR
+for the targetlist, \fBdstport\fR for the targetportlist and \fBdstoper\fR
+for the operationlist. It is especially important for SOCKSv5 UDP traffic,
+where the destination of every datagram is authorized: without \fBdstaddr\fR
+and \fBdstport\fR in the key the result cached for one destination is applied
+to any other destination and the destination is not checked at all, see
+\fBallow\fR.
 .br
 Use auth type \fBcache\fR (or \fBcacheacl\fR) for cached authentication
 
@@ -777,6 +805,39 @@ non-privileged (1024-65535) ports on the remote side.
 .br
  Timeperiodlists is a list of time
 periods in HH:MM:SS-HH:MM:SS format. For example, 00:00:00-08:00:00,17:00:00-24:00:00 lists non-working hours.
+.br
+ A SOCKSv5 UDP ASSOCIATE request carries no destination, the destination of
+every datagram is taken from the datagram itself. 3proxy authorizes the
+destination of every datagram, so ACLs limiting the destination address, the
+destination host name or the destination port do apply to UDP traffic, unless
+the \fB-U\fR option of the \fBsocks\fR service says otherwise.
+.br
+ ACLs are only checked for the datagrams sent by the client. A datagram received
+on the association is relayed to the client without an ACL check: with a parent
+proxy only the datagrams from the parent are accepted, an association without a
+parent accepts a datagram from any source. The source reported to the client is
+the actual source of the datagram. The address in the log record is the destination the
+client sent the datagrams to, the source of the datagrams received on the
+association is not logged.
+.br
+ A client may use a single association to reach many destinations. An ACL entry
+which limits the destination silently drops the datagrams to every other
+destination, so limiting the destination of UDP traffic can break such clients
+in a way which is hard to diagnose. Limit it only when it is really required.
+.br
+ Bandwidth limiters (\fBbandlimin\fR, \fBbandlimout\fR) and traffic counters
+(\fBcountin\fR, \fBcountout\fR) which limit the destination are selected when
+the destination is authorized, so within an UDP association they are selected
+for the destination of the first datagram and are not re-selected for every
+following destination. They can not be applied per destination to the incoming
+UDP traffic at all, because an incoming datagram is not matched against any
+destination.
+.br
+ Only \fBsocks5\fR and \fBsocks5+\fR parents can be used for UDP. Because
+every new destination is authorized, use \fBauthcache\fR, especially with
+\'strong\', RADIUS or plugin authentication: \fBcacheacl\fR with the
+destination in the cache key if no parent proxy is used, \fBcache\fR
+otherwise, see \fBcacheacl\fR.
 
 .br
 .BR parent

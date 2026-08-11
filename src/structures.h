@@ -552,6 +552,7 @@ struct srvparam {
 	int usesplice;
 #endif
 	int halfclose;
+	int udpauth;
 	unsigned bufsize;
 	unsigned authcachetype, authcachetime;
 	unsigned logdumpsrv, logdumpcli;
@@ -644,7 +645,9 @@ struct clientparam {
 		paused,
 		version,
 		connlim,
-		predatdone;
+		predatdone,
+		preauth,
+		dstindep;
 
 	unsigned char 	*hostname,
 			*username,
@@ -679,6 +682,7 @@ struct clientparam {
 
 	PROXYSOCKADDRTYPE udp_relay[3];
 	int udp_nhops;
+	struct ace *lastace;
 	time_t time_start;
 };
 

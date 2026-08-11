@@ -204,6 +204,10 @@ extern int timeouts[12];
 
 int sockmap(struct clientparam * param, int timeo, int usesplice);
 int udpsockmap(struct clientparam * param, int timeo);
+int udpbind(struct clientparam * param);
+#ifdef __linux__
+int switch_ns(struct srvparam *srv, int target_fd);
+#endif
 int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bufsize, int to);
 int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);

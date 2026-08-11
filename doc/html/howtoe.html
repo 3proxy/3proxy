@@ -1338,6 +1338,82 @@ the second hop is 192.168.20.1, and the 3rd one is either 192.168.30.1 with a pr
 of 30% or 192.168.40.1 with a probability of 70%.
 </p>
 
+ <li><a name="UDPACL">How to apply ACLs to UDP traffic</a>
+<p>
+A SOCKSv5 UDP ASSOCIATE request only asks 3proxy to open a relay port, it
+carries no destination. The destination is taken from every datagram the client
+sends afterwards, so a single association may reach any number of destinations.
+3proxy authorizes the destination of every datagram, so ACLs limiting the
+destination address, host name or port do apply to UDP traffic.
+</p>
+<p>
+Differences from TCP:
+</p>
+<ul>
+<li>A datagram to a denied destination is dropped, the association is not
+terminated.
+<li>The parent proxy and the external address are selected for the destination
+of the datagram and not for the ASSOCIATE request, and are re-established if a
+later destination selects another ACL entry. Only <code>socks5</code> and
+<code>socks5+</code> parents can be used for UDP.
+<li>ACLs are checked for the datagrams sent by the client only. A datagram
+received on the association is relayed to the client without an ACL check: with
+a parent proxy only the datagrams from the parent are accepted, an association
+without a parent accepts a datagram from any source. The source reported to the
+client is the actual source of the datagram. The address in the log record is the destination the
+client sent the datagrams to, the source of the received datagrams is not
+logged.
+<li>A client may use a single association to reach many destinations. An ACL
+entry which limits the destination silently drops the datagrams to every other
+destination, so limiting the destination of UDP traffic can break such clients
+in a way which is hard to diagnose. Limit it only when it is really required.
+<li>Bandwidth limiters and traffic counters which limit the destination are
+selected when the destination is authorized, so they are selected for the
+destination of the first datagram and are not re-selected for every following
+destination. They can not be applied per destination to incoming UDP traffic at
+all.
+<li>Every change of the destination host name, address or port is authorized
+again and logged. Use <code>nscache</code> for host names and the
+authentication cache for anything more expensive than 'iponly'. The
+<code>-U</code> option of the <code>socks</code> service turns the logging
+and/or the re-authorization off; with <code>-U0</code> or <code>-U1</code>
+only the first destination of an association is authorized.
+</ul>
+<p>
+Limit the destinations a client may send datagrams to:
+</p><pre>
+auth iponly
+allow * * 8.8.8.8 53
+deny *
+socks -p1080
+</pre>
+<p>
+The ASSOCIATE request succeeds, datagrams to 8.8.8.8:53 are relayed, datagrams
+to any other destination are dropped.
+</p>
+<p>
+The same with 'strong' (or RADIUS, or plugin) authentication, where every new
+destination would otherwise be authenticated again:
+</p><pre>
+users user1:CL:password
+authcache user,pass,dstaddr,dstport 60
+auth cacheacl strong
+allow user1 * 8.8.8.8 53
+deny *
+socks -p1080
+</pre>
+<p>
+With 'cacheacl' the ACL result is not re-evaluated on a cache hit, so every
+field the ACL limits must be a part of the cache key: 'user' and 'pass' for the
+userlist, 'dstaddr' and 'dstport' for the targetlist and the targetportlist,
+'ip' for the sourcelist, 'dsthost' for host names in the targetlist, 'dstoper'
+for the operationlist. Without the destination in the key the result cached for
+one destination is applied to any other destination and the destination is not
+checked at all. Use plain 'cache' instead of 'cacheacl' if ACLs may change
+during the cache lifetime, or if a parent proxy is used: on a 'cacheacl' hit
+the ACL is not walked, so no parent proxy is selected and datagrams are sent
+directly.
+</p>
  <li><A NAME="BANDLIM">How to limit bandwidth</a>
 <p>
 3proxy supports bandwidth filters. Use the bandlimin/bandlimout and

@@ -36,6 +36,8 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	struct hostname * hstentry=NULL;
 	int i;
 	int match = 0;
+	int dstdep = 0;
+	int preauth = (param->preauth == 1 && acentry->action <= REDIRECT);
 
 	username = param->username?param->username:(unsigned char *)"-";
 	if(acentry->src) {
@@ -45,7 +47,10 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 		}
 	 if(!ipentry) return 0;
 	}
-	if((acentry->dst && (!SAISNULL(&param->req) || param->operation==BIND)) || (acentry->dstnames && param->hostname)) {
+	if(preauth && (acentry->dst || acentry->dstnames)) {
+	 dstdep = 1;
+	}
+	else if((acentry->dst && (!SAISNULL(&param->req) || param->operation==BIND)) || (acentry->dstnames && param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
 		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
@@ -93,7 +98,10 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	 }
 	 if(!ipentry && !hstentry) return 0;
 	}
-	if(acentry->ports && (*SAPORT(&param->req) || param->operation == BIND)) {
+	if(preauth && acentry->ports) {
+	 dstdep = 1;
+	}
+	else if(acentry->ports && (*SAPORT(&param->req) || param->operation == BIND)) {
 	 for (portentry = acentry->ports; portentry; portentry = portentry->next)
 		if(ntohs(*SAPORT(&param->req)) >= portentry->startport &&
 			   ntohs(*SAPORT(&param->req)) <= portentry->endport) {
@@ -125,6 +133,10 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 		}
 	}
 	if(acentry->weight && (acentry->weight < param->weight)) return 0;
+	if(dstdep) {
+		param->dstindep = 0;
+		return acentry->action != DENY;
+	}
 	return 1;
 }
 
@@ -132,6 +144,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 int checkACL(struct clientparam * param){
 	struct ace* acentry;
 
+	if(param->preauth == 1) param->dstindep = 1;
 	if(!param->srv->acl) {
 		return 0;
 	}
@@ -150,6 +163,8 @@ int checkACL(struct clientparam * param){
 				if(param->redirected && acentry->chains && SAISNULL(&acentry->chains->addr) && !*SAPORT(&acentry->chains->addr)) {
 					continue;
 				}
+				param->lastace = acentry;
+				if(param->preauth) return 2;
 				if((param->operation == UDPASSOC)? (param->ctrlsocksrv != INVALID_SOCKET) : (param->remsock != INVALID_SOCKET)) {
 					return 0;
 				}
@@ -166,6 +181,7 @@ int checkACL(struct clientparam * param){
 				}
 				return res;
 			}
+			param->lastace = acentry;
 			return acentry->action;
 		}
 	}

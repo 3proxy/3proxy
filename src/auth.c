@@ -102,6 +102,7 @@ int cacheauth(struct clientparam * param){
 	    *(SAFAMILY(&param->sinsl)) = ac.sinsl_family;
 	    memcpy(SAADDR(&param->sinsl), ac.sinsl_addr, SAADDRLEN(&param->sinsl));
 	}
+	if(param->preauth == 1 && param->srv->acl) param->dstindep = 0;
 	return 0;
 }
 
@@ -110,6 +111,7 @@ int doauth(struct clientparam * param){
 	struct auth *authfuncs;
 	int ret = 0;
 
+	if(param->preauth == 1 && !param->srv->acl) param->dstindep = 1;
 	for(authfuncs=param->srv->authfuncs; authfuncs; authfuncs=authfuncs->next){
 		res = authfuncs->authenticate?(*authfuncs->authenticate)(param):0;
 		if(!res) {
@@ -148,7 +150,7 @@ int doauth(struct clientparam * param){
 		if(ret > 9) return ret;
 	}
 	if(!res){
-		ret = alwaysauth(param);
+		ret = (param->preauth == 2)? 0 : alwaysauth(param);
 		if (param->afterauthfilters){
 		    FILTER_ACTION action;
 

@@ -428,6 +428,139 @@ use 3proxy's built-in resolver (nserver / nscache / nscache6).
 Public resolvers like those from Google have rate limits. For a large number of
 requests, install a local caching recursor (ISC bind named, PowerDNS recursor, etc).
 
+<h4>Use the Authentication Cache</h4>
+
+Authentication and authorization are performed for every request. Password
+lookup itself is a hash lookup and is cheap, but the ACL is walked linearly,
+and with RADIUS or plugin authentication every request costs a network round
+trip. 'authcache' keeps the result of a successful authentication for a number
+of seconds:
+<pre>
+authcache &lt;cachetype&gt; &lt;cachetime&gt; &lt;cachesize&gt;
+</pre>
+'cachetype' lists the fields the entry is keyed by, 'cachetime' is the lifetime
+in seconds, and the optional 'cachesize' limits the number of entries. The
+cached type must be placed before the real authentication type in the 'auth'
+command: a cache miss falls through to the next type in the chain, and a hit
+skips it.
+
+<p>There are two cached types:
+<ul>
+<li>'cache' caches the authentication only; the ACL is still checked on every
+request. Use it when ACLs must take effect immediately, or when the
+authentication method returns per-user parameters that the authorization step
+has to apply.
+<li>'cacheacl' also caches the authorization result, so the ACL is not walked
+at all on a hit. This is the one that helps with long ACLs, but the key must
+cover every field the ACL limits, and it can not be used with redirections.
+</ul>
+
+<p><b>'cacheacl' does not work with parent proxies.</b> Redirections are applied
+while the ACL is walked, so on a 'cacheacl' hit no redirection happens at all:
+the request is sent directly instead of through the 'parent' proxy of the
+matching ACL entry, and nothing is reported. The first request for a given key
+uses the parent and the rest do not, which makes it look intermittent. Use
+'cache' with parent proxies:
+<pre>
+authcache user,pass 60
+auth cache strong
+allow user1
+parent 1000 socks5 10.0.0.1 1080
+proxy
+</pre>
+The one exception is 'parent ... extip': the external address is stored in the
+cache entry and restored on a hit, but only if 'ext' is a part of the key:
+<pre>
+authcache user,pass,ext 60
+auth cacheacl strong
+allow user1
+parent 1000 extip 1.2.3.4 0
+proxy
+</pre>
+Without 'ext' in the key the external address falls back to the default one on
+every cache hit.
+
+<p><b>The key must match the ACL.</b> On a 'cacheacl' hit the cached result is
+reused as is, so any field the ACL limits but the key does not contain makes
+the cached result apply to a request it was not computed for. Use 'user' and
+'pass' for the userlist, 'ip' for the sourcelist, 'dstaddr' and 'dsthost' for
+the targetlist, 'dstport' for the targetportlist and 'dstoper' for the
+operationlist. For this ACL:
+<pre>
+allow user1,user2 * * 80,443
+deny *
+</pre>
+the key needs 'user', 'pass' and 'dstport':
+<pre>
+users $/etc/3proxy/passwd
+authcache user,pass,dstport 60 65536
+auth cacheacl strong
+allow user1,user2 * * 80,443
+deny *
+proxy
+</pre>
+
+<p>With RADIUS the round trip is the expensive part, so cache by whatever
+identifies the client:
+<pre>
+radius secret 1.2.3.4
+authcache ip,user,pass 600
+auth cache radius
+proxy
+</pre>
+'cache' rather than 'cacheacl' is used here because RADIUS may return per-user
+parameters such as the outgoing IP; add 'ext' to the key to cache the external
+address returned by RADIUS as well.
+
+<p>Choose 'cachetime' to balance the load against how quickly a password or ACL
+change has to take effect. Cache entries are <b>not</b> invalidated by a
+configuration reload, so a long lifetime keeps applying the old decision to
+existing keys after the new configuration is loaded.
+
+<p>Note that 'ip' alone, or 'ip,user' without 'pass', assigns every connection
+from the same address to the same user for the lifetime of the entry without
+checking the password. That is a deliberate trade-off for high load; do not use
+it where clients share addresses.
+
+<h4>Tune UDP Destination Handling with '-U'</h4>
+
+Within a SOCKSv5 UDP association the destination is taken from every datagram,
+so 3proxy authorizes and logs every new destination. One association can reach
+any number of destinations: a DNS forwarder produces one record, but a
+peer-to-peer or QUIC client can produce hundreds, each costing an authorization
+(a network round trip with RADIUS or plugin authentication) and a log record.
+The 'socks' service option '-U' controls this:
+<pre>
+socks -U3    &#35; default: log and authorize every new destination
+socks -U2    &#35; authorize, do not log
+socks -U1    &#35; log, do not authorize
+socks -U0    &#35; neither (same as bare -U)
+</pre>
+The destination of the first datagram is always authorized and logged, so the
+association as a whole is still subject to ACLs, authentication and the choice
+of the parent proxy.
+
+<p>Before reaching for the option, note that the cost is already avoided when no
+ACL entry reachable by the client limits the destination: in that case the
+result can not depend on the destination and no re-authorization is performed
+whatever '-U' says. '-U' only matters for configurations that do limit the
+destination.
+
+<p>For high load:
+<ul>
+<li><b>'-U2'</b> is the safe one. Destination ACLs keep working, only the
+per-destination log records are dropped. Use it when log volume, not CPU, is
+the problem.
+<li><b>'-U' ('-U0')</b> removes both costs and is the fastest, but destination
+ACLs then apply only to the first destination of each association, and the
+parent proxy and external address chosen for it are kept for the whole
+association. Use it when UDP destinations are not restricted anyway, or when
+the restriction is enforced elsewhere (a firewall, or the parent proxy).
+<li>Keep the default '-U3' when destination ACLs are a security boundary, and
+make the authorization itself cheap with 'authcache' instead, see "Use the
+Authentication Cache" above.
+</ul>
+
 <h4>Avoid Large Lists</h4>
 
 Currently, 3proxy is not optimized to use large ACLs, user lists, etc. All lists
