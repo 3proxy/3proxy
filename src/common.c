@@ -9,6 +9,39 @@
 
 
 #include "proxy.h"
+/* returns 0 on success, 1 if atyp is not supported for family, 2 if the
+   address is null. The address is set in both the 0 and the 2 case. */
+int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADDRTYPE *sa){
+	int i, len = 4;
+
+	memset(sa, 0, sizeof(*sa));
+	if(atyp == 4){
+#ifdef NOIPV6
+		return 1;
+#else
+		if(family == 4) return 1;
+		len = 16;
+		*SAFAMILY(sa) = AF_INET6;
+		memcpy(SAADDR(sa), addr, 16);
+#endif
+	}
+#ifndef NOIPV6
+	else if(family == 6){
+		unsigned char prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255};
+
+		*SAFAMILY(sa) = AF_INET6;
+		memcpy(SAADDR(sa), prefix, 12);
+		memcpy(12 + (unsigned char *)SAADDR(sa), addr, 4);
+	}
+#endif
+	else {
+		*SAFAMILY(sa) = AF_INET;
+		memcpy(SAADDR(sa), addr, 4);
+	}
+	for(i = 0; i < len && !addr[i]; i++);
+	return (i == len)? 2 : 0;
+}
+
 #ifdef __linux__
 #include <sched.h>
 

@@ -205,6 +205,7 @@ extern int timeouts[12];
 int sockmap(struct clientparam * param, int timeo, int usesplice);
 int udpsockmap(struct clientparam * param, int timeo);
 int udpbind(struct clientparam * param);
+int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADDRTYPE *sa);
 #ifdef __linux__
 int switch_ns(struct srvparam *srv, int target_fd);
 #endif

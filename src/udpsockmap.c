@@ -257,16 +257,16 @@ int udpsockmap(struct clientparam *param, int timeo)
 			memset(&dst, 0, sizeof(dst));
 			switch (base[3]) {
 			case 1:
-				*SAFAMILY(&dst) = AF_INET;
-				memcpy(SAADDR(&dst), base + 4, 4);
+				if (socks5_setaddr(param->srv->family, 1, base + 4, &dst)) continue;
 				i = 8;
 				break;
+#ifndef NOIPV6
 			case 4:
 				if (len < 22) return 484;
-				*SAFAMILY(&dst) = AF_INET6;
-				memcpy(SAADDR(&dst), base + 4, 16);
+				if (socks5_setaddr(param->srv->family, 4, base + 4, &dst)) continue;
 				i = 20;
 				break;
+#endif
 			case 3: {
 				int sz = base[4];
 				if (len < 7 + sz) return 485;
@@ -309,7 +309,8 @@ int udpsockmap(struct clientparam *param, int timeo)
 				if (!nhops) param->sinsr = dst;
 
 				if (!havedst) reconnect = 1;
-				else if ((param->srv->udpauth & 2) && !param->dstindep) {
+				else if (!nhops && *SAFAMILY(&dst) != *SAFAMILY(&param->sinsl)) reconnect = 1;
+				if (havedst && (param->srv->udpauth & 2) && !param->dstindep) {
 					param->preauth = 2;
 					ares = (*param->srv->authfunc)(param);
 					param->preauth = 0;
