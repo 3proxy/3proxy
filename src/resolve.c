@@ -3,6 +3,19 @@
 struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0},0}};
 struct nserver authnserver;
 
+static int dnsqmatch(const unsigned char *a, const unsigned char *b, int len){
+	int i;
+
+	for(i = 0; i < len; i++){
+		unsigned char c1 = a[i], c2 = b[i];
+
+		if(c1 >= 'A' && c1 <= 'Z') c1 += 'a' - 'A';
+		if(c2 >= 'A' && c2 <= 'Z') c2 += 'a' - 'A';
+		if(c1 != c2) return 1;
+	}
+	return 0;
+}
+
 
 uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth){
 
@@ -23,9 +36,12 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	SOCKET sock;
 	uint32_t ttl;
 	PROXYSOCKADDRTYPE addr;
+	PROXYSOCKADDRTYPE from;
 	PROXYSOCKADDRTYPE *sinsr, *sinsl;
 	int usetcp = 0;
 	unsigned short serial = 1;
+	unsigned char qbuf[300];
+	int qlen;
 
 	buf = b+2;
 
@@ -92,6 +108,9 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	buf[len++] = (makeauth == 1)? 0x0c : (af==AF_INET6? 0x1c:0x01);/* PTR:host address */
 	buf[len++] = 0;
 	buf[len++] = 1;			/* INET */
+	qlen = len - 12;
+	memcpy(qbuf, buf + 12, qlen);
+
 	if(usetcp){
 	    buf-=2;
 	    *(unsigned short*)buf = htons(len);
@@ -104,29 +123,40 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	    continue;
 	}
 	if(param) param->statscli64 += len;
-	len = sockrecvfrom(NULL, sock, (struct sockaddr *)sinsr, buf, 4096, conf.timeouts[DNS_TO]*1000);
+	len = sockrecvfrom(NULL, sock, (struct sockaddr *)&from, buf, 4096, conf.timeouts[DNS_TO]*1000);
+	if(len > 13 && usetcp){
+	    unsigned short us;
+	    us = ntohs(*(unsigned short*)buf);
+	    len-=2;
+	    buf+=2;
+	    if(us > 4096 || us < len) len = 0;
+	    else if(us > len){
+		if(sockrecvfrom(NULL, sock, (struct sockaddr *)&from, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len) len = 0;
+		else len = us;
+	    }
+	}
 	so._shutdown(so.state, sock, SHUT_RDWR);
 	so._closesocket(so.state, sock);
 	if(len <= 13) {
 	    continue;
 	}
 	if(param) param->statssrv64 += len;
-	if(usetcp){
-	    unsigned short us;
-	    us = ntohs(*(unsigned short*)buf);
-	    len-=2;
-	    buf+=2;
-	    if(us > 4096 || us < len || (us > len && sockrecvfrom(NULL, sock, (struct sockaddr *)sinsr, buf+len, us-len, conf.timeouts[DNS_TO]*1000) != us-len)) {
-		continue;
-	    }
+	if(!usetcp && (*SAFAMILY(&from) != *SAFAMILY(sinsr) ||
+	    memcmp(SAADDR(&from), SAADDR(sinsr), SAADDRLEN(sinsr)) ||
+	    *SAPORT(&from) != *SAPORT(sinsr))) {
+	    continue;			/* not from the server we asked */
 	}
 	if(*(unsigned short *)buf != serial)continue;
-	if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {
-	    return 0;
-	}
+	if(!(buf[2] & 0x80)) continue;	/* not a response */
 	nq = buf[5] + (((unsigned short)buf[4])<<8);
 	if (nq != 1) {
 	    continue;			/* we did only 1 request */
+	}
+	if(len < 12 + qlen || dnsqmatch(buf + 12, qbuf, qlen)) {
+	    continue;			/* question does not match the query */
+	}
+	if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {
+	    return 0;
 	}
 	for(k = 13; k<len && buf[k]; k++) {
 	}
