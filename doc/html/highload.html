@@ -561,13 +561,48 @@ make the authorization itself cheap with 'authcache' instead, see "Use the
 Authentication Cache" above.
 </ul>
 
-<h4>Avoid Large Lists</h4>
+<h4>Avoid Large ACLs</h4>
 
-Currently, 3proxy is not optimized to use large ACLs, user lists, etc. All lists
-are processed linearly. In the devel version, you can use RADIUS authentication to avoid
-user lists and ACLs in 3proxy itself. Also, RADIUS allows you to easily set an outgoing IP
-on a per-user basis or implement more sophisticated logic.
-RADIUS is a new beta feature; test it before using it in production.
+Most of the large data structures are hash tables and scale to a large number of
+records: the user list loaded by 'users' (including the '$/path/to/file' form),
+the authentication cache ('authcache'), the DNS cache ('nscache'/'nscache6') and
+the client table of the UDP portmapper. Their size is not a concern.
+
+<p>The ACL is the exception and is still processed linearly. Every request walks
+the access list entry by entry until one matches, and within an entry the
+userlist, the sourcelist, the targetlist and the targetportlist are walked
+linearly as well, so the cost is roughly the number of entries multiplied by the
+size of the lists inside them. The 'bandlimin'/'bandlimout' and
+'countin'/'countout' rules are separate lists of the same kind and are walked on
+every request in addition to the access list.
+
+<p>Two things follow from this:
+<ul>
+<li>Order matters. The walk stops at the first matching entry, so put the
+entries that match most of the traffic first.
+<li>Prefer fewer, wider entries over many narrow ones. One entry with a long
+userlist is cheaper than one entry per user, because the outer walk is repeated
+for every entry while the inner list is only walked for entries that got that
+far.
+</ul>
+
+<p>With a large ACL, cache the authorization result instead of shortening the
+list. 'cacheacl' walks the ACL once per cache entry rather than once per
+request:
+<pre>
+users $/etc/3proxy/passwd
+authcache user,pass,dstaddr,dstport 60 65536
+auth cacheacl strong
+</pre>
+Both limitations from "Use the Authentication Cache" above apply: the cache key
+must contain every field the ACL limits, and 'cacheacl' must not be used
+together with parent proxies. Where a parent proxy is required, plain 'cache'
+still removes the authentication cost but leaves the ACL walk on every request.
+
+<p>RADIUS moves the user list and the ACLs out of 3proxy entirely, and also
+allows you to set an outgoing IP on a per-user basis or to implement more
+sophisticated logic. RADIUS is a new beta feature; test it before using it in
+production.
 
 <h4>Avoid Changing Configuration Too Often</h4>
 
