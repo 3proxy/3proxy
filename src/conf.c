@@ -839,6 +839,24 @@ static int h_parent(int argc, unsigned char **argv){
 		chains->cidr = atoi(cidr + 1);
 	}
 	*SAPORT(&chains->addr) = htons((uint16_t)atoi((char *)argv[4]));
+	switch(chains->type){
+	    case R_POP3:
+	    case R_SMTP:
+	    case R_FTP:
+	    case R_ADMIN:
+	    case R_TLS:
+	    case R_DNS:
+	    case R_HA:
+		if(!SAISNULL(&chains->addr) || *SAPORT(&chains->addr)){
+			fprintf(stderr, "Chaining error: chain type (%s) is a local redirection, it requires 0.0.0.0 as address and 0 as port on line %d\n", argv[2], linenum);
+			free(chains->exthost);
+			free(chains);
+			return(4);
+		}
+		break;
+	    default:
+		break;
+	}
 	if(argc > 5) chains->extuser = (unsigned char *)strdup((char *)argv[5]);
 	if(argc > 6) chains->extpass = (unsigned char *)strdup((char *)argv[6]);
 	if(!acl->chains) {
