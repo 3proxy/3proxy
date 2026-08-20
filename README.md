@@ -7,6 +7,7 @@
 ### Branches
 
 - **Master** (stable) branch - 3proxy 0.9
+- **0.9** (LTS) branch - 3proxy 0.9 maintenance branch, this branch
 - **Devel** branch - 3proxy 10 (don't use it)
 
 ### Binaries (deb / rpm / Windows zip)
@@ -29,9 +30,9 @@ Documentation (man pages and HTML) available with download, on https://3proxy.or
 
 ## Docker images
 
-3 docker configurations are provided, default (full) also tagged as `:latest`, `:busybox` and `:minimal`, all refer to newest stable version. Except busybox, images are distroless and contain only binaries, you can not sh inside the container. `:busybox` contains busybox shell.
+3 docker configurations are provided, default (full) also tagged as `:lts`, `:lts-busybox` and `:lts-minimal`, all refer to newest 0.9 LTS version. Images built from this branch use the `lts` tags, images built from the master branch use `:latest`, `:busybox` and `:minimal`. Use the `lts` tags to stay on the 0.9 branch, use a version tag (e.g. `:0.9.9`) to pin an exact version. Except busybox, images are distroless and contain only binaries, you can not sh inside the container. `:lts-busybox` contains busybox shell.
 
-### Default image (`:latest`):
+### Default image (`:lts`):
 
 Full installation requires to mount /etc/3proxy/3proxy.cfg files.
 
@@ -42,7 +43,7 @@ echo "log
 nserver 8.8.8.8
 nscache 65536
 proxy -p3129" | docker config create 3proxy
-docker run --read-only -p 3129:3129 --config source=3proxy,target=/etc/3proxy/3proxy.cfg --name 3proxy.full docker.io/3proxy/3proxy
+docker run --read-only -p 3129:3129 --config source=3proxy,target=/etc/3proxy/3proxy.cfg --name 3proxy.full docker.io/3proxy/3proxy:lts
 ```
 
  `podman` does not support `config` as above.
@@ -60,13 +61,13 @@ podman run --read-only -p 3129:3129 -v /path/to/local/config/directory/3proxy.cf
  use `log` without pathname in config to log to stdout.
  plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config) and since 0.9.6 symlinked by /lib and /lib64 in both chroot and non-chroot configurations, so no full path is required in `plugin` command. Use e.g. `plugin SSLPlugin.ls.so ssl_plugin`. SSLPlugin is supported since 0.9.6. Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. -`-network host` mode or `-P` for `docker run`.
 
-since 0.9.6 images are distroless (except :busybox) it's recommended to use with read only file system, there are no benefits from chroot. For compatibility, you still can use chroot installation by mounting directory with 3proxy.cfg to /usr/local/3proxy/config.
+since 0.9.6 images are distroless (except :lts-busybox) it's recommended to use with read only file system, there are no benefits from chroot. For compatibility, you still can use chroot installation by mounting directory with 3proxy.cfg to /usr/local/3proxy/config.
 
-### Busybox image (`:busybox`):
+### Busybox image (`:lts-busybox`):
 
 `full` with busybox added, to allow `sh` and few more commands like `sed` inside container. All libraries are in /lib, so chroot configuration can not use plugins.
 
-### Interactive `:minimal` image:
+### Interactive `:lts-minimal` image:
 
  Dockerfile for "interactive" minimal 3proxy execution, no configuration mounting is required, configuration
  is accepted from stdin. Use `end` command to indicate the end of configuration. Use `log` for stdout logging.
@@ -76,7 +77,7 @@ since 0.9.6 images are distroless (except :busybox) it's recommended to use with
 
  Run example:
 
- `docker run --read-only -i -p 3129:3129 --name 3proxy docker.io/3proxy/3proxy:minimal`
+ `docker run --read-only -i -p 3129:3129 --name 3proxy docker.io/3proxy/3proxy:lts-minimal`
 or
  `docker start -ai 3proxy` to start existing container
 
@@ -92,7 +93,7 @@ end
 
 Some proxy types (e.g. SOCKSv5 UDPASSCOC, SOCKSv5 BIND functionality,  ftp proxy) require access to ephemeral port, you may use e.g. `--network host` mode or `-P` to `docker run`.
 
-`:minimal` without version specified uses current stable version.
+`:lts-minimal` without version specified uses current 0.9 LTS version.
 
 ## Building and installation
 

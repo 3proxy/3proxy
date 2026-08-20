@@ -28,9 +28,9 @@ jobs:
         run: |
           if [[ "$RELEASE_TAG" != "" ]]; then
             RELEASE="${RELEASE_TAG#v}"
-            echo "minimal=${REGISTRY}/${IMAGE_NAME}:${RELEASE}.minimal,${REGISTRY}/${IMAGE_NAME}:minimal" >> "$GITHUB_OUTPUT"
-            echo "busybox=${REGISTRY}/${IMAGE_NAME}:${RELEASE}.busybox,${REGISTRY}/${IMAGE_NAME}:busybox" >> "$GITHUB_OUTPUT"
-            echo "full=${REGISTRY}/${IMAGE_NAME}:${RELEASE},${REGISTRY}/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
+            echo "minimal=${REGISTRY}/${IMAGE_NAME}:${RELEASE}.minimal,${REGISTRY}/${IMAGE_NAME}:lts-minimal" >> "$GITHUB_OUTPUT"
+            echo "busybox=${REGISTRY}/${IMAGE_NAME}:${RELEASE}.busybox,${REGISTRY}/${IMAGE_NAME}:lts-busybox" >> "$GITHUB_OUTPUT"
+            echo "full=${REGISTRY}/${IMAGE_NAME}:${RELEASE},${REGISTRY}/${IMAGE_NAME}:lts" >> "$GITHUB_OUTPUT"
           else
             DATETIME=$(date +%d%m%y%H%M%S)
             BRANCH=$(echo "${GITHUB_REF#refs/heads/}" | tr "/" "-")

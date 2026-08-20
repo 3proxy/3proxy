@@ -30,9 +30,9 @@ jobs:
         run: |
           if [[ "$RELEASE_TAG" != "" ]]; then
             RELEASE="${RELEASE_TAG#v}"
-            echo "minimal=${IMAGE}:${RELEASE}.minimal,${IMAGE}:minimal" >> "$GITHUB_OUTPUT"
-            echo "busybox=${IMAGE}:${RELEASE}.busybox,${IMAGE}:busybox" >> "$GITHUB_OUTPUT"
-            echo "full=${IMAGE}:${RELEASE},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+            echo "minimal=${IMAGE}:${RELEASE}.minimal,${IMAGE}:lts-minimal" >> "$GITHUB_OUTPUT"
+            echo "busybox=${IMAGE}:${RELEASE}.busybox,${IMAGE}:lts-busybox" >> "$GITHUB_OUTPUT"
+            echo "full=${IMAGE}:${RELEASE},${IMAGE}:lts" >> "$GITHUB_OUTPUT"
           else
             DATETIME=$(date +%d%m%y%H%M%S)
             BRANCH=$(echo "${GITHUB_REF#refs/heads/}" | tr "/" "-")
