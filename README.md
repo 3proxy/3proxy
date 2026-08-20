@@ -6,9 +6,9 @@
 
 ### Branches
 
-- **Master** (stable) branch - 3proxy 0.9
+- **Master** (stable) branch - 3proxy 1.0
 - **0.9** (LTS) branch - 3proxy 0.9 maintenance branch, this branch
-- **Devel** branch - 3proxy 10 (don't use it)
+- **Devel** branch - 3proxy 2.0-devel (don't use it)
 
 ### Binaries (deb / rpm / Windows zip)
 
