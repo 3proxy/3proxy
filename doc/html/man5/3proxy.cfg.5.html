@@ -221,7 +221,30 @@ built by default and is disabled even when built, because
 current Linux does not implement SPLICE_F_MOVE, so no real
 zero-copy takes place and the read/write path is faster for
 most traffic. Rebuild with -DWITHSPLICE to make -s
-available, -s0 disables it explicitly. <br>
+available, -s0 disables it explicitly. <b><br>
+-C</b> <br>
+(for TCP services) a connection closed by any of the sides
+terminates the session, buffered data is delivered before
+the sockets are closed. By default the session is kept until
+both sides close the connection (TCP half-close). Half-close
+is required for the protocols where one of the sides closes
+its sending side and expects the answer, but it keeps the
+socket of the side which has already closed the connection
+in CLOSE_WAIT state. Use -C to close both sockets as soon as
+any of the sides closes the connection, -C1 to request the
+default behaviour explicitly. <b><br>
+-U</b><i>[MODE]</i> <br>
+(for socks) what to do when the destination changes within
+an UDP association: <b>1</b> - log it, <b>2</b> - authorize
+it, <b>3</b> - both, the default, <b>0</b> (same as bare
+<b>-U</b>) - neither. The destination of the first datagram
+is always authorized and logged. With <b>-U0</b> and
+<b>-U1</b> the destination is not authorized again, so ACLs
+limiting the destination only apply to the first destination
+of the association, and the parent proxy and the external
+address selected for it are kept for the whole association.
+Use <b>-U2</b> to keep the authorization and to drop the
+per-destination log records only. <br>
 (for dnspr) simple, do not use resolver and 3proxy cache,
 always use external DNS server. <br>
 (for udppm) singlepacket, expect only one packet from both
@@ -400,9 +423,9 @@ and %F as filename.</p>
 <i>&lt;BYTE_SHORT&gt; &lt;BYTE_LONG&gt; &lt;STRING_SHORT&gt;
 &lt;STRING_LONG&gt; &lt;CONNECTION_SHORT&gt;
 &lt;CONNECTION_LONG&gt; &lt;DNS&gt; &lt;CHAIN&gt;
-&lt;CONNECT&gt; &lt;CONNECTBACK&gt;</i> <br>
+&lt;CONNECT&gt; &lt;CONNECTBACK&gt; &lt;LINGER&gt;</i> <br>
 Sets timeout values, defaults 1, 5, 30, 60, 180, 1800, 15,
-60, 15, 5. <b><br>
+60, 15, 5, 5. <b><br>
 BYTE_SHORT</b> short timeout for single byte, is usually
 used for receiving single byte from stream. <b><br>
 BYTE_LONG</b> long timeout for single byte, is usually used
@@ -419,8 +442,13 @@ CONNECTION_LONG</b> inactivity timeout for long connection
 DNS</b> timeout for DNS request before requesting next
 server <b><br>
 CHAIN</b> timeout for reading data from chained connection
-<br>
-default timeouts 1 5 30 60 180 1800 15 60 15 5</p>
+<b><br>
+LINGER</b> timeout to deliver buffered data after one of the
+sides has closed its sending side, also used as SO_LINGER
+value on outgoing connections. Too small value may cause the
+tail of the data to be lost on slow connections, too large
+one delays release of the sockets. <br>
+default timeouts 1 5 30 60 180 1800 15 60 15 5 5</p>
 
 <p style="margin-left:6%; margin-top: 1em"><b>maxseg</b>
 <i>&lt;value&gt;</i> <br>
@@ -584,7 +612,15 @@ but the ACL authorization result is also cached and not
 re-evaluated on each request. Faster than <b>cache</b>, but
 ACL changes do not take effect for cached users until the
 cache entry expires. Use <b>cache</b> if ACLs may change
-during the cache lifetime. <b><br>
+during the cache lifetime. Because the ACL is not walked on
+a cache hit, no redirection is applied to a request served
+from the cache: it is sent directly instead of through the
+<b>parent</b> proxy of the matching ACL entry, with no error
+reported. Do not use <b>cacheacl</b> together with parent
+proxies, use <b>cache</b> instead. The only redirection type
+which survives is <b>extip</b>, and only if <b>ext</b> is a
+part of the <b>authcache</b> key, because the external
+address is then restored from the cache entry. <b><br>
 radius</b> - authentication with RADIUS. <br>
 Plugins may add additional authentication types.</p>
 
@@ -631,6 +667,19 @@ srvaddr</b> - cache by service (listener) address <b><br>
 srvport</b> - cache by service (listener) port <br>
 Multiple types can be combined (e.g.
 <b>ip,user,dstaddr,dstport</b>). <br>
+With <b>cacheacl</b> the ACL result is not re-evaluated on a
+cache hit, so every field the ACL limits must be a part of
+the cache key, otherwise the result cached for one request
+is applied to a different one: <b>user</b>/<b>pass</b> for
+the userlist, <b>ip</b> for the sourcelist,
+<b>dstaddr</b>/<b>dsthost</b> for the targetlist,
+<b>dstport</b> for the targetportlist and <b>dstoper</b> for
+the operationlist. It is especially important for SOCKSv5
+UDP traffic, where the destination of every datagram is
+authorized: without <b>dstaddr</b> and <b>dstport</b> in the
+key the result cached for one destination is applied to any
+other destination and the destination is not checked at all,
+see <b>allow</b>. <br>
 Use auth type <b>cache</b> (or <b>cacheacl</b>) for cached
 authentication</p>
 
@@ -699,8 +748,45 @@ week day numbers or periods, 0 or 7 means Sunday, 1 is
 Monday, 1-5 means Monday through Friday. <br>
 Timeperiodlists is a list of time periods in
 HH:MM:SS-HH:MM:SS format. For example,
-00:00:00-08:00:00,17:00:00-24:00:00 lists non-working
-hours.</p>
+00:00:00-08:00:00,17:00:00-24:00:00 lists non-working hours.
+<br>
+A SOCKSv5 UDP ASSOCIATE request carries no destination, the
+destination of every datagram is taken from the datagram
+itself. 3proxy authorizes the destination of every datagram,
+so ACLs limiting the destination address, the destination
+host name or the destination port do apply to UDP traffic,
+unless the <b>-U</b> option of the <b>socks</b> service says
+otherwise. <br>
+ACLs are only checked for the datagrams sent by the client.
+A datagram received on the association is relayed to the
+client without an ACL check: with a parent proxy only the
+datagrams from the parent are accepted, an association
+without a parent accepts a datagram from any source. The
+source reported to the client is the actual source of the
+datagram. The address in the log record is the destination
+the client sent the datagrams to, the source of the
+datagrams received on the association is not logged. <br>
+A client may use a single association to reach many
+destinations. An ACL entry which limits the destination
+silently drops the datagrams to every other destination, so
+limiting the destination of UDP traffic can break such
+clients in a way which is hard to diagnose. Limit it only
+when it is really required. <br>
+Bandwidth limiters (<b>bandlimin</b>, <b>bandlimout</b>) and
+traffic counters (<b>countin</b>, <b>countout</b>) which
+limit the destination are selected when the destination is
+authorized, so within an UDP association they are selected
+for the destination of the first datagram and are not
+re-selected for every following destination. They can not be
+applied per destination to the incoming UDP traffic at all,
+because an incoming datagram is not matched against any
+destination. <br>
+Only <b>socks5</b> and <b>socks5+</b> parents can be used
+for UDP. Because every new destination is authorized, use
+<b>authcache</b>, especially with &acute;strong&acute;,
+RADIUS or plugin authentication: <b>cacheacl</b> with the
+destination in the cache key if no parent proxy is used,
+<b>cache</b> otherwise, see <b>cacheacl</b>.</p>
 
 <p style="margin-left:6%; margin-top: 1em"><b>parent</b>
 <i>&lt;weight&gt; &lt;type&gt; &lt;ip&gt; &lt;port&gt;

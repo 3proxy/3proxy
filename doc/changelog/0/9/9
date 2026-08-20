@@ -1,5 +1,3 @@
-3proxy-0.9.9 Released August, 20 2026
-
 ! Fix: DNS replies are validated now: a reply from an address other than the nameserver the query was sent to, and a reply with a question section not matching the query, are dropped; both were accepted before
 ! Fix: socket leak with SOCKSv5 UDP ASSOCIATE through a parent proxy, sockets were accumulated in CLOSE_WAIT state until descriptors ran out
 ! Fix: file descriptor leak in HTTP proxy on the ftp:// request path
