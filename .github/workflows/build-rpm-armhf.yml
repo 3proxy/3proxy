@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   ci:
@@ -114,3 +116,10 @@ jobs:
        GH_TOKEN: ${{ github.token }}
        TAG: ${{ github.event.release.tag_name }}
       run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.arm.deb
+    - name: Attest build provenance
+      if: github.event_name == 'release'
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-path: |
+          *.rpm
+          *.deb
