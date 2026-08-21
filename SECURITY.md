@@ -19,11 +19,25 @@ Release binaries are published with SHA256 checksums, an OpenPGP signature and
 a GitHub build provenance attestation.
 
 The release signing key is `3proxy-release-key.asc` in the root of this
-repository. Import it once:
+repository, an RSA-4096 key:
+
+```
+pub   rsa4096 2026-08-21 [SC]
+      FC12 2144 99FC C7BA 1CFF  6CDC 0312 384E 3A73 940B
+uid   3proxy release signing <3proxy@3proxy.org>
+```
+
+Import it once:
 
 ```
 gpg --import 3proxy-release-key.asc
 ```
+
+Releases up to and including 0.9.9 were signed with an Ed25519 key, kept as
+`3proxy-release-key-ed25519.asc` for verifying those older files. Note that
+rpm 4.14 and earlier (RHEL/CentOS 8 and older) cannot import an Ed25519 key
+and will report `SIGNATURES NOT OK`; use the RSA key and 0.9.9.1 or later on
+those systems.
 
 Checksums and the checksum file signature:
 
