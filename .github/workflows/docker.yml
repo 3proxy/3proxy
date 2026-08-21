@@ -7,9 +7,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
-  attestations: write
 
 env:
   DOCKERHUB_IMAGE: docker.io/3proxy/3proxy
@@ -18,6 +15,9 @@ env:
 jobs:
   build:
     name: ${{ matrix.image }} ${{ matrix.platform }}
+    permissions:
+      contents: read
+      packages: write
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -81,6 +81,11 @@ jobs:
 
   publish:
     name: Publish ${{ matrix.image }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     runs-on: ubuntu-latest
     needs: build
     strategy:

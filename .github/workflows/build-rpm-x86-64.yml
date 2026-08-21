@@ -6,12 +6,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   ci:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     name: "${{ matrix.target }}"
     strategy:
       matrix:
@@ -51,12 +53,6 @@ jobs:
       with:
        name: "3proxy-${{ env.RELEASE }}-x86_64.rpm"
        path: "*.rpm"
-    - name: Upload rpm to release
-      if: github.event_name == 'release'
-      env:
-       GH_TOKEN: ${{ github.token }}
-       TAG: ${{ github.event.release.tag_name }}
-      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.x86_64.rpm
     - name: debbuild
       run: |
         ret=`pwd`
@@ -77,13 +73,46 @@ jobs:
       with:
        name: "3proxy-${{ env.RELEASE }}-x86_64.deb"
        path: "*.deb"
-    - name: Upload deb to release
+
+    - name: Import signing key
       if: github.event_name == 'release'
       env:
-       GH_TOKEN: ${{ github.token }}
-       TAG: ${{ github.event.release.tag_name }}
-      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}.x86_64.deb
-
+       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+       if [ -z "$GPG_PRIVATE_KEY" ]; then echo "GPG_PRIVATE_KEY is not set"; exit 1; fi
+       mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+       printf 'allow-loopback-pinentry\ndefault-cache-ttl 7200\nmax-cache-ttl 7200\n' > ~/.gnupg/gpg-agent.conf
+       gpgconf --kill gpg-agent || true
+       printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+       KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')
+       echo "GPG_KEYID=$KEYID" >> $GITHUB_ENV
+       echo prime > /tmp/prime.txt
+       gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+           -u "$KEYID" --detach-sign -o /dev/null /tmp/prime.txt
+       rm -f /tmp/prime.txt
+    - name: Sign rpm
+      if: github.event_name == 'release'
+      run: |
+       echo "%_gpg_name $GPG_KEYID" > ~/.rpmmacros
+       rpm --addsign *.rpm
+       for f in *.rpm; do
+         sig=$(rpm -qp --qf '%{RSAHEADER:pgpsig}' "$f" 2>/dev/null)
+         case "$sig" in ""|"(none)") echo "$f is not signed"; exit 1 ;; esac
+         echo "$f: $sig"
+       done
+    - name: Checksums and detached signatures
+      if: github.event_name == 'release'
+      env:
+       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+       sha256sum *.rpm *.deb > SHA256SUMS-x86_64
+       for f in *.deb SHA256SUMS-x86_64; do
+         gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+             -u "$GPG_KEYID" --armor --detach-sign "$f"
+       done
+       sha256sum -c SHA256SUMS-x86_64
+       gpg --verify SHA256SUMS-x86_64.asc SHA256SUMS-x86_64
     - name: Attest build provenance
       if: github.event_name == 'release'
       uses: actions/attest-build-provenance@v2
@@ -91,3 +120,9 @@ jobs:
         subject-path: |
           *.rpm
           *.deb
+    - name: Upload to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" *.rpm *.deb *.deb.asc SHA256SUMS-x86_64 SHA256SUMS-x86_64.asc
