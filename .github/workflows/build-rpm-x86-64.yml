@@ -94,7 +94,9 @@ jobs:
     - name: Sign rpm
       if: github.event_name == 'release'
       run: |
-       echo "%_gpg_name $GPG_KEYID" > ~/.rpmmacros
+       GPGBIN=$(command -v gpg)
+       if [ -z "$GPGBIN" ]; then echo "gpg not found"; exit 1; fi
+       { echo "%_gpg_name $GPG_KEYID"; echo "%__gpg $GPGBIN"; } > ~/.rpmmacros
        rpm --addsign *.rpm
        for f in *.rpm; do
          sig=$(rpm -qp --qf '%{RSAHEADER:pgpsig}' "$f" 2>/dev/null)
