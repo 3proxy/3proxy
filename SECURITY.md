@@ -50,7 +50,7 @@ verified with the GitHub CLI:
 
 ```
 gh attestation verify 3proxy-0.9.9.x86_64.rpm --owner 3proxy
-gh attestation verify oci://docker.io/3proxy/3proxy:lts --owner 3proxy
+gh attestation verify oci://docker.io/3proxy/3proxy:latest --owner 3proxy
 ```
 
 Windows binaries are Authenticode signed in addition to the above.
