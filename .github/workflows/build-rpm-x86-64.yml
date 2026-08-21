@@ -93,14 +93,32 @@ jobs:
        rm -f /tmp/prime.txt
     - name: Sign rpm
       if: github.event_name == 'release'
+      env:
+       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |
        GPGBIN=$(command -v gpg)
        if [ -z "$GPGBIN" ]; then echo "gpg not found"; exit 1; fi
-       { echo "%_gpg_name $GPG_KEYID"; echo "%__gpg $GPGBIN"; } > ~/.rpmmacros
+       umask 077
+       printf '%s' "$GPG_PASSPHRASE" > /tmp/gpgpass
+       echo test > /tmp/signtest
+       gpg --batch --yes --pinentry-mode loopback --passphrase-file /tmp/gpgpass \
+           -u "$GPG_KEYID" --detach-sign -o /tmp/signtest.sig /tmp/signtest
+       echo "key can sign"
+       { echo "%_gpg_name $GPG_KEYID"
+         echo "%__gpg $GPGBIN"
+         echo '%__gpg_sign_cmd %{__gpg} gpg --batch --no-armor --pinentry-mode loopback --passphrase-file /tmp/gpgpass --no-secmem-warning --digest-algo sha256 -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}'
+       } > ~/.rpmmacros
        rpm --addsign *.rpm
+       rm -f /tmp/gpgpass /tmp/signtest /tmp/signtest.sig
        for f in *.rpm; do
          sig=$(rpm -qp --qf '%{RSAHEADER:pgpsig}' "$f" 2>/dev/null)
-         case "$sig" in ""|"(none)") echo "$f is not signed"; exit 1 ;; esac
+         case "$sig" in ""|"(none)")
+           echo "$f is not signed"
+           echo "--- rpm version ---"; rpm --version
+           echo "--- sign cmd ---"; rpm --eval '%{__gpg_sign_cmd}'
+           echo "--- secret keys ---"; gpg --list-secret-keys --with-colons | grep -E '^(sec|ssb):' || true
+           exit 1 ;;
+         esac
          echo "$f: $sig"
        done
     - name: Checksums and detached signatures
