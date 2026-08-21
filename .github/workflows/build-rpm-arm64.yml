@@ -112,6 +112,9 @@ jobs:
        for f in *.rpm; do
          sig=$(rpm -qp --qf '%{RSAHEADER:pgpsig}' "$f" 2>/dev/null)
          case "$sig" in ""|"(none)")
+           sig=$(rpm -qp --qf '%{DSAHEADER:pgpsig}' "$f" 2>/dev/null) ;;
+         esac
+         case "$sig" in ""|"(none)")
            echo "$f is not signed"
            echo "--- rpm version ---"; rpm --version
            echo "--- sign cmd ---"; rpm --eval '%{__gpg_sign_cmd}'
