@@ -295,6 +295,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		if(!connected){
 			if(cur->type == R_EXTIP){
 				param->sinsl = cur->addr;
+#ifdef WITH_LOCAL_PORT_RANGE
+				param->local_port_range = cur->local_port_range;
+#endif
 				if(SAISNULL(&param->sinsl) && (*SAFAMILY(&param->sincr) == AF_INET || *SAFAMILY(&param->sincr) == AF_INET6))param->sinsl = param->sincr;
 #ifndef NOIPV6
 				else if(cur->cidr && *SAFAMILY(&param->sinsl) == AF_INET6){

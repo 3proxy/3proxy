@@ -218,6 +218,9 @@ void * sockschild(struct clientparam* param) {
 	if((res = udpbind(param))) {RETURN(res);}
  }
  else if(command == 2) {
+#ifdef WITH_LOCAL_PORT_RANGE
+	if(set_local_port_range(param, param->remsock, (struct sockaddr *)&param->sinsl)) RETURN(12);
+#endif
 	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
 		*SAPORT(&param->sinsl) = 0;
 		if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);

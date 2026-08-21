@@ -1797,5 +1797,3 @@ FILTER_ACTION handledatfltsrv(struct clientparam *cparam, unsigned char ** buf_p
 	}
 	return PASS;
 }
-
-

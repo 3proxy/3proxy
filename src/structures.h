@@ -335,6 +335,9 @@ struct chain {
 	unsigned char * extpass;
 	unsigned short weight;
 	unsigned short cidr;
+#ifdef WITH_LOCAL_PORT_RANGE
+	uint32_t local_port_range;
+#endif
 };
 
 struct period {
@@ -669,6 +672,9 @@ struct clientparam {
 			maxtrafout64;
 	PROXYSOCKADDRTYPE sincl, sincr;
 	PROXYSOCKADDRTYPE	sinsl, sinsr, req;
+#ifdef WITH_LOCAL_PORT_RANGE
+	uint32_t local_port_range;
+#endif
 
 	uint64_t	statscli64,
 			statssrv64;

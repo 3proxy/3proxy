@@ -55,6 +55,7 @@ option(3PROXY_USE_SPLICE "Build Linux splice() support, slower than read/write f
 option(3PROXY_USE_POLL "Use poll() instead of select() (Unix only)" ON)
 option(3PROXY_USE_WSAPOLL "Use WSAPoll instead of select() (Windows only)" ON)
 option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)
+option(3PROXY_USE_LOCAL_PORT_RANGE "Enable per-connection local port ranges (Linux 6.3+ only)" ON)
 option(3PROXY_USE_UNIX_SOCKETS "Enable Unix domain socket support (Unix only)" ON)
 
 if(NOT WIN32 AND NOT APPLE)
@@ -183,6 +184,10 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
     if(3PROXY_USE_NETFILTER)
         add_compile_definitions(WITH_NETFILTER)
+    endif()
+
+    if(3PROXY_USE_LOCAL_PORT_RANGE)
+        add_compile_definitions(WITH_LOCAL_PORT_RANGE)
     endif()
 
     if(3PROXY_USE_UNIX_SOCKETS)

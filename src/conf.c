@@ -814,6 +814,11 @@ static int h_parent(int argc, unsigned char **argv){
 		free(chains);
 		return(4);
 	}
+	if(argc < 5 && chains->type != R_EXTIP) {
+		fprintf(stderr, "Chaining error: port is required for parent type %s\n", argv[2]);
+		free(chains);
+		return(3);
+	}
 #ifdef WITH_UN
 	if(!strncmp((char *)argv[3], "unix:", 5)){
 	    make_un(argv[3] + 5, (struct sockaddr_un*)&chains->addr);
@@ -838,7 +843,34 @@ static int h_parent(int argc, unsigned char **argv){
 		*cidr = '/';
 		chains->cidr = atoi(cidr + 1);
 	}
-	*SAPORT(&chains->addr) = htons((uint16_t)atoi((char *)argv[4]));
+	if(argc > 4) {
+		char *end;
+		unsigned long port;
+
+		errno = 0;
+		port = strtoul((char *)argv[4], &end, 10);
+#ifdef WITH_LOCAL_PORT_RANGE
+		if(chains->type == R_EXTIP && *end == '-') {
+			unsigned long last;
+
+			errno = 0;
+			last = strtoul(end + 1, &end, 10);
+			if(errno || *end || !port || !last || port > last || last > 65535) {
+				free(chains->exthost);
+				free(chains);
+				return 3;
+			}
+			chains->local_port_range = ((uint32_t)last << 16) | (uint32_t)port;
+			port = 0;
+		}
+#endif
+		if(errno || *end || port > 65535) {
+			free(chains->exthost);
+			free(chains);
+			return 3;
+		}
+		*SAPORT(&chains->addr) = htons((uint16_t)port);
+	}
 	switch(chains->type){
 	    case R_POP3:
 	    case R_SMTP:
@@ -1714,7 +1746,7 @@ struct commands commandhandlers[]={
 	{NULL, "system", h_system, 2, 2},
 	{NULL, "pidfile", h_pidfile, 2, 2},
 	{NULL, "monitor", h_monitor, 2, 2},
-	{NULL, "parent", h_parent, 5, 0},
+	{NULL, "parent", h_parent, 4, 0},
 	{NULL, "allow", h_ace, 1, 0},
 	{NULL, "deny", h_ace, 1, 0},
 	{NULL, "redirect", h_ace, 3, 0},

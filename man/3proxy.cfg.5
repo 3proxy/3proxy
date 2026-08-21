@@ -878,7 +878,7 @@ with probability of 0.7) for outgoing web connections. Chains are only applied t
 .br
  type is one of:
 .br
- \fBextip\fR does not actually redirect the request; it sets the external address for this request to \fI<ip>\fR. It can be chained with another parent type. It's useful to set the external IP based on ACL or make it random.
+\fBextip\fR does not actually redirect the request; it sets the external address for this request to \fI<ip>\fR. It can be chained with another parent type. It's useful to set the external IP based on ACL or make it random. Its \fI<port>\fR argument is optional and defaults to 0. When built with \fBWITH_LOCAL_PORT_RANGE\fR on Linux 6.3 or newer, \fI<port>\fR may be an inclusive IPv4 local port range \fIFIRST-LAST\fR. The range is applied to outgoing sockets for requests matching this parent; DNS resolver traffic is not affected. For example, \fBparent 1000 extip 192.0.2.10 20000-30000\fR.
 .br
  \fBtcp\fR simply redirect connection. TCP is always last in chain. This type of proxy is a simple TCP redirection, it does not support parent authentication.
 .br
