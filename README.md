@@ -6,8 +6,8 @@
 
 ### Branches
 
-- **Master** (stable) branch - 3proxy 1.0
-- **0.9** (LTS) branch - 3proxy 0.9.9
+- **Master** (current/latest) branch - 3proxy 1.0
+- **0.9** (LTS) branch - 3proxy 0.9.9.x
 - **Devel** branch - 3proxy 2.0-devel (don't use it)
 
 ### Binaries (deb / rpm / Windows zip)
@@ -30,7 +30,9 @@ Documentation (man pages and HTML) available with download, on https://3proxy.or
 
 ## Docker images
 
-3 docker configurations are provided, default (full) also tagged as `:latest`, `:busybox` and `:minimal`, all refer to newest stable version. Except busybox, images are distroless and contain only binaries, you can not sh inside the container. `:busybox` contains busybox shell.
+3 docker configurations are provided, default (full) also tagged as `:latest`, `:busybox` and `:minimal`, all refer to newest stable version. Except busybox, images are distroless and contain only binaries, you can not sh inside the container. `:busybox` contains busybox shell. Images are based on current (master) branch.
+
+Images marked as LTS (`:lts`, `:lts-busybox`, `:lts-minimal`) are built from LTS branch (0.9.9.x)
 
 ### Default image (`:latest`):
 
