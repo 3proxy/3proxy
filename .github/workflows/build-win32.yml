@@ -6,12 +6,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   ci:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     name: "${{ matrix.target }}"
     strategy:
       matrix:
@@ -103,16 +105,30 @@ jobs:
       if: github.event_name == 'release'
       shell: pwsh
       run: Compress-Archive -Path dist/* -DestinationPath 3proxy-${{ env.RELEASE }}-x86.zip
-    - name: Upload to release
+    - name: Checksums and detached signature
       if: github.event_name == 'release'
       shell: bash
       env:
-       GH_TOKEN: ${{ github.token }}
-       TAG: ${{ github.event.release.tag_name }}
-      run: gh release upload "$TAG" 3proxy-${{ env.RELEASE }}-x86.zip
+       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+       if [ -z "$GPG_PRIVATE_KEY" ]; then echo "GPG_PRIVATE_KEY is not set"; exit 1; fi
+       printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+       KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')
+       sha256sum *.zip > SHA256SUMS-win-x86
+       gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+           -u "$KEYID" --armor --detach-sign SHA256SUMS-win-x86
+       sha256sum -c SHA256SUMS-win-x86
     - name: Attest build provenance
       if: github.event_name == 'release'
       uses: actions/attest-build-provenance@v2
       with:
         subject-path: |
           *.zip
+    - name: Upload to release
+      if: github.event_name == 'release'
+      shell: bash
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" *.zip SHA256SUMS-win-x86 SHA256SUMS-win-x86.asc
