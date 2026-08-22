@@ -9,6 +9,9 @@ Prefix:         %{_prefix}
 Packager: 	z3APA3A
 Source:		https://github.com/%{packager}/%{name}/archive/%{version}.tar.gz
 
+%global debug_package %{nil}
+%global __requires_exclude ^/(usr/)?bin/3proxy$
+
 %description
 3proxy is lightweight yet powerful proxy server
 

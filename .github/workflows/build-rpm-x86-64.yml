@@ -43,11 +43,31 @@ jobs:
        cp ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/debian/3proxy_$RELEASE.orig.tar.gz
     - name: rpmbuild
       run: |
-       ret=`pwd`
-       cd ~/rpmbuild/SPECS
-       rpmbuild -ba 3proxy-$RELEASE.spec
-       cd $ret
-       mv ~/rpmbuild/RPMS/x86_64/3proxy-$RELEASE-1.x86_64.rpm 3proxy-$RELEASE.x86_64.rpm
+       mkdir -p rpmout
+       for EL in 8 9 10; do
+         docker run --rm \
+           -v "$HOME/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz:/src.tar.gz:ro" \
+           -v "$PWD/scripts/rh/3proxy.spec:/3proxy.spec:ro" \
+           -v "$PWD/rpmout:/out" \
+           -e RELEASE="$RELEASE" \
+           "almalinux:$EL" bash -c '
+             set -e
+             dnf -y install rpm-build gcc make openssl-devel pcre2-devel pam-devel tar gzip
+             mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+             cp /src.tar.gz ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz
+             ln -sf ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
+             cp /3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
+             cd ~/rpmbuild/SPECS
+             rpmbuild -ba 3proxy-$RELEASE.spec
+             cp ~/rpmbuild/RPMS/*/*.rpm /out/'
+       done
+       for f in rpmout/*.rpm; do
+         dist=$(rpm -qp --qf '%{RELEASE}' "$f" | sed 's/^1\.//')
+         arch=$(rpm -qp --qf '%{ARCH}' "$f")
+         mv "$f" "3proxy-$RELEASE.$dist.$arch.rpm"
+       done
+       rmdir rpmout
+       ls -l *.rpm
     - name: Get artifact rpm
       uses: actions/upload-artifact@v7
       with:
