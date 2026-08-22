@@ -14,6 +14,44 @@
 
 https://github.com/3proxy/3proxy/releases
 
+### Package repository (apt / dnf)
+
+Signed apt and dnf repositories are published at https://3proxy.org/repo/ in
+two channels: `current` (master) and `lts` (0.9 branch).
+
+Debian and Ubuntu (24.04 or newer):
+
+```
+sudo curl -fsSL https://3proxy.org/repo/3proxy-release-key.asc \
+     -o /usr/share/keyrings/3proxy.asc
+sudo tee /etc/apt/sources.list.d/3proxy.sources <<EOF
+Types: deb
+URIs: https://3proxy.org/repo/deb
+Suites: current
+Components: main
+Signed-By: /usr/share/keyrings/3proxy.asc
+EOF
+sudo apt update && sudo apt install 3proxy
+```
+
+AlmaLinux, RHEL, Rocky and CentOS Stream 8, 9 and 10:
+
+```
+sudo tee /etc/yum.repos.d/3proxy.repo <<EOF
+[3proxy]
+name=3proxy
+baseurl=https://3proxy.org/repo/rpm/current/el\$releasever/\$basearch/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://3proxy.org/repo/3proxy-release-key.asc
+EOF
+sudo dnf install 3proxy
+```
+
+Both the packages and the repository metadata are signed. See
+https://3proxy.org/repo/ for the `lts` channel and for release key details.
+
 ### Docker images
 
 https://hub.docker.com/r/3proxy/3proxy
