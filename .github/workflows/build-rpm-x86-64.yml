@@ -27,8 +27,10 @@ jobs:
        pwd
        echo "RELEASE=$(cat RELEASE)" >> $GITHUB_ENV
        BUILDDATE=$(sed -n 's/^#define BUILDDATE "\(.*\)"$/\1/p' src/version.h)
-       [ -n "$BUILDDATE" ] || BUILDDATE=$(date +%y%m%d%H%M%S)
+       [ -n "$BUILDDATE" ] || BUILDDATE=$(date -u +%y%m%d%H%M%S)
        echo "VERSION=$BUILDDATE" >> $GITHUB_ENV
+       SOURCE_DATE_EPOCH=$(date -u -d "20${BUILDDATE:0:2}-${BUILDDATE:2:2}-${BUILDDATE:4:2} ${BUILDDATE:6:2}:${BUILDDATE:8:2}:${BUILDDATE:10:2}" +%s)
+       echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> $GITHUB_ENV
     - name: echo env
       run: echo "release $RELEASE version $VERSION"
     - name: Linux libraries
@@ -52,6 +54,7 @@ jobs:
            -v "$PWD/scripts/rh/3proxy.spec:/3proxy.spec:ro" \
            -v "$PWD/rpmout:/out" \
            -e RELEASE="$RELEASE" -e HOSTUID="$(id -u)" -e HOSTGID="$(id -g)" \
+           -e SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" \
            "almalinux:$EL" bash -c '
              set -e
              dnf -y install rpm-build gcc make openssl-devel pcre2-devel pam-devel tar gzip
@@ -60,7 +63,11 @@ jobs:
              ln -sf ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
              cp /3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
              cd ~/rpmbuild/SPECS
-             rpmbuild -ba 3proxy-$RELEASE.spec
+             rpmbuild -ba \
+               --define "use_source_date_epoch_as_buildtime 1" \
+               --define "clamp_mtime_to_source_date_epoch 1" \
+               --define "_buildhost 3proxy.org" \
+               3proxy-$RELEASE.spec
              cp ~/rpmbuild/RPMS/*/*.rpm /out/
              chown "$HOSTUID:$HOSTGID" /out/*.rpm || chmod 0666 /out/*.rpm'
        done
@@ -81,6 +88,7 @@ jobs:
         docker run --rm \
           -v "$HOME/debian:/debian" \
           -e RELEASE="$RELEASE" -e VERSION="$VERSION" \
+          -e SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" \
           ubuntu:22.04 bash -c '
             set -e
             export DEBIAN_FRONTEND=noninteractive
@@ -93,7 +101,7 @@ jobs:
               echo " "
               echo "  *3proxy $RELEASE build"
               echo " "
-              echo " -- z3APA3A <3apa3a@3proxy.org>  $(date "+%a, %d %b %Y %H:%M:%S %z")"
+              echo " -- z3APA3A <3apa3a@3proxy.org>  $(date -R -u -d @$SOURCE_DATE_EPOCH)"
               echo ""
             } > debian/changelog
             dpkg-buildpackage'

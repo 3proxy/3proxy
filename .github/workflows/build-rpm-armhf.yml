@@ -27,8 +27,10 @@ jobs:
        pwd
        echo "RELEASE=$(cat RELEASE)" >> $GITHUB_ENV
        BUILDDATE=$(sed -n 's/^#define BUILDDATE "\(.*\)"$/\1/p' src/version.h)
-       [ -n "$BUILDDATE" ] || BUILDDATE=$(date +%y%m%d%H%M%S)
+       [ -n "$BUILDDATE" ] || BUILDDATE=$(date -u +%y%m%d%H%M%S)
        echo "VERSION=$BUILDDATE" >> $GITHUB_ENV
+       SOURCE_DATE_EPOCH=$(date -u -d "20${BUILDDATE:0:2}-${BUILDDATE:2:2}-${BUILDDATE:4:2} ${BUILDDATE:6:2}:${BUILDDATE:8:2}:${BUILDDATE:10:2}" +%s)
+       echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> $GITHUB_ENV
     - name: configure deb env
       run: |
        mkdir ~/debian
@@ -42,6 +44,7 @@ jobs:
         docker run --rm \
           -v "$HOME/debian:/debian" \
           -e RELEASE="$RELEASE" -e VERSION="$VERSION" \
+          -e SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" \
           ubuntu:22.04 bash -c '
             set -e
             export DEBIAN_FRONTEND=noninteractive
@@ -60,7 +63,7 @@ jobs:
               echo " "
               echo "  *3proxy $RELEASE build"
               echo " "
-              echo " -- z3APA3A <3apa3a@3proxy.org>  $(date "+%a, %d %b %Y %H:%M:%S %z")"
+              echo " -- z3APA3A <3apa3a@3proxy.org>  $(date -R -u -d @$SOURCE_DATE_EPOCH)"
               echo ""
             } > debian/changelog
             export PATH=/usr/arm-linux-gnueabihf/bin:$PATH
