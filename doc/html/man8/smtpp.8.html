@@ -1,4 +1,4 @@
-<!-- Creator     : groff version 1.24.1 -->
+<!-- Creator     : groff version 1.23.0 -->
 <html>
 <head>
 
@@ -24,7 +24,7 @@
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>smtpp</b> -
+<p style="margin-left:9%; margin-top: 1em"><b>smtpp</b> -
 SMTP proxy gateway service</p>
 
 <h2>SYNOPSIS
@@ -32,7 +32,7 @@ SMTP proxy gateway service</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>smtpp</b>
+<p style="margin-left:9%; margin-top: 1em"><b>smtpp</b>
 [<b>-d</b>] [<b>-l</b>[[<i>@</i>]<i>logfile</i>]]
 [<b>-p</b><i>port</i>] [<b>-i</b><i>internal_ip</i>]
 [<b>-e</b><i>external_ip</i>]
@@ -44,7 +44,7 @@ SMTP proxy gateway service</p>
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><i><b>smtpp</b></i>
+<p style="margin-left:9%; margin-top: 1em"><i><b>smtpp</b></i>
 is SMTP gateway service to allow internal users to access
 external SMTP servers.</p>
 
@@ -56,81 +56,80 @@ external SMTP servers.</p>
 <table width="100%" border="0" rules="none" frame="void"
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
 <p style="margin-top: 1em"><b>-I</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
 <p style="margin-top: 1em">Inetd mode. Standalone service
 only.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-d</b></p></td>
+<p><b>-d</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Daemonize. Detach service from
-console and run in the background.</p></td></tr>
+<p>Daemonize. Detach service from console and run in the
+background.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-t</b></p></td>
+<p><b>-t</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Be silenT. Do not log
-start/stop/accept error records.</p></td></tr>
+<p>Be silenT. Do not log start/stop/accept error
+records.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-u</b></p></td>
+<p><b>-u</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Never look for username
-authentication.</p> </td></tr>
+<p>Never look for username authentication.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-e</b></p></td>
+<p><b>-e</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">External address. IP address of
-the interface the proxy should initiate connections from. By
-default, the system will decide which address to use in
-accordance with the routing table.</p></td></tr>
+<p>External address. IP address of the interface the proxy
+should initiate connections from. By default, the system
+will decide which address to use in accordance with the
+routing table.</p></td></tr>
 </table>
 
-<p style="margin-left:6%;"><b>-ni</b><i>PATH</i></p>
+<p style="margin-left:9%;"><b>-ni</b><i>PATH</i></p>
 
-<p style="margin-left:15%;">(Linux only) Switch to the
+<p style="margin-left:18%;">(Linux only) Switch to the
 network namespace identified by <i>PATH</i> before opening
 the listening socket. The current namespace is saved and
 restored immediately after binding, so outgoing connections
 run in the original namespace unless <b>-ne</b> is also
 given.</p>
 
-<p style="margin-left:6%;"><b>-ne</b><i>PATH</i></p>
+<p style="margin-left:9%;"><b>-ne</b><i>PATH</i></p>
 
-<p style="margin-left:15%;">(Linux only) Switch to the
+<p style="margin-left:18%;">(Linux only) Switch to the
 network namespace identified by <i>PATH</i> after the
 listening socket has been bound (and after restoring from
 <b>-ni</b> if applicable). Both options accept any namespace
@@ -141,13 +140,13 @@ file path (e.g. <i>/var/run/netns/myns</i> or
 <table width="100%" border="0" rules="none" frame="void"
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
 <p><b>-i</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
 <p>Internal address. IP address the proxy accepts
@@ -157,69 +156,68 @@ be specified with <i>-iunix:/path/to/socket</i> syntax
 (e.g., -iunix:/var/run/smtpp.sock). On Linux, abstract
 sockets use <i>-iunix:@socketname</i> syntax.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-p</b></p></td>
+<p><b>-p</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Port. Port proxy listens for
-incoming connections. Default is 587.</p></td></tr>
+<p>Port. Port proxy listens for incoming connections.
+Default is 587.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-h</b></p></td>
+<p><b>-h</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Default destination. It&rsquo;s
-used if the target address is not specified by the user.</p></td></tr>
+<p>Default destination. It&rsquo;s used if the target
+address is not specified by the user.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-x</b></p></td>
+<p><b>-x</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Disable STARTTLS support.
-STARTTLS is not announced in the EHLO response and the
-STARTTLS command is not accepted.</p></td></tr>
+<p>Disable STARTTLS support. STARTTLS is not announced in
+the EHLO response and the STARTTLS command is not
+accepted.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-l</b></p></td>
+<p><b>-l</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Log. By default logging is to
-stdout. If <i>logfile</i> is specified logging is to file.
-Under Unix, if &acute;<i>@</i>&acute; precedes
-<i>logfile</i>, syslog is used for logging.</p></td></tr>
+<p>Log. By default logging is to stdout. If <i>logfile</i>
+is specified logging is to file. Under Unix, if
+&acute;<i>@</i>&acute; precedes <i>logfile</i>, syslog is
+used for logging.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-S</b></p></td>
+<p><b>-S</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Increase or decrease stack size.
-You may want to try something like -S8192 if you experience
-3proxy crashes.</p></td></tr>
+<p>Increase or decrease stack size. You may want to try
+something like -S8192 if you experience 3proxy crashes.</p></td></tr>
 </table>
 
 <h2>CLIENTS
@@ -227,7 +225,7 @@ You may want to try something like -S8192 if you experience
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">You can use any
+<p style="margin-left:9%; margin-top: 1em">You can use any
 MUA (Mail User Agent) with SMTP authentication support. Set
 the client to use <i>internal_ip</i> and <i>port</i> as an
 SMTP server. The address of the real SMTP server must be
@@ -256,7 +254,7 @@ fails.</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Report all bugs
+<p style="margin-left:9%; margin-top: 1em">Report all bugs
 to <b>3proxy@3proxy.org</b></p>
 
 <h2>SEE ALSO
@@ -264,7 +262,7 @@ to <b>3proxy@3proxy.org</b></p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+<p style="margin-left:9%; margin-top: 1em">3proxy(8),
 ftppr(8), proxy(8), socks(8), tcppm(8), udppm(8),
 syslogd(8), <br>
 https://3proxy.org/</p>
@@ -274,7 +272,7 @@ https://3proxy.org/</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy is
+<p style="margin-left:9%; margin-top: 1em">3proxy is
 designed by Vladimir Dubrovin &lt;vlad@3proxy.org&gt;</p>
 <hr>
 </body>

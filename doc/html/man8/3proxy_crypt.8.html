@@ -1,4 +1,4 @@
-<!-- Creator     : groff version 1.24.1 -->
+<!-- Creator     : groff version 1.23.0 -->
 <html>
 <head>
 
@@ -26,7 +26,7 @@
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>3proxy_crypt</b>
+<p style="margin-left:9%; margin-top: 1em"><b>3proxy_crypt</b>
 - utility to generate encrypted passwords for 3proxy</p>
 
 <h2>SYNOPSIS
@@ -35,7 +35,7 @@
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>3proxy_crypt</b>
+<p style="margin-left:9%; margin-top: 1em"><b>3proxy_crypt</b>
 <i>password</i> <b><br>
 3proxy_crypt</b> <i>salt password</i></p>
 
@@ -45,23 +45,23 @@
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><i><b>3proxy_crypt</b></i>
+<p style="margin-left:9%; margin-top: 1em"><i><b>3proxy_crypt</b></i>
 is a utility to generate encrypted password hashes for use
 with 3proxy configuration. Encrypted passwords allow the
 system to avoid storing passwords in cleartext in
 configuration files.</p>
 
-<p style="margin-left:6%; margin-top: 1em">When invoked
+<p style="margin-left:9%; margin-top: 1em">When invoked
 with a single argument, it produces an NT password hash
 (MD4-based, suitable for NTLM authentication). The output is
 prefixed with <b>NT:</b>.</p>
 
-<p style="margin-left:6%; margin-top: 1em">When invoked
+<p style="margin-left:9%; margin-top: 1em">When invoked
 with two arguments (salt and password), it produces a
 BLAKE2b password hash. The salt length is limited to 64
 characters. The output is prefixed with <b>CR:</b>.</p>
 
-<p style="margin-left:6%; margin-top: 1em">The resulting
+<p style="margin-left:9%; margin-top: 1em">The resulting
 hash can be used in the 3proxy configuration file with the
 <b>users</b> directive instead of a cleartext password.</p>
 
@@ -71,25 +71,25 @@ hash can be used in the 3proxy configuration file with the
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><i>password</i></p>
+<p style="margin-left:9%; margin-top: 1em"><i>password</i></p>
 
-<p style="margin-left:15%;">Cleartext password to
+<p style="margin-left:18%;">Cleartext password to
 encrypt.</p>
 
 <table width="100%" border="0" rules="none" frame="void"
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="5%">
 
 
 <p><i>salt</i></p></td>
 <td width="4%"></td>
-<td width="65%">
+<td width="67%">
 
 
 <p>Salt string for BLAKE2b hashing (max 64 characters).</p></td>
-<td width="20%">
+<td width="15%">
 </td></tr>
 </table>
 
@@ -98,30 +98,30 @@ encrypt.</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Generate NT
+<p style="margin-left:9%; margin-top: 1em">Generate NT
 password hash:</p>
 
-<p style="margin-left:15%;">3proxy_crypt
+<p style="margin-left:18%;">3proxy_crypt
 MySecretPassword</p>
 
-<p style="margin-left:6%;">Result:</p>
+<p style="margin-left:9%;">Result:</p>
 
 
-<p style="margin-left:15%;">NT:3F7E6D8D96E8E7A9B0C1D2E3F4A5B6C7</p>
+<p style="margin-left:18%;">NT:3F7E6D8D96E8E7A9B0C1D2E3F4A5B6C7</p>
 
-<p style="margin-left:6%;">Generate BLAKE2b password hash
+<p style="margin-left:9%;">Generate BLAKE2b password hash
 with salt:</p>
 
-<p style="margin-left:15%;">3proxy_crypt MySalt
+<p style="margin-left:18%;">3proxy_crypt MySalt
 MySecretPassword</p>
 
-<p style="margin-left:6%;">Result:</p>
+<p style="margin-left:9%;">Result:</p>
 
-<p style="margin-left:15%;">CR:$3$MySalt$...</p>
+<p style="margin-left:18%;">CR:$3$MySalt$...</p>
 
-<p style="margin-left:6%;">Using in 3proxy.cfg:</p>
+<p style="margin-left:9%;">Using in 3proxy.cfg:</p>
 
-<p style="margin-left:15%;">users
+<p style="margin-left:18%;">users
 user1:CR:$3$MySalt$...</p>
 
 <h2>NOTES
@@ -129,11 +129,11 @@ user1:CR:$3$MySalt$...</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">The NT hash uses
+<p style="margin-left:9%; margin-top: 1em">The NT hash uses
 the RSA MD4 Message-Digest Algorithm. The BLAKE2b hash uses
 the BLAKE2 cryptographic hash function.</p>
 
-<p style="margin-left:6%; margin-top: 1em">When a password
+<p style="margin-left:9%; margin-top: 1em">When a password
 hash is prefixed with <b>NT:</b> or <b>CR:</b>, 3proxy uses
 the corresponding algorithm to verify passwords instead of
 comparing cleartext strings.</p>
@@ -143,7 +143,7 @@ comparing cleartext strings.</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Report all bugs
+<p style="margin-left:9%; margin-top: 1em">Report all bugs
 to <b>3proxy@3proxy.org</b></p>
 
 <h2>SEE ALSO
@@ -151,7 +151,7 @@ to <b>3proxy@3proxy.org</b></p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+<p style="margin-left:9%; margin-top: 1em">3proxy(8),
 3proxy.cfg(5), <br>
 https://3proxy.org/</p>
 
@@ -160,7 +160,7 @@ https://3proxy.org/</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy is
+<p style="margin-left:9%; margin-top: 1em">3proxy is
 designed by Vladimir Dubrovin &lt;vlad@3proxy.org&gt;</p>
 <hr>
 </body>

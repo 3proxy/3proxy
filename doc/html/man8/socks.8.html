@@ -1,4 +1,4 @@
-<!-- Creator     : groff version 1.24.1 -->
+<!-- Creator     : groff version 1.23.0 -->
 <html>
 <head>
 
@@ -24,7 +24,7 @@
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>socks</b> -
+<p style="margin-left:9%; margin-top: 1em"><b>socks</b> -
 SOCKS 4/4.5/5 gateway service</p>
 
 <h2>SYNOPSIS
@@ -32,7 +32,7 @@ SOCKS 4/4.5/5 gateway service</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>socks</b>
+<p style="margin-left:9%; margin-top: 1em"><b>socks</b>
 [<b>-d</b>] [<b>-l</b>[[<i>@</i>]<i>logfile</i>]]
 [<b>-p</b><i>port</i>] [<b>-i</b><i>internal_ip</i>]
 [<b>-e</b><i>external_ip</i>]</p>
@@ -42,7 +42,7 @@ SOCKS 4/4.5/5 gateway service</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>socks</b> is
+<p style="margin-left:9%; margin-top: 1em"><b>socks</b> is
 SOCKS server. It supports SOCKSv4, SOCKSv4.5 (extension to
 v4 for server side name resolution) and SOCKSv5. SOCKSv5
 specification allows both outgoing and reverse TCP
@@ -56,82 +56,81 @@ connections and UDP portmapping.</p>
 <table width="100%" border="0" rules="none" frame="void"
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
 <p style="margin-top: 1em"><b>-I</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
 <p style="margin-top: 1em">Inetd mode. Standalone service
 only.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-d</b></p></td>
+<p><b>-d</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Daemonize. Detach service from
-console and run in the background.</p></td></tr>
+<p>Daemonize. Detach service from console and run in the
+background.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-t</b></p></td>
+<p><b>-t</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Be silenT. Do not log
-start/stop/accept error records.</p></td></tr>
+<p>Be silenT. Do not log start/stop/accept error
+records.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-u</b></p></td>
+<p><b>-u</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Never ask for username
-authentication</p> </td></tr>
+<p>Never ask for username authentication</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-e</b></p></td>
+<p><b>-e</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">External address. IP address of
-the interface the proxy should initiate connections from.
-External IP must be specified if you need incoming
-connections. By default, the system will decide which
-address to use in accordance with the routing table.</p></td></tr>
+<p>External address. IP address of the interface the proxy
+should initiate connections from. External IP must be
+specified if you need incoming connections. By default, the
+system will decide which address to use in accordance with
+the routing table.</p></td></tr>
 </table>
 
-<p style="margin-left:6%;"><b>-ni</b><i>PATH</i></p>
+<p style="margin-left:9%;"><b>-ni</b><i>PATH</i></p>
 
-<p style="margin-left:15%;">(Linux only) Switch to the
+<p style="margin-left:18%;">(Linux only) Switch to the
 network namespace identified by <i>PATH</i> before opening
 the listening socket. The current namespace is saved and
 restored immediately after binding, so outgoing connections
 run in the original namespace unless <b>-ne</b> is also
 given.</p>
 
-<p style="margin-left:6%;"><b>-ne</b><i>PATH</i></p>
+<p style="margin-left:9%;"><b>-ne</b><i>PATH</i></p>
 
-<p style="margin-left:15%;">(Linux only) Switch to the
+<p style="margin-left:18%;">(Linux only) Switch to the
 network namespace identified by <i>PATH</i> after the
 listening socket has been bound (and after restoring from
 <b>-ni</b> if applicable). Both options accept any namespace
@@ -142,13 +141,13 @@ file path (e.g. <i>/var/run/netns/myns</i> or
 <table width="100%" border="0" rules="none" frame="void"
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="4%">
 
 
 <p><b>-Ne</b></p></td>
 <td width="5%"></td>
-<td width="85%">
+<td width="82%">
 
 
 <p>External NAT address 3proxy reports to client for
@@ -157,77 +156,75 @@ and destination server. By default, the external address is
 reported. It&rsquo;s only useful in the case of IP-IP NAT
 and does not work with port translation.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="4%">
 
 
-<p style="margin-top: 1em"><b>-Ni</b></p></td>
+<p><b>-Ni</b></p></td>
 <td width="5%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Internal NAT address 3proxy
-reports to client for UDPASSOC. This is external address of
-the NAT between 3proxy and the client, client uses to
-connect to 3proxy. By default, the internal address is
-reported. It&rsquo;s only useful in the case of IP-IP NAT
-and does not work with port translation.</p></td></tr>
+<p>Internal NAT address 3proxy reports to client for
+UDPASSOC. This is external address of the NAT between 3proxy
+and the client, client uses to connect to 3proxy. By
+default, the internal address is reported. It&rsquo;s only
+useful in the case of IP-IP NAT and does not work with port
+translation.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="4%">
 
 
-<p style="margin-top: 1em"><b>-i</b></p></td>
+<p><b>-i</b></p></td>
 <td width="5%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Internal address. IP address the
-proxy accepts connections to. By default, connections to any
-interface are accepted. It&acute;s usually unsafe. Unix
-domain sockets can be specified with
-<i>-iunix:/path/to/socket</i> syntax (e.g.,
--iunix:/var/run/socks.sock). On Linux, abstract sockets use
-<i>-iunix:@socketname</i> syntax.</p></td></tr>
+<p>Internal address. IP address the proxy accepts
+connections to. By default, connections to any interface are
+accepted. It&acute;s usually unsafe. Unix domain sockets can
+be specified with <i>-iunix:/path/to/socket</i> syntax
+(e.g., -iunix:/var/run/socks.sock). On Linux, abstract
+sockets use <i>-iunix:@socketname</i> syntax.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="4%">
 
 
-<p style="margin-top: 1em"><b>-p</b></p></td>
+<p><b>-p</b></p></td>
 <td width="5%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Port. Port proxy listens for
-incoming connections. Default is 1080.</p></td></tr>
+<p>Port. Port proxy listens for incoming connections.
+Default is 1080.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="4%">
 
 
-<p style="margin-top: 1em"><b>-l</b></p></td>
+<p><b>-l</b></p></td>
 <td width="5%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Log. By default logging is to
-stdout. If <i>logfile</i> is specified logging is to file.
-Under Unix, if &acute;<i>@</i>&acute; preceeds
-<i>logfile</i>, syslog is used for logging.</p></td></tr>
+<p>Log. By default logging is to stdout. If <i>logfile</i>
+is specified logging is to file. Under Unix, if
+&acute;<i>@</i>&acute; preceeds <i>logfile</i>, syslog is
+used for logging.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="4%">
 
 
-<p style="margin-top: 1em"><b>-S</b></p></td>
+<p><b>-S</b></p></td>
 <td width="5%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Increase or decrease stack size.
-You may want to try something like -S8192 if you experience
-3proxy crashes.</p></td></tr>
+<p>Increase or decrease stack size. You may want to try
+something like -S8192 if you experience 3proxy crashes.</p></td></tr>
 </table>
 
 <h2>CLIENTS
@@ -235,7 +232,7 @@ You may want to try something like -S8192 if you experience
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">You should use a
+<p style="margin-left:9%; margin-top: 1em">You should use a
 client with SOCKS support or use some socksification support
 (for example <i>SocksCAP</i> or <i>FreeCAP</i>). Configure
 client to use <i>internal_ip</i> and <i>port</i>. SOCKS
@@ -250,7 +247,7 @@ privileges). If you need to control access, use
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Report all bugs
+<p style="margin-left:9%; margin-top: 1em">Report all bugs
 to <b>3proxy@3proxy.org</b></p>
 
 <h2>SEE ALSO
@@ -258,7 +255,7 @@ to <b>3proxy@3proxy.org</b></p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+<p style="margin-left:9%; margin-top: 1em">3proxy(8),
 proxy(8), ftppr(8), pop3p(8), tcppm(8), udppm(8),
 syslogd(8), <br>
 https://3proxy.org/</p>
@@ -268,7 +265,7 @@ https://3proxy.org/</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy is
+<p style="margin-left:9%; margin-top: 1em">3proxy is
 designed by Vladimir Dubrovin &lt;vlad@3proxy.org&gt;</p>
 <hr>
 </body>

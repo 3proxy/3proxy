@@ -1,4 +1,4 @@
-<!-- Creator     : groff version 1.24.1 -->
+<!-- Creator     : groff version 1.23.0 -->
 <html>
 <head>
 
@@ -25,7 +25,7 @@
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>3proxy</b> -
+<p style="margin-left:9%; margin-top: 1em"><b>3proxy</b> -
 3[APA3A] tiny proxy server, or trivial proxy server, or free
 proxy server</p>
 
@@ -34,7 +34,7 @@ proxy server</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>3proxy</b>
+<p style="margin-left:9%; margin-top: 1em"><b>3proxy</b>
 [<i>config_file</i>] <b><br>
 3proxy</b> [<i>--install</i>] <b><br>
 3proxy</b> [<i>--remove</i>]</p>
@@ -44,7 +44,7 @@ proxy server</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>3proxy</b> is
+<p style="margin-left:9%; margin-top: 1em"><b>3proxy</b> is
 a universal proxy server. It can be used to provide internal
 users with fully controllable access to external resources
 or to provide external users with access to internal
@@ -71,7 +71,7 @@ under Unix). So you can play your favourite games, listen to
 music, exchange files and messages and even accept incoming
 connections behind a proxy server.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><i>dnspr</i>
+<p style="margin-left:9%; margin-top: 1em"><i>dnspr</i>
 does not exist as an independent service. It&rsquo;s a DNS
 caching proxy (it requires <i>nscache</i> and <i>nserver</i>
 to be set in the configuration. Only A-records are cached.
@@ -79,7 +79,7 @@ Please note that this caching is mostly a &rsquo;hack&rsquo;
 and has nothing to do with a real DNS server, but it works
 perfectly for SOHO networks.</p>
 
-<p style="margin-left:6%; margin-top: 1em">3proxy supports
+<p style="margin-left:9%; margin-top: 1em">3proxy supports
 access control lists (ACL) like network router. Source and
 destination networks and destination port can be specified.
 In addition, usernames and gateway action (for example GET
@@ -92,7 +92,7 @@ ACL action request can be allowed, denied or redirected to
 another host or to another proxy server or even to a chain
 of proxy servers.</p>
 
-<p style="margin-left:6%; margin-top: 1em">It supports
+<p style="margin-left:9%; margin-top: 1em">It supports
 different types of logging: to logfiles, <b>syslog</b>(3)
 (only under Unix) or to an ODBC database. Logging format is
 tunable to provide compatibility with existing log file
@@ -105,9 +105,9 @@ Apache or Squid log parsers.</p>
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>config_file</b></p>
+<p style="margin-left:9%; margin-top: 1em"><b>config_file</b></p>
 
-<p style="margin-left:15%;">Name of config file. See
+<p style="margin-left:18%;">Name of config file. See
 <b>3proxy.cfg</b>(3) for configuration file format. Under
 Windows, if config_file is not specified, <b>3proxy</b>
 looks for a file named <i>3proxy.cfg</i> in the default
@@ -119,14 +119,14 @@ script just by setting +x mode and adding <br>
 #!/usr/local/3proxy/3proxy <br>
 as a first line in 3proxy.cfg</p>
 
-<p style="margin-left:6%;"><b>--install</b></p>
+<p style="margin-left:9%;"><b>--install</b></p>
 
-<p style="margin-left:15%;">(Windows NT family only)
+<p style="margin-left:18%;">(Windows NT family only)
 install <b>3proxy</b> as a system service</p>
 
-<p style="margin-left:6%;"><b>--remove</b></p>
+<p style="margin-left:9%;"><b>--remove</b></p>
 
-<p style="margin-left:15%;">(Windows NT family only) remove
+<p style="margin-left:18%;">(Windows NT family only) remove
 <b>3proxy</b> from system services</p>
 
 <h2>SIGNALS
@@ -134,29 +134,29 @@ install <b>3proxy</b> as a system service</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Under Unix there
+<p style="margin-left:9%; margin-top: 1em">Under Unix there
 are a few signals <b>3proxy</b> catches. See <b>kill</b>(1).
 <b><br>
 SIGTERM</b></p>
 
-<p style="margin-left:15%;">clean up connections and
+<p style="margin-left:18%;">clean up connections and
 exit</p>
 
-<p style="margin-left:6%;"><b>SIGPAUSE</b></p>
+<p style="margin-left:9%;"><b>SIGPAUSE</b></p>
 
-<p style="margin-left:15%;">stop accepting new connections,
+<p style="margin-left:18%;">stop accepting new connections,
 on second signal - start and re-read configuration</p>
 
-<p style="margin-left:6%;"><b>SIGCONT</b></p>
+<p style="margin-left:9%;"><b>SIGCONT</b></p>
 
-<p style="margin-left:15%;">start to accept new
+<p style="margin-left:18%;">start to accept new
 connections</p>
 
-<p style="margin-left:6%;"><b>SIGUSR1</b></p>
+<p style="margin-left:9%;"><b>SIGUSR1</b></p>
 
-<p style="margin-left:15%;">reload configuration</p>
+<p style="margin-left:18%;">reload configuration</p>
 
-<p style="margin-left:6%; margin-top: 1em">Under Windows,
+<p style="margin-left:9%; margin-top: 1em">Under Windows,
 if <b>3proxy</b> is installed as a service you can use
 standard service management to start, stop, pause and
 continue the 3proxy service, for example: <b><br>
@@ -165,7 +165,7 @@ net stop 3proxy <br>
 net pause 3proxy <br>
 net continue 3proxy</b></p>
 
-<p style="margin-left:6%; margin-top: 1em">Web admin
+<p style="margin-left:9%; margin-top: 1em">Web admin
 service can also be used to reload configuration. Use wget
 to automate this task.</p>
 
@@ -175,10 +175,10 @@ to automate this task.</p>
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><i>/usr/local/3proxy/3proxy.cfg
+<p style="margin-left:9%; margin-top: 1em"><i>/usr/local/3proxy/3proxy.cfg
 (3proxy.cfg)</i></p>
 
-<p style="margin-left:15%;"><b>3proxy</b> configuration
+<p style="margin-left:18%;"><b>3proxy</b> configuration
 file</p>
 
 <h2>BUGS
@@ -186,7 +186,7 @@ file</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Report all bugs
+<p style="margin-left:9%; margin-top: 1em">Report all bugs
 to <b>3proxy@3proxy.org</b></p>
 
 <h2>SEE ALSO
@@ -194,7 +194,7 @@ to <b>3proxy@3proxy.org</b></p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy.cfg(5),
+<p style="margin-left:9%; margin-top: 1em">3proxy.cfg(5),
 proxy(8), ftppr(8), socks(8), pop3p(8), imapp(8), tcppm(8),
 udppm(8), kill(1), syslogd(8), <br>
 https://3proxy.org/</p>
@@ -204,7 +204,7 @@ https://3proxy.org/</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy is
+<p style="margin-left:9%; margin-top: 1em">3proxy is
 designed by Vladimir Dubrovin &lt;vlad@3proxy.org&gt;</p>
 <hr>
 </body>

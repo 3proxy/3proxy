@@ -1,4 +1,4 @@
-<!-- Creator     : groff version 1.24.1 -->
+<!-- Creator     : groff version 1.23.0 -->
 <html>
 <head>
 
@@ -25,7 +25,7 @@
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>tcppm</b> -
+<p style="margin-left:9%; margin-top: 1em"><b>tcppm</b> -
 TCP port mapper</p>
 
 <h2>SYNOPSIS
@@ -33,7 +33,7 @@ TCP port mapper</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>tcppm</b>
+<p style="margin-left:9%; margin-top: 1em"><b>tcppm</b>
 [<b>-d</b>] [<b>-l</b>[[<i>@</i>]<i>logfile</i>]]
 [<b>-i</b><i>internal_ip</i>] [<b>-e</b><i>external_ip</i>]
 <i>local_port remote_host remote_port</i></p>
@@ -44,7 +44,7 @@ TCP port mapper</p>
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><i><b>tcppm</b></i>
+<p style="margin-left:9%; margin-top: 1em"><i><b>tcppm</b></i>
 forwards connections from local to remote TCP port</p>
 
 <h2>OPTIONS
@@ -55,69 +55,69 @@ forwards connections from local to remote TCP port</p>
 <table width="100%" border="0" rules="none" frame="void"
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
 <p style="margin-top: 1em"><b>-I</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
 <p style="margin-top: 1em">Inetd mode. Standalone service
 only.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-d</b></p></td>
+<p><b>-d</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Daemonize. Detach service from
-console and run in the background.</p></td></tr>
+<p>Daemonize. Detach service from console and run in the
+background.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-t</b></p></td>
+<p><b>-t</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Be silenT. Do not log
-start/stop/accept error records.</p></td></tr>
+<p>Be silenT. Do not log start/stop/accept error
+records.</p> </td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-e</b></p></td>
+<p><b>-e</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">External address. IP address of
-the interface the proxy should initiate connections from. By
-default, the system will decide which address to use in
-accordance with the routing table.</p></td></tr>
+<p>External address. IP address of the interface the proxy
+should initiate connections from. By default, the system
+will decide which address to use in accordance with the
+routing table.</p></td></tr>
 </table>
 
-<p style="margin-left:6%;"><b>-ni</b><i>PATH</i></p>
+<p style="margin-left:9%;"><b>-ni</b><i>PATH</i></p>
 
-<p style="margin-left:15%;">(Linux only) Switch to the
+<p style="margin-left:18%;">(Linux only) Switch to the
 network namespace identified by <i>PATH</i> before opening
 the listening socket. The current namespace is saved and
 restored immediately after binding, so outgoing connections
 run in the original namespace unless <b>-ne</b> is also
 given.</p>
 
-<p style="margin-left:6%;"><b>-ne</b><i>PATH</i></p>
+<p style="margin-left:9%;"><b>-ne</b><i>PATH</i></p>
 
-<p style="margin-left:15%;">(Linux only) Switch to the
+<p style="margin-left:18%;">(Linux only) Switch to the
 network namespace identified by <i>PATH</i> after the
 listening socket has been bound (and after restoring from
 <b>-ni</b> if applicable). Both options accept any namespace
@@ -128,13 +128,13 @@ file path (e.g. <i>/var/run/netns/myns</i> or
 <table width="100%" border="0" rules="none" frame="void"
        cellspacing="0" cellpadding="0">
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
 <p><b>-i</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
 <p>Internal address. IP address the proxy accepts
@@ -144,32 +144,31 @@ be specified with <i>-iunix:/path/to/socket</i> syntax
 (e.g., -iunix:/var/run/tcppm.sock). On Linux, abstract
 sockets use <i>-iunix:@socketname</i> syntax.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-l</b></p></td>
+<p><b>-l</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Log. By default logging is to
-stdout. If <i>logfile</i> is specified logging is to file.
-Under Unix, if &acute;<i>@</i>&acute; precedes
-<i>logfile</i>, syslog is used for logging.</p></td></tr>
+<p>Log. By default logging is to stdout. If <i>logfile</i>
+is specified logging is to file. Under Unix, if
+&acute;<i>@</i>&acute; precedes <i>logfile</i>, syslog is
+used for logging.</p></td></tr>
 <tr valign="top" align="left">
-<td width="6%"></td>
+<td width="9%"></td>
 <td width="3%">
 
 
-<p style="margin-top: 1em"><b>-S</b></p></td>
+<p><b>-S</b></p></td>
 <td width="6%"></td>
-<td width="85%">
+<td width="82%">
 
 
-<p style="margin-top: 1em">Increase or decrease stack size.
-You may want to try something like -S8192 if you experience
-3proxy crashes.</p></td></tr>
+<p>Increase or decrease stack size. You may want to try
+something like -S8192 if you experience 3proxy crashes.</p></td></tr>
 </table>
 
 <h2>ARGUMENTS
@@ -178,23 +177,23 @@ You may want to try something like -S8192 if you experience
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><i>local_port</i></p>
+<p style="margin-left:9%; margin-top: 1em"><i>local_port</i></p>
 
-<p style="margin-left:15%;">- port tcppm accepts
+<p style="margin-left:18%;">- port tcppm accepts
 connections on</p>
 
-<p style="margin-left:6%;"><i>remote_host</i></p>
+<p style="margin-left:9%;"><i>remote_host</i></p>
 
-<p style="margin-left:15%;">- IP address of the host the
+<p style="margin-left:18%;">- IP address of the host the
 connection is forwarded to. Unix domain sockets can be
 specified with the syntax <i>unix:/path/to/socket</i> (e.g.,
 unix:/var/run/app.sock). On Linux, abstract (fileless) Unix
 sockets use the syntax <i>unix:@socketname</i> (e.g.,
 unix:@app.socket).</p>
 
-<p style="margin-left:6%;"><i>remote_port</i></p>
+<p style="margin-left:9%;"><i>remote_port</i></p>
 
-<p style="margin-left:15%;">- remote port the connection is
+<p style="margin-left:18%;">- remote port the connection is
 forwarded to. Ignored when using Unix socket destination,
 but must be specified (use any positive value) for syntax
 compatibility.</p>
@@ -204,7 +203,7 @@ compatibility.</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Any TCP-based
+<p style="margin-left:9%; margin-top: 1em">Any TCP-based
 application can be used as a client. Use <i>internal_ip</i>
 and <i>local_port</i> as the destination in the client
 application. The connection is forwarded to
@@ -215,7 +214,7 @@ application. The connection is forwarded to
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Report all bugs
+<p style="margin-left:9%; margin-top: 1em">Report all bugs
 to <b>3proxy@3proxy.org</b></p>
 
 <h2>SEE ALSO
@@ -223,7 +222,7 @@ to <b>3proxy@3proxy.org</b></p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+<p style="margin-left:9%; margin-top: 1em">3proxy(8),
 proxy(8), ftppr(8), socks(8), pop3p(8), udppm(8),
 syslogd(8), <br>
 https://3proxy.org/</p>
@@ -233,7 +232,7 @@ https://3proxy.org/</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy is
+<p style="margin-left:9%; margin-top: 1em">3proxy is
 designed by Vladimir Dubrovin &lt;vlad@3proxy.org&gt;</p>
 <hr>
 </body>

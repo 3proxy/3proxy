@@ -1,4 +1,4 @@
-<!-- Creator     : groff version 1.24.1 -->
+<!-- Creator     : groff version 1.23.0 -->
 <html>
 <head>
 
@@ -31,7 +31,7 @@
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>3proxy.cfg</b>
+<p style="margin-left:9%; margin-top: 1em"><b>3proxy.cfg</b>
 3proxy configuration file</p>
 
 <h2>DESCRIPTION
@@ -39,7 +39,7 @@
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Common
+<p style="margin-left:9%; margin-top: 1em">Common
 structure: <br>
 Configuration file is a text file 3proxy reads configuration
 from. Each line of the file is a command executed
@@ -51,12 +51,12 @@ command line. Additional space characters are ignored. Think
 about 3proxy as &quot;application level router&quot; with
 console interface.</p>
 
-<p style="margin-left:6%; margin-top: 1em">Comments: <br>
+<p style="margin-left:9%; margin-top: 1em">Comments: <br>
 Any line beginning with a space character or &acute;#&acute;
 character is a comment. It&acute;s ignored. &lt;LF&gt;s are
 ignored. &lt;CR&gt; is the end of a command.</p>
 
-<p style="margin-left:6%; margin-top: 1em">Quotation: <br>
+<p style="margin-left:9%; margin-top: 1em">Quotation: <br>
 The quotation character is &quot; (double quote). Quotation
 must be used to quote spaces or other special characters. To
 use a quotation character inside a quoted string, the
@@ -65,7 +65,7 @@ to use HELLO &quot;WORLD&quot; as an argument, you should
 write it as &quot;HELLO &quot;&quot;WORLD&quot;&quot;&quot;.
 Good practice is to quote any argument you use.</p>
 
-<p style="margin-left:6%; margin-top: 1em">File inclusion:
+<p style="margin-left:9%; margin-top: 1em">File inclusion:
 <br>
 You can include file by using $FILENAME macro (replace
 FILENAME with a path to file, for example
@@ -80,10 +80,10 @@ commands (like userlist, network lists, etc). To use dollar
 sign somewhere in argument it must be quoted. Recursion is
 not allowed.</p>
 
-<p style="margin-left:6%; margin-top: 1em">Next commands
+<p style="margin-left:9%; margin-top: 1em">Next commands
 start gateway services:</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>proxy</b>
+<p style="margin-left:9%; margin-top: 1em"><b>proxy</b>
 [options] <b><br>
 socks</b> [options] <b><br>
 pop3p</b> [options] <b><br>
@@ -119,7 +119,7 @@ destination, the port number is ignored but must be
 specified for syntax compatibility. <b><br>
 udppm</b> UDP portmapper</p>
 
-<p style="margin-left:6%; margin-top: 1em">Options: <b><br>
+<p style="margin-left:9%; margin-top: 1em">Options: <b><br>
 -p</b><i>NUMBER</i> change default server port to NUMBER
 <b><br>
 -6</b> Only resolve IPv6 addresses. IPv4 addresses are
@@ -286,16 +286,16 @@ FTP client does it for you. That is, if you use 3proxy with
 authentication use proxyuser:proxypassword:FTPuser as FTP
 username, otherwise do not change original FTP user name</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>include</b>
+<p style="margin-left:9%; margin-top: 1em"><b>include</b>
 <i>&lt;path&gt;</i> <br>
 Include config file</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>config</b>
+<p style="margin-left:9%; margin-top: 1em"><b>config</b>
 <i>&lt;path&gt;</i> <br>
 Path to configuration file to use on 3proxy restart or to
 save configuration.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>writable</b>
+<p style="margin-left:9%; margin-top: 1em"><b>writable</b>
 <br>
 ReOpens configuration file for write access via Web
 interface, and rereads it. Usually should be first command
@@ -303,10 +303,10 @@ on config file but in combination with config it can be used
 anywhere to open alternate config file. Think twice before
 using it.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>end</b> <br>
+<p style="margin-left:9%; margin-top: 1em"><b>end</b> <br>
 End of configuration</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>log</b>
+<p style="margin-left:9%; margin-top: 1em"><b>log</b>
 [[@|&amp;]<i>logfile</i>] [<i>&lt;LOGTYPE&gt;</i>] <br>
 sets logfile for all gateways <br>
 @ (for Unix) use syslog, filename is used as ident name <br>
@@ -332,12 +332,12 @@ with &quot;logformat&quot; filename must begin with
 Grinwitch time zone for all time-based format
 specificators.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>rotate</b>
+<p style="margin-left:9%; margin-top: 1em"><b>rotate</b>
 <i>&lt;n&gt;</i> <br>
 how many archived log files to keep</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>logformat</b>
+<p style="margin-left:9%; margin-top: 1em"><b>logformat</b>
 <i>&lt;format&gt;</i> <br>
 Format for log record. First symbol in format must be L
 (local time) or G (absolute Grinwitch time). It can be
@@ -349,7 +349,7 @@ logformat means comma and percent are replaced with space
 and all time based elemnts are in local time zone. <br>
 You can use:</p>
 
-<p style="margin-left:6%; margin-top: 1em">%y Year in 2
+<p style="margin-left:9%; margin-top: 1em">%y Year in 2
 digit format <br>
 %Y Year in 4 digit format <br>
 %m Month number <br>
@@ -394,7 +394,7 @@ l_service, l_in, l_out, l_descr) values (&acute;%d-%m-%Y
 %H:%M:%S&acute;, &acute;%U&acute;, &acute;%N&acute;, %I, %O,
 &acute;%T&acute;)&quot;</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>logdump</b>
+<p style="margin-left:9%; margin-top: 1em"><b>logdump</b>
 <i>&lt;in_traffic_limit&gt; &lt;out_traffic_limit&gt;</i>
 <br>
 Immediately creates additional log records if given amount
@@ -404,7 +404,7 @@ to prevent information about long-lasting downloads on
 server shutdown.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>delimchar</b>
+<p style="margin-left:9%; margin-top: 1em"><b>delimchar</b>
 <i>&lt;char&gt;</i> <br>
 Sets the delimiter character used to separate username from
 hostname in proxy authentication strings (e.g. for FTP, POP3
@@ -412,14 +412,14 @@ proxies). Default is &acute;@&acute;. For example, to use
 &acute;#&acute; instead: delimchar #. This allows usernames
 to contain the &acute;@&acute; character.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>archiver</b>
+<p style="margin-left:9%; margin-top: 1em"><b>archiver</b>
 <i>&lt;ext&gt; &lt;commandline&gt;</i> <br>
 Archiver to use for log files. &lt;ext&gt; is file extension
 produced by archiver. Filename will be last argument to
 archiver, optionally you can use %A as produced archive name
 and %F as filename.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>timeouts</b>
+<p style="margin-left:9%; margin-top: 1em"><b>timeouts</b>
 <i>&lt;BYTE_SHORT&gt; &lt;BYTE_LONG&gt; &lt;STRING_SHORT&gt;
 &lt;STRING_LONG&gt; &lt;CONNECTION_SHORT&gt;
 &lt;CONNECTION_LONG&gt; &lt;DNS&gt; &lt;CHAIN&gt;
@@ -450,14 +450,14 @@ tail of the data to be lost on slow connections, too large
 one delays release of the sockets. <br>
 default timeouts 1 5 30 60 180 1800 15 60 15 5 5</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>maxseg</b>
+<p style="margin-left:9%; margin-top: 1em"><b>maxseg</b>
 <i>&lt;value&gt;</i> <br>
 Sets TCP maximum segment size (MSS) for outgoing
 connections. This can be used to work around path MTU
 discovery issues or to optimize traffic for specific network
 conditions.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>radius</b>
+<p style="margin-left:9%; margin-top: 1em"><b>radius</b>
 <i>&lt;NAS_SECRET&gt;
 &lt;radius_server_1</i>[:<i>port</i>][/<i>local_address_1</i>]
 <i>&lt;radius_server_2</i>[:<i>port</i>][/<i>local_address_2</i>]
@@ -484,7 +484,7 @@ user), Reply-Message. Use <b>authcache</b> to speedup
 authentication. RADIUS feature is currently
 experimental.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>nserver</b>
+<p style="margin-left:9%; margin-top: 1em"><b>nserver</b>
 <i>&lt;ipaddr&gt;</i>[:<i>port</i>][/<i>tcp</i>] <br>
 Nameserver to use for name resolutions. If none specified
 system routines for name resolution is used. Optional port
@@ -492,13 +492,13 @@ number may be specified. If optional /tcp is added to IP
 address, name resolution is performed over TCP.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>authnserver</b>
+<p style="margin-left:9%; margin-top: 1em"><b>authnserver</b>
 <i>&lt;ipaddr&gt;</i>[:<i>port</i>][/<i>tcp</i>] <br>
 Nameserver to use for DNS-based authentication (e.g. dnsname
 auth type). If not specified, nserver is used. The syntax is
 the same as for nserver.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>nscache</b>
+<p style="margin-left:9%; margin-top: 1em"><b>nscache</b>
 <i>&lt;cachesize&gt;</i> <b>nscache6</b>
 <i>&lt;cachesize&gt;</i> <br>
 Cache <i>&lt;cachesize&gt;</i> records for name resolution
@@ -506,7 +506,7 @@ Cache <i>&lt;cachesize&gt;</i> records for name resolution
 cache size should usually be large enough (for example,
 65536).</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>nsrecord</b>
+<p style="margin-left:9%; margin-top: 1em"><b>nsrecord</b>
 <i>&lt;hostname&gt; &lt;hostaddr&gt;</i> <br>
 Adds static record to nscache. <b>nscache</b> must be
 enabled. If 0.0.0.0 is used as a hostaddr host will never
@@ -514,14 +514,14 @@ resolve, it can be used to blacklist something or together
 with <b>dialer</b> command to set up UDL for dialing.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>fakeresolve</b>
+<p style="margin-left:9%; margin-top: 1em"><b>fakeresolve</b>
 <br>
 All names are resolved to the 127.0.0.2 address. Useful if
 all requests are redirected to a parent proxy with
 <b>http</b>, <b>socks4+</b>, <b>connect+</b> or
 <b>socks5+</b>.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>dialer</b>
+<p style="margin-left:9%; margin-top: 1em"><b>dialer</b>
 <i>&lt;progname&gt;</i> <br>
 Execute progname if external name can&acute;t be resolved.
 Hint: if you use nscache, dialer may not work, because names
@@ -529,7 +529,7 @@ will be resolved through cache. In this case you can use
 something like http://dial.right.now/ from browser to set up
 connection.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>internal</b>
+<p style="margin-left:9%; margin-top: 1em"><b>internal</b>
 <i>&lt;ipaddr&gt;</i> <br>
 sets ip address of internal interface. This IP address will
 be used to bind gateways. Alternatively you can use -i
@@ -543,7 +543,7 @@ Unix sockets are supported with the syntax
 using Unix sockets, the socket file is automatically created
 and removed on service start/stop.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>external</b>
+<p style="margin-left:9%; margin-top: 1em"><b>external</b>
 <i>&lt;ipaddr&gt;</i> <br>
 sets ip address of external interface. This IP address will
 be source address for all connections made by proxy.
@@ -552,7 +552,7 @@ address for gateway. Since 0.8 version External or <b>-e</b>
 can be given twice: once with IPv4 and once with IPv6
 address.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>maxconn</b>
+<p style="margin-left:9%; margin-top: 1em"><b>maxconn</b>
 <i>&lt;number&gt;</i> <br>
 sets the maximum number of simultaneous connections to each
 service started after this command at the network level.
@@ -562,13 +562,13 @@ will silently ignore new connections, while <b>connlim</b>
 will report back to the client that the connection limit has
 been reached.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>backlog</b>
+<p style="margin-left:9%; margin-top: 1em"><b>backlog</b>
 <br>
 sets the listening socket backlog of new connections.
 Default is 1 + <b>maxconn</b>/8. Maximum value is capped by
 kernel tunable somaxconn.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>service</b>
+<p style="margin-left:9%; margin-top: 1em"><b>service</b>
 <br>
 (deprecated). Indicates that 3proxy should behave as a
 Windows 95/98/NT/2000/XP service; has no effect under Unix.
@@ -576,7 +576,7 @@ Not required for 3proxy 0.6 and above. If you upgraded from
 a previous version of 3proxy, use --remove and --install to
 reinstall the service.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>daemon</b>
+<p style="margin-left:9%; margin-top: 1em"><b>daemon</b>
 <br>
 Should be specified to close the console. Do not use
 &acute;daemon&acute; with &acute;service&acute;. At least
@@ -584,7 +584,7 @@ under FreeBSD, <b>daemon</b> should precede any proxy
 service and log commands to avoid socket problems. Always
 place it in the beginning of the configuration file.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>auth</b>
+<p style="margin-left:9%; margin-top: 1em"><b>auth</b>
 <i>&lt;authtype&gt;</i> [...] <br>
 Type of user authorization. Currently supported: <b><br>
 none</b> - no authentication or authorization required. <br>
@@ -624,7 +624,7 @@ address is then restored from the cache entry. <b><br>
 radius</b> - authentication with RADIUS. <br>
 Plugins may add additional authentication types.</p>
 
-<p style="margin-left:6%; margin-top: 1em">It&acute;s
+<p style="margin-left:9%; margin-top: 1em">It&acute;s
 possible to use multiple authentication types in the same
 command. E.g. <br>
 auth iponly strong <br>
@@ -638,7 +638,7 @@ for dedicated laptops and request a username/password for
 shared ones.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>authcache</b>
+<p style="margin-left:9%; margin-top: 1em"><b>authcache</b>
 <i>&lt;cachtype&gt; &lt;cachtime&gt; &lt;cachesize&gt;</i>
 <br>
 Cache authentication information for a given amount of time
@@ -683,7 +683,7 @@ see <b>allow</b>. <br>
 Use auth type <b>cache</b> (or <b>cacheacl</b>) for cached
 authentication</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>allow</b>
+<p style="margin-left:9%; margin-top: 1em"><b>allow</b>
 <i>&lt;userlist&gt; &lt;sourcelist&gt; &lt;targetlist&gt;
 &lt;targetportlist&gt; &lt;operationlist&gt;
 &lt;weekdayslist&gt; &lt;timeperiodslist&gt;</i> <b><br>
@@ -719,7 +719,7 @@ specific addresses immediately without any conditions you
 should either bind proxy to appropriate interface only or to
 use ip filters.</p>
 
-<p style="margin-left:6%; margin-top: 1em">Operation is one
+<p style="margin-left:9%; margin-top: 1em">Operation is one
 of: <b><br>
 CONNECT</b> establish outgoing TCP connection <b><br>
 BIND</b> bind TCP port for listening <b><br>
@@ -743,7 +743,7 @@ remote side. <b><br>
 FTP</b> matches any FTP/FTP Data request <b><br>
 ADMIN</b> access to administration interface</p>
 
-<p style="margin-left:6%; margin-top: 1em">Weekdays are
+<p style="margin-left:9%; margin-top: 1em">Weekdays are
 week day numbers or periods, 0 or 7 means Sunday, 1 is
 Monday, 1-5 means Monday through Friday. <br>
 Timeperiodlists is a list of time periods in
@@ -788,7 +788,7 @@ RADIUS or plugin authentication: <b>cacheacl</b> with the
 destination in the cache key if no parent proxy is used,
 <b>cache</b> otherwise, see <b>cacheacl</b>.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>parent</b>
+<p style="margin-left:9%; margin-top: 1em"><b>parent</b>
 <i>&lt;weight&gt; &lt;type&gt; &lt;ip&gt; &lt;port&gt;
 &lt;username&gt; &lt;password&gt;</i> <br>
 this command must follow &quot;allow&quot; rule. It extends
@@ -818,7 +818,7 @@ connections. Chains are only applied to new connections,
 pipelined (keep-alive) requests in the same connection use
 the same chain.</p>
 
-<p style="margin-left:6%; margin-top: 1em">type is one of:
+<p style="margin-left:9%; margin-top: 1em">type is one of:
 <b><br>
 extip</b> does not actually redirect the request; it sets
 the external address for this request to <i>&lt;ip&gt;</i>.
@@ -877,7 +877,7 @@ Requires SSL/TLS support (WITH_SSL) and is used with
 <b>ssl_client_mode 3</b>, which only handshakes TLS for
 <b>s</b>-suffixed parents.</p>
 
-<p style="margin-left:6%; margin-top: 1em">IP and port are
+<p style="margin-left:9%; margin-top: 1em">IP and port are
 ip addres and port of parent proxy server. If IP is zero, ip
 is taken from original request, only port is changed. If
 port is zero, it&acute;s taken from original request, only
@@ -898,7 +898,7 @@ unix:@parent.proxy 3128). When using Unix sockets, the port
 number is ignored but must be specified for syntax
 compatibility.</p>
 
-<p style="margin-left:6%; margin-top: 1em">Main purpose of
+<p style="margin-left:9%; margin-top: 1em">Main purpose of
 local redirections is to have the requested resource (URL or
 POP3 username) logged and protocol-specific filters applied.
 In case of local redirection, ACLs are reviewed twice:
@@ -923,19 +923,19 @@ parent proxy. Username of &acute;*&acute; means username
 must be supplied by user.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>parentretries</b>
+<p style="margin-left:9%; margin-top: 1em"><b>parentretries</b>
 <i>&lt;number&gt;</i> <br>
 Number of retries to connect to parent proxy. Default is
 1.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>nolog</b>
+<p style="margin-left:9%; margin-top: 1em"><b>nolog</b>
 <i>&lt;n&gt;</i> <br>
 extends last allow or deny command to prevent logging, e.g.
 <br>
 allow * * 192.168.1.1 <br>
 nolog</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>weight</b>
+<p style="margin-left:9%; margin-top: 1em"><b>weight</b>
 <i>&lt;n&gt;</i> <br>
 extends last allow or deny command to set weight for this
 request <br>
@@ -943,7 +943,7 @@ allow * * 192.168.1.1 <br>
 weight 100 <br>
 Weight may be used for different purposes.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>force <br>
+<p style="margin-left:9%; margin-top: 1em"><b>force <br>
 noforce</b> <br>
 If force is specified for service, configuration reload will
 require all current sessions of this service to be
@@ -953,7 +953,7 @@ closed. noforce allows to keep previously authenticated
 connections.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>bandlimin</b>
+<p style="margin-left:9%; margin-top: 1em"><b>bandlimin</b>
 <i>&lt;rate&gt; &lt;userlist&gt; &lt;sourcelist&gt;
 &lt;targetlist&gt; &lt;targetportlist&gt;
 &lt;operationlist&gt; &lt;weekdayslist&gt;
@@ -995,7 +995,7 @@ POP3, you can use <br>
 nobandlimin * * * 110 <br>
 before the rest of bandlim rules.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>connlim</b>
+<p style="margin-left:9%; margin-top: 1em"><b>connlim</b>
 <i>&lt;rate&gt; &lt;period&gt; &lt;userlist&gt;
 &lt;sourcelist&gt; &lt;targetlist&gt; &lt;targetportlist&gt;
 &lt;operationlist&gt; &lt;weekdayslist&gt;
@@ -1017,7 +1017,7 @@ required per client, a separate rule must be added for every
 client. Like with nobandlimin, noconnlim adds an
 exception.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>counter</b>
+<p style="margin-left:9%; margin-top: 1em"><b>counter</b>
 <i>&lt;filename&gt; &lt;reporttype&gt;
 &lt;reportname&gt;</i> <b><br>
 countin</b> <i>&lt;number&gt; &lt;type&gt; &lt;limit&gt;
@@ -1045,7 +1045,7 @@ nocountall</b> <i>&lt;userlist&gt; &lt;sourcelist&gt;
 &lt;operationlist&gt; &lt;weekdayslist&gt;
 &lt;timeperiodslist&gt;</i></p>
 
-<p style="margin-left:6%; margin-top: 1em">counter,
+<p style="margin-left:9%; margin-top: 1em">counter,
 countin, nocountin, countout, nocountout, countall,
 nocountall commands are used to set a traffic limit in MB
 for a period of time (day, week or month). Filename is a
@@ -1070,7 +1070,7 @@ report is a text file with counter values in the format:
 The rest of parameters is identical to
 <b>bandlim</b>/<b>nobandlim</b>.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>users</b>
+<p style="margin-left:9%; margin-top: 1em"><b>users</b>
 <i>username</i>[:<i>pwtype</i>:<i>password</i>] ... <br>
 pwtype is one of: <br>
 none (empty) - use system authentication <b><br>
@@ -1088,7 +1088,7 @@ users &quot;test4:CR:$3$salt$G47yV9w....&quot; <br>
 Note: double quotes are required because the password
 contains a $ sign.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>flush</b>
+<p style="margin-left:9%; margin-top: 1em"><b>flush</b>
 <br>
 empty the active access list. The access list must be
 flushed every time you create a new access list for a new
@@ -1100,35 +1100,35 @@ allow * 192.168.1.0/24 <br>
 socks <br>
 sets different ACLs for <b>pop3p</b> and <b>socks</b></p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>system</b>
+<p style="margin-left:9%; margin-top: 1em"><b>system</b>
 <i>&lt;command&gt;</i> <br>
 execute system command</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>pidfile</b>
+<p style="margin-left:9%; margin-top: 1em"><b>pidfile</b>
 <i>&lt;filename&gt;</i> <br>
 write pid of current process to file. It can be used to
 manipulate 3proxy with signals under Unix. Currently next
 signals are available:</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>monitor</b>
+<p style="margin-left:9%; margin-top: 1em"><b>monitor</b>
 <i>&lt;filename&gt;</i> <br>
 If file monitored changes in modification time or size,
 3proxy reloads configuration within one minute. Any number
 of files may be monitored.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>setuid</b>
+<p style="margin-left:9%; margin-top: 1em"><b>setuid</b>
 <i>&lt;uid&gt;</i> <br>
 calls setuid(uid), uid can be numeric or since 0.9 username.
 Unix only. Warning: under some Linux kernels setuid() works
 for current thread only. It makes it impossible to suid for
 all threads.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>setgid</b>
+<p style="margin-left:9%; margin-top: 1em"><b>setgid</b>
 <i>&lt;gid&gt;</i> <br>
 calls setgid(gid), gid can be numeric or since 0.9
 groupname. Unix only.</p>
 
-<p style="margin-left:6%; margin-top: 1em"><b>chroot</b>
+<p style="margin-left:9%; margin-top: 1em"><b>chroot</b>
 <i>&lt;path&gt;</i> [<i>&lt;uid&gt;</i>]
 [<i>&lt;gid&gt;</i>] <br>
 calls chroot(path) and sets gid/uid. Unix only. uid/gid
@@ -1136,7 +1136,7 @@ supported since 0.9, can be numeric or
 username/groupname</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>stacksize</b>
+<p style="margin-left:9%; margin-top: 1em"><b>stacksize</b>
 <i>&lt;value_to_add_to_default_stack_size&gt;</i> <br>
 Change the default size for thread stacks. May be required
 in some situations, e.g. with non-default plugins, or on
@@ -1165,7 +1165,7 @@ disable the thread stack.</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>plugin</b>
+<p style="margin-left:9%; margin-top: 1em"><b>plugin</b>
 <i>&lt;path_to_shared_library&gt;
 &lt;function_to_call&gt;</i> [<i>&lt;arg1&gt;</i> ...] <br>
 Loads specified library and calls given export function with
@@ -1176,7 +1176,7 @@ function_to_call must return 0 in case of success, value
 &gt; 0 to indicate error.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>filtermaxsize</b>
+<p style="margin-left:9%; margin-top: 1em"><b>filtermaxsize</b>
 <i>&lt;max_size_of_data_to_filter&gt;</i> <br>
 If Content-length (or another data length) is greater than
 the given value, no data filtering will be performed through
@@ -1188,13 +1188,13 @@ Content-Length changing. Default is 1MB (1048576).</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">SSL/TLS support
+<p style="margin-left:9%; margin-top: 1em">SSL/TLS support
 is built into 3proxy (since 0.9.7) when compiled with
 OpenSSL (WITH_SSL). Previously available as SSLPlugin, the
 functionality is now integrated into the main binary. The
 plugin line is no longer required.</p>
 
-<p style="margin-left:6%; margin-top: 1em">SSL/TLS can be
+<p style="margin-left:9%; margin-top: 1em">SSL/TLS can be
 used for: - transparent MITM (Man-in-the-Middle) for TLS
 traffic inspection - https:// proxy (TLS-encrypted
 connection between client and proxy) - TLS client
@@ -1207,7 +1207,7 @@ certificates</p>
 </h3>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>ssl_mitm</b>
+<p style="margin-left:9%; margin-top: 1em"><b>ssl_mitm</b>
 - spoof certificates for services started below. Usage
 without ssl_client_verify is insecure. <b><br>
 ssl_nomitm</b> - do not spoof certificates for services
@@ -1218,7 +1218,7 @@ started below</p>
 </h3>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>ssl_serv</b>
+<p style="margin-left:9%; margin-top: 1em"><b>ssl_serv</b>
 (or ssl_server) - require TLS connection from clients for
 services below <b><br>
 ssl_noserv</b> (or ssl_noserver) - do not require TLS
@@ -1229,7 +1229,7 @@ connection from clients for services below</p>
 </h3>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>ssl_cli</b>
+<p style="margin-left:9%; margin-top: 1em"><b>ssl_cli</b>
 (or ssl_client) - establish TLS connection to upstream
 server for services below <b><br>
 ssl_nocli</b> (or ssl_noclient) - do not establish TLS
@@ -1241,7 +1241,7 @@ connection to upstream server for services below</p>
 
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>ssl_server_cert</b>
+<p style="margin-left:9%; margin-top: 1em"><b>ssl_server_cert</b>
 <i>/path/to/cert</i> - Server certificate (should not be
 self-signed, must contain SAN) for ssl_serv <b><br>
 ssl_server_key</b> <i>/path/to/key</i> - Server certificate
@@ -1306,14 +1306,14 @@ generated MITM certificates cache</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">PCRE (Perl
+<p style="margin-left:9%; margin-top: 1em">PCRE (Perl
 Compatible Regular Expressions) filtering is built into
 3proxy (since 0.9.7) when compiled with PCRE2 support
 (WITH_PCRE). Previously available as PCREPlugin, the
 functionality is now integrated into the main binary. The
 plugin line is no longer required.</p>
 
-<p style="margin-left:6%; margin-top: 1em">PCRE filtering
+<p style="margin-left:9%; margin-top: 1em">PCRE filtering
 allows creating matching and replacement rules with regular
 expressions for client requests, headers, and data.</p>
 
@@ -1322,7 +1322,7 @@ expressions for client requests, headers, and data.</p>
 </h3>
 
 
-<p style="margin-left:6%; margin-top: 1em"><b>pcre</b>
+<p style="margin-left:9%; margin-top: 1em"><b>pcre</b>
 <i>TYPE FILTER_ACTION REGEXP [ACE]</i> <br>
 Apply a rule for matching regular expression. <b><br>
 pcre_rewrite</b> <i>TYPE FILTER_ACTION REGEXP
@@ -1358,7 +1358,7 @@ PCRE_BSR_UNICODE.</p>
 </h3>
 
 
-<p style="margin-left:6%; margin-top: 1em">TYPE - type of
+<p style="margin-left:9%; margin-top: 1em">TYPE - type of
 filtered data (comma-delimited list): <br>
 request - content of the client&rsquo;s request (e.g., HTTP
 GET request string) <br>
@@ -1369,7 +1369,7 @@ data) <br>
 srvdata - data received from the server (e.g., HTML
 page)</p>
 
-<p style="margin-left:6%; margin-top: 1em">FILTER_ACTION -
+<p style="margin-left:9%; margin-top: 1em">FILTER_ACTION -
 action on match: <br>
 allow - allow this request without checking the rest of the
 rules <br>
@@ -1378,18 +1378,18 @@ rules <br>
 dunno - continue with the rest of the rules (useful with
 pcre_rewrite)</p>
 
-<p style="margin-left:6%; margin-top: 1em">REGEXP - PCRE
+<p style="margin-left:9%; margin-top: 1em">REGEXP - PCRE
 (Perl) regular expression. Use * if no regexp matching is
 required.</p>
 
 
-<p style="margin-left:6%; margin-top: 1em">REWRITE_EXPRESSION
+<p style="margin-left:9%; margin-top: 1em">REWRITE_EXPRESSION
 - substitution string. May contain Perl-style substrings $1,
 $2, etc. $0 means the whole matched string. \r and \n may be
 used to insert new lines; the string may be empty
 (&quot;&quot;).</p>
 
-<p style="margin-left:6%; margin-top: 1em">ACE - access
+<p style="margin-left:9%; margin-top: 1em">ACE - access
 control entry (user names, source IPs, destination IPs,
 ports, etc.), identical to allow/deny/bandlimin commands.
 The regular expression is only matched if the ACL matches
@@ -1402,7 +1402,7 @@ authentication and/or allow/deny ACLs.</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">Report all bugs
+<p style="margin-left:9%; margin-top: 1em">Report all bugs
 to <b>3proxy@3proxy.org</b></p>
 
 <h2>SEE ALSO
@@ -1410,7 +1410,7 @@ to <b>3proxy@3proxy.org</b></p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy(8),
+<p style="margin-left:9%; margin-top: 1em">3proxy(8),
 3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8),
 imapp(8), smtpp(8), tlspr(8), tcppm(8), udppm(8),
 syslogd(8), <br>
@@ -1421,7 +1421,7 @@ https://3proxy.org/</p>
 </h2>
 
 
-<p style="margin-left:6%; margin-top: 1em">3proxy is
+<p style="margin-left:9%; margin-top: 1em">3proxy is
 designed by Vladimir Dubrovin &lt;vlad@3proxy.org&gt;</p>
 <hr>
 </body>
