@@ -1,4 +1,4 @@
-name: RPM/DEB build armhf
+name: DEB build armhf
 
 on:
   release:
@@ -54,7 +54,7 @@ jobs:
        sudo cp ~/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources
        sudo apt update
        sudo apt install libssl3t64:armhf openssl:armhf libssl-dev:armhf libpam0g:armhf libpam0g-dev:armhf libpcre2-dev:armhf rpm crossbuild-essential-armhf build-essential debhelper
-    - name: configure rpm env
+    - name: configure deb env
       run: |
        mkdir ~/debian
        mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
@@ -62,24 +62,6 @@ jobs:
        ln -s ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
        cp scripts/rh/3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
        cp ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/debian/3proxy_$RELEASE.orig.tar.gz
-    - name: rpmbuild
-      run: |
-       ret=`pwd`
-       cd ~/rpmbuild/SPECS
-       PATH=/usr/arm-linux-gnueabihf/bin:$PATH
-       export PATH=$PATH
-       CC=arm-linux-gnueabihf-gcc
-       export CC=$CC
-       export RPATH=/usr/arm-linux-gnueabihf/lib:$RPATH
-       export LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH
-       rpmbuild -ba --define "PAMLIB pam0g" --define "_arch arm" --define "cross yes" --target=arm-linux-gnueabihf 3proxy-$RELEASE.spec
-       cd $ret
-       mv ~/rpmbuild/RPMS/arm/3proxy-$RELEASE-1.arm.rpm 3proxy-$RELEASE.arm.rpm
-    - name: Get artifact rpm
-      uses: actions/upload-artifact@v7
-      with:
-       name: "3proxy-${{ env.RELEASE }}-arm.rpm"
-       path: "*.rpm"
     - name: debbuild
       run: |
         ret=`pwd`
@@ -123,45 +105,12 @@ jobs:
        gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
            -u "$KEYID" --detach-sign -o /dev/null /tmp/prime.txt
        rm -f /tmp/prime.txt
-    - name: Sign rpm
-      if: github.event_name == 'release'
-      env:
-       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-      run: |
-       GPGBIN=$(command -v gpg)
-       if [ -z "$GPGBIN" ]; then echo "gpg not found"; exit 1; fi
-       umask 077
-       printf '%s' "$GPG_PASSPHRASE" > /tmp/gpgpass
-       echo test > /tmp/signtest
-       gpg --batch --yes --pinentry-mode loopback --passphrase-file /tmp/gpgpass \
-           -u "$GPG_KEYID" --detach-sign -o /tmp/signtest.sig /tmp/signtest
-       echo "key can sign"
-       { echo "%_gpg_name $GPG_KEYID"
-         echo "%__gpg $GPGBIN"
-         echo '%__gpg_sign_cmd %{__gpg} gpg --batch --no-armor --pinentry-mode loopback --passphrase-file /tmp/gpgpass --no-secmem-warning --digest-algo sha256 -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}'
-       } > ~/.rpmmacros
-       rpm --addsign *.rpm
-       rm -f /tmp/gpgpass /tmp/signtest /tmp/signtest.sig
-       for f in *.rpm; do
-         sig=$(rpm -qp --qf '%{RSAHEADER:pgpsig}' "$f" 2>/dev/null)
-         case "$sig" in ""|"(none)")
-           sig=$(rpm -qp --qf '%{DSAHEADER:pgpsig}' "$f" 2>/dev/null) ;;
-         esac
-         case "$sig" in ""|"(none)")
-           echo "$f is not signed"
-           echo "--- rpm version ---"; rpm --version
-           echo "--- sign cmd ---"; rpm --eval '%{__gpg_sign_cmd}'
-           echo "--- secret keys ---"; gpg --list-secret-keys --with-colons | grep -E '^(sec|ssb):' || true
-           exit 1 ;;
-         esac
-         echo "$f: $sig"
-       done
     - name: Checksums and detached signatures
       if: github.event_name == 'release'
       env:
        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |
-       sha256sum *.rpm *.deb > SHA256SUMS-arm
+       sha256sum *.deb > SHA256SUMS-arm
        for f in *.deb SHA256SUMS-arm; do
          gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
              -u "$GPG_KEYID" --armor --detach-sign "$f"
@@ -173,11 +122,10 @@ jobs:
       uses: actions/attest-build-provenance@v2
       with:
         subject-path: |
-          *.rpm
           *.deb
     - name: Upload to release
       if: github.event_name == 'release'
       env:
        GH_TOKEN: ${{ github.token }}
        TAG: ${{ github.event.release.tag_name }}
-      run: gh release upload "$TAG" *.rpm *.deb *.deb.asc SHA256SUMS-arm SHA256SUMS-arm.asc
+      run: gh release upload "$TAG" *.deb *.deb.asc SHA256SUMS-arm SHA256SUMS-arm.asc
