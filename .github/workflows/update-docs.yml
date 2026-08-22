@@ -1,0 +1,51 @@
+name: Update HTML documentation
+
+on:
+  push:
+    paths:
+      - 'man/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install groff
+      run: |
+       sudo apt-get update
+       sudo apt-get install -y groff
+
+    - name: Generate HTML from man pages
+      run: |
+       mkdir -p doc/html/man5 doc/html/man8
+       echo \<html\>\<title\>3proxy documentation\</title\>\<body\>\<h2\>3proxy documentation\</h2\> >doc/html/index.html
+       echo \<a href=\"securityen.html\"\>Security recommendations\</a\>\<br\> >>doc/html/index.html
+       echo \<a href=\"highload.html\"\>Optimizing 3proxy for high loads\</a\>\<br\> >>doc/html/index.html
+       echo \<a href=\"howtoe.html\"\>How To \(English, very incomplete\)\</a\>\<br\> >>doc/html/index.html
+       echo \<a href=\"howtor.html\"\>How To \(Russian\)\</a\>\<br\> >>doc/html/index.html
+       echo \<a href=\"devref.html\"\>Developer reference\</a\>\<br\> >>doc/html/index.html
+       echo \<h3\>Man pages:\</h3\> >>doc/html/index.html
+       cd man
+       for i in *.8; do ((bash -c "groff -mandoc -Thtml $i | grep -v DOCTYPE| grep -v text/css| grep -v 'meta ' | grep -v /style |  grep -v { |  grep -v /title | grep -v www.w3.org | grep -v CreationDate" > ../doc/html/man8/$i.html ) && echo \<br\>\<A HREF=\"man8/$i.html\"\>$i\</A\> >> ../doc/html/index.html); done
+       for i in *.5; do ((bash -c "groff -mandoc -Thtml $i | grep -v DOCTYPE| grep -v text/css| grep -v 'meta ' | grep -v /style |  grep -v { |  grep -v /title | grep -v www.w3.org | grep -v CreationDate" > ../doc/html/man5/$i.html ) && echo \<br\>\<A HREF=\"man5/$i.html\"\>$i\</A\> >> ../doc/html/index.html); done
+       cd ..
+       echo \</body\>\</html\> >>doc/html/index.html
+
+    - name: Commit
+      run: |
+       if [ -z "$(git status --porcelain doc/html)" ]; then
+         echo "documentation already up to date"
+         exit 0
+       fi
+       git config user.name "github-actions[bot]"
+       git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+       git add doc/html
+       git commit -m "Update HTML documentation from man pages"
+       git push
