@@ -1,0 +1,93 @@
+name: Update version files
+
+on:
+  push:
+    paths:
+      - RELEASE
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Regenerate version files
+      run: |
+       RELEASE=$(tr -d ' \t\r\n' < RELEASE)
+       if [ -z "$RELEASE" ]; then echo "RELEASE is empty"; exit 1; fi
+       YEAR=$(date +%Y)
+       MAJOR=$(echo "$RELEASE" | cut -d . -f 1)
+       SUBMAJOR=$(echo "$RELEASE" | cut -d . -f 2)
+       MINOR=$(echo "$RELEASE" | cut -d . -f 3)
+       SUBMINOR=$(echo "$RELEASE" | cut -d . -f 4)
+       [ -n "$SUBMAJOR" ] || SUBMAJOR=0
+       [ -n "$MINOR" ] || MINOR=0
+       [ -n "$SUBMINOR" ] || SUBMINOR=0
+
+       # The build date is minted once per release and then carried in
+       # version.h, so that rebuilding the same commit yields the same
+       # version string and the same package names.
+       OLDRELEASE=$(sed -n 's/^#define VERSION "3proxy-\(.*\)"$/\1/p' src/version.h 2>/dev/null)
+       OLDBUILDDATE=$(sed -n 's/^#define BUILDDATE "\(.*\)"$/\1/p' src/version.h 2>/dev/null)
+       if [ "$OLDRELEASE" = "$RELEASE" ] && [ -n "$OLDBUILDDATE" ]; then
+         BUILDDATE="$OLDBUILDDATE"
+       else
+         BUILDDATE=$(date +%y%m%d%H%M%S)
+       fi
+       echo "release $RELEASE -> $MAJOR $SUBMAJOR $MINOR $SUBMINOR, build date $BUILDDATE"
+
+       DEBVERSION=$(head -1 debian/changelog | cut -d "(" -f 2 | cut -d ")" -f 1)
+       if [ "$DEBVERSION" != "$RELEASE-1" ]; then
+         mv debian/changelog debian/changelog.old
+         { echo "3proxy ($RELEASE-1) buster; urgency=medium"
+           echo ""
+           echo "  *3proxy $RELEASE initial build"
+           echo ""
+           echo " -- z3APA3A <3apa3a@3proxy.org>  $(date -R)"
+           echo ""
+           cat debian/changelog.old
+         } > debian/changelog
+         rm -f debian/changelog.old
+       fi
+
+       mv scripts/rh/3proxy.spec scripts/rh/3proxy.spec.old
+       { echo "Name:           3proxy"
+         echo "Version:        $RELEASE"
+         echo "Release:        1%{?dist}"
+         tail --lines=+4 scripts/rh/3proxy.spec.old
+       } > scripts/rh/3proxy.spec
+       rm -f scripts/rh/3proxy.spec.old
+
+       { echo "#ifndef VERSION"
+         echo "#define VERSION \"3proxy-$RELEASE\""
+         echo "#endif"
+         echo "#ifndef BUILDDATE"
+         echo "#define BUILDDATE \"$BUILDDATE\""
+         echo "#endif"
+         echo "#define MAJOR3PROXY $MAJOR"
+         echo "#define SUBMAJOR3PROXY $SUBMAJOR"
+         echo "#define MINOR3PROXY $MINOR"
+         echo "#define SUBMINOR3PROXY $SUBMINOR"
+         echo "#define RELEASE3PROXY \"3proxy-$RELEASE(\" BUILDDATE \")\\0\""
+         echo "#ifndef YEAR3PROXY"
+         echo "#define YEAR3PROXY \"$YEAR\""
+         echo "#endif"
+       } > src/version.h
+
+    - name: Commit
+      run: |
+       if [ -z "$(git status --porcelain debian/changelog scripts/rh/3proxy.spec src/version.h)" ]; then
+         echo "version files already up to date"
+         exit 0
+       fi
+       git config user.name "github-actions[bot]"
+       git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+       git add debian/changelog scripts/rh/3proxy.spec src/version.h
+       git commit -m "Update version files for $(tr -d ' \t\r\n' < RELEASE)"
+       git push
