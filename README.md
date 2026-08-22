@@ -19,7 +19,7 @@ https://github.com/3proxy/3proxy/releases
 Signed apt and dnf repositories are published at https://3proxy.org/repo/ in
 two channels: `lts` (0.9 branch) and `current` (master).
 
-Debian and Ubuntu (24.04 or newer):
+Debian 12 and Ubuntu 22.04 or newer:
 
 ```
 sudo curl -fsSL https://3proxy.org/repo/3proxy-release-key.asc \
