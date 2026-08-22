@@ -1,5 +1,3 @@
-3proxy-1.0.0 Released August, 22 2026
-
 No changes in 3proxy code, this release only changes how packages are built, signed and published.
 
 ! Fix: TLS, PCRE2 and PAM support was silently left out when 3proxy was built on a system whose /bin/sh is not dash, which is every RPM based distribution and macOS; the library checks built their test program with echo and escape sequences, which only dash expands, so every check failed and the features were dropped without a diagnostic
