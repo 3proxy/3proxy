@@ -33,12 +33,6 @@ Import it once:
 gpg --import 3proxy-release-key.asc
 ```
 
-Releases up to and including 0.9.9 were signed with an Ed25519 key, kept as
-`3proxy-release-key-ed25519.asc` for verifying those older files. Note that
-rpm 4.14 and earlier (RHEL/CentOS 8 and older) cannot import an Ed25519 key
-and will report `SIGNATURES NOT OK`; use the RSA key and 0.9.9.1 or later on
-those systems.
-
 Checksums and the checksum file signature:
 
 ```
