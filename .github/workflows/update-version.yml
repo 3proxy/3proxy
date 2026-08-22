@@ -21,7 +21,6 @@ jobs:
       run: |
        RELEASE=$(tr -d ' \t\r\n' < RELEASE)
        if [ -z "$RELEASE" ]; then echo "RELEASE is empty"; exit 1; fi
-       YEAR=$(date +%Y)
        MAJOR=$(echo "$RELEASE" | cut -d . -f 1)
        SUBMAJOR=$(echo "$RELEASE" | cut -d . -f 2)
        MINOR=$(echo "$RELEASE" | cut -d . -f 3)
@@ -38,9 +37,11 @@ jobs:
        if [ "$OLDRELEASE" = "$RELEASE" ] && [ -n "$OLDBUILDDATE" ]; then
          BUILDDATE="$OLDBUILDDATE"
        else
-         BUILDDATE=$(date +%y%m%d%H%M%S)
+         BUILDDATE=$(date -u +%y%m%d%H%M%S)
        fi
        echo "release $RELEASE -> $MAJOR $SUBMAJOR $MINOR $SUBMINOR, build date $BUILDDATE"
+       SOURCE_DATE_EPOCH=$(date -u -d "20${BUILDDATE:0:2}-${BUILDDATE:2:2}-${BUILDDATE:4:2} ${BUILDDATE:6:2}:${BUILDDATE:8:2}:${BUILDDATE:10:2}" +%s)
+       YEAR=$(date -u -d @$SOURCE_DATE_EPOCH +%Y)
 
        DEBVERSION=$(head -1 debian/changelog | cut -d "(" -f 2 | cut -d ")" -f 1)
        if [ "$DEBVERSION" != "$RELEASE-1" ]; then
@@ -49,7 +50,7 @@ jobs:
            echo ""
            echo "  *3proxy $RELEASE initial build"
            echo ""
-           echo " -- z3APA3A <3apa3a@3proxy.org>  $(date -R)"
+           echo " -- z3APA3A <3apa3a@3proxy.org>  $(date -R -u -d @$SOURCE_DATE_EPOCH)"
            echo ""
            cat debian/changelog.old
          } > debian/changelog
