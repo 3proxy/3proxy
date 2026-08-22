@@ -27,33 +27,6 @@ jobs:
        pwd
        echo "RELEASE=$(cat RELEASE)" >> $GITHUB_ENV
        echo "VERSION=$(date +%y%m%d%H%M%S)" >> $GITHUB_ENV
-    - name: Linux libraries
-      run: |
-       sudo apt update
-       sudo dpkg --add-architecture armhf
-       echo "Types: deb" > ~/ubuntu.sources
-       echo "URIs: http://archive.ubuntu.com/ubuntu/" >> ~/ubuntu.sources 
-       echo "Suites: noble noble-updates noble-backports" >> ~/ubuntu.sources 
-       echo "Components: main restricted universe multiverse" >> ~/ubuntu.sources 
-       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> ~/ubuntu.sources 
-       echo "Architectures: amd64" >> ~/ubuntu.sources 
-       echo "" >> ~/ubuntu.sources 
-       echo "Types: deb" >> ~/ubuntu.sources 
-       echo "URIs: http://security.ubuntu.com/ubuntu/" >> ~/ubuntu.sources 
-       echo "Suites: noble-security" >> ~/ubuntu.sources 
-       echo "Components: main restricted universe multiverse" >> ~/ubuntu.sources 
-       echo "Architectures: amd64" >> ~/ubuntu.sources 
-       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> ~/ubuntu.sources 
-       echo "" >> ~/ubuntu.sources 
-       echo "Types: deb" >>~/ubuntu.sources 
-       echo "URIs: http://ports.ubuntu.com/ubuntu-ports/" >>~/ubuntu.sources
-       echo "Suites: noble noble-updates" >>~/ubuntu.sources
-       echo "Components: main restricted universe multiverse" >>~/ubuntu.sources
-       echo "Architectures: armhf" >>~/ubuntu.sources
-       echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >>~/ubuntu.sources
-       sudo cp ~/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources
-       sudo apt update
-       sudo apt install libssl3t64:armhf openssl:armhf libssl-dev:armhf libpam0g:armhf libpam0g-dev:armhf libpcre2-dev:armhf rpm crossbuild-essential-armhf build-essential debhelper
     - name: configure deb env
       run: |
        mkdir ~/debian
@@ -64,24 +37,34 @@ jobs:
        cp ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/debian/3proxy_$RELEASE.orig.tar.gz
     - name: debbuild
       run: |
-        ret=`pwd`
-        cd ~/debian/
-        tar xzf 3proxy_$RELEASE.orig.tar.gz
-        cd 3proxy-$RELEASE
-        echo "3proxy ($RELEASE-$VERSION) buster; urgency=medium" >debian/changelog
-        echo " " >>debian/changelog
-        echo "  *3proxy $RELEASE build" >>debian/changelog
-        echo " " >>debian/changelog
-        echo " -- z3APA3A <3apa3a@3proxy.org>  "`date "+%a, %d %b %Y %H:%M:%S %z"` >>debian/changelog
-        echo "">>debian/changelog
-        PATH=/usr/arm-linux-gnueabihf/bin:$PATH
-        export PATH=$PATH
-        CC=arm-linux-gnueabihf-gcc
-        export CC=$CC
-        export RPATH=/usr/arm-linux-gnueabihf/lib:$RPATH
-        export LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH
-        dpkg-buildpackage
-        cd $ret
+        docker run --rm \
+          -v "$HOME/debian:/debian" \
+          -e RELEASE="$RELEASE" -e VERSION="$VERSION" \
+          ubuntu:22.04 bash -c '
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            dpkg --add-architecture armhf
+            sed -i "s|^deb |deb [arch=amd64] |" /etc/apt/sources.list
+            { echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse"
+              echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse"
+            } >> /etc/apt/sources.list
+            apt-get update
+            apt-get install -y crossbuild-essential-armhf build-essential debhelper fakeroot \
+                               libssl-dev:armhf libpcre2-dev:armhf libpam0g-dev:armhf
+            cd /debian
+            tar xzf 3proxy_$RELEASE.orig.tar.gz
+            cd 3proxy-$RELEASE
+            { echo "3proxy ($RELEASE-$VERSION) buster; urgency=medium"
+              echo " "
+              echo "  *3proxy $RELEASE build"
+              echo " "
+              echo " -- z3APA3A <3apa3a@3proxy.org>  $(date "+%a, %d %b %Y %H:%M:%S %z")"
+              echo ""
+            } > debian/changelog
+            export PATH=/usr/arm-linux-gnueabihf/bin:$PATH
+            export CC=arm-linux-gnueabihf-gcc
+            export LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH
+            dpkg-buildpackage'
         cp ~/debian/3proxy_$RELEASE-"$VERSION"_armhf.deb ./3proxy-$RELEASE.arm.deb
     - name: Get artifact deb
       uses: actions/upload-artifact@v7

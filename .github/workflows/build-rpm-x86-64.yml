@@ -75,18 +75,25 @@ jobs:
        path: "*.rpm"
     - name: debbuild
       run: |
-        ret=`pwd`
-        cd ~/debian/
-        tar xzf 3proxy_$RELEASE.orig.tar.gz
-        cd 3proxy-$RELEASE
-        echo "3proxy ($RELEASE-$VERSION) buster; urgency=medium" >debian/changelog
-        echo " " >>debian/changelog
-        echo "  *3proxy $RELEASE build" >>debian/changelog
-        echo " " >>debian/changelog
-        echo " -- z3APA3A <3apa3a@3proxy.org>  "`date "+%a, %d %b %Y %H:%M:%S %z"` >>debian/changelog
-        echo "">>debian/changelog
-        dpkg-buildpackage
-        cd $ret
+        docker run --rm \
+          -v "$HOME/debian:/debian" \
+          -e RELEASE="$RELEASE" -e VERSION="$VERSION" \
+          ubuntu:22.04 bash -c '
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y build-essential debhelper fakeroot libssl-dev libpcre2-dev libpam0g-dev
+            cd /debian
+            tar xzf 3proxy_$RELEASE.orig.tar.gz
+            cd 3proxy-$RELEASE
+            { echo "3proxy ($RELEASE-$VERSION) buster; urgency=medium"
+              echo " "
+              echo "  *3proxy $RELEASE build"
+              echo " "
+              echo " -- z3APA3A <3apa3a@3proxy.org>  $(date "+%a, %d %b %Y %H:%M:%S %z")"
+              echo ""
+            } > debian/changelog
+            dpkg-buildpackage'
         cp ~/debian/3proxy_$RELEASE-"$VERSION"_amd64.deb ./3proxy-$RELEASE.x86_64.deb
     - name: Get artifact deb
       uses: actions/upload-artifact@v7
