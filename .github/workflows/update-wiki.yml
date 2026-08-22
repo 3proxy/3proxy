@@ -1,0 +1,72 @@
+name: Update wiki
+
+on:
+  push:
+    paths:
+      - 'doc/html/**'
+  workflow_run:
+    workflows: ["Update HTML documentation"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-wiki
+  cancel-in-progress: false
+
+jobs:
+  wiki:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: master
+
+    - name: Clone wiki
+      run: |
+       git clone --quiet \
+         "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git" wiki
+
+    - name: Copy documentation
+      run: |
+       cp -f doc/html/man8/3proxy.8.html        wiki/3proxy.md
+       cp -f doc/html/man8/3proxy_crypt.8.html  wiki/3proxy_crypt.md
+       cp -f doc/html/man8/ftppr.8.html         wiki/ftppr.md
+       cp -f doc/html/man8/pop3p.8.html         wiki/pop3p.md
+       cp -f doc/html/man8/imapp.8.html         wiki/imapp.md
+       cp -f doc/html/man8/proxy.8.html         wiki/proxy.md
+       cp -f doc/html/man8/smtpp.8.html         wiki/smtpp.md
+       cp -f doc/html/man8/socks.8.html         wiki/socks.md
+       cp -f doc/html/man8/tlspr.8.html         wiki/tlspr.md
+       cp -f doc/html/man8/tcppm.8.html         wiki/tcppm.md
+       cp -f doc/html/man8/udppm.8.html         wiki/udppm.md
+       cp -f doc/html/man5/3proxy.cfg.5.html    wiki/3proxy.cfg.md
+       cp -f doc/html/highload.html             wiki/High-Load.md
+       cp -f doc/html/howtoe.html               wiki/How-To.md
+       cp -f doc/html/howtor.html               "wiki/How-To-(русский).md"
+       cp -f doc/html/securityen.html           wiki/Security-recommendations.md
+       cp -f doc/html/devel/devref.html         wiki/DevelopeReference.md
+       cp -f doc/html/plugins/TransparentPlugin.html          wiki/TransparentPlugin.md
+       cp -f doc/html/plugins/StringsPlugin.html              wiki/StringsPlugin.md
+       cp -f doc/html/plugins/TrafficPlugin.html              wiki/TrafficPlugin.md
+       cp -f doc/html/plugins/WindowsAuthentication.html      wiki/WindowsAuthentication.md
+       cp -f doc/html/plugins/TransparentPlugin.ru.html       "wiki/TransparentPlugin-(русский).md"
+       cp -f doc/html/plugins/StringsPlugin.ru.html           "wiki/StringsPlugin-(русский).md"
+       cp -f doc/html/plugins/TrafficPlugin.ru.html           "wiki/TrafficPlugin-(русский).md"
+       cp -f doc/html/plugins/WindowsAuthentication.ru.html   "wiki/WindowsAuthentication-(русский).md"
+
+    - name: Commit
+      run: |
+       cd wiki
+       if [ -z "$(git status --porcelain)" ]; then
+         echo "wiki already up to date"
+         exit 0
+       fi
+       git status --short
+       git config user.name "github-actions[bot]"
+       git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+       git add -A
+       git commit -m "Update documentation from master"
+       git push
