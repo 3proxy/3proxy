@@ -49,7 +49,7 @@ jobs:
            -v "$HOME/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz:/src.tar.gz:ro" \
            -v "$PWD/scripts/rh/3proxy.spec:/3proxy.spec:ro" \
            -v "$PWD/rpmout:/out" \
-           -e RELEASE="$RELEASE" \
+           -e RELEASE="$RELEASE" -e HOSTUID="$(id -u)" -e HOSTGID="$(id -g)" \
            "almalinux:$EL" bash -c '
              set -e
              dnf -y install rpm-build gcc make openssl-devel pcre2-devel pam-devel tar gzip
@@ -59,7 +59,8 @@ jobs:
              cp /3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
              cd ~/rpmbuild/SPECS
              rpmbuild -ba 3proxy-$RELEASE.spec
-             cp ~/rpmbuild/RPMS/*/*.rpm /out/'
+             cp ~/rpmbuild/RPMS/*/*.rpm /out/
+             chown "$HOSTUID:$HOSTGID" /out/*.rpm || chmod 0666 /out/*.rpm'
        done
        for f in rpmout/*.rpm; do
          dist=$(rpm -qp --qf '%{RELEASE}' "$f" | sed 's/^1\.//')
