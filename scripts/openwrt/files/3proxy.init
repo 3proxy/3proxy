@@ -1,0 +1,460 @@
+#!/bin/sh /etc/rc.common
+
+START=50
+USE_PROCD=1
+
+CFGFILE=/var/etc/3proxy.cfg
+PROG=/usr/bin/3proxy
+
+# 3proxy.cfg is order dependent: authentication and access rules apply to the
+# service lines that follow them, and the access list has to be flushed before
+# each service. The file is written as one global block followed by one block
+# per service.
+
+acl_written=0
+
+append_line() {
+	echo "$1" >> "$CFGFILE"
+}
+
+append_include() {
+	echo "include $1" >> "$CFGFILE"
+}
+
+# The limiter directives carry their own ACL pattern rather than attaching to a
+# preceding allow rule, and 3proxy defaults every omitted field to *, so the
+# trailing wildcards are dropped again to keep the file readable.
+# logformat takes a single argument, so a format containing spaces has to be
+# quoted. Quotes already present in the UCI value are not doubled.
+append_logformat() {
+	local fmt="$1"
+
+	case "$fmt" in
+		'"'*'"') ;;
+		*) fmt="\"$fmt\"" ;;
+	esac
+
+	echo "logformat $fmt" >> "$CFGFILE"
+}
+
+limit_match() {
+	local users src dst ports ops weekdays periods out
+
+	config_get users "$1" users '*'
+	config_get src "$1" src '*'
+	config_get dst "$1" dst '*'
+	config_get ports "$1" ports '*'
+	config_get ops "$1" operations '*'
+	config_get weekdays "$1" weekdays '*'
+	config_get periods "$1" timeperiods '*'
+
+	out="$users $src $dst $ports $ops $weekdays $periods"
+	while [ "${out% \*}" != "$out" ]; do out="${out% \*}"; done
+
+	echo "$out"
+}
+
+append_limit() {
+	local type rate period number count_type limit match
+
+	config_get type "$1" type
+
+	case "$type" in
+		bandlimin|bandlimout|nobandlimin|nobandlimout|\
+		connlim|noconnlim|\
+		countin|countout|countall|nocountin|nocountout|nocountall) ;;
+		*)
+			echo "3proxy: limit '$1' has unknown type '$type', ignored" >&2
+			return 0
+			;;
+	esac
+
+	match=$(limit_match "$1")
+
+	case "$type" in
+		bandlimin|bandlimout)
+			config_get rate "$1" rate
+			[ -n "$rate" ] || {
+				echo "3proxy: limit '$1' needs a rate, ignored" >&2
+				return 0
+			}
+			echo "$type $rate $match" >> "$CFGFILE"
+			;;
+		connlim)
+			config_get rate "$1" rate
+			config_get period "$1" period 0
+			[ -n "$rate" ] || {
+				echo "3proxy: limit '$1' needs a rate, ignored" >&2
+				return 0
+			}
+			echo "$type $rate $period $match" >> "$CFGFILE"
+			;;
+		countin|countout|countall)
+			config_get number "$1" number
+			config_get count_type "$1" count_type
+			config_get limit "$1" limit
+			[ -n "$number" ] && [ -n "$count_type" ] && [ -n "$limit" ] || {
+				echo "3proxy: limit '$1' needs number, count_type and limit, ignored" >&2
+				return 0
+			}
+			echo "$type $number $count_type $limit $match" >> "$CFGFILE"
+			;;
+		*)
+			echo "$type $match" >> "$CFGFILE"
+			;;
+	esac
+
+	return 0
+}
+
+append_pcre_extend() {
+	echo "pcre_extend $1" >> "$CFGFILE"
+}
+
+append_pcre() {
+	local match_type action regexp rewrite ace
+
+	config_get match_type "$1" match_type
+	config_get action "$1" action
+	config_get regexp "$1" regexp
+	config_get rewrite "$1" rewrite
+	config_get ace "$1" ace
+
+	[ -n "$match_type" ] && [ -n "$action" ] && [ -n "$regexp" ] || {
+		echo "3proxy: pcre '$1' needs match_type, action and regexp, ignored" >&2
+		return 0
+	}
+
+	# Catch bad values here: 3proxy rejects the whole configuration on an
+	# unknown type or action, which would leave the router without a proxy.
+	case "$action" in
+		allow|deny|dunno) ;;
+		*)
+			echo "3proxy: pcre '$1' action '$action' is not allow, deny or dunno, ignored" >&2
+			return 0
+			;;
+	esac
+
+	local part
+	for part in $(echo "$match_type" | tr ',' ' '); do
+		case "$part" in
+			request|cliheader|srvheader|clidata|srvdata) ;;
+			*)
+				echo "3proxy: pcre '$1' match_type '$part' is unknown, ignored" >&2
+				return 0
+				;;
+		esac
+	done
+
+	if [ -n "$rewrite" ]; then
+		echo "pcre_rewrite $match_type $action $regexp $rewrite${ace:+ $ace}" >> "$CFGFILE"
+	else
+		echo "pcre $match_type $action $regexp${ace:+ $ace}" >> "$CFGFILE"
+	fi
+
+	config_list_foreach "$1" extend append_pcre_extend
+	return 0
+}
+
+append_nsrecord() {
+	set -- $1
+	if [ $# -ne 2 ]; then
+		echo "3proxy: nsrecord '$*' needs a hostname and an address, ignored" >&2
+		return 0
+	fi
+
+	echo "nsrecord $1 $2" >> "$CFGFILE"
+	nsrecord_written=1
+	return 0
+}
+
+append_nserver() {
+	echo "nserver $1" >> "$CFGFILE"
+}
+
+append_user() {
+	users="$users $1"
+}
+
+# $1 is the name of an acl section referenced by a service, or by the global
+# section as the default access list.
+append_acl() {
+	local action users src dst ports
+
+	config_get action "$1" action allow
+	config_get users "$1" users
+	config_get src "$1" src
+	config_get dst "$1" dst
+	config_get ports "$1" ports
+
+	case "$action" in
+		allow|deny) ;;
+		*)
+			echo "3proxy: acl '$1' has unknown action '$action', ignored" >&2
+			return 0
+			;;
+	esac
+
+	echo "$action ${users:-*} ${src:-*} ${dst:-*} ${ports:-*}" >> "$CFGFILE"
+	acl_written=1
+
+	if [ "$action" = "allow" ]; then
+		config_list_foreach "$1" parent append_parent
+	else
+		config_get _parent "$1" parent
+		[ -z "$_parent" ] || echo "3proxy: acl '$1' is a deny rule, its parents are ignored" >&2
+	fi
+
+	return 0
+}
+
+# $1 is the name of a parent section referenced by an acl. "parent" extends the
+# allow rule that precedes it, so these are emitted directly after their rule.
+append_parent() {
+	local weight type ip port username password line
+
+	config_get weight "$1" weight 1000
+	config_get type "$1" type
+	config_get ip "$1" ip
+	config_get port "$1" port
+	config_get username "$1" username
+	config_get password "$1" password
+
+	[ -n "$type" ] && [ -n "$ip" ] && [ -n "$port" ] || {
+		echo "3proxy: parent '$1' needs type, ip and port, ignored" >&2
+		return 0
+	}
+
+	line="parent $weight $type $ip $port"
+	if [ -n "$username" ]; then
+		line="$line $username"
+		[ -n "$password" ] && line="$line $password"
+	fi
+
+	echo "$line" >> "$CFGFILE"
+	return 0
+}
+
+# TLS parameters that take a value. The UCI option name is the directive name.
+SSL_VALUE_OPTIONS="ssl_server_cert ssl_server_key ssl_client_cert ssl_client_key
+	ssl_client_ciphersuites ssl_server_ciphersuites
+	ssl_client_cipher_list ssl_server_cipher_list
+	ssl_client_min_proto_version ssl_server_min_proto_version
+	ssl_client_max_proto_version ssl_server_max_proto_version
+	ssl_server_ca_file ssl_server_ca_key ssl_server_ca_dir ssl_server_ca_store
+	ssl_client_ca_file ssl_client_ca_dir ssl_client_ca_store
+	ssl_client_sni ssl_client_alpn ssl_client_mode ssl_certcache"
+
+# The TLS switches apply to every service below them, so they leak from one
+# service to the next unless turned back off. These track what is currently in
+# effect - all off, matching the defaults - so a directive is written only when
+# a service actually needs a different state.
+ssl_state_mitm=0
+ssl_state_server=0
+ssl_state_client=0
+ssl_state_client_verify=0
+ssl_state_server_verify=0
+
+# $1 section, $2 uci option, $3 state variable, $4 directive on, $5 directive off
+append_ssl_toggle() {
+	local want have
+
+	config_get_bool want "$1" "$2" 0
+	have=$(eval echo \$$3)
+
+	[ "$want" = "$have" ] && return 0
+
+	if [ "$want" -gt 0 ]; then
+		echo "$4" >> "$CFGFILE"
+	else
+		echo "$5" >> "$CFGFILE"
+	fi
+
+	eval "$3=$want"
+	return 0
+}
+
+append_ssl() {
+	local opt value mitm server cert key cverify
+
+	for opt in $SSL_VALUE_OPTIONS; do
+		config_get value "$1" "$opt"
+		[ -n "$value" ] && echo "$opt $value" >> "$CFGFILE"
+	done
+
+	append_ssl_toggle "$1" ssl_mitm ssl_state_mitm ssl_mitm ssl_nomitm
+	append_ssl_toggle "$1" ssl_server ssl_state_server ssl_serv ssl_noserv
+	append_ssl_toggle "$1" ssl_client ssl_state_client ssl_cli ssl_nocli
+	append_ssl_toggle "$1" ssl_client_verify ssl_state_client_verify \
+		ssl_client_verify ssl_client_no_verify
+	append_ssl_toggle "$1" ssl_server_verify ssl_state_server_verify \
+		ssl_server_verify ssl_server_no_verify
+
+	config_get_bool mitm "$1" ssl_mitm 0
+	config_get_bool cverify "$1" ssl_client_verify 0
+	[ "$mitm" -gt 0 ] && [ "$cverify" -gt 0 ] || [ "$mitm" -eq 0 ] || \
+		echo "3proxy: service '$1' spoofs certificates without ssl_client_verify, upstream certificates are not checked" >&2
+
+	config_get_bool server "$1" ssl_server 0
+	if [ "$server" -gt 0 ]; then
+		config_get cert "$1" ssl_server_cert
+		config_get key "$1" ssl_server_key
+		[ -n "$cert" ] && [ -n "$key" ] || \
+			echo "3proxy: service '$1' requires TLS from clients but has no ssl_server_cert/ssl_server_key" >&2
+	fi
+
+	return 0
+}
+
+append_service() {
+	local enabled type port bind external extra auth args
+	local bind_interface external_interface logformat
+
+	config_get_bool enabled "$1" enabled 0
+	[ "$enabled" -gt 0 ] || return 0
+
+	config_get type "$1" type
+	[ -n "$type" ] || {
+		echo "3proxy: service '$1' has no type, ignored" >&2
+		return 0
+	}
+
+	config_get port "$1" port
+	config_get bind "$1" bind
+	config_get external "$1" external
+	config_get extra "$1" extra
+	config_get bind_interface "$1" bind_interface
+	config_get external_interface "$1" external_interface
+	config_get logformat "$1" logformat
+	config_get auth "$1" auth "$global_auth"
+
+	echo "" >> "$CFGFILE"
+	echo "flush" >> "$CFGFILE"
+	[ -n "$auth" ] && echo "auth $auth" >> "$CFGFILE"
+
+	# Rules referenced by the service, in the order they are listed. A service
+	# without its own list falls back to the global one.
+	acl_written=0
+	config_list_foreach "$1" acl append_acl
+	[ "$acl_written" -gt 0 ] || config_list_foreach global acl append_acl
+
+	[ -n "$logformat" ] && append_logformat "$logformat"
+
+	append_ssl "$1"
+
+	args=""
+	[ -n "$port" ] && args="$args -p$port"
+	[ -n "$bind" ] && args="$args -i$bind"
+	[ -n "$external" ] && args="$args -e$external"
+	[ -n "$bind_interface" ] && args="$args -Di$bind_interface"
+	[ -n "$external_interface" ] && args="$args -De$external_interface"
+	[ -n "$extra" ] && args="$args $extra"
+
+	echo "$type$args" >> "$CFGFILE"
+	return 0
+}
+
+write_config() {
+	local nscache nscache6 maxconn log timeouts fakeresolve logformat
+	local authcache_type authcache_time authcache_size
+	local counter_file counter_type counter_name pcre_options
+
+	mkdir -p "$(dirname "$CFGFILE")"
+	: > "$CFGFILE"
+
+	config_get nscache global nscache
+	config_get nscache6 global nscache6
+	config_get maxconn global maxconn
+	config_get global_auth global auth iponly
+	config_get log global log syslog
+	config_get timeouts global timeouts
+	config_get logformat global logformat
+	config_get_bool fakeresolve global fakeresolve 0
+	config_get authcache_type global authcache_type
+	config_get authcache_time global authcache_time
+	config_get authcache_size global authcache_size
+	config_get counter_file global counter_file
+	config_get counter_type global counter_type
+	config_get counter_name global counter_name
+	config_get pcre_options global pcre_options
+
+	config_list_foreach global nserver append_nserver
+	[ -n "$nscache" ] && echo "nscache $nscache" >> "$CFGFILE"
+	[ -n "$nscache6" ] && echo "nscache6 $nscache6" >> "$CFGFILE"
+
+	# Static records are added to the cache, so they have to come after it.
+	nsrecord_written=0
+	config_list_foreach global nsrecord append_nsrecord
+	[ "$nsrecord_written" -eq 0 ] || [ -n "$nscache$nscache6" ] || \
+		echo "3proxy: nsrecord needs nscache or nscache6 to be set" >&2
+
+	case "$log" in
+		syslog) echo "log" >> "$CFGFILE" ;;
+		none|"") ;;
+		*) echo "log $log" >> "$CFGFILE" ;;
+	esac
+
+	users=""
+	config_list_foreach global user append_user
+	[ -n "$users" ] && echo "users$users" >> "$CFGFILE"
+
+	[ -n "$timeouts" ] && echo "timeouts $timeouts" >> "$CFGFILE"
+	[ "$fakeresolve" -gt 0 ] && echo "fakeresolve" >> "$CFGFILE"
+	[ -n "$logformat" ] && append_logformat "$logformat"
+
+	if [ -n "$authcache_type" ]; then
+		[ -n "$authcache_time" ] || authcache_time=600
+		echo "authcache $authcache_type $authcache_time${authcache_size:+ $authcache_size}" >> "$CFGFILE"
+	fi
+
+	if [ -n "$counter_file" ]; then
+		echo "counter $counter_file${counter_type:+ $counter_type}${counter_name:+ $counter_name}" >> "$CFGFILE"
+	fi
+
+	[ -n "$pcre_options" ] && echo "pcre_options $pcre_options" >> "$CFGFILE"
+
+	# Both lists are order sensitive: 3proxy stops at the first match, so the
+	# exempting rules (nobandlimin and friends) have to be listed first.
+	config_list_foreach global pcre append_pcre
+	config_list_foreach global limit append_limit
+
+	config_list_foreach global include append_include
+	config_list_foreach global extra_config append_line
+
+	[ -n "$maxconn" ] && echo "maxconn $maxconn" >> "$CFGFILE"
+
+	config_foreach append_service service
+
+	return 0
+}
+
+start_service() {
+	local enabled
+
+	config_load 3proxy
+	config_get_bool enabled global enabled 0
+
+	[ "$enabled" -gt 0 ] || {
+		echo "3proxy is disabled in /etc/config/3proxy" >&2
+		return 1
+	}
+
+	write_config
+
+	procd_open_instance
+	procd_set_param command "$PROG" "$CFGFILE"
+	procd_set_param file "$CFGFILE"
+	procd_set_param respawn
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+}
+
+service_triggers() {
+	procd_add_reload_trigger "3proxy"
+}
+
+reload_service() {
+	stop
+	start
+}
