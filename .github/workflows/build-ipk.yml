@@ -1,0 +1,139 @@
+name: OpenWrt ipk build
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OPENWRT_RELEASE: 24.10.0
+
+jobs:
+  ipk:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    name: "${{ matrix.arch }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: ramips/mt7621
+            arch: mipsel_24kc
+          - target: ath79/generic
+            arch: mips_24kc
+          - target: ipq40xx/generic
+            arch: arm_cortex-a7_neon-vfpv4
+          - target: mediatek/filogic
+            arch: aarch64_cortex-a53
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: env
+      run: echo "RELEASE=$(tr -d ' \t\r\n' < RELEASE)" >> $GITHUB_ENV
+
+    - name: Install build dependencies
+      run: |
+       sudo apt-get update
+       sudo apt-get install -y build-essential libncurses-dev zlib1g-dev gawk git \
+         gettext libssl-dev xsltproc wget unzip python3 rsync file zstd
+
+    - name: Fetch SDK
+      run: |
+       BASE="https://downloads.openwrt.org/releases/$OPENWRT_RELEASE/targets/${{ matrix.target }}"
+       # The SDK file name carries the toolchain flavour, which differs between
+       # targets (musl vs musl_eabi), so take it from the directory listing.
+       NAME=$(curl -fsSL "$BASE/" | grep -oE 'openwrt-sdk-[^"]*\.tar\.zst' | head -1)
+       if [ -z "$NAME" ]; then echo "no SDK for ${{ matrix.target }}"; exit 1; fi
+       echo "fetching $NAME"
+       curl -fsSL "$BASE/$NAME" -o sdk.tar.zst
+       tar --zstd -xf sdk.tar.zst
+       mv "${NAME%.tar.zst}" sdk
+       rm sdk.tar.zst
+
+    - name: Stage the package
+      run: |
+       mkdir -p sdk/package/3proxy sdk/dl
+       cp -a scripts/openwrt/. sdk/package/3proxy/
+       # Build the checkout rather than a published tarball, so the workflow
+       # does not depend on the release archive existing yet.
+       git archive --format=tar.gz --prefix="3proxy-$RELEASE/" -o "sdk/dl/3proxy-$RELEASE.tar.gz" HEAD
+       HASH=$(sha256sum "sdk/dl/3proxy-$RELEASE.tar.gz" | cut -d' ' -f1)
+       sed -i "s|^PKG_VERSION:=.*|PKG_VERSION:=$RELEASE|" sdk/package/3proxy/Makefile
+       sed -i "s|^PKG_HASH:=.*|PKG_HASH:=$HASH|" sdk/package/3proxy/Makefile
+
+    - name: Build
+      run: |
+       cd sdk
+       ./scripts/feeds update base packages
+       ./scripts/feeds install libopenssl libpcre2
+       echo CONFIG_PACKAGE_3proxy=m >> .config
+       make defconfig
+       make package/3proxy/compile -j$(nproc)
+
+    - name: Collect
+      run: |
+       find sdk/bin -name '3proxy_*.ipk' -exec cp {} . \;
+       ls -l *.ipk
+       for f in *.ipk; do echo "$f"; done
+
+    - name: Get artifact ipk
+      uses: actions/upload-artifact@v7
+      with:
+       name: "3proxy-${{ env.RELEASE }}-${{ matrix.arch }}.ipk"
+       path: "*.ipk"
+
+    - name: Import signing key
+      if: github.event_name == 'release'
+      env:
+       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+       if [ -z "$GPG_PRIVATE_KEY" ]; then echo "GPG_PRIVATE_KEY is not set"; exit 1; fi
+       mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+       printf 'allow-loopback-pinentry\ndefault-cache-ttl 7200\nmax-cache-ttl 7200\n' > ~/.gnupg/gpg-agent.conf
+       gpgconf --kill gpg-agent || true
+       printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+       KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')
+       echo "GPG_KEYID=$KEYID" >> $GITHUB_ENV
+       echo prime > /tmp/prime.txt
+       gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+           -u "$KEYID" --detach-sign -o /dev/null /tmp/prime.txt
+       rm -f /tmp/prime.txt
+
+    - name: Checksums and detached signatures
+      if: github.event_name == 'release'
+      env:
+       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+       # opkg verifies the signature of a feed index, never of a package file,
+       # so the checksums and their signature are what a manual install can be
+       # checked against.
+       sha256sum *.ipk > SHA256SUMS-openwrt-${{ matrix.arch }}
+       for f in *.ipk SHA256SUMS-openwrt-${{ matrix.arch }}; do
+         gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+             -u "$GPG_KEYID" --armor --detach-sign "$f"
+       done
+       sha256sum -c SHA256SUMS-openwrt-${{ matrix.arch }}
+       gpg --verify SHA256SUMS-openwrt-${{ matrix.arch }}.asc SHA256SUMS-openwrt-${{ matrix.arch }}
+
+    - name: Attest build provenance
+      if: github.event_name == 'release'
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-path: |
+          *.ipk
+
+    - name: Upload to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: |
+       gh release upload "$TAG" *.ipk *.ipk.asc \
+         SHA256SUMS-openwrt-${{ matrix.arch }} SHA256SUMS-openwrt-${{ matrix.arch }}.asc
