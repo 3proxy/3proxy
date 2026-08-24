@@ -7,14 +7,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=3proxy
-PKG_VERSION:=1.0.0
+PKG_VERSION:=0.9.9.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 # A trailing ? tells the download helper the URL is complete and PKG_SOURCE
 # must not be appended to it.
 PKG_SOURCE_URL:=https://codeload.github.com/3proxy/3proxy/tar.gz/refs/tags/$(PKG_VERSION)?
-PKG_HASH:=35b07de1046f3aaeac4a7085101b7e5c453efa3527cbdc42a84690366c7ecfa8
+PKG_HASH:=5af253fa734f61af6d5fe3790022130a14caf25bfce24a6aefd415797d351dd3
 
 PKG_MAINTAINER:=Vladimir Dubrovin <vlad@3proxy.org>
 PKG_LICENSE:=BSD-3-Clause
