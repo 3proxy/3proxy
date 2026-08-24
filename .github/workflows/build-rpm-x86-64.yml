@@ -176,7 +176,7 @@ jobs:
        gpg --verify SHA256SUMS-x86_64.asc SHA256SUMS-x86_64
     - name: Attest build provenance
       if: github.event_name == 'release'
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v4
       with:
         subject-path: |
           *.rpm
