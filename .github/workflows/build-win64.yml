@@ -122,7 +122,7 @@ jobs:
        sha256sum -c SHA256SUMS-win-x64
     - name: Attest build provenance
       if: github.event_name == 'release'
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v4
       with:
         subject-path: |
           *.zip
