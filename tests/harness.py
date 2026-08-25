@@ -22,7 +22,9 @@ configurations it needs, starts them, and states what it expects:
 import base64
 import http.client
 import os
+import shutil
 import socket
+import ssl
 import struct
 import subprocess
 import sys
@@ -85,6 +87,25 @@ class Server:
                 self.proc.wait(timeout=5)
 
 
+class Certs:
+    """A test CA, a certificate it signed, and somewhere to cache spoofed ones.
+
+    Paths use forward slashes: they are written into configurations read by
+    3proxy, and ssl_certcache insists on a trailing separator.
+    """
+
+    def __init__(self, directory):
+        self.dir = directory.replace("\\", "/")
+        self.ca = self.dir + "/ca.pem"
+        self.ca_key = self.dir + "/ca.key"
+        self.server = self.dir + "/server.pem"
+        self.server_key = self.dir + "/server.key"
+        # a second CA nothing is signed by, for the cases that must fail
+        self.other = self.dir + "/other.pem"
+        self.other_key = self.dir + "/other.key"
+        self.cache = self.dir + "/cache/"
+
+
 class Failure(Exception):
     """Raised when a case cannot go on, e.g. a server refused to start."""
 
@@ -100,6 +121,7 @@ class Tester:
         self.checks = []
         self.timeout = 10
         self._skipped = 0
+        self._certs = None
 
     # ---- servers -----------------------------------------------------
 
@@ -163,6 +185,20 @@ class Tester:
             except OSError:
                 time.sleep(0.02)
         return False
+
+    def wait_output(self, server, needle, timeout=5.0, since=0):
+        """Wait for a server to log something.
+
+        A record is written when the connection it describes finishes, not
+        when the reply reaches the client, so reading straight after a
+        request usually finds nothing yet.
+        """
+        deadline = time.time() + timeout
+        while True:
+            text = server.output()[since:]
+            if needle in text or time.time() > deadline:
+                return text
+            time.sleep(0.05)
 
     def stop_all(self):
         for server in self.servers:
@@ -378,6 +414,120 @@ class Tester:
             data += piece
         return data
 
+    # ---- TLS ---------------------------------------------------------
+
+    def certs(self):
+        """A CA and a certificate for 127.0.0.1, generated once per run.
+
+        Returns None when openssl is unavailable, so a case can skip rather
+        than fail on a machine that cannot make key material.
+        """
+        if self._certs is not None:
+            return self._certs or None
+        if not shutil.which("openssl"):
+            self._certs = False
+            return None
+
+        c = Certs(os.path.join(self.tmpdir, "certs"))
+        os.makedirs(c.cache, exist_ok=True)
+        csr = c.dir + "/server.csr"
+        ext = c.dir + "/server.ext"
+        with open(ext, "w") as fp:
+            fp.write("subjectAltName=IP:127.0.0.1,DNS:localhost\n")
+
+        # OpenSSL 3 refuses to trust a CA without these extensions
+        ca_ext = ["-addext", "basicConstraints=critical,CA:TRUE",
+                  "-addext", "keyUsage=critical,keyCertSign,cRLSign"]
+        steps = [
+            ["openssl", "genrsa", "-out", c.ca_key, "2048"],
+            ["openssl", "req", "-x509", "-new", "-nodes", "-key", c.ca_key,
+             "-sha256", "-days", "3650", "-subj", "/CN=3proxy-test-ca",
+             "-out", c.ca] + ca_ext,
+            ["openssl", "genrsa", "-out", c.other_key, "2048"],
+            ["openssl", "req", "-x509", "-new", "-nodes", "-key", c.other_key,
+             "-sha256", "-days", "3650", "-subj", "/CN=3proxy-test-other-ca",
+             "-out", c.other] + ca_ext,
+            ["openssl", "genrsa", "-out", c.server_key, "2048"],
+            ["openssl", "req", "-new", "-key", c.server_key,
+             "-subj", "/CN=127.0.0.1", "-out", csr],
+            ["openssl", "x509", "-req", "-in", csr, "-CA", c.ca,
+             "-CAkey", c.ca_key, "-CAcreateserial", "-out", c.server,
+             "-days", "3650", "-sha256", "-extfile", ext],
+        ]
+        for step in steps:
+            done = subprocess.run(step, stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT, timeout=60)
+            if done.returncode:
+                self._certs = False
+                return None
+
+        self._certs = c
+        return c
+
+    def _context(self, ca=None, strict=True):
+        """A client context. strict=False drops the RFC 5280 checks Python
+        turns on by default from 3.13, which reject a certificate with no
+        Authority Key Identifier."""
+        if ca:
+            context = ssl.create_default_context(cafile=ca)
+            if not strict:
+                context.verify_flags &= ~getattr(ssl, "VERIFY_X509_STRICT", 0)
+            return context
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
+
+    def tls_proxy_http(self, proxy, url, ca=None, strict=True, method="GET",
+                       body=None, headers=None):
+        """A request to a proxy that is itself wrapped in TLS (ssl_serv)."""
+        host, port, path = self._split(url)
+        phost, pport = self._hostport(proxy)
+        try:
+            raw = socket.create_connection((phost, pport), self.timeout)
+            sock = self._context(ca, strict).wrap_socket(raw, server_hostname=phost)
+        except (OSError, ssl.SSLError) as exc:
+            return Response(error=f"{type(exc).__name__}: {exc}")
+
+        conn = http.client.HTTPConnection(host, port, timeout=self.timeout)
+        conn.sock = sock
+        try:
+            if body is not None and not isinstance(body, bytes):
+                body = body.encode()
+            conn.request(method, f"http://{host}:{port}{path}", body=body,
+                         headers=headers or {})
+            reply = conn.getresponse()
+            return Response(reply.status, reply.read(), dict(reply.getheaders()))
+        except (OSError, http.client.HTTPException) as exc:
+            return Response(error=f"{type(exc).__name__}: {exc}")
+        finally:
+            conn.close()
+
+    def https(self, url, proxy=None, ca=None, strict=True, method="GET",
+              headers=None):
+        """An https:// request, optionally tunnelled through a proxy."""
+        host, port, path = self._split(url, default_port=443)
+        context = self._context(ca, strict)
+        try:
+            if proxy:
+                phost, pport = self._hostport(proxy)
+                conn = http.client.HTTPSConnection(phost, pport, context=context,
+                                                   timeout=self.timeout)
+                conn.set_tunnel(host, port)
+            else:
+                conn = http.client.HTTPSConnection(host, port, context=context,
+                                                   timeout=self.timeout)
+            conn.request(method, path, headers=headers or {})
+            reply = conn.getresponse()
+            return Response(reply.status, reply.read(), dict(reply.getheaders()))
+        except (OSError, ssl.SSLError, http.client.HTTPException) as exc:
+            return Response(error=f"{type(exc).__name__}: {exc}")
+        finally:
+            try:
+                conn.close()
+            except (OSError, NameError, UnboundLocalError):
+                pass
+
     # ---- helpers -----------------------------------------------------
 
     @staticmethod
@@ -392,12 +542,16 @@ class Tester:
         return host or "127.0.0.1", int(port)
 
     @staticmethod
-    def _split(url):
-        prefix = "http://"
-        if url.startswith(prefix):
-            url = url[len(prefix):]
+    def _split(url, default_port=80):
+        for prefix in ("http://", "https://"):
+            if url.startswith(prefix):
+                url = url[len(prefix):]
+                break
         authority, _, path = url.partition("/")
-        host, _, port = authority.rpartition(":")
+        if ":" in authority:
+            host, _, port = authority.rpartition(":")
+        else:
+            host, port = authority, default_port
         return host or "127.0.0.1", int(port), "/" + path
 
     # ---- assertions --------------------------------------------------

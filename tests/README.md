@@ -7,7 +7,9 @@
     python3 tests/run.py --keep              # keep the configurations and logs
 
 Python 3.6 or later and a built 3proxy are the only requirements: the suite
-is standard library throughout, so it runs wherever 3proxy builds. With no
+is standard library throughout, so it runs wherever 3proxy builds. The TLS
+case additionally wants `openssl` on PATH to generate its key material, and
+skips itself when that is missing or the build has no TLS support. With no
 `--bin` it looks in `bin/`, then `build/bin/`, then the per-configuration
 directories a multi-configuration CMake generator uses.
 
@@ -48,6 +50,13 @@ and `run_config()` for configurations that are meant to be rejected.
 Assertions are `eq`, `ne`, `contains`, `not_contains`, `in_range`,
 `not_in_range`, plus `ok`, `fail` and `skip`. `harness.field()` and
 `int_field()` pull a single line out of an `echo` reply.
+
+`t.certs()` generates a CA, a second unrelated CA, and a certificate for
+127.0.0.1, once per run and inside the run's temporary directory, so no key
+material lives in the tree. `t.https()`, `t.tls_proxy_http()` and
+`t.socks_http()` reach a server through TLS, a TLS-wrapped proxy, or SOCKS.
+Log records are written when a connection finishes rather than when the
+reply arrives, so assert on them through `t.wait_output(server, text)`.
 
 Note that access rules accumulate until `flush`, so a service section that
 means to stand on its own should start with one - otherwise an earlier
