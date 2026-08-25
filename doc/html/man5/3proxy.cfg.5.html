@@ -824,14 +824,19 @@ argument, with 0.0.0.0 as the address, for example <b>parent
 be asked to pick the port itself (Linux
 <b>IP_LOCAL_PORT_RANGE</b>) it does, otherwise a port is
 picked at random from the range and retried if it is already
-in use, up to ten times. It can be chained with another
-parent type, and the access rule it belongs to decides which
-requests it applies to, so <b>allow * * * * UDPASSOC</b>
-followed by <b>parent 1000 extport 0.0.0.0 40000-40100</b>
-limits it to UDP associations. The range is applied when the
-outgoing connection is made, so a kept alive connection
-carrying several requests uses the rule that matched when it
-was opened. <b><br>
+in use, up to ten times. On Linux the range has to lie
+within <i>net.ipv4.ip_local_port_range</i>, commonly
+32768-60999: the kernel ignores a range outside it and picks
+an ordinary ephemeral port instead. If no port in the range
+can be bound, an ephemeral port is used rather than failing
+the connection. It can be chained with another parent type,
+and the access rule it belongs to decides which requests it
+applies to, so <b>allow * * * * UDPASSOC</b> followed by
+<b>parent 1000 extport 0.0.0.0 40000-40100</b> limits it to
+UDP associations. The range is applied when the outgoing
+connection is made, so a kept alive connection carrying
+several requests uses the rule that matched when it was
+opened. <b><br>
 intport</b> is the same for sockets bound on the side facing
 the client: the port a UDP association tells the client to
 send its datagrams to, and the FTP proxy data connection.
