@@ -149,7 +149,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	memset(&param->sinsl, 0, sizeof(param->sinsl));
 	*SAFAMILY(&param->sinsl) = *SAFAMILY(&nservers[0].addr);
-	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
+	if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) {
 		RETURN(819);
 	}
 	param->sinsr = nservers[0].addr;

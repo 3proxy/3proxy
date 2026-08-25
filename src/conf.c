@@ -767,11 +767,31 @@ struct redirdesc redirs[] = {
     {R_SOCKS5B, "socks5b", sockschild},
     {R_ADMIN, "admin", adminchild},
     {R_EXTIP, "extip", NULL},
+    {R_EXTPORT, "extport", NULL},
+    {R_INTPORT, "intport", NULL},
     {R_TLS, "tls", tlsprchild},
     {R_HA, "ha", NULL},
     {R_DNS, "dns", dnsprchild},
     {0, NULL, NULL}
 };
+
+/* Parses an inclusive FIRST-LAST local port range into first | last << 16. */
+static int parserange(unsigned char *arg, uint32_t *range)
+{
+	char *end;
+	unsigned long first, last;
+
+	errno = 0;
+	first = strtoul((char *)arg, &end, 10);
+	if(errno || *end != '-' || !first || first > 65535) return 1;
+
+	errno = 0;
+	last = strtoul(end + 1, &end, 10);
+	if(errno || *end || !last || last > 65535 || last < first) return 1;
+
+	*range = (uint32_t)first | ((uint32_t)last << 16);
+	return 0;
+}
 
 static int h_parent(int argc, unsigned char **argv){
   struct ace *acl = NULL;
@@ -838,7 +858,21 @@ static int h_parent(int argc, unsigned char **argv){
 		*cidr = '/';
 		chains->cidr = atoi(cidr + 1);
 	}
-	*SAPORT(&chains->addr) = htons((uint16_t)atoi((char *)argv[4]));
+	if(chains->type == R_EXTPORT || chains->type == R_INTPORT){
+		if(!SAISNULL(&chains->addr)){
+			fprintf(stderr, "Chaining error: chain type (%s) sets a local port range, it requires 0.0.0.0 as address on line %d\n", argv[2], linenum);
+			free(chains->exthost);
+			free(chains);
+			return(4);
+		}
+		if(parserange(argv[4], &chains->range)){
+			fprintf(stderr, "Chaining error: bad port range (%s) on line %d\n", argv[4], linenum);
+			free(chains->exthost);
+			free(chains);
+			return(3);
+		}
+	}
+	else *SAPORT(&chains->addr) = htons((uint16_t)atoi((char *)argv[4]));
 	switch(chains->type){
 	    case R_POP3:
 	    case R_SMTP:

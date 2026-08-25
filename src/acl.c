@@ -164,7 +164,10 @@ int checkACL(struct clientparam * param){
 					continue;
 				}
 				param->lastace = acentry;
-				if(param->preauth) return 2;
+				if(param->preauth) {
+					applyportranges(param, acentry);
+					return 2;
+				}
 				if((param->operation == UDPASSOC)? (param->ctrlsocksrv != INVALID_SOCKET) : (param->remsock != INVALID_SOCKET)) {
 					return 0;
 				}

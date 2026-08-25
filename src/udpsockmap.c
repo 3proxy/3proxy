@@ -121,8 +121,12 @@ int udpbind(struct clientparam *param)
 	fcntl(s, F_SETFL, O_NONBLOCK | fcntl(s, F_GETFL));
 #endif
 	param->remsock = s;
-	if (param->srv->so._bind(param->sostate, param->remsock,
-			(struct sockaddr *)&param->sinsl, SASIZE(&param->sinsl))) {
+	if (bindwithrange(param, param->remsock, &param->sinsl, param->extport)) {
+		if (param->extport) {
+			param->srv->so._closesocket(param->sostate, param->remsock);
+			param->remsock = INVALID_SOCKET;
+			return 12;
+		}
 		*SAPORT(&param->sinsl) = 0;
 		if (param->srv->so._bind(param->sostate, param->remsock,
 				(struct sockaddr *)&param->sinsl, SASIZE(&param->sinsl))) {

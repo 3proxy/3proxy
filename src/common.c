@@ -746,7 +746,7 @@ int doconnect(struct clientparam * param){
 #ifdef WITH_UN
 	if(*SAFAMILY(&param->sinsl) != AF_UNIX)
 #endif
-	if(param->srv->so._bind(param->sostate, param->remsock, (struct sockaddr*)&param->sinsl, SASIZE(&param->sinsl))==-1) {
+	if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)==-1) {
 		return 12;
 	}
 	
@@ -765,6 +765,46 @@ int doconnect(struct clientparam * param){
     if(action != PASS) return 19;
  }
  return 0;
+}
+
+/* Number of ports tried before giving up when the range has to be searched by
+ * hand. The kernel option picks a free port itself and needs no retries. */
+#define RANGETRIES 10
+
+/* Bind sock to sa, taking the local port from the range if one is set. The
+ * range is packed as first | last << 16.
+ *
+ * IP_LOCAL_PORT_RANGE leaves the choice to the kernel, which knows which ports
+ * are free. Where the option does not exist, or the kernel refuses it, or the
+ * address family is not one it covers, pick a port at random instead and retry
+ * on failure, since the one picked may already be taken.
+ */
+int bindwithrange(struct clientparam *param, SOCKET sock, PROXYSOCKADDRTYPE *sa, uint32_t range)
+{
+	uint16_t first, last;
+	int i;
+
+	if(!range) return param->srv->so._bind(param->sostate, sock, (struct sockaddr *)sa, SASIZE(sa));
+
+#ifdef IP_LOCAL_PORT_RANGE
+	if(*SAFAMILY(sa) == AF_INET &&
+	   !param->srv->so._setsockopt(param->sostate, sock, IPPROTO_IP, IP_LOCAL_PORT_RANGE,
+		(char *)&range, sizeof(range))){
+		*SAPORT(sa) = 0;
+		return param->srv->so._bind(param->sostate, sock, (struct sockaddr *)sa, SASIZE(sa));
+	}
+#endif
+
+	first = (uint16_t)(range & 0xffff);
+	last = (uint16_t)(range >> 16);
+
+	for(i = 0; i < RANGETRIES; i++){
+		*SAPORT(sa) = htons((uint16_t)(first + (myrand() % (unsigned)(last - first + 1))));
+		if(!param->srv->so._bind(param->sostate, sock, (struct sockaddr *)sa, SASIZE(sa))) return 0;
+	}
+
+	*SAPORT(sa) = 0;
+	return -1;
 }
 
 int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask) {

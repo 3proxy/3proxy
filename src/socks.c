@@ -218,7 +218,10 @@ void * sockschild(struct clientparam* param) {
 	if((res = udpbind(param))) {RETURN(res);}
  }
  else if(command == 2) {
-	if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl))) {
+	if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) {
+		/* a range has already been searched, retrying on any port would
+		   ignore what was asked for */
+		if(param->extport) RETURN (12);
 		*SAPORT(&param->sinsl) = 0;
 		if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
 #if SOCKSTRACE > 0
@@ -243,7 +246,8 @@ fflush(stderr);
 #endif
 		sin = param->sincl;
 		*SAPORT(&sin) = 0;
-		if(param->srv->so._bind(param->sostate, param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}
+		/* the port the client is told to send its datagrams to */
+		if(bindwithrange(param, param->clisock, &sin, param->intport)) {RETURN (12);}
 		sasize = SASIZE(&sin);
 		param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin, &sasize);
 #if SOCKSTRACE > 0

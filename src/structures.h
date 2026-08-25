@@ -313,7 +313,9 @@ typedef enum {
 	R_TLS,
 	R_HA,
 	R_DNS,
-	R_IMAP
+	R_IMAP,
+	R_EXTPORT,
+	R_INTPORT
 } REDIRTYPE;
 
 struct redirdesc {
@@ -335,6 +337,8 @@ struct chain {
 	unsigned char * extpass;
 	unsigned short weight;
 	unsigned short cidr;
+	/* local port range for extport/intport, first in the low half */
+	uint32_t range;
 };
 
 struct period {
@@ -669,6 +673,7 @@ struct clientparam {
 			maxtrafout64;
 	PROXYSOCKADDRTYPE sincl, sincr;
 	PROXYSOCKADDRTYPE	sinsl, sinsr, req;
+	uint32_t	extport, intport;
 
 	uint64_t	statscli64,
 			statssrv64;

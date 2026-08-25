@@ -259,6 +259,20 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 }
 
 
+/* The local port ranges do not depend on the destination, so they can be taken
+ * as soon as a rule matches. UDP ASSOCIATE is authorized before the destination
+ * is known and returns before the chain is walked, which would otherwise leave
+ * the socket the client sends its datagrams to outside the configured range.
+ */
+void applyportranges(struct clientparam * param, struct ace * acentry){
+    struct chain *cur;
+
+	for(cur = acentry->chains; cur; cur = cur->next){
+		if(cur->type == R_EXTPORT) param->extport = cur->range;
+		else if(cur->type == R_INTPORT) param->intport = cur->range;
+	}
+}
+
 int handleredirect(struct clientparam * param, struct ace * acentry){
 	int connected = 0;
 	int weight = 1000;
@@ -285,7 +299,8 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 			continue;
 		}
-		if(cur->type != R_EXTIP && cur->type != R_HA) param->redirected++;
+		if(cur->type != R_EXTIP && cur->type != R_HA &&
+		   cur->type != R_EXTPORT && cur->type != R_INTPORT) param->redirected++;
 		done = 1;
 		if(weight <= 0) {
 			weight += 1000;
@@ -293,6 +308,12 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			r2 = (myrand()%1000);
 		}
 		if(!connected){
+			if(cur->type == R_EXTPORT || cur->type == R_INTPORT){
+				if(cur->type == R_EXTPORT) param->extport = cur->range;
+				else param->intport = cur->range;
+				if(cur->next)continue;
+				return 0;
+			}
 			if(cur->type == R_EXTIP){
 				param->sinsl = cur->addr;
 				if(SAISNULL(&param->sinsl) && (*SAFAMILY(&param->sincr) == AF_INET || *SAFAMILY(&param->sincr) == AF_INET6))param->sinsl = param->sincr;
