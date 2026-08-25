@@ -58,6 +58,7 @@ jobs:
        dir
        cmake --build .
        cd ..
+       set "PATH=%PATH%;c:/vcpkg/installed/x64-windows/bin"
        python tests\run.py || exit /b 1
        rmdir /s /q build
 

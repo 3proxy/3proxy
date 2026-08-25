@@ -419,15 +419,24 @@ class Tester:
         return self._record(unexpected != actual, label,
                             f"anything but {unexpected!r}", actual)
 
+    @staticmethod
+    def _as_text(value):
+        """A reply that never arrived has no text, so report the reason."""
+        if isinstance(value, Response):
+            if value.error:
+                return f"<no reply: {value.error}>"
+            if not value.body and value.status is not None:
+                return f"<{value.status}, empty body>"
+            return value.text
+        return value
+
     def contains(self, haystack, needle, label):
-        if isinstance(haystack, Response):
-            haystack = haystack.text
+        haystack = self._as_text(haystack)
         return self._record(needle in haystack, label,
                             f"text containing {needle!r}", self._clip(haystack))
 
     def not_contains(self, haystack, needle, label):
-        if isinstance(haystack, Response):
-            haystack = haystack.text
+        haystack = self._as_text(haystack)
         return self._record(needle not in haystack, label,
                             f"text without {needle!r}", self._clip(haystack))
 
