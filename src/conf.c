@@ -157,7 +157,12 @@ int start_proxy_thread(struct child * chp){
 	pthread_attr_init(&pa);
 	pthread_attr_setstacksize(&pa,threadstacksize(conf.stacksize));
 	pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
-	pthread_create(&thread, &pa, startsrv, (void *)chp);
+	if(pthread_create(&thread, &pa, startsrv, (void *)chp)){
+		pthread_attr_destroy(&pa);
+		fprintf(stderr, "Failed to create service thread on line %d, try to set larger stacksize\n", linenum);
+		_3proxy_sem_unlock(conf.threadinit);
+		return(40);
+	}
 	pthread_attr_destroy(&pa);
 #endif
 	_3proxy_sem_lock(conf.threadinit);

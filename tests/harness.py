@@ -134,8 +134,15 @@ class Tester:
 
         for port in ports:
             if not self.wait_port(port):
+                code = proc.poll()
+                if code is None:
+                    died = "the process is still running"
+                else:
+                    died = f"the process exited with code {code}"
+                    if os.name == "nt" and code is not None and code & 0xFFFFFFFF == 0xC0000135:
+                        died += " (a DLL it needs was not found)"
                 raise Failure(
-                    f"{name} never listened on port {port}\n"
+                    f"{name} never listened on port {port}: {died}\n"
                     f"--- configuration ---\n{open(path).read()}"
                     f"--- output ---\n{server.output()}")
         return server
