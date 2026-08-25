@@ -2,9 +2,9 @@ name: C/C++ CI Linux
 
 on:
   push:
-    paths: [ '**.c', '**.h', 'Makefile.Linux', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.Linux', 'tests/**', '.github/configs', '.github/workflows/c-cpp-Linux.yml' ]
   pull_request:
-    paths: [ "**.c", "**.h", "Makefile.Linux", ".github/configs", ".github/workflows/c-cpp-Linux.yml" ]
+    paths: [ "**.c", "**.h", "Makefile.Linux", "tests/**", ".github/configs", ".github/workflows/c-cpp-Linux.yml" ]
   workflow_dispatch:
 
 permissions:
@@ -28,6 +28,8 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y libssl-dev libpam-dev libpcre2-dev
     - name: make
       run: make -f Makefile.Linux
+    - name: regression tests
+      run: python3 tests/run.py
     - name: mkdir
       run: mkdir ~/3proxy
     - name: make install

@@ -2,9 +2,9 @@ name: C/C++ CI Windows
 
 on:
   push:
-    paths: [ '**.c', '**.h', 'Makefile.msvc', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
+    paths: [ '**.c', '**.h', 'Makefile.msvc', 'tests/**', '.github/configs', '.github/workflows/c-cpp-Windows.yml' ]
   pull_request:
-    paths: [ "**.c", "**.h", "Makefile.msvc", ".github/configs", ".github/workflows/c-cpp-Windows.yml" ]
+    paths: [ "**.c", "**.h", "Makefile.msvc", "tests/**", ".github/configs", ".github/workflows/c-cpp-Windows.yml" ]
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,8 @@ jobs:
       env:
        LDFLAGS: '-L "c:/msys64/mingw64/lib"'
        CFLAGS: '-I "c:/msys64/mingw64/include"'
+    - name: regression tests (MinGW)
+      run: python tests\run.py --bin bin\3proxy.exe
     - name: make clean Windows
       run: make -f Makefile.win clean
     - name: Add msbuild to PATH
@@ -40,4 +42,5 @@ jobs:
        set "LIB=%LIB%;c:/vcpkg/installed/x64-windows-static/lib;c:/vcpkg/installed/x64-windows/lib"
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows-static/include;c:/vcpkg/installed/x64-windows/include"
        nmake /F Makefile.msvc WOLFSSL=1 || exit /b 1
+       python tests\run.py --bin bin\3proxy.exe || exit /b 1
        nmake /F Makefile.msvc clean

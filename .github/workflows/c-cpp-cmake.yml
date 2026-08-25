@@ -2,9 +2,9 @@ name: C/C++ CI cmake
 
 on:
   push:
-    paths: [ '**.c', '**.h', '**.cmake', 'CMakeLists.txt', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
+    paths: [ '**.c', '**.h', '**.cmake', 'CMakeLists.txt', 'tests/**', '.github/configs', '.github/workflows/c-cpp-cmake.yml' ]
   pull_request:
-    paths: [ "**.c", "**.h", "**.cmake", "CMakeLists.txt", ".github/configs", ".github/workflows/c-cpp-cmake.yml" ]
+    paths: [ "**.c", "**.h", "**.cmake", "CMakeLists.txt", "tests/**", ".github/configs", ".github/workflows/c-cpp-cmake.yml" ]
   workflow_dispatch:
 
 permissions:
@@ -43,7 +43,9 @@ jobs:
        cmake --build .
        mkdir ~/3proxy
        DESTDIR=~/3proxy cmake --install .
-       cd .. && rm -rf build/
+       cd ..
+       python3 tests/run.py --bin build/bin/3proxy
+       rm -rf build/
     - name: make with CMake Win
       if: ${{ startsWith(matrix.target, 'windows') }}
       shell: cmd
@@ -56,6 +58,7 @@ jobs:
        dir
        cmake --build .
        cd ..
+       python tests\run.py || exit /b 1
        rmdir /s /q build
 
   wolfssl:
@@ -71,4 +74,6 @@ jobs:
        cd build
        cmake ..
        cmake --build .
-       cd .. && rm -rf build/
+       cd ..
+       python3 tests/run.py --bin build/bin/3proxy
+       rm -rf build/
