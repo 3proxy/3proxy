@@ -182,7 +182,7 @@ int timeouts[12] = {
    EINVAL below it and the thread silently gets the 8M system default stack.
  */
 size_t threadstacksize(int extra){
-	long size = BASESTACKSIZE + extra;
+	long size = BASESTACKSIZE + TLSSTACKSIZE + extra;
 
 	if(size < (long)PTHREAD_STACK_MIN) size = (long)PTHREAD_STACK_MIN;
 	return (size_t)size;

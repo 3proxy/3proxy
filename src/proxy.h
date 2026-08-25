@@ -135,6 +135,23 @@ void daemonize(void);
 #endif
 #endif
 
+/* wolfSSL reserves around 48K of static thread-local storage. glibc counts
+   that against the thread stack, so pthread_create() fails with EINVAL and
+   no thread starts at all. musl places the block next to the stack instead
+   of inside it and needs nothing extra, and OpenSSL has no static TLS.
+   musl identifies itself by no macro of its own, but it does not define
+   __GLIBC__, which any libc header pulled in above would have set.
+ */
+#ifndef TLSSTACKSIZE
+#if defined(__linux__) && !defined(__GLIBC__)
+#define TLSSTACKSIZE 0
+#elif defined(WITH_WOLFSSL)
+#define TLSSTACKSIZE 49152
+#else
+#define TLSSTACKSIZE 0
+#endif
+#endif
+
 #ifndef _WIN32
 size_t threadstacksize(int extra);
 #endif
