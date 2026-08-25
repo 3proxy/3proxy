@@ -825,6 +825,26 @@ the external address for this request to <i>&lt;ip&gt;</i>.
 It can be chained with another parent type. It&rsquo;s
 useful to set the external IP based on ACL or make it
 random. <b><br>
+extport</b> does not redirect the request; it sets the range
+the local port of outgoing connections is taken from, given
+as <i>FIRST-LAST</i> inclusive in place of the port
+argument, with 0.0.0.0 as the address, for example <b>parent
+1000 extport 0.0.0.0 40000-40100</b>. Where the system can
+be asked to pick the port itself (Linux
+<b>IP_LOCAL_PORT_RANGE</b>) it does, otherwise a port is
+picked at random from the range and retried if it is already
+in use, up to ten times. It can be chained with another
+parent type, and the access rule it belongs to decides which
+requests it applies to, so <b>allow * * * * UDPASSOC</b>
+followed by <b>parent 1000 extport 0.0.0.0 40000-40100</b>
+limits it to UDP associations. The range is applied when the
+outgoing connection is made, so a kept alive connection
+carrying several requests uses the rule that matched when it
+was opened. <b><br>
+intport</b> is the same for sockets bound on the side facing
+the client: the port a UDP association tells the client to
+send its datagrams to, and the FTP proxy data connection.
+<b><br>
 tcp</b> simply redirect connection. TCP is always last in
 chain. This type of proxy is a simple TCP redirection, it
 does not support parent authentication. <b><br>
