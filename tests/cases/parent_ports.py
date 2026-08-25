@@ -6,10 +6,28 @@ matches first and the rule carrying the range is never reached.
 
 from harness import int_field
 
-LOW = 21400
-HIGH = 21449
-ILOW = 21500
-IHIGH = 21549
+
+def _windows():
+    """Pick port windows this platform will actually honour.
+
+    On Linux the kernel applies IP_LOCAL_PORT_RANGE only within
+    net.ipv4.ip_local_port_range; a window outside it is ignored and an
+    ordinary ephemeral port is used, so a fixed low window would be
+    measuring the kernel's own choice rather than the setting.
+    """
+    try:
+        with open("/proc/sys/net/ipv4/ip_local_port_range") as fp:
+            low, high = (int(part) for part in fp.read().split()[:2])
+    except (OSError, ValueError):
+        return (21400, 21449), (21500, 21549)
+    base = low + 1000 if low + 1150 <= high else low
+    return (base, base + 49), (base + 100, base + 149)
+
+
+(LOW, HIGH), (ILOW, IHIGH) = _windows()
+
+# below the Linux window on purpose: the kernel ignores such a range
+UNHONOURED = (21400, 21449)
 
 
 def run(t):
@@ -78,6 +96,24 @@ def run(t):
     port = int_field(t.http(origin + "/echo", proxy=method_proxy), "peer.port")
     t.not_in_range(port, LOW, HIGH,
                    "a method outside that rule keeps an ephemeral port")
+
+    # --- a range the platform cannot honour --------------------------------
+    # Linux ignores a range outside net.ipv4.ip_local_port_range, and any
+    # platform can run out of free ports in a range. Either way the
+    # connection falls back to an ephemeral port instead of failing.
+    unhonoured = t.free_port()
+    t.start("parent_unhonoured", f"""
+        log
+        flush
+        auth iponly
+        allow *
+        parent 1000 extport 0.0.0.0 {UNHONOURED[0]}-{UNHONOURED[1]}
+        proxy -p{unhonoured}
+    """, ports=[unhonoured])
+    r = t.http(origin + "/echo", proxy=f"127.0.0.1:{unhonoured}")
+    t.eq(200, r.status, "a range the platform cannot honour still connects")
+    t.ne(None, int_field(r, "peer.port"),
+         "the connection still has a source port")
 
     # --- intport -----------------------------------------------------------
     # A UDP association allocates its socket after the destination is known,
