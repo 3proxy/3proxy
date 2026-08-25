@@ -56,6 +56,7 @@ option(3PROXY_USE_POLL "Use poll() instead of select() (Unix only)" ON)
 option(3PROXY_USE_WSAPOLL "Use WSAPoll instead of select() (Windows only)" ON)
 option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)
 option(3PROXY_USE_UNIX_SOCKETS "Enable Unix domain socket support (Unix only)" ON)
+option(3PROXY_USE_HTTPSRV "Build the HTTP server and the admin interface on top of it" ON)
 
 if(NOT WIN32 AND NOT APPLE)
     option(3PROXY_STATIC_LINK "Statically link libraries using -Wl,-Bstatic (Linux/Unix only)" OFF)
@@ -185,7 +186,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_compile_definitions(WITH_NETFILTER)
     endif()
 
-    if(3PROXY_USE_UNIX_SOCKETS)
+    if(3PROXY_USE_HTTPSRV)
+    add_compile_definitions(WITH_HTTPSRV)
+endif()
+
+if(3PROXY_USE_UNIX_SOCKETS)
         add_compile_definitions(WITH_UN)
     endif()
 
@@ -403,6 +408,7 @@ add_library(srv_modules OBJECT
     src/auto.c
     src/socks.c
     src/webadmin.c
+    src/httpsrv.c
     src/dnspr.c
 )
 

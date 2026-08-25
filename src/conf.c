@@ -7,6 +7,10 @@
 */
 
 #include "proxy.h"
+
+#ifdef WITH_HTTPSRV
+static int addhttprule(char *host, char *url, char *op, char *params);
+#endif
 #include "mdhash.h"
 #ifdef WITH_SSL
 void ssl_install(void);
@@ -35,7 +39,6 @@ _3proxy_mutex_t config_mutex;
 int haveerror = 0;
 int linenum = 0;
 
-FILE *writable;
 struct counter_header cheader = {"3CF", (time_t)0};
 struct counter_record crecord;
 
@@ -60,10 +63,6 @@ FILE * confopen(){
 			curconf += strlen(chrootp);
 	}
 #endif
-	if(writable) {
-		rewind(writable);
-		return writable;
-	}
 	return fopen(curconf, "r");
 }
 
@@ -253,12 +252,32 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_UDPPM;
 		childdef.helpmessage = " -s single packet UDP service for request/reply (DNS-like) services\n";
 	}
+#ifdef WITH_HTTPSRV
 	else if(!strcmp((char *)argv[0], "admin")) {
-		childdef.pf = adminchild;
+		/* The same service as httpsrv, with the administration pages
+		   declared for it. */
+		if(addhttprule("*", "/C*", "admin_counters", NULL) ||
+		   addhttprule("*", "/R", "admin_reload", NULL) ||
+		   addhttprule("*", "/S*", "admin_services", NULL) ||
+		   addhttprule("*", "*", "admin", NULL)){
+			fprintf(stderr, "Failed to declare the admin pages, line %d\n", linenum);
+			return 1;
+		}
+		childdef.pf = httpsrvchild;
 		childdef.port = 80;
 		childdef.isudp = 0;
-		childdef.service = S_ADMIN;
+		childdef.service = S_HTTPSRV;
 	}
+#endif
+#ifdef WITH_HTTPSRV
+	else if(!strcmp((char *)argv[0], "httpsrv")) {
+		childdef.pf = httpsrvchild;
+		childdef.port = 80;
+		childdef.isudp = 0;
+		childdef.service = S_HTTPSRV;
+		childdef.helpmessage = " HTTP server, /echo describes the connection, /data?size=N returns N bytes\n";
+	}
+#endif
 	else if(!strcmp((char *)argv[0], "dnspr")) {
 		childdef.pf = dnsprchild;
 		childdef.port = 53;
@@ -765,7 +784,6 @@ struct redirdesc redirs[] = {
     {R_SOCKS5P, "socks5+", sockschild},
     {R_SOCKS4B, "socks4b", sockschild},
     {R_SOCKS5B, "socks5b", sockschild},
-    {R_ADMIN, "admin", adminchild},
     {R_EXTIP, "extip", NULL},
     {R_EXTPORT, "extport", NULL},
     {R_INTPORT, "intport", NULL},
@@ -775,19 +793,53 @@ struct redirdesc redirs[] = {
     {0, NULL, NULL}
 };
 
+#ifdef WITH_HTTPSRV
+/* Installs one rule from code, for the pages a service predefines. */
+static int addhttprule(char *host, char *url, char *op, char *params)
+{
+    struct httprule *rule, *tail;
+    unsigned char hostbuf[64], urlbuf[128];
+
+	rule = malloc(sizeof(struct httprule));
+	if(!rule) return 1;
+	memset(rule, 0, sizeof(struct httprule));
+
+	rule->op = httpopbyname((unsigned char *)op);
+	if(rule->op < 0){
+		free(rule);
+		return 1;
+	}
+
+	strcpy((char *)hostbuf, host);
+	strcpy((char *)urlbuf, url);
+	if(parsepattern(&rule->host, hostbuf) || parsepattern(&rule->url, urlbuf)){
+		free(rule->host.name);
+		free(rule);
+		return 1;
+	}
+	if(params) rule->params = (unsigned char *)strdup(params);
+
+	if(!conf.httprules) conf.httprules = rule;
+	else {
+		for(tail = conf.httprules; tail->next; tail = tail->next);
+		tail->next = rule;
+	}
+	return 0;
+}
+#endif
+
 /* Parses an inclusive FIRST-LAST local port range into first | last << 16. */
 static int parserange(unsigned char *arg, uint32_t *range)
 {
 	char *end;
 	unsigned long first, last;
 
-	errno = 0;
 	first = strtoul((char *)arg, &end, 10);
-	if(errno || *end != '-' || !first || first > 65535) return 1;
+	if(end == (char *)arg || *end != '-' || !first || first > 65535) return 1;
 
-	errno = 0;
-	last = strtoul(end + 1, &end, 10);
-	if(errno || *end || !last || last > 65535 || last < first) return 1;
+	arg = (unsigned char *)end + 1;
+	last = strtoul((char *)arg, &end, 10);
+	if(end == (char *)arg || *end || !last || last > 65535 || last < first) return 1;
 
 	*range = (uint32_t)first | ((uint32_t)last << 16);
 	return 0;
@@ -905,6 +957,50 @@ static int h_parent(int argc, unsigned char **argv){
 	return 0;
 	
 }
+
+#ifdef WITH_HTTPSRV
+/* http <hostname> <url> <operation> [parameters]
+   Rules are matched in the order they are given, first match wins. */
+static int h_http(int argc, unsigned char **argv){
+    struct httprule *rule, *tail;
+    int op;
+
+	op = httpopbyname(argv[3]);
+	if(op < 0){
+		fprintf(stderr, "Unknown http operation: %s line %d\n", argv[3], linenum);
+		return(1);
+	}
+
+	rule = malloc(sizeof(struct httprule));
+	if(!rule) return(21);
+	memset(rule, 0, sizeof(struct httprule));
+	rule->op = op;
+
+	if(parsepattern(&rule->host, argv[1]) || parsepattern(&rule->url, argv[2])){
+		fprintf(stderr, "No memory for http rule, line %d\n", linenum);
+		free(rule->host.name);
+		free(rule);
+		return(21);
+	}
+
+	if(argc > 4){
+		rule->params = (unsigned char *)strdup((char *)argv[4]);
+		if(!rule->params){
+			free(rule->host.name);
+			free(rule->url.name);
+			free(rule);
+			return(21);
+		}
+	}
+
+	if(!conf.httprules) conf.httprules = rule;
+	else {
+		for(tail = conf.httprules; tail->next; tail = tail->next);
+		tail->next = rule;
+	}
+	return 0;
+}
+#endif
 
 static int h_nolog(int argc, unsigned char **argv){
   struct ace *acl = NULL;
@@ -1044,20 +1140,7 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					return(NULL);
 				}
 				memset(hostnamel, 0, sizeof(struct hostname));
-				hostnamel->matchtype = 3;
-				pattern = arg;
-				if(pattern[arglen-1] == '*'){
-					arglen --;
-					pattern[arglen] = 0;
-					hostnamel->matchtype ^= MATCHEND;
-				}
-				if(pattern[0] == '*'){
-					pattern++;
-					arglen--;
-					hostnamel->matchtype ^= MATCHBEGIN;
-				}
-				hostnamel->name = (unsigned char *) strdup( (char *)pattern);
-				if(!hostnamel->name) {
+				if(parsepattern(hostnamel, arg)) {
 					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
 					return(NULL);
 				}
@@ -1721,7 +1804,13 @@ struct commands commandhandlers[]={
 	{NULL,  "socks", h_proxy, 1, 0},
 	{NULL,  "tcppm", h_proxy, 4, 0},
 	{NULL,  "udppm", h_proxy, 4, 0},
+#ifdef WITH_HTTPSRV
 	{NULL,  "admin", h_proxy, 1, 0},
+#endif
+#ifdef WITH_HTTPSRV
+	{NULL,  "httpsrv", h_proxy, 1, 0},
+	{NULL,  "http", h_http, 4, 5},
+#endif
 	{NULL,  "dnspr", h_proxy, 1, 0},
 	{NULL,  "internal", h_internal, 2, 2},
 	{NULL, "external", h_external, 2, 2},
@@ -1969,16 +2058,6 @@ int readconfig(FILE * fp){
 	if(!strcmp((char *)argv[0], "end") && argc == 1) {	
 		break;
 	}
-	else if(!strcmp((char *)argv[0], "writable") && argc == 1) {	
-		if(!writable){
-			writable = freopen(curconf, "r+", fp);
-			if(!writable){
-				fprintf(stderr, "Unable to reopen config for writing: %s\n", curconf);
-				return 1;
-			}
-		}
-		continue;
-	}
 
 	res = 1;
 	for(cm = commandhandlers; cm; cm = cm->next){
@@ -2140,7 +2219,7 @@ int reload (void){
 		if(error) {
 			 freeconf(&conf);
 		}
-		if(!writable)fclose(fp);
+		fclose(fp);
 	}
 	_3proxy_mutex_unlock(&config_mutex);
 	return error;

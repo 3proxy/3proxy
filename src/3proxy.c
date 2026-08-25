@@ -28,7 +28,6 @@ void pcre_install(void);
 
 FILE * confopen();
 extern unsigned char *strings[];
-extern FILE *writable;
 extern struct counter_header cheader;
 extern struct counter_record crecord;
 
@@ -537,7 +536,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   conf.version++;
 
   if(res) RETURN(res);
-  if(!writable){fclose(fp); fp = NULL;}
+  fclose(fp); fp = NULL;
 
 #ifdef _WIN32
   

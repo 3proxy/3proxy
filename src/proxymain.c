@@ -413,6 +413,15 @@ int MODULEMAINFUNC (int argc, char** argv){
  }
 #endif
  srv.service = defparam.service = childdef.service;
+
+#ifdef WITH_HTTPSRV
+ /* http lines accumulate until a service claims them, so each httpsrv takes
+    the rules written above it and the next one starts empty. */
+ if(srv.service == S_HTTPSRV){
+	srv.httprules = conf.httprules;
+	conf.httprules = NULL;
+ }
+#endif
  
 #ifndef STDMAIN
  if(conf.acl){
@@ -1335,6 +1344,9 @@ void srvfree(struct srvparam * srv){
  }
 
  if(srv->acl)freeacl(srv->acl);
+#ifdef WITH_HTTPSRV
+ if(srv->httprules)freehttprules(srv->httprules);
+#endif
  if(srv->authfuncs)freeauth(srv->authfuncs);
 #endif
  _3proxy_mutex_destroy(&srv->counter_mutex);

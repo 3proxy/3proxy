@@ -8,11 +8,12 @@
 
 #include "proxy.h"
 
+#ifdef WITH_HTTPSRV
+
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
 #define LINESIZE 65536
 
-extern FILE *writable;
 FILE * confopen();
 extern void decodeurl(unsigned char *s, int filter);
 
@@ -211,8 +212,7 @@ char * admin_stringtable[]={
 	"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h2>\r\n"
 	"<A HREF=\'/C'>Counters</A><br>\r\n"
 	"<A HREF=\'/R'>Reload</A><br>\r\n"
-	"<A HREF=\'/S'>Running Services</A><br>\r\n"
-	"<A HREF=\'/F'>Config</A>\r\n"
+	"<A HREF=\'/S'>Running Services</A>\r\n"
 	"</td><td>"
 	"<h2>%s %s configuration</h2>",
 
@@ -367,92 +367,62 @@ static int printiplist(char *buf, int bufsize, struct iplist* ipl, char * delim)
 	return printed;
 }
 
-void * adminchild(struct clientparam* param) {
- int i, res;
- char * buf;
- char username[256];
- char *sb;
- char *req = NULL;
- struct printparam pp;
- unsigned contentlen = 0;
- int isform = 0;
- int limited = 0;
+/* The admin pages are http operations: the service, request parsing and
+   authorization belong to httpsrv, and what is left here is the page itself.
+   A star in the url carries the selector the pages used to read out of the
+   path, so /C with a star gives D2 or S2 to disable or enable a counter. */
 
+static char * admin_open(struct printparam *pp, struct clientparam *param)
+{
+	char *buf;
 
- limited =param->srv->s_option;
- pp.inbuf = 0;
- pp.cp = param;
+	pp->inbuf = 0;
+	pp->cp = param;
 
- buf = malloc(LINESIZE);
- if(!buf) {RETURN(555);}
- i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, LINESIZE - 1, '\n', conf.timeouts[STRING_S]);
- if(i<5 || ((buf[0]!='G' || buf[1]!='E' || buf[2]!='T' || buf[3]!=' ' || buf[4]!='/') && 
-	   (buf[0]!='P' || buf[1]!='O' || buf[2]!='S' || buf[3]!='T' || buf[4]!=' ' || buf[5]!='/')))
- {
-	RETURN(701);
- }
- buf[i] = 0;
- sb = strchr(buf+5, ' ');
- if(!sb){
-	RETURN(702);
- }
- *sb = 0;
- req = strdup(buf + ((*buf == 'P')? 6 : 5));
- while((i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, LINESIZE - 1, '\n', conf.timeouts[STRING_S])) > 2){
-	buf[i] = 0;
-	if(i > 19 && (!strncasecmp(buf, "authorization", 13))){
-		sb = strchr(buf, ':');
-		if(!sb)continue;
-		++sb;
-		while(isspace(*sb))sb++;
-		if(!*sb || strncasecmp(sb, "basic", 5)){
-			continue;
-		}
-		sb+=5;
-		while(isspace(*sb))sb++;
-		i = de64((unsigned char *)sb, (unsigned char *)username, 255);
-		if(i<=0)continue;
-		username[i] = 0;
-		sb = strchr((char *)username, ':');
-		if(sb){
-			*sb = 0;
-			if(param->password)free(param->password);
-			param->password = (unsigned char *)strdup(sb+1);
-		}
-		if(param->username) free(param->username);
-		param->username = (unsigned char *)strdup(username);
-		continue;
-	}
-	else if(i > 15 && (!strncasecmp(buf, "content-length:", 15))){
-		sb = buf + 15;
-		while(isspace(*sb))sb++;
-		sscanf(sb, "%u", &contentlen);
-		if(contentlen > LINESIZE*1024) contentlen = 0;
-	}
-	else if(i > 13 && (!strncasecmp(buf, "content-type:", 13))){
-		sb = buf + 13;
-		while(isspace(*sb))sb++;
-		if(!strncasecmp(sb, "x-www-form-urlencoded", 21)) isform = 1;
-	}
- }
- param->operation = ADMIN;
- if(isform && contentlen) {
-	printstr(&pp, "HTTP/1.0 100 Continue\r\n\r\n");
-	stdpr(&pp, NULL, 0);
- }
- res = (*param->srv->authfunc)(param);
- if(res && res != 10) {
-	printstr(&pp, authreq);
-	RETURN(res);
- }
- if(limited || param->redirected){
-	if(*req == 'C') req[1] = 0;
-	else *req = 0;
- }
- sprintf(buf, ok, conf.stringtable?(char *)conf.stringtable[2]:"3proxy", conf.stringtable?(char *)conf.stringtable[2]:"3[APA3A] tiny proxy", conf.stringtable?(char *)conf.stringtable[3]:"");
- if(*req != 'S') printstr(&pp, buf);
- switch(*req){
-	case 'C':
+	buf = malloc(LINESIZE);
+	if(!buf) return NULL;
+
+	sprintf(buf, ok, conf.stringtable?(char *)conf.stringtable[2]:"3proxy",
+		conf.stringtable?(char *)conf.stringtable[2]:"3[APA3A] tiny proxy",
+		conf.stringtable?(char *)conf.stringtable[3]:"");
+	printstr(pp, buf);
+	return buf;
+}
+
+static void admin_close(struct printparam *pp, char *buf)
+{
+	printstr(pp, tail);
+	printstr(pp, NULL);
+	if(buf) free(buf);
+}
+
+int op_admin(struct httpreq *r, const unsigned char *params)
+{
+	struct printparam pp;
+	char *buf;
+
+	buf = admin_open(&pp, r->param);
+	if(!buf) return 1;
+	printstr(&pp, (char *)conf.stringtable[WEBBANNERS]);
+	admin_close(&pp, buf);
+	return 0;
+}
+
+int op_admin_counters(struct httpreq *r, const unsigned char *params)
+{
+	struct clientparam *param = r->param;
+	struct printparam pp;
+	char *buf;
+	const char *sel;
+	int limited;
+
+	limited = param->srv->s_option;
+	/* In limited mode a counter may be looked at but not switched. */
+	sel = limited? "" : r->path + r->globstart;
+
+	buf = admin_open(&pp, param);
+	if(!buf) return 1;
+
 		printstr(&pp, counters);
 		{
 			struct trafcount *cp; 
@@ -463,8 +433,8 @@ void * adminchild(struct clientparam* param) {
 			 if(cp->ace && (limited || param->redirected)){
 				if(!ACLmatches(cp->ace, param))continue;
 			 }
-			 if(req[1] == 'S' && atoi(req+2) == num) cp->disabled=0;
-			 if(req[1] == 'D' && atoi(req+2) == num) cp->disabled=1;
+			 if(sel[0] == 'S' && atoi(sel+1) == num) cp->disabled=0;
+			 if(sel[0] == 'D' && atoi(sel+1) == num) cp->disabled=1;
 			 inbuf += sprintf(buf,	"<tr><td>%s</td><td>", cp->ace?aceaction(cp->ace->action):"-");
 			 if(cp->number || cp->comment)
 				inbuf += sprintf(buf+inbuf, "%d/%s</td>" , cp->number,
@@ -535,85 +505,55 @@ void * adminchild(struct clientparam* param) {
 
 		}
 		printstr(&pp, counterstail);
-		break;
-		
-	case 'R':
+
+	admin_close(&pp, buf);
+	return 0;
+}
+
+int op_admin_reload(struct httpreq *r, const unsigned char *params)
+{
+	struct printparam pp;
+	char *buf;
+
+	buf = admin_open(&pp, r->param);
+	if(!buf) return 1;
+
+	if(r->param->srv->s_option) printstr(&pp, (char *)conf.stringtable[WEBBANNERS]);
+	else {
 		conf.needreload = 1;
 		printstr(&pp, "<h3>Reload scheduled</h3>");
-		break;
-	case 'S':
-		{
-			if(req[1] == 'X'){
-				printstr(&pp, style);
-				break;
-			}
-			printstr(&pp, xml);
-			printval(conf.services, TYPE_SERVER, 0, &pp);
-			printstr(&pp, postxml);
-		}
-			break;
-	case 'F':
-		{
-			FILE *fp;
-			char buf[256];
+	}
 
-			fp = confopen();
-			if(!fp){
-				printstr(&pp, "<h3><font color=\"red\">Failed to open config file</font></h3>");
-				break;
-			}
-				printstr(&pp, "<h3>Please be careful editing config file remotely</h3>");
-				printstr(&pp, "<form method=\"POST\" action=\"/U\" enctype=\"application/x-www-form-urlencoded\"><textarea cols=\"80\" rows=\"30\" name=\"conffile\">");
-				while(fgets(buf, 256, fp)){
-					printstr(&pp, buf);
-				}
-				if(!writable) fclose(fp);
-				printstr(&pp, "</textarea><br><input type=\"Submit\"></form>");
-			break;
-		}
-	case 'U':
-		{
-			unsigned l=0;
-			int error = 0;
-
-			if(!writable || !contentlen || fseek(writable, 0, 0)){
-				error = 1;
-			}
-			while(l < contentlen && (i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, (contentlen - l) > LINESIZE - 1?LINESIZE - 1:contentlen - l, '+', conf.timeouts[STRING_S])) > 0){
-				if((unsigned)i > (contentlen - l)) i = (contentlen - l);
-				if(!l){
-					if(i<9 || strncasecmp(buf, "conffile=", 9)) error = 1;
-				}
-				if(!error){
-					buf[i] = 0;
-					decodeurl((unsigned char *)buf, 1);
-					fprintf(writable, "%s", l? buf : buf + 9);
-				}
-				l += i;
-			}
-			if(writable && !error){
-				fflush(writable);
-#ifndef _WINCE
-				if(ftruncate(fileno(writable), ftell(writable))){}
-#endif
-			}
-			printstr(&pp, error?    "<h3><font color=\"red\">Config file is not writable</font></h3>Make sure you have \"writable\" command in configuration file":
-						"<h3>Configuration updated</h3>");
-
-		}
-		break;
-	default:
-		printstr(&pp, (char *)conf.stringtable[WEBBANNERS]);
-		break;
- }
- if(*req != 'S') printstr(&pp, tail);
-
-CLEANRET:
-
-
- printstr(&pp, NULL);
- if(buf) free(buf);
- dolog(param, (unsigned char *)req);
- if(req)free(req);
- return (NULL);
+	admin_close(&pp, buf);
+	return 0;
 }
+
+int op_admin_services(struct httpreq *r, const unsigned char *params)
+{
+	struct clientparam *param = r->param;
+	struct printparam pp;
+	char *buf;
+	const char *sel;
+
+	if(param->srv->s_option) return op_admin(r, params);
+
+	sel = r->path + r->globstart;
+
+	/* This page is xml, so it carries its own headers instead of the html
+	   wrapper the other pages share. */
+	pp.inbuf = 0;
+	pp.cp = param;
+	buf = NULL;
+
+	if(sel[0] == 'X') printstr(&pp, style);
+	else {
+		printstr(&pp, xml);
+		printval(conf.services, TYPE_SERVER, 0, &pp);
+		printstr(&pp, postxml);
+	}
+
+	printstr(&pp, NULL);
+	return 0;
+}
+
+#endif

@@ -20,6 +20,11 @@ LDFLAGS += -fno-strict-aliasing -mthreads
 # makefile, including the += above and the STATIC/LIBSTATIC handling below.
 CFLAGS += $(EXTRA_CFLAGS)
 LDFLAGS += $(EXTRA_LDFLAGS)
+HTTPSRV ?= true
+ifeq ($(HTTPSRV),true)
+    CFLAGS += -DWITH_HTTPSRV
+    HTTPSRV_OBJS = srvhttpsrv$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS)
+endif
 DLFLAGS ?= -shared
 DLSUFFICS = .dll
 LIBS += -lws2_32 -lodbc32 -ladvapi32 -luser32 -lbcrypt

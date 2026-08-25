@@ -24,7 +24,6 @@ Content-type: text/html; charset=utf-8\n
 <A HREF='/C'>Счетчики</A><br><br>\n
 <A HREF='/R'>Перезагрузка конфигурации сервера</A><br><br>\n
 <A HREF='/S'>Запущенные сервисы</A><br><br>\n
-<A HREF='/F'>Настройка сервера</A>\n
 </td><td>
 <h2>%s %s Конфигурация</h2>
 [end]

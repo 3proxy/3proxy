@@ -807,6 +807,102 @@ int bindwithrange(struct clientparam *param, SOCKET sock, PROXYSOCKADDRTYPE *sa,
 	return -1;
 }
 
+/* Host lists in access rules have always accepted name, name*, *name and
+   *name*, with the leading and trailing star recorded as a match type rather
+   than kept in the string. The parser and the comparison are here so that
+   anything else matching a name against a pattern - the http command, and
+   whatever replaces the star with a regular expression later - behaves the same
+   way and gains the same syntax at the same time.
+ */
+int parsepattern(struct hostname *h, unsigned char *arg)
+{
+	int arglen;
+	unsigned char *pattern;
+
+	arglen = (int)strlen((char *)arg);
+	h->matchtype = 3;
+	pattern = arg;
+
+	if(arglen && pattern[arglen-1] == '*'){
+		arglen--;
+		pattern[arglen] = 0;
+		h->matchtype ^= MATCHEND;
+	}
+	if(arglen && pattern[0] == '*'){
+		pattern++;
+		arglen--;
+		h->matchtype ^= MATCHBEGIN;
+	}
+
+	h->name = (unsigned char *)strdup((char *)pattern);
+	return h->name? 0 : 1;
+}
+
+/* Matches str against a pattern and reports the part a star stood for. Where a
+   pattern has a star at both ends the trailing one is reported, since that is
+   the part following the text that was matched. An exact pattern leaves an
+   empty span. */
+int patternmatchpos(const struct hostname *h, const unsigned char *str, int *start, int *len)
+{
+	int lname, lstr, pos = 0, match = 0;
+	char *found;
+
+	if(!h->name || !str) return 0;
+
+	lname = (int)strlen((char *)h->name);
+	lstr = (int)strlen((char *)str);
+
+	switch(h->matchtype){
+		case 0:
+#ifndef _WIN32
+			found = strcasestr((char *)str, (char *)h->name);
+#else
+			found = strstr((char *)str, (char *)h->name);
+#endif
+			if(found){
+				match = 1;
+				pos = (int)(found - (char *)str) + lname;
+			}
+			break;
+
+		case 1:
+			if(!strncasecmp((char *)str, (char *)h->name, lname)){
+				match = 1;
+				pos = lname;
+			}
+			break;
+
+		case 2:
+			if(lstr >= lname &&
+			   !strncasecmp((char *)str + (lstr - lname), (char *)h->name, lname)){
+				match = 1;
+				pos = 0;
+				if(start) *start = 0;
+				if(len) *len = lstr - lname;
+				return 1;
+			}
+			break;
+
+		default:
+			if(!strcasecmp((char *)str, (char *)h->name)){
+				match = 1;
+				pos = lstr;
+			}
+			break;
+	}
+
+	if(!match) return 0;
+
+	if(start) *start = pos;
+	if(len) *len = lstr - pos;
+	return 1;
+}
+
+int patternmatch(const struct hostname *h, const unsigned char *str)
+{
+	return patternmatchpos(h, str, NULL, NULL);
+}
+
 int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask) {
 	unsigned d1, d2, d3, d4, m;
 	int res;

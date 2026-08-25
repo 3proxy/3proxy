@@ -353,6 +353,9 @@ int readconfig(FILE * fp);
 void initcommands(void);
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
 int bindwithrange(struct clientparam *param, SOCKET sock, PROXYSOCKADDRTYPE *sa, uint32_t range);
+int parsepattern(struct hostname *h, unsigned char *arg);
+int patternmatch(const struct hostname *h, const unsigned char *str);
+int patternmatchpos(const struct hostname *h, const unsigned char *str, int *start, int *len);
 void applyportranges(struct clientparam * param, struct ace * acentry);
 
 
@@ -373,7 +376,18 @@ void * sockschild(struct clientparam * param);
 void * tcppmchild(struct clientparam * param);
 void * autochild(struct clientparam * param);
 void * udppmchild(struct clientparam * param);
-void * adminchild(struct clientparam * param);
+#ifdef WITH_HTTPSRV
+int op_admin(struct httpreq *r, const unsigned char *params);
+int op_admin_counters(struct httpreq *r, const unsigned char *params);
+int op_admin_reload(struct httpreq *r, const unsigned char *params);
+int op_admin_services(struct httpreq *r, const unsigned char *params);
+#endif
+#ifdef WITH_HTTPSRV
+void * httpsrvchild(struct clientparam * param);
+int httpopbyname(const unsigned char *name);
+int httpchunk(struct clientparam *param, const char *buf, int len);
+void freehttprules(struct httprule *rule);
+#endif
 void * ftpprchild(struct clientparam * param);
 void * tlsprchild(struct clientparam * param);
 /* Child functions return the child to redirect the request to, or NULL if

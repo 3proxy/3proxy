@@ -24,6 +24,11 @@ LDFLAGS += $(EXTRA_LDFLAGS)
 # -lpthreads may be reuiured on some platforms instead of -pthreads
 # -ldl or -lld may be required for some platforms
 DCFLAGS ?= -fPIC
+HTTPSRV ?= true
+ifeq ($(HTTPSRV),true)
+    CFLAGS += -DWITH_HTTPSRV
+    HTTPSRV_OBJS = srvhttpsrv$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS)
+endif
 DLFLAGS ?= -shared
 DLSUFFICS = .so
 LIBS ?=

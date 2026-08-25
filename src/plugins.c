@@ -15,7 +15,9 @@ void decodeurl(unsigned char *s, int allowcr);
 int parsestr (unsigned char *str, unsigned char **argm, int nitems, unsigned char ** buff, int *inbuf, int *bufsize);
 struct ace * make_ace (int argc, unsigned char ** argv);
 extern char * proxy_stringtable[];
+#ifdef WITH_HTTPSRV
 extern char * admin_stringtable[];
+#endif
 extern struct schedule * schedule;
 int start_proxy_thread(struct child * chp);
 
@@ -59,7 +61,6 @@ struct symbol symbols[] = {
 	{symbols+34, "socks", (void *) sockschild},
 	{symbols+35, "tcppm", (void *) tcppmchild},
 	{symbols+36, "udppm", (void *) udppmchild},
-	{symbols+37, "admin", (void *) adminchild},
 	{symbols+38, "ftppr", (void *) ftpprchild},
 	{symbols+39, "smtpp", (void *) smtppchild},
 	{symbols+40, "auto", (void *) smtppchild},
@@ -121,7 +122,11 @@ struct pluginlink pluginlink = {
 	proxy_stringtable,
 	&schedule,
 	freeacl,
+#ifdef WITH_HTTPSRV
 	admin_stringtable,
+#else
+	NULL,
+#endif
 	&childdef,
 	start_proxy_thread,
 	freeparam,

@@ -18,7 +18,13 @@ int alwaysauth(struct clientparam * param){
 
 
 	if(conf.connlimiter && !param->connlim  && startconnlims(param)) return 10;
+#ifdef WITH_HTTPSRV
+	/* The http server answers the request itself, so authorization must not
+	   try to reach a destination that does not exist. */
+	res = (param->srv->service == S_HTTPSRV)? 0 : doconnect(param);
+#else
 	res = doconnect(param);
+#endif
 	if(!res){
 		if(conf.bandlimfunc && (conf.bandlimiter||conf.bandlimiterout)){
 			_3proxy_mutex_lock(&bandlim_mutex);

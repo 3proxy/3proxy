@@ -216,6 +216,7 @@ typedef enum {
 	S_AUTO,
 	S_TLSPR,
 	S_IMAPP,
+	S_HTTPSRV,
 	S_ZOMBIE
 }PROXYSERVICE;
 
@@ -354,6 +355,28 @@ struct hostname {
 	struct hostname *next;
 	unsigned char * name;
 	int matchtype;
+};
+
+/* A request handed to an http operation. */
+struct httpreq {
+	struct clientparam *param;
+	char method[16];
+	char path[256];
+	char query[512];
+	char host[256];
+	unsigned long contentlen;
+	int globstart, globlen;
+};
+
+/* One "http" line: which host and url it answers for, which operation serves
+   it and the parameters that operation takes. Patterns use the same syntax and
+   the same matcher as host lists in access rules. */
+struct httprule {
+	struct httprule *next;
+	struct hostname host;
+	struct hostname url;
+	int op;
+	unsigned char *params;
 };
 
 struct ace {
@@ -583,6 +606,9 @@ struct srvparam {
 	struct auth *authenticate;
 	struct pollfd * srvfds;
 	struct ace *acl;
+#ifdef WITH_HTTPSRV
+	struct httprule *httprules;
+#endif
 	struct auth *authfuncs;
 	struct filter *filter;
 	unsigned char * logformat;
@@ -702,6 +728,9 @@ struct extparam {
 	_3proxy_sem_t threadinit;
 	int *timeouts;
 	struct ace * acl;
+#ifdef WITH_HTTPSRV
+	struct httprule *httprules;
+#endif
 	char * conffile;
 	struct bandlim * bandlimiter,  *bandlimiterout;
 	struct connlim * connlimiter;

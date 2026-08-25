@@ -14,6 +14,11 @@ COUT = -o ./
 LN = $(CC)
 LDFLAGS = -xO3
 DCFLAGS = -fPIC
+HTTPSRV ?= true
+ifeq ($(HTTPSRV),true)
+    CFLAGS += -DWITH_HTTPSRV
+    HTTPSRV_OBJS = srvhttpsrv$(OBJSUFFICS) srvwebadmin$(OBJSUFFICS)
+endif
 DLFLAGS = -shared
 DLSUFFICS = .ld.so
 LIBS = -lpthread -lsocket -lnsl -lresolv -ldl
