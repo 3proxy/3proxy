@@ -391,8 +391,6 @@ static void * ef_ace_next(struct node * node){
 }
 
 
-char * aceaction (int action);
-
 static void * ef_ace_type(struct node * node){
 	return aceaction(((struct ace *)node->value) -> action);
 }

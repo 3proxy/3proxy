@@ -25,35 +25,6 @@ struct printparam {
 	struct clientparam *cp;
 };
 
-char * aceaction (int action){
-	switch (action) {
-		case ALLOW:
-		case REDIRECT:
-			return "allow";
-		case DENY:
-			return "deny";
-		case BANDLIM:
-			return "bandlim";
-		case NOBANDLIM:
-			return "nobandlim";
-		case COUNTIN:
-			return "countin";
-		case NOCOUNTIN:
-			return "nocountin";
-		case COUNTOUT:
-			return "countout";
-		case NOCOUNTOUT:
-			return "nocountout";
-		case COUNTALL:
-			return "countall";
-		case NOCOUNTALL:
-			return "nocountall";
-		default:
-			return "unknown";
-	}
-}
-
-
 static void stdpr(struct printparam* pp, char *buf, int inbuf){
 	if((pp->inbuf + inbuf > 1024) || !buf) {
 		socksend(pp->cp, pp->cp->clisock, (unsigned char *)pp->buf, pp->inbuf, conf.timeouts[STRING_S]);

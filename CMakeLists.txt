@@ -186,11 +186,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_compile_definitions(WITH_NETFILTER)
     endif()
 
-    if(3PROXY_USE_HTTPSRV)
-    add_compile_definitions(WITH_HTTPSRV)
-endif()
-
-if(3PROXY_USE_UNIX_SOCKETS)
+    if(3PROXY_USE_UNIX_SOCKETS)
         add_compile_definitions(WITH_UN)
     endif()
 
@@ -239,6 +235,10 @@ else()
         TransparentPlugin
         FilePlugin
     )
+endif()
+
+if(3PROXY_USE_HTTPSRV)
+    add_compile_definitions(WITH_HTTPSRV)
 endif()
 
 # Unix domain sockets off: NO_UN also undefines WITH_UN if it arrives from
