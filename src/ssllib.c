@@ -84,7 +84,11 @@ static int copy_ext(X509 *dst_cert, X509 *src_cert, int nid)
 }
 
 #ifndef WITH_WOLFSSL
-static int add_ext(X509 *cert, int nid, const char *value)
+/* issuer is the certificate the extension should describe as the issuer,
+ * which matters for an authority key identifier: it names the key that
+ * signs, not the key being signed.
+ */
+static int add_ext_issuer(X509 *cert, X509 *issuer, int nid, const char *value)
 {
 	X509_EXTENSION *ex;
 	X509V3_CTX ctx;
@@ -92,10 +96,8 @@ static int add_ext(X509 *cert, int nid, const char *value)
 	/* This sets the 'context' of the extensions. */
 	/* No configuration database */
 	X509V3_set_ctx_nodb(&ctx);
-	/* Issuer and subject certs: both the target since it is self signed,
-	 * no request and no CRL
-	 */
-	X509V3_set_ctx(&ctx, cert, cert, NULL, NULL, 0);
+	/* No request and no CRL */
+	X509V3_set_ctx(&ctx, issuer, cert, NULL, NULL, 0);
 	/* value is char * prior to OpenSSL 1.1.0 */
 	ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, (char *)value);
 	if (!ex)
@@ -104,6 +106,12 @@ static int add_ext(X509 *cert, int nid, const char *value)
 	err = X509_add_ext(cert,ex,-1);
 	X509_EXTENSION_free(ex);
 	return err > 0;
+}
+
+static int add_ext(X509 *cert, int nid, const char *value)
+{
+	/* Issuer and subject: both the target, for a self signed certificate */
+	return add_ext_issuer(cert, cert, nid, value);
 }
 #endif
 
@@ -199,6 +207,16 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 		add_ext(dst_cert, NID_basic_constraints, "critical,CA:FALSE");
 	if(!copy_ext(dst_cert, src_cert, NID_ext_key_usage))
 		add_ext(dst_cert, NID_ext_key_usage, "serverAuth");
+	/* A verifier following RFC 5280 strictly looks for the issuer through a
+	 * key identifier and refuses a certificate carrying none: OpenSSL does
+	 * with x509_strict, and Python has since 3.13. The identifiers are
+	 * generated rather than copied, so they name the CA signing here
+	 * instead of the one that signed upstream. keyid,issuer keeps working
+	 * when the CA certificate has no subject key identifier of its own.
+	 */
+	add_ext(dst_cert, NID_subject_key_identifier, "hash");
+	add_ext_issuer(dst_cert, config->CA_cert, NID_authority_key_identifier,
+		"keyid,issuer");
 #else
 	copy_ext(dst_cert, src_cert, NID_basic_constraints);
 	copy_ext(dst_cert, src_cert, NID_ext_key_usage);
