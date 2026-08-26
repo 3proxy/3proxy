@@ -124,7 +124,9 @@ udppm</b> UDP portmapper</p>
 <b><br>
 -6</b> Only resolve IPv6 addresses. IPv4 addresses are
 packed in IPv6 in IPV6_V6ONLY compatible way. <b><br>
--4</b> Only resolve IPv4 addresses <b><br>
+-4</b> Only resolve IPv4 addresses. This is the default: a
+service reaches an IPv6 address only when told to with
+<b>-6</b>, <b>-46</b> or <b>-64</b>. <b><br>
 -46</b> Prefer IPv4. Resolve IPv6 addresses if IPv4 address
 is not resolvable <b><br>
 -64</b> Prefer IPv6. Resolve IPv4 addresses if IPv6 address
@@ -495,18 +497,23 @@ the same as for nserver.</p>
 Cache <i>&lt;cachesize&gt;</i> records for name resolution
 (<b>nscache</b> for IPv4, <b>nscache6</b> for IPv6). The
 cache size should usually be large enough (for example,
-65536).</p>
+65536). The two are separate: a name that resolves to an
+IPv6 address, including one given with <b>nsrecord</b>, is
+only held when <b>nscache6</b> is configured, and
+<b>nscache</b> does nothing for it. Both caches are global
+rather than per-service.</p>
 
 <p style="margin-left:9%; margin-top: 1em"><b>nsrecord</b>
 <i>&lt;hostname&gt; &lt;hostaddr&gt;</i> <br>
 Adds static record to nscache. <b>nscache</b> must be
 enabled and must come first, because the record is placed in
-the table it allocates, and <b>nserver</b> must be set as
-well: without it the system resolver is used and static
-records are never consulted. If 0.0.0.0 is used as a
-hostaddr host will never resolve, it can be used to
-blacklist something or together with <b>dialer</b> command
-to set up UDL for dialing.</p>
+the table it allocates - <b>nscache6</b> for a record naming
+an IPv6 address - and <b>nserver</b> must be set as well:
+without it the system resolver is used and static records
+are never consulted. If 0.0.0.0 is used as a hostaddr host
+will never resolve, it can be used to blacklist something or
+together with <b>dialer</b> command to set up UDL for
+dialing.</p>
 
 
 <p style="margin-left:9%; margin-top: 1em"><b>fakeresolve</b>
