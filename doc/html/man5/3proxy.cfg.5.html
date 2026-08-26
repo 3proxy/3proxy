@@ -500,9 +500,13 @@ cache size should usually be large enough (for example,
 <p style="margin-left:9%; margin-top: 1em"><b>nsrecord</b>
 <i>&lt;hostname&gt; &lt;hostaddr&gt;</i> <br>
 Adds static record to nscache. <b>nscache</b> must be
-enabled. If 0.0.0.0 is used as a hostaddr host will never
-resolve, it can be used to blacklist something or together
-with <b>dialer</b> command to set up UDL for dialing.</p>
+enabled and must come first, because the record is placed in
+the table it allocates, and <b>nserver</b> must be set as
+well: without it the system resolver is used and static
+records are never consulted. If 0.0.0.0 is used as a
+hostaddr host will never resolve, it can be used to
+blacklist something or together with <b>dialer</b> command
+to set up UDL for dialing.</p>
 
 
 <p style="margin-left:9%; margin-top: 1em"><b>fakeresolve</b>
