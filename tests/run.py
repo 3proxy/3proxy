@@ -113,6 +113,15 @@ def main():
                     if actual is not None:
                         print(f"         actual:   {actual}")
 
+            if tester.checks and any(status is False for status, _, _, _ in tester.checks):
+                for name, text in tester.logs:
+                    lines = [line for line in text.splitlines() if line.strip()]
+                    if not lines:
+                        continue
+                    print(f"    --- {name} said ---")
+                    for line in lines[-12:]:
+                        print(f"      {line}")
+
             if error:
                 failed += 1
                 failures.append(f"{name}: case aborted")

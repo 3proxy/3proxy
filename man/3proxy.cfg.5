@@ -527,7 +527,10 @@ If not specified, nserver is used. The syntax is the same as for nserver.
 .BR nsrecord
 \fI<hostname>\fR \fI<hostaddr>\fR
 .br
- Adds static record to nscache. \fBnscache\fR must be enabled. If 0.0.0.0
+ Adds static record to nscache. \fBnscache\fR must be enabled and must come
+first, because the record is placed in the table it allocates, and
+\fBnserver\fR must be set as well: without it the system resolver is used and
+static records are never consulted. If 0.0.0.0
 is used as a hostaddr host will never resolve, it can be used to
 blacklist something or together with 
 .B dialer

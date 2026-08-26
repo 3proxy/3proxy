@@ -129,6 +129,9 @@ def run(t):
     plain = t.free_port()
     proxies = t.start("ssl_mitm", f"""
         log
+        nserver 127.0.0.1
+        nscache 1024
+        nsrecord intercepted.test 127.0.0.1
         ssl_server_ca_file {certs.ca}
         ssl_server_ca_key {certs.ca_key}
         ssl_certcache {certs.cache}
@@ -146,12 +149,18 @@ def run(t):
         proxy -p{plain}
     """, ports=[mitm, plain])
 
-    target = f"https://127.0.0.1:{origin}/secret/page"
+    # A name the proxy resolves itself through nsrecord, so the request
+    # carries a hostname the way a real one would, without depending on
+    # what the machine running the tests puts in its hosts file.
+    target = f"https://intercepted.test:{origin}/secret/page"
 
     # The client trusts our CA, which is what signs the spoofed certificate.
     # Verification is not strict: 3proxy issues those certificates without an
     # Authority Key Identifier, which Python rejects under its 3.13 defaults.
-    r = t.https(target, proxy=f"127.0.0.1:{mitm}", ca=certs.ca, strict=False)
+    # The spoofed certificate names the upstream host rather than the one
+    # asked for, so the chain is checked but the name is not.
+    r = t.https(target, proxy=f"127.0.0.1:{mitm}", ca=certs.ca, strict=False,
+                verify_name=False)
     t.eq(200, r.status, "MITM passes the request through")
     t.contains(r, "path=/secret/page", "the intercepted request reaches the origin")
 
@@ -159,19 +168,20 @@ def run(t):
     log = t.wait_output(proxies, "/secret/page")
     t.contains(log, "/secret/page", "MITM puts the request URI in the log")
     t.contains(log, "GET", "MITM logs the method")
-    t.contains(log, str(origin), "MITM logs the destination")
+    t.contains(log, "intercepted.test", "MITM logs the host that was asked for")
 
     # a client that does not trust the CA sees the substitution
     refused = t.https(target, proxy=f"127.0.0.1:{mitm}", ca=certs.other,
-                      strict=False)
+                      strict=False, verify_name=False)
     t.ne(200, refused.status, "MITM is visible to a client with another CA")
 
     # Without interception the same request is opaque: the proxy logs the
     # CONNECT target and nothing from inside the tunnel.
     before = len(proxies.output())
-    r = t.https(target, proxy=f"127.0.0.1:{plain}", ca=certs.ca, strict=False)
+    r = t.https(target, proxy=f"127.0.0.1:{plain}", ca=certs.ca, strict=False,
+                verify_name=False)
     t.eq(200, r.status, "the plain proxy tunnels the same request")
-    tunnelled = t.wait_output(proxies, str(origin), since=before)
-    t.contains(tunnelled, str(origin), "the tunnel logs the CONNECT target")
+    tunnelled = t.wait_output(proxies, "intercepted.test", since=before)
+    t.contains(tunnelled, "intercepted.test", "the tunnel logs the CONNECT target")
     t.not_contains(tunnelled, "/secret/page",
                    "a tunnelled request keeps its URI out of the log")

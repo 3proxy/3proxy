@@ -26,8 +26,11 @@ def _windows():
 
 (LOW, HIGH), (ILOW, IHIGH) = _windows()
 
-# below the Linux window on purpose: the kernel ignores such a range
-UNHONOURED = (21400, 21449)
+# Privileged ports: the kernel ignores such a range on Linux, since it is
+# outside net.ipv4.ip_local_port_range, and binding them fails outright
+# without privileges. Either way nothing in the range can be taken, which
+# is the case the fallback exists for.
+UNHONOURED = (1, 99)
 
 
 def run(t):

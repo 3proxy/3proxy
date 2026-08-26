@@ -122,6 +122,7 @@ class Tester:
         self.timeout = 10
         self._skipped = 0
         self._certs = None
+        self.logs = []
 
     # ---- servers -----------------------------------------------------
 
@@ -201,8 +202,10 @@ class Tester:
             time.sleep(0.05)
 
     def stop_all(self):
+        """Stop the servers, keeping what they printed for the report."""
         for server in self.servers:
             server.stop()
+            self.logs.append((server.name, server.output()))
         self.servers = []
 
     # ---- requests ----------------------------------------------------
@@ -464,14 +467,21 @@ class Tester:
         self._certs = c
         return c
 
-    def _context(self, ca=None, strict=True):
-        """A client context. strict=False drops the RFC 5280 checks Python
-        turns on by default from 3.13, which reject a certificate with no
-        Authority Key Identifier."""
+    def _context(self, ca=None, strict=True, verify_name=True):
+        """A client context.
+
+        strict=False drops the RFC 5280 checks Python turns on by default
+        from 3.13, which reject a certificate with no Authority Key
+        Identifier. verify_name=False keeps the chain check but ignores
+        which host the certificate names, for the intercepted connections
+        where that is the upstream identity rather than the one asked for.
+        """
         if ca:
             context = ssl.create_default_context(cafile=ca)
             if not strict:
                 context.verify_flags &= ~getattr(ssl, "VERIFY_X509_STRICT", 0)
+            if not verify_name:
+                context.check_hostname = False
             return context
         context = ssl.create_default_context()
         context.check_hostname = False
@@ -503,11 +513,11 @@ class Tester:
         finally:
             conn.close()
 
-    def https(self, url, proxy=None, ca=None, strict=True, method="GET",
-              headers=None):
+    def https(self, url, proxy=None, ca=None, strict=True, verify_name=True,
+              method="GET", headers=None):
         """An https:// request, optionally tunnelled through a proxy."""
         host, port, path = self._split(url, default_port=443)
-        context = self._context(ca, strict)
+        context = self._context(ca, strict, verify_name)
         try:
             if proxy:
                 phost, pport = self._hostport(proxy)
