@@ -37,6 +37,7 @@
  <li><a href="#SSLPLUGIN">How to set up TLS/SSL (https proxy, mTLS)</a></li>
  <li><a href="#CERTIFICATES">How to create CA and certificates for SSL</a></li>
  <li><a href="#PCRE">How to use PCRE filtering (regular expressions)</a></li>
+ <li><a href="#TRANSPARENT">How to proxy transparently</a></li>
  <li><A HREF="#AUTH">How to limit service access</a>
  <li><A HREF="#USERS">How to create a user list</a>
  <li><A HREF="#ACL">How to limit user access to resources</a>
@@ -981,6 +982,189 @@ openssl pkcs12 -export -out client.p12 -passout pass: \
 openssl verify -x509_strict -CAfile ca.crt server.crt
 openssl verify -x509_strict -CAfile ca.crt client.crt
 </pre>
+
+ <li><a name="TRANSPARENT"><i>How to proxy transparently</i></a>
+<p>
+A transparent proxy serves clients that were never configured to use one. A
+packet filter redirects their connections to 3proxy, and the
+<b>transparent</b> command tells the service to take the destination from the
+filter instead of from the request. Every other feature applies as usual:
+access rules, parent proxies, limits and logging all see the real destination.
+It works on Linux and on the BSDs. Since 1.0.1 it is part of the binary; before
+that it was the separate TransparentPlugin, and the <b>plugin</b> line it
+needed is no longer required.
+</p>
+<p>
+The command supplies both the address and the port the client was trying to
+reach, so a service can serve whatever was redirected to it rather than one
+port with one target.
+</p>
+<p>
+Without it a service has to get a destination from somewhere else: an HTTP
+proxy falls back to the <b>Host</b> header, and a port mapper uses the address
+it was configured with. Taking the destination from the filter is what makes
+the other protocols work, and what makes the address authoritative rather than
+something the client claimed.
+</p>
+<p>
+<b>tlspr</b> is the clearest case. Nothing reaches it at all unless traffic is
+redirected to it, or the clients resolve the names to it through DNS. With a
+redirection it gets the address as well as the name from the handshake, and
+that is what lets access rules be written with host names: the name from the
+handshake is matched, and the connection still goes to the address the client
+was going to. Without the address it would have to resolve the name itself,
+which is a second lookup and a second answer.
+</p>
+<p>
+A configuration for web and TLS traffic:
+</p><pre>
+log /var/log/3proxy.log D
+auth iponly
+allow *
+
+&#35; the destination comes from the redirection for the services below
+transparent
+
+&#35; ordinary web traffic, redirected here from port 80
+proxy -p3129 -e192.0.2.10
+
+&#35; TLS, redirected here from port 443: tlspr would otherwise have only the
+&#35; name in the handshake, and this gives it the address as well
+tlspr -p3143 -e192.0.2.10
+
+notransparent
+</pre>
+<p>
+<b>-e</b> gives those services an address of their own to connect from. That
+address is what the redirection rules exclude, and excluding it is what stops
+the proxy's own connections from being redirected back into it. Without an
+exclusion the connection 3proxy makes to the origin matches the same rule,
+returns to 3proxy, and the traffic goes round until something gives out.
+Running 3proxy as its own account and excluding that account works too, and is
+the better choice when the machine has one address.
+</p>
+
+<p><b>Linux, iptables</b>. For traffic the machine forwards for others:
+</p><pre>
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80  -j REDIRECT --to-ports 3129
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-ports 3143
+</pre>
+<p>
+Traffic the machine generates itself passes through OUTPUT instead, where the
+proxy's own connections have to be excluded:
+</p><pre>
+&#35; by the address the services connect from
+iptables -t nat -A OUTPUT -p tcp --dport 80 ! -s 192.0.2.10 -j REDIRECT --to-ports 3129
+
+&#35; or by the account 3proxy runs as
+iptables -t nat -A OUTPUT -p tcp --dport 80 -m owner ! --uid-owner proxy3 \
+    -j REDIRECT --to-ports 3129
+</pre>
+
+<p><b>Linux, nftables</b> (Debian 11+, Ubuntu 22.04+, RHEL 8+, Fedora, Arch,
+where nftables is what iptables is a front end for):
+</p><pre>
+table ip proxy3 {
+	chain prerouting {
+		type nat hook prerouting priority dstnat; policy accept;
+		iif "eth0" tcp dport 80 redirect to :3129
+		iif "eth0" tcp dport 443 redirect to :3143
+	}
+
+	chain output {
+		type nat hook output priority dstnat; policy accept;
+		meta skuid != "proxy3" tcp dport 80 redirect to :3129
+		meta skuid != "proxy3" tcp dport 443 redirect to :3143
+	}
+}
+</pre>
+<p>
+Load it with <b>nft -f</b>, and keep it across reboots in
+<b>/etc/nftables.conf</b> (Debian, Ubuntu) or
+<b>/etc/sysconfig/nftables.conf</b> (RHEL, Fedora). A table name cannot begin
+with a digit, which is why the table above is not called 3proxy.
+</p>
+
+<p><b>Linux, firewalld</b> (RHEL, CentOS Stream, Fedora, openSUSE). Redirect an
+incoming port on a zone:
+</p><pre>
+firewall-cmd --permanent --zone=internal --add-forward-port=port=80:proto=tcp:toport=3129
+firewall-cmd --permanent --zone=internal --add-forward-port=port=443:proto=tcp:toport=3143
+firewall-cmd --reload
+</pre>
+<p>
+firewalld has no exclusion for the proxy's own traffic in that form, so put
+that part in a direct rule:
+</p><pre>
+firewall-cmd --permanent --direct --add-rule ipv4 nat OUTPUT 0 \
+    -p tcp --dport 80 -m owner ! --uid-owner proxy3 -j REDIRECT --to-ports 3129
+firewall-cmd --reload
+</pre>
+
+<p><b>Linux, ufw</b> (Ubuntu, Debian). ufw has no command for redirection;
+add the rules to <b>/etc/ufw/before.rules</b>, above the <b>*filter</b> block:
+</p><pre>
+*nat
+:PREROUTING ACCEPT [0:0]
+-A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-ports 3129
+-A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-ports 3143
+COMMIT
+</pre>
+
+<p>
+On Linux 3proxy asks the kernel where the connection was going. On the BSDs it
+asks pf, which keeps the original destination in its state table, through
+<b>/dev/pf</b> - so <b>rdr</b> rules work, and 3proxy has to be able to read
+that device. Where a redirection leaves the destination on the socket instead,
+that is used: OpenBSD <b>divert-to</b> and FreeBSD <b>ipfw fwd</b> both do.
+</p>
+<p>
+The mechanism is chosen automatically, and <b>transparent</b> takes an
+argument for the installations that need to pin it: <b>auto</b> (the default),
+<b>netfilter</b>, <b>pf</b>, or <b>socket</b> for reading it off the socket. A
+mode the build has no code for is refused, so a configuration written for
+another platform fails where it is wrong instead of quietly doing something
+else.
+</p>
+
+<p><b>FreeBSD, NetBSD and OpenBSD, pf</b>. Redirect in <b>/etc/pf.conf</b>,
+excluding the address the proxy connects from:
+</p><pre>
+rdr pass on em0 inet proto tcp from ! 192.0.2.10 to any port 80  -&gt; 127.0.0.1 port 3129
+rdr pass on em0 inet proto tcp from ! 192.0.2.10 to any port 443 -&gt; 127.0.0.1 port 3143
+</pre>
+<p>
+Load with <b>pfctl -f /etc/pf.conf</b>. 3proxy looks the destination up in pf's
+state table, so it needs to read <b>/dev/pf</b>: either run it as root, or give
+its account access to that device.
+</p>
+
+<p><b>OpenBSD, divert-to</b> is an alternative which leaves the destination on
+the socket, and needs no access to <b>/dev/pf</b>:
+</p><pre>
+pass in on em0 inet proto tcp to any port 80  divert-to 127.0.0.1 port 3129
+pass in on em0 inet proto tcp to any port 443 divert-to 127.0.0.1 port 3143
+</pre>
+
+<p><b>FreeBSD, ipfw</b>. <b>fwd</b> delivers the connection locally without
+rewriting it, which also leaves the destination on the socket:
+</p><pre>
+ipfw add fwd 127.0.0.1,3129 tcp from any to any 80  in recv em0
+ipfw add fwd 127.0.0.1,3143 tcp from any to any 443 in recv em0
+</pre>
+
+<p><b>macOS</b> has <b>/dev/pf</b> but ships no header for it, so a macOS build
+has no pf lookup, and macOS has neither <b>divert-to</b> nor ipfw to leave the
+address on the socket. Transparent proxying is not usable there, even though
+the commands exist in a macOS build.
+</p>
+
+<p>
+Check the result by asking for a host through a redirected port and reading
+the log: the request should appear with the address the client asked for,
+which is what it would look like through a configured proxy.
+</p>
+
  <li><a name="PCRE"><i>How to use PCRE filtering (regular expressions)</i></a>
 <p>
 Since version 0.9.7, PCRE (Perl Compatible Regular Expressions) filtering is built into

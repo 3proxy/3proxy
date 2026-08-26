@@ -4,8 +4,20 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-# Read version from RELEASE file
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/RELEASE" PROJECT_VERSION LIMIT_COUNT 1)
+# Read the version. A release branch carries RELEASE, a development branch
+# DEVEL, whose version may have a suffix that project() will not take.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/RELEASE")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/RELEASE" PROJECT_VERSION_FULL LIMIT_COUNT 1)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/DEVEL")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/DEVEL" PROJECT_VERSION_FULL LIMIT_COUNT 1)
+else()
+    message(FATAL_ERROR "Neither RELEASE nor DEVEL found: cannot tell the version")
+endif()
+string(STRIP "${PROJECT_VERSION_FULL}" PROJECT_VERSION_FULL)
+string(REGEX MATCH "^[0-9]+(\\.[0-9]+)*" PROJECT_VERSION "${PROJECT_VERSION_FULL}")
+if(NOT PROJECT_VERSION)
+    message(FATAL_ERROR "No version number in '${PROJECT_VERSION_FULL}'")
+endif()
 
 project(3proxy
     VERSION ${PROJECT_VERSION}
@@ -55,6 +67,7 @@ option(3PROXY_USE_SPLICE "Build Linux splice() support, slower than read/write f
 option(3PROXY_USE_POLL "Use poll() instead of select() (Unix only)" ON)
 option(3PROXY_USE_WSAPOLL "Use WSAPoll instead of select() (Windows only)" ON)
 option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)
+option(3PROXY_USE_TRANSPARENT "Build transparent proxying support (Linux and BSD only)" ON)
 option(3PROXY_USE_UNIX_SOCKETS "Enable Unix domain socket support (Unix only)" ON)
 option(3PROXY_USE_HTTPSRV "Build the HTTP server and the admin interface on top of it" ON)
 
@@ -193,7 +206,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(DEFAULT_PLUGINS
         StringsPlugin
         TrafficPlugin
-        TransparentPlugin
         FilePlugin
     )
 
@@ -215,7 +227,6 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|Darwin|OpenBSD|NetBSD")
     set(DEFAULT_PLUGINS
         StringsPlugin
         TrafficPlugin
-        TransparentPlugin
         FilePlugin
     )
 
@@ -232,13 +243,31 @@ else()
     set(DEFAULT_PLUGINS
         StringsPlugin
         TrafficPlugin
-        TransparentPlugin
         FilePlugin
     )
 endif()
 
 if(3PROXY_USE_HTTPSRV)
     add_compile_definitions(WITH_HTTPSRV)
+endif()
+
+# Transparent proxying needs a redirection that leaves the original
+# destination where 3proxy reads it: the kernel on Linux, the socket on the
+# BSDs. That means netfilter, OpenBSD divert-to or FreeBSD ipfw fwd. NetBSD
+# and macOS rewrite the destination instead and are left out.
+if(3PROXY_USE_TRANSPARENT AND (CMAKE_SYSTEM_NAME STREQUAL "Linux"
+   OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD|OpenBSD|NetBSD"))
+    add_compile_definitions(WITH_TRANSPARENT)
+    set(3PROXY_TRANSPARENT_BUILT ON)
+    # pf keeps the original destination in its state table, which is read
+    # through /dev/pf. macOS has the device but ships no header for it.
+    include(CheckIncludeFiles)
+    check_include_files("sys/types.h;sys/socket.h;net/if.h;net/pfvar.h" HAVE_PFVAR_H)
+    if(HAVE_PFVAR_H)
+        add_compile_definitions(WITH_PF)
+    endif()
+else()
+    set(3PROXY_TRANSPARENT_BUILT OFF)
 endif()
 
 # Unix domain sockets off: NO_UN also undefines WITH_UN if it arrives from
@@ -469,6 +498,10 @@ endif()
 
 if(PCRE2_FOUND)
     target_sources(3proxy PRIVATE src/pcre.c)
+endif()
+
+if(3PROXY_TRANSPARENT_BUILT)
+    target_sources(3proxy PRIVATE src/transparent.c)
 endif()
 
 target_include_directories(3proxy PRIVATE
@@ -917,7 +950,7 @@ endif()
 # Summary
 message(STATUS "")
 message(STATUS "3proxy configuration summary:")
-message(STATUS "  Version: ${PROJECT_VERSION}")
+message(STATUS "  Version: ${PROJECT_VERSION_FULL}")
 message(STATUS "  Platform: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "  Compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
@@ -927,6 +960,7 @@ message(STATUS "    BUILD_SHARED:    ${3PROXY_BUILD_SHARED}")
 message(STATUS "    USE_WOLFSSL:    ${3PROXY_USE_WOLFSSL}")
 message(STATUS "    USE_OPENSSL:    ${3PROXY_USE_OPENSSL}")
 message(STATUS "    USE_PCRE2:       ${3PROXY_USE_PCRE2}")
+message(STATUS "    TRANSPARENT:     ${3PROXY_TRANSPARENT_BUILT}")
 message(STATUS "    USE_PAM:         ${3PROXY_USE_PAM}")
 message(STATUS "    USE_ODBC:        ${3PROXY_USE_ODBC}")
 message(STATUS "    USE_POLL:        ${3PROXY_USE_POLL}")

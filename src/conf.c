@@ -18,6 +18,9 @@ void ssl_install(void);
 #ifdef WITH_PCRE
 void pcre_install(void);
 #endif
+#ifdef WITH_TRANSPARENT
+void transparent_install(void);
+#endif
 #ifndef _WIN32
 #include <sys/resource.h>
 #include <pwd.h>
@@ -1793,6 +1796,10 @@ int h_server_verify(int argc, unsigned char **argv);
 int h_no_server_verify(int argc, unsigned char **argv);
 int h_client_mode(int argc, unsigned char **argv);
 #endif
+#ifdef WITH_TRANSPARENT
+int h_transparent(int argc, unsigned char **argv);
+int h_notransparent(int argc, unsigned char **argv);
+#endif
 #ifdef WITH_PCRE
 int h_pcre(int argc, unsigned char **argv);
 int h_pcre_rewrite(int argc, unsigned char **argv);
@@ -1921,6 +1928,10 @@ struct commands commandhandlers[]={
 	{NULL, "ssl_client_alpn", h_client_alpn, 1, 0},
 	{NULL, "ssl_client_mode", h_client_mode, 1, 2},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
+#endif
+#ifdef WITH_TRANSPARENT
+	{NULL, "transparent", h_transparent, 1, 2},
+	{NULL, "notransparent", h_notransparent, 1, 1},
 #endif
 #ifdef WITH_PCRE
 	{NULL, "pcre", h_pcre, 4, 0},
@@ -2212,6 +2223,9 @@ int reload (void){
 #endif
 #ifdef WITH_PCRE
 	pcre_install();
+#endif
+#ifdef WITH_TRANSPARENT
+	transparent_install();
 #endif
 	conf.paused++;
 	freeconf(&conf);

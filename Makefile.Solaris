@@ -34,7 +34,7 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.Solaris
-PLUGINS = StringsPlugin TrafficPlugin TransparentPlugin FilePlugin
+PLUGINS = StringsPlugin TrafficPlugin FilePlugin
 
 WOLFSSL_CHECK = $(shell printf "\#include <wolfssl/options.h>\\n\#include <wolfssl/openssl/ssl.h>\\n int main(){return 0;}" | tr -d \\\\ | $(CC) -x c $(CFLAGS) -o testwssl.o - 2>/dev/null && $(CC) $(LDFLAGS) -o testwssl testwssl.o -lwolfssl 2>/dev/null && rm testwssl testwssl.o && echo true||echo false)
 ifeq ($(WOLFSSL_CHECK), true)

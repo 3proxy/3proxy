@@ -50,8 +50,12 @@ MAKEFILE = Makefile.Linux
 # PamAuth requires libpam, you may require pam-devel package to be installed
 # SSLPlugin requires  -lcrypto -lssl
 #LIBS = -lcrypto -lssl -ldl 
-#PLUGINS = SSLPlugin StringsPlugin TrafficPlugin PCREPlugin TransparentPlugin PamAuth
-PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin FilePlugin
+#PLUGINS = StringsPlugin TrafficPlugin PamAuth LdapPlugin
+PLUGINS ?= StringsPlugin TrafficPlugin FilePlugin
+
+# Transparent proxying, built in: it needs the packet filter of the platform
+CFLAGS += -DWITH_TRANSPARENT
+TRANSPARENT_OBJS = transparent$(OBJSUFFICS)
 ifeq ($(STATIC), true)
     LDFLAGS += -static
     CFLAGS += -DNOPLUGINS -DNOSTDRESOLVE -DNOCRYPT

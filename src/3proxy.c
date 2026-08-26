@@ -13,6 +13,9 @@ void ssl_install(void);
 #ifdef WITH_PCRE
 void pcre_install(void);
 #endif
+#ifdef WITH_TRANSPARENT
+void transparent_install(void);
+#endif
 #ifndef _WIN32
 #include <sys/resource.h>
 #ifndef NOPLUGINS
@@ -528,6 +531,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #endif
 #ifdef WITH_PCRE
   pcre_install();
+#endif
+#ifdef WITH_TRANSPARENT
+  transparent_install();
 #endif
 
   freeconf(&conf);
