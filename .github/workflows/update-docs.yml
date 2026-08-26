@@ -2,6 +2,7 @@ name: Update HTML documentation
 
 on:
   push:
+    branches: [master]
     paths:
       - 'man/**'
   workflow_dispatch:
