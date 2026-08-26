@@ -438,8 +438,13 @@ class Tester:
         csr = c.dir + "/server.csr"
         ext = c.dir + "/server.ext"
         ca_ext = c.dir + "/ca.ext"
+        # The key identifiers are spelled out because LibreSSL does not add
+        # them for a signed certificate the way OpenSSL 3 does, and Python
+        # rejects a chain with no Authority Key Identifier from 3.13.
         with open(ext, "w") as fp:
-            fp.write("subjectAltName=IP:127.0.0.1,DNS:localhost\n")
+            fp.write("subjectAltName=IP:127.0.0.1,DNS:localhost\n"
+                     "subjectKeyIdentifier=hash\n"
+                     "authorityKeyIdentifier=keyid,issuer\n")
         # A CA without these is not usable as one. They go in a file rather
         # than in -addext, which LibreSSL - the openssl on a stock macOS -
         # does not apply the same way.
@@ -478,7 +483,10 @@ class Tester:
 
         # If the chain does not verify, the fault is in the generation, not
         # in whatever is about to present it.
-        check = subprocess.run(["openssl", "verify", "-CAfile", c.ca, c.server],
+        # -x509_strict is what a current client applies, so check that here
+        # rather than discovering it in a handshake.
+        check = subprocess.run(["openssl", "verify", "-x509_strict",
+                                "-CAfile", c.ca, c.server],
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, timeout=60)
         c.verified = check.returncode == 0
