@@ -277,7 +277,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 #define pcrefd ((struct pcre_filter_data *)fc)
 
 	for(acl = pcrefd->acl; acl; acl=acl->next){
-		if(pl->ACLMatches(pcrefd->acl, param)){
+		if(pl->ACLMatches(acl, param)){
 			match = 1;
 			break;
 		}
