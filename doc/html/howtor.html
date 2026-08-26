@@ -838,11 +838,31 @@ ssl_nocli
 &#35; Генерация закрытого ключа CA
 openssl genrsa -out ca.key 4096
 
+&#35; Расширения, без которых сертификат не годится как CA
+cat > ca.ext << 'EOF'
+basicConstraints=critical,CA:TRUE
+keyUsage=critical,keyCertSign,cRLSign
+subjectKeyIdentifier=hash
+EOF
+
 &#35; Генерация сертификата CA (действителен 10 лет)
-openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+openssl req -new -nodes -key ca.key \
     -subj "/C=RU/ST=Region/L=City/O=MyOrg/CN=My CA" \
-    -out ca.crt
+    -out ca.csr
+openssl x509 -req -in ca.csr -signkey ca.key -sha256 -days 3650 \
+    -extfile ca.ext -out ca.crt
 </pre>
+<p>
+Расширения обязательны. Без <b>basicConstraints=CA:TRUE</b> и
+<b>keyCertSign</b> сертификат не принимается как CA, и клиент сообщает, что не
+может получить сертификат издателя. <b>subjectKeyIdentifier</b> — то, на что
+ссылаются подписанные этим CA сертификаты.
+</p>
+<p>
+Расширения задаются файлом, а не через <b>-addext</b>, потому что LibreSSL —
+команда <b>openssl</b> в macOS и некоторых BSD — обрабатывает -addext иначе,
+чем OpenSSL. Приведённый вариант одинаково работает в обоих.
+</p>
 <p>
 Для MITM импортируйте ca.crt в браузеры/ОС клиентов как доверенный корневой CA.
 </p>
@@ -876,7 +896,17 @@ EOF
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
     -CAcreateserial -out server.crt -days 365 -sha256 \
     -extfile server.ext
+
+&#35; Проверка так же, как это делает современный клиент
+openssl verify -x509_strict -CAfile ca.crt server.crt
 </pre>
+<p>
+Проверять следует строго, потому что именно так проверяет клиент. OpenSSL 3
+добавляет идентификаторы ключей при подписании, а LibreSSL — нет, поэтому файл
+расширений запрашивает их явно. Python начиная с 3.13 проверяет строго и
+отвергает сертификат без <b>authorityKeyIdentifier</b>; другие клиенты идут тем
+же путём.
+</p>
 <p>
 Для публичного https:// прокси используйте CA вроде Let's Encrypt вместо самоподписанного.
 </p>
@@ -896,6 +926,8 @@ cat > client.ext << 'EOF'
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment
 extendedKeyUsage = clientAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
 EOF
 
 &#35; Подписание CA
@@ -918,8 +950,14 @@ openssl pkcs12 -export -out client1.p12 \
 
 &#35; CA
 openssl genrsa -out ca.key 4096
-openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
-    -subj "/CN=3proxy CA" -out ca.crt
+cat > ca.ext << 'EOF'
+basicConstraints=critical,CA:TRUE
+keyUsage=critical,keyCertSign,cRLSign
+subjectKeyIdentifier=hash
+EOF
+openssl req -new -nodes -key ca.key -subj "/CN=3proxy CA" -out ca.csr
+openssl x509 -req -in ca.csr -signkey ca.key -sha256 -days 3650 \
+    -extfile ca.ext -out ca.crt
 
 &#35; Сервер
 openssl genrsa -out server.key 2048
@@ -929,6 +967,8 @@ basicConstraints=CA:FALSE
 keyUsage = keyEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = DNS:localhost,DNS:proxy,IP:127.0.0.1
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
 EOF
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
     -CAcreateserial -out server.crt -days 365 -sha256 -extfile server.ext
@@ -939,11 +979,17 @@ openssl req -new -key client.key -subj "/CN=client" -out client.csr
 cat > client.ext << 'EOF'
 basicConstraints=CA:FALSE
 extendedKeyUsage = clientAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
 EOF
 openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key \
     -CAcreateserial -out client.crt -days 365 -sha256 -extfile client.ext
 openssl pkcs12 -export -out client.p12 -passout pass: \
     -inkey client.key -in client.crt -certfile ca.crt
+
+&#35; Оба должны пройти проверку, которую делает современный клиент
+openssl verify -x509_strict -CAfile ca.crt server.crt
+openssl verify -x509_strict -CAfile ca.crt client.crt
 </pre>
 
  <li><a name="PCRE"><i>Как использовать PCRE-фильтрацию (регулярные выражения)</i></a>

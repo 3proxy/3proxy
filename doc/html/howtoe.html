@@ -828,11 +828,31 @@ This creates an HTTPS proxy (ssl_serv) that accepts TLS connections from clients
 &#35; Generate CA private key
 openssl genrsa -out ca.key 4096
 
+&#35; Extensions that make the certificate usable as a CA
+cat > ca.ext << 'EOF'
+basicConstraints=critical,CA:TRUE
+keyUsage=critical,keyCertSign,cRLSign
+subjectKeyIdentifier=hash
+EOF
+
 &#35; Generate CA certificate (valid for 10 years)
-openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+openssl req -new -nodes -key ca.key \
     -subj "/C=US/ST=State/L=City/O=MyOrg/CN=My CA" \
-    -out ca.crt
+    -out ca.csr
+openssl x509 -req -in ca.csr -signkey ca.key -sha256 -days 3650 \
+    -extfile ca.ext -out ca.crt
 </pre>
+<p>
+The extensions are not optional. Without <b>basicConstraints=CA:TRUE</b> and
+<b>keyCertSign</b> the certificate is not accepted as a CA, and clients report
+that they cannot get the local issuer certificate. <b>subjectKeyIdentifier</b>
+is what certificates signed by this CA point back at.
+</p>
+<p>
+They are given in a file rather than with <b>-addext</b> because LibreSSL, the
+<b>openssl</b> command on macOS and some BSDs, does not apply -addext the same
+way OpenSSL does. The form above behaves the same on both.
+</p>
 <p>
 For MITM, import ca.crt into client browsers/OS as a trusted root CA.
 </p>
@@ -866,7 +886,17 @@ EOF
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
     -CAcreateserial -out server.crt -days 365 -sha256 \
     -extfile server.ext
+
+&#35; Check it the way a current client will
+openssl verify -x509_strict -CAfile ca.crt server.crt
 </pre>
+<p>
+Verify strictly, because that is what the client does. OpenSSL 3 adds the
+subject and authority key identifiers when it signs and LibreSSL does not,
+which is why the extensions file asks for them by name. Python has verified
+strictly since 3.13 and refuses a certificate carrying no
+<b>authorityKeyIdentifier</b>; other clients are moving the same way.
+</p>
 <p>
 For a public https:// proxy, use a CA like Let's Encrypt instead of self-signed.
 </p>
@@ -886,6 +916,8 @@ cat > client.ext << 'EOF'
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment
 extendedKeyUsage = clientAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
 EOF
 
 &#35; Sign with CA
@@ -908,8 +940,14 @@ Import client1.p12 into the client browser or OS certificate store.
 
 &#35; CA
 openssl genrsa -out ca.key 4096
-openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
-    -subj "/CN=3proxy CA" -out ca.crt
+cat > ca.ext << 'EOF'
+basicConstraints=critical,CA:TRUE
+keyUsage=critical,keyCertSign,cRLSign
+subjectKeyIdentifier=hash
+EOF
+openssl req -new -nodes -key ca.key -subj "/CN=3proxy CA" -out ca.csr
+openssl x509 -req -in ca.csr -signkey ca.key -sha256 -days 3650 \
+    -extfile ca.ext -out ca.crt
 
 &#35; Server
 openssl genrsa -out server.key 2048
@@ -919,6 +957,8 @@ basicConstraints=CA:FALSE
 keyUsage = keyEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = DNS:localhost,DNS:proxy,IP:127.0.0.1
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
 EOF
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
     -CAcreateserial -out server.crt -days 365 -sha256 -extfile server.ext
@@ -929,11 +969,17 @@ openssl req -new -key client.key -subj "/CN=client" -out client.csr
 cat > client.ext << 'EOF'
 basicConstraints=CA:FALSE
 extendedKeyUsage = clientAuth
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
 EOF
 openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key \
     -CAcreateserial -out client.crt -days 365 -sha256 -extfile client.ext
 openssl pkcs12 -export -out client.p12 -passout pass: \
     -inkey client.key -in client.crt -certfile ca.crt
+
+&#35; Both must pass the checks a current client applies
+openssl verify -x509_strict -CAfile ca.crt server.crt
+openssl verify -x509_strict -CAfile ca.crt client.crt
 </pre>
  <li><a name="PCRE"><i>How to use PCRE filtering (regular expressions)</i></a>
 <p>
