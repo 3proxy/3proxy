@@ -156,6 +156,26 @@ static void freeptr(void *p){
 	if(*pp) { free(*pp); *pp = NULL; }
 }
 
+#ifndef WITHMAIN
+/* Point at the path in a request line and report the authority it names.
+   Returns NULL if the line is not one we can put back together. */
+static unsigned char * reqpath(unsigned char *line, unsigned char **host, int *hostlen)
+{
+	unsigned char *sp, *p;
+
+	*host = NULL;
+	*hostlen = 0;
+	if(!line || !(sp = (unsigned char *)strchr((char *)line, ' '))) return NULL;
+	while(*sp == ' ') sp++;
+	if(*sp == '/') return sp;
+	if(strncasecmp((char *)sp, "http://", 7)) return NULL;
+	*host = p = sp + 7;
+	while(*p && *p != '/' && *p != ' ') p++;
+	*hostlen = (int)(p - *host);
+	return (*p == '/')? p : NULL;
+}
+#endif
+
 static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
  char *sb;
  char *se;
@@ -254,6 +274,7 @@ void * proxychild(struct clientparam* param) {
  int sleeptime = 0;
 #ifndef WITHMAIN
  int reqsize, reqbufsize;
+ unsigned char *origreq = NULL;
 #endif
  int authenticate;
  struct pollfd fds[2];
@@ -577,11 +598,51 @@ for(;;){
 
 #ifndef WITHMAIN
 
+ /* Only worth keeping a copy when something can rewrite it. */
+ if(param->nreqfilters) origreq = (unsigned char *)strdup((char *)req);
  action = handlereqfilters(param, &req, &reqbufsize, 0, &reqsize);
  if(action == HANDLED){
+	freeptr(&origreq);
 	RETURN(0);
  }
- if(action != PASS) RETURN(517);
+ if(action != PASS){
+	freeptr(&origreq);
+	RETURN(517);
+ }
+
+ /* Only the copy in req was rewritten. On a direct connection the server is
+    sent the request line held in buf, which was parsed and reduced to its
+    path before the filters ran, so put the new path there as well.
+
+    The destination was chosen, and the access rules applied to it, before
+    the rewrite happened. A rewrite that changes the method or the authority
+    is therefore left alone: acting on it would send the request somewhere
+    the rules never saw. */
+ if(origreq && !isconnect && !ftp && strcmp((char *)req, (char *)origreq)){
+	unsigned char *oldhost, *newhost, *oldpath, *newpath;
+	int oldhostlen, newhostlen, methodlen;
+
+	methodlen = (int)(strchr((char *)origreq, ' ') - (char *)origreq);
+	oldpath = reqpath(origreq, &oldhost, &oldhostlen);
+	newpath = reqpath(req, &newhost, &newhostlen);
+	if(oldpath && newpath
+	   && methodlen > 0 && !strncmp((char *)req, (char *)origreq, methodlen)
+	   && req[methodlen] == ' '
+	   && oldhostlen == newhostlen
+	   && (!oldhostlen || !strncasecmp((char *)oldhost, (char *)newhost, oldhostlen))){
+		int newlen = (int)strlen((char *)newpath);
+		int delta = newlen - ((int)reqlen - ssoff);
+
+		if(ssoff > 0 && (int)reqlen >= ssoff && inbuf + delta < bufsize - 1){
+			memmove(buf + ssoff + newlen, buf + reqlen, inbuf - reqlen + 1);
+			memcpy(buf + ssoff, newpath, newlen);
+			inbuf += delta;
+			reqlen += delta;
+			buf[inbuf] = 0;
+		}
+	}
+ }
+ freeptr(&origreq);
  action = handlehdrfilterscli(param, &buf, &bufsize, 0, &inbuf);
  if(action == HANDLED){
 	RETURN(0);

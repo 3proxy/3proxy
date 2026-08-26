@@ -1,9 +1,10 @@
 """PCRE filtering: matching, rewriting, options and rule scope.
 
-Request rewriting only reaches the wire through an HTTP parent. On a direct
-connection the request has already been parsed and converted to origin form
-by the time the filter runs, so the rewrite shows up in the log and nowhere
-else; that path is left alone here rather than pinned down as correct.
+A request rewrite is applied to the buffer the server is sent, so it works
+on a direct connection as well as through a parent. The destination was
+chosen, and the access rules applied to it, before the filter ran, so a
+rewrite that moves the request to another host or changes the method is
+ignored rather than acted on.
 """
 
 
@@ -97,7 +98,67 @@ def run(t):
     t.contains(r, "PEER.ADDR", "reply data can be rewritten")
     t.not_contains(r, "peer.addr", "the original text is gone")
 
-    # --- rewriting the request, which needs an HTTP parent -------------------
+    # --- rewriting the request ------------------------------------------------
+    p = proxy_with("rewrite_req", 'pcre_rewrite request dunno "/echo/old" "/echo/new"')
+    r = t.http(url + "/echo/old", proxy=p)
+    t.eq(200, r.status, "a rewritten request still arrives")
+    t.contains(r, "path=/echo/new", "the origin sees the rewritten path")
+
+    # the replacement may be longer or shorter than what it replaces
+    p = proxy_with("rewrite_long", 'pcre_rewrite request dunno "/echo/x" "/echo/deeper/still"')
+    t.contains(t.http(url + "/echo/x", proxy=p), "path=/echo/deeper/still",
+               "a longer replacement is spliced in")
+    p = proxy_with("rewrite_short", 'pcre_rewrite request dunno "/echo/aaaaaaaaaa" "/echo/b"')
+    t.contains(t.http(url + "/echo/aaaaaaaaaa", proxy=p), "path=/echo/b",
+               "a shorter replacement is spliced in")
+
+    p = proxy_with("rewrite_query", 'pcre_rewrite request dunno "token=old" "token=new"')
+    t.contains(t.http(url + "/echo?token=old", proxy=p), "query=token=new",
+               "the query can be rewritten")
+
+    p = proxy_with("rewrite_none", 'pcre_rewrite request dunno "/nothing" "/else"')
+    t.contains(t.http(url + "/echo/keep", proxy=p), "path=/echo/keep",
+               "a request that does not match is left alone")
+
+    # what follows the request line has to survive the splice
+    p = proxy_with("rewrite_post", 'pcre_rewrite request dunno "/echo/old" "/echo/new"')
+    r = t.http(url + "/echo/old", proxy=p, method="POST", body="hello",
+               headers={"Content-Type": "text/plain"})
+    t.contains(r, "path=/echo/new", "a POST is rewritten too")
+    t.contains(r, "content.length=5", "its body is still described correctly")
+
+    conn = t.connection("127.0.0.1", origin, proxy=p)
+    try:
+        first = t.http(url + "/echo/old", proxy=p, conn=conn)
+        second = t.http(url + "/echo/old", proxy=p, conn=conn)
+        t.contains(first, "path=/echo/new", "the first of two on a connection is rewritten")
+        t.contains(second, "path=/echo/new", "and so is the second")
+    finally:
+        conn.close()
+
+    # --- rewrites that would change where the request goes --------------------
+    elsewhere = t.free_port()
+    t.start("pcre_elsewhere", f"""
+        log
+        flush
+        auth iponly
+        allow *
+        http * /echo* echo
+        httpsrv -p{elsewhere}
+    """, ports=[elsewhere])
+
+    p = proxy_with("rewrite_host",
+                   f'pcre_rewrite request dunno "127.0.0.1:{origin}" "127.0.0.1:{elsewhere}"')
+    r = t.http(url + "/echo", proxy=p)
+    t.eq(200, r.status, "a rewrite naming another host still answers")
+    t.contains(r, f"host=127.0.0.1:{origin}",
+               "but the request goes where the access rules allowed")
+
+    p = proxy_with("rewrite_method", 'pcre_rewrite request dunno "^GET" "HEAD"')
+    t.contains(t.http(url + "/echo", proxy=p), "method=GET",
+               "a rewrite of the method is ignored")
+
+    # --- and the same rewrite through an HTTP parent --------------------------
     parent = t.free_port()
     t.start("pcre_parent", f"""
         log
@@ -106,8 +167,8 @@ def run(t):
         allow *
         proxy -p{parent}
     """, ports=[parent])
-    p = proxy_with("rewrite_req", 'pcre_rewrite request dunno "/echo/old" "/echo/new"',
+    p = proxy_with("rewrite_parent", 'pcre_rewrite request dunno "/echo/old" "/echo/new"',
                    f"parent 1000 http 127.0.0.1 {parent}")
     r = t.http(url + "/echo/old", proxy=p)
-    t.eq(200, r.status, "a rewritten request still arrives")
-    t.contains(r, "path=/echo/new", "the origin sees the rewritten request")
+    t.eq(200, r.status, "a rewritten request through a parent arrives")
+    t.contains(r, "path=/echo/new", "the origin sees the rewritten path through a parent")

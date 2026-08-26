@@ -1485,6 +1485,12 @@ REGEXP - PCRE (Perl) regular expression. Use * if no regexp matching is required
 REWRITE_EXPRESSION - substitution string. May contain Perl-style substrings
 $1, $2, etc. $0 means the whole matched string. \er and \en may be used
 to insert new lines; the string may be empty ("").
+.br
+A rewritten request is what the server receives. The destination is chosen,
+and the access rules are applied to it, before the filters run, so a rewrite
+that names another host or changes the method is logged but not acted on:
+the request is still sent where the access rules allowed. Rewriting the path
+or the query works on a direct connection and through a parent alike.
 
 ACE - access control entry (user names, source IPs, destination IPs, ports, etc.),
 identical to allow/deny/bandlimin commands. The regular expression is only
