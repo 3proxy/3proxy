@@ -115,6 +115,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(WIN32)
     # Windows-specific configuration
     add_compile_definitions(
+        # Windows does not take a recv and a send on one socket from two
+        # threads, so a UDP service answers from a socket of its own
+        NO_SHARE_UDP_SOCKET
         WIN32
         _WIN32
         _MBCS
