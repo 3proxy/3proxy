@@ -66,3 +66,97 @@ reply arrives, so assert on them through `t.wait_output(server, text)`.
 Note that access rules accumulate until `flush`, so a service section that
 means to stand on its own should start with one - otherwise an earlier
 `allow *` matches first and the rule under test is never reached.
+
+## What is not covered yet
+
+41 of the 112 configuration commands appear in a test. What follows is
+roughly the order worth working through: how much of the product a gap
+covers, and how much of a fixture it needs.
+
+### Traffic limits and accounting
+
+`bandlimin` `bandlimout` `nobandlimin` `nobandlimout` `connlim` `noconnlim`
+`countin` `countout` `countall` and the `no*` forms, `maxconn`.
+
+Cheap and worth doing first: `data?size=` and a stopwatch measure a
+bandwidth limit, and the admin counters page already shows what a counter
+holds. `countin` appears in a configuration today but nothing checks that it
+counts. `connlim` and `maxconn` need concurrent connections.
+
+### The mail proxies
+
+`pop3p` `smtpp` `imapp`, and `ftppr`.
+
+The largest gap by volume: four protocol implementations with no coverage at
+all. Each needs a scripted server that speaks enough of the protocol,
+including the multi-line and challenge forms - a POP3 or IMAP server that
+only answers `+OK` will not exercise the interesting paths. Worth the
+fixture: this is also where known parent-chaining trouble lives, since
+`clientnegotiate()` has no case for R_POP3, R_SMTP or R_FTP.
+
+### Access rules and chaining
+
+`redirect` `weight` `parentretries` `force` `noforce` `include` `nolog`.
+
+Also the parts of an ACE never exercised: source addresses and masks, port
+ranges, time and weekday fields, and operation lists beyond the single
+`HTTP_CONNECT` used today. `weight` needs several parents and enough
+requests to see the split.
+
+### IPv6
+
+Not one test binds or connects over `::1`, though the tree is full of
+`#ifndef NOIPV6` and `extip` has an IPv6 CIDR-randomisation path of its own.
+Most existing cases would work over IPv6 with the address parameterised.
+
+### Authentication
+
+`authcache` `radius` `authnserver`, and the auth methods beyond `iponly` and
+`strong`: `none`, `nbname`, `dnsname`. `radius` needs a server to answer.
+
+### Plugins
+
+`plugin`. Nothing loads one, though `StringsPlugin`, `TrafficPlugin`,
+`TransparentPlugin` and `FilePlugin` are built in CI. StringsPlugin matters
+most: the admin string table is kept byte-compatible for it deliberately,
+and nothing proves that.
+
+### Logging
+
+`logformat` `rotate` `archiver` `logdump`.
+
+Tests read the log as free text, so a reordered field would pass every check
+here and break every downstream parser. `rotate` and `archiver` need control
+of the clock or a long run.
+
+### TLS options
+
+About 25 `ssl_client_*` and `ssl_server_*` commands: SNI, ALPN, protocol
+versions, cipher lists, `ssl_client_cert` and `ssl_client_key` for mTLS,
+`ssl_*_verify` and `ssl_*_no_verify`. The certificate fixture exists, so
+these are mostly a matter of writing them.
+
+### Process and lifecycle
+
+`daemon` `chroot` `setuid` `setgid` `pidfile` `stacksize` `backlog` `monitor`
+`system` `include` `timeouts` `maxseg` `external` `delimchar`
+`filtermaxsize`. Several need root or change the process in ways a test
+runner has to survive; `include`, `timeouts` and `pidfile` do not, and are
+easy.
+
+Reload is worth a case of its own: the admin page returns "Reload scheduled"
+and nothing checks that the configuration is re-read, that a changed rule
+takes effect, or that services come back.
+
+### DNS
+
+`fakeresolve` `nscache6` `dialer`.
+
+### Known limitations, deliberately not asserted
+
+A request rewrite that changes the method or the authority is ignored, and
+the manual says so; a test that pinned the current behaviour would have to
+change when that does. Certificates 3proxy generates for MITM carry no
+Authority Key Identifier, so `tests/cases/ssl.py` verifies the chain without
+strict checking - if that is fixed, the test should tighten rather than stay
+as it is.
