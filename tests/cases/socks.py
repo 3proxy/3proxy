@@ -46,6 +46,22 @@ def run(t):
     t.eq(200, t.socks_http(plain, origin + "/echo", socks4=True).status,
          "a SOCKS4 connection")
 
+    # --- the UDP association, and what goes through it ---------------------
+    # Binding the association is one thing; carrying a datagram is what it
+    # is for.
+    echo = t.udp_echo()
+    reply, bound = t.socks_udp(plain, "127.0.0.1", echo, b"ping")
+    t.eq(b"echo:ping", reply, "a datagram is relayed and answered")
+    t.ne(None, bound, "the association reports the port to send to")
+
+    reply, _ = t.socks_udp(plain, "127.0.0.1", echo, b"x" * 2000)
+    t.eq(b"echo:" + b"x" * 2000, reply, "a larger datagram survives the relay")
+
+    # each association gets its own socket
+    _, first = t.socks_udp(plain, "127.0.0.1", echo, b"one")
+    _, second = t.socks_udp(plain, "127.0.0.1", echo, b"two")
+    t.ne(first, second, "a second association binds its own port")
+
     # --- authentication ----------------------------------------------------
     t.eq(200, t.socks_http(guarded, origin + "/echo",
                            auth=("alice", "secret")).status,

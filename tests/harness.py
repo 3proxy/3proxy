@@ -29,6 +29,7 @@ import struct
 import subprocess
 import sys
 import textwrap
+import threading
 import time
 
 
@@ -125,6 +126,7 @@ class Tester:
         self._skipped = 0
         self._certs = None
         self.logs = []
+        self.udp_servers = []
 
     # ---- servers -----------------------------------------------------
 
@@ -205,6 +207,9 @@ class Tester:
 
     def stop_all(self):
         """Stop the servers, keeping what they printed for the report."""
+        for sock in self.udp_servers:
+            sock.close()
+        self.udp_servers = []
         for server in self.servers:
             server.stop()
             self.logs.append((server.name, server.output()))
@@ -293,6 +298,150 @@ class Tester:
                 return b"".join(chunks).decode("utf-8", "replace")
         except OSError as exc:
             return f"<no reply: {exc}>"
+
+    # ---- UDP ---------------------------------------------------------
+
+    def udp_echo(self, prefix=b"echo:"):
+        """Start a UDP server that echoes what it receives, and give its port.
+
+        Something has to be on the far side of a port mapper or a SOCKS
+        association for the data path to be visible at all.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+
+        def serve():
+            while True:
+                try:
+                    data, peer = sock.recvfrom(65536)
+                except OSError:
+                    return
+                try:
+                    sock.sendto(prefix + data, peer)
+                except OSError:
+                    return
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        self.udp_servers.append(sock)
+        return port
+
+    def udp_exchange(self, port, payload, host="127.0.0.1"):
+        """Send one datagram and return the reply, or None."""
+        if not isinstance(payload, bytes):
+            payload = payload.encode()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(self.timeout)
+        try:
+            sock.sendto(payload, (host, port))
+            return sock.recvfrom(65536)[0]
+        except OSError:
+            return None
+        finally:
+            sock.close()
+
+    def wait_udp(self, port, payload=b"ping", timeout=5.0):
+        """Wait until a UDP service answers.
+
+        There is no socket to connect to, so readiness can only be found
+        out by asking; a datagram sent before the service is up is simply
+        lost.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.udp_exchange(port, payload) is not None:
+                return True
+            time.sleep(0.05)
+        return False
+
+    def socks_udp(self, socks, host, port, payload, keep=None):
+        """Relay a datagram through a SOCKS5 association.
+
+        Returns (reply payload, association port), or (None, port) if
+        nothing came back. The control connection has to stay open for the
+        association to live, so it is closed only on the way out.
+        """
+        if not isinstance(payload, bytes):
+            payload = payload.encode()
+        shost, sport = self._hostport(socks)
+        ctrl = None
+        udp = None
+        try:
+            ctrl = socket.create_connection((shost, sport), self.timeout)
+            ctrl.settimeout(self.timeout)
+            ctrl.sendall(b"\x05\x01\x00")
+            if self._recvall(ctrl, 2) != b"\x05\x00":
+                return None, None
+            ctrl.sendall(b"\x05\x03\x00\x01\x00\x00\x00\x00" + struct.pack("!H", 0))
+            reply = self._recvall(ctrl, 4)
+            if len(reply) < 4 or reply[1] != 0:
+                return None, None
+            _, bound = self._read_socks_addr(ctrl, reply[3])
+
+            udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            udp.settimeout(self.timeout)
+            header = (b"\x00\x00\x00\x01" + socket.inet_aton(host) +
+                      struct.pack("!H", port))
+            udp.sendto(header + payload, (shost, bound))
+            try:
+                data = udp.recvfrom(65536)[0]
+            except OSError:
+                return None, bound
+            # the reply carries the same kind of header, which is not payload
+            if len(data) < 10 or data[3] != 1:
+                return None, bound
+            return data[10:], bound
+        except OSError:
+            return None, None
+        finally:
+            if udp:
+                udp.close()
+            if ctrl:
+                ctrl.close()
+
+    # ---- DNS ---------------------------------------------------------
+
+    def dns_query(self, port, name, host="127.0.0.1"):
+        """Ask for an A record and return the addresses in the answer."""
+        query = struct.pack("!HHHHHH", 0x2A2A, 0x0100, 1, 0, 0, 0)
+        for label in name.split("."):
+            query += bytes([len(label)]) + label.encode()
+        query += b"\x00" + struct.pack("!HH", 1, 1)
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(self.timeout)
+        try:
+            sock.sendto(query, (host, port))
+            data = sock.recvfrom(65536)[0]
+        except OSError:
+            return None
+        finally:
+            sock.close()
+
+        if len(data) < 12 or data[:2] != query[:2]:
+            return None
+        answers = struct.unpack("!H", data[6:8])[0]
+        addresses = []
+        pos = 12
+        while pos < len(data) and data[pos]:      # skip the question
+            pos += data[pos] + 1
+        pos += 5
+        for _ in range(answers):
+            if pos + 12 > len(data):
+                break
+            if data[pos] & 0xC0 == 0xC0:
+                pos += 2
+            else:
+                while pos < len(data) and data[pos]:
+                    pos += data[pos] + 1
+                pos += 1
+            rtype, _, _, rdlen = struct.unpack("!HHIH", data[pos:pos + 10])
+            pos += 10
+            if rtype == 1 and rdlen == 4:
+                addresses.append(socket.inet_ntoa(data[pos:pos + 4]))
+            pos += rdlen
+        return addresses
 
     # ---- SOCKS -------------------------------------------------------
 
@@ -442,7 +591,7 @@ class Tester:
         # them for a signed certificate the way OpenSSL 3 does, and Python
         # rejects a chain with no Authority Key Identifier from 3.13.
         with open(ext, "w") as fp:
-            fp.write("subjectAltName=IP:127.0.0.1,DNS:localhost\n"
+            fp.write("subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:sni.test\n"
                      "subjectKeyIdentifier=hash\n"
                      "authorityKeyIdentifier=keyid,issuer\n")
         # A CA without these is not usable as one. They go in a file rather
@@ -542,11 +691,26 @@ class Tester:
             conn.close()
 
     def https(self, url, proxy=None, ca=None, strict=True, verify_name=True,
-              method="GET", headers=None):
-        """An https:// request, optionally tunnelled through a proxy."""
+              method="GET", headers=None, connect_to=None):
+        """An https:// request, optionally tunnelled through a proxy.
+
+        connect_to sends the handshake somewhere other than the name in the
+        URL, which is how a name-directed proxy is reached: the name still
+        goes out in the handshake and is what the certificate is checked
+        against.
+        """
         host, port, path = self._split(url, default_port=443)
         context = self._context(ca, strict, verify_name)
         try:
+            if connect_to:
+                raw = socket.create_connection(connect_to, self.timeout)
+                conn = http.client.HTTPSConnection(host, port, context=context,
+                                                   timeout=self.timeout)
+                conn.sock = context.wrap_socket(raw, server_hostname=host)
+                conn.request(method, path, headers=headers or {})
+                reply = conn.getresponse()
+                return Response(reply.status, reply.read(),
+                                dict(reply.getheaders()))
             if proxy:
                 phost, pport = self._hostport(proxy)
                 conn = http.client.HTTPSConnection(phost, pport, context=context,

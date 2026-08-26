@@ -134,6 +134,12 @@ def run(t):
     t.in_range(t.socks_udp_associate(udps), ILOW, IHIGH,
                "UDP ASSOCIATE binds inside the internal range")
 
+    # and the association still carries traffic while bound in the range
+    echo = t.udp_echo()
+    reply, bound = t.socks_udp(f"127.0.0.1:{udps}", "127.0.0.1", echo, b"data")
+    t.eq(b"echo:data", reply, "a range-bound association still relays")
+    t.in_range(bound, ILOW, IHIGH, "and the port it relays from is in the range")
+
     # without a range the association still works, on an ephemeral port
     udps2 = t.free_port()
     t.start("parent_intport_none", f"""
