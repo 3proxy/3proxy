@@ -830,6 +830,14 @@ int MODULEMAINFUNC (int argc, char** argv){
 #ifndef _WIN32
 		opt = 1;
 		if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
+#else
+		/* A UDP service on Windows answers from a second socket bound to
+		   the address it listens on, and Windows only allows that bind
+		   when both sockets ask for it. */
+		if(isudp){
+			opt = 1;
+			if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
+		}
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;
