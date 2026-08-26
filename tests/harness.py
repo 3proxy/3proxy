@@ -424,15 +424,20 @@ class Tester:
 
     # ---- DNS ---------------------------------------------------------
 
-    def dns_query(self, port, name, host="127.0.0.1"):
-        """Ask for an A record and return the addresses in the answer."""
+    def dns_query(self, port, name, host="127.0.0.1", timeout=2.0):
+        """Ask for an A record and return the addresses in the answer.
+
+        The default timeout is short: a name server on the loopback answers
+        at once or not at all, and waiting the full request timeout on every
+        attempt turns a server that answers nothing into a very slow run.
+        """
         query = struct.pack("!HHHHHH", 0x2A2A, 0x0100, 1, 0, 0, 0)
         for label in name.split("."):
             query += bytes([len(label)]) + label.encode()
         query += b"\x00" + struct.pack("!HH", 1, 1)
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(self.timeout)
+        sock.settimeout(timeout)
         try:
             sock.sendto(query, (host, port))
             data = sock.recvfrom(65536)[0]

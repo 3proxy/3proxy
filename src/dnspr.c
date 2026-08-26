@@ -45,7 +45,7 @@ void * dnsprchild(struct clientparam* param) {
  memcpy(buf, param->srv->udpbuf, i);
  _3proxy_sem_unlock(udpinit);
  semlocked = 0;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SHARE_UDP_SOCKET)
 	if((param->clisock=param->srv->so._socket(param->sostate, AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
@@ -56,6 +56,8 @@ void * dnsprchild(struct clientparam* param) {
 	}
 
 #else
+	/* The reply has to come from the address the query was sent to, which
+	   is the listening socket. */
 	param->clisock = param->srv->srvsock;
 #endif
 
@@ -217,7 +219,8 @@ CLEANRET:
  }
  if(bbuf)free(bbuf);
  if(host)free(host);
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(SHARE_UDP_SOCKET)
+ /* The socket belongs to the service, so the caller must not close it. */
  param->clisock = INVALID_SOCKET;
 #endif
  return (NULL);

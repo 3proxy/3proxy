@@ -835,10 +835,21 @@ int MODULEMAINFUNC (int argc, char** argv){
    port there, and it only allows another local process to bind the same
    address and port, with undefined behaviour as to which socket receives the
    connections. Use -olSO_EXCLUSIVEADDRUSE to prevent that instead.
+
+   A Windows build which does not share the listening socket is the exception:
+   its UDP services bind a second socket to the same address to answer from,
+   and Windows only allows that when both sockets ask for it.
  */
 #ifndef _WIN32
 		opt = 1;
 		if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
+#else
+#ifndef SHARE_UDP_SOCKET
+		if(isudp){
+			opt = 1;
+			if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
+		}
+#endif
 #endif
 #ifdef SO_REUSEPORT
 		opt = 1;
