@@ -1115,6 +1115,57 @@ users &quot;test4:CR:$3$salt$G47yV9w....&quot; <br>
 Note: double quotes are required because the password
 contains a $ sign.</p>
 
+
+<p style="margin-left:9%; margin-top: 1em"><b>transparent</b>
+<i>[auto|netfilter|pf|socket]</i> <br>
+Take the destination of a connection, both address and port,
+from the packet filter that redirected it, instead of from
+the request. It applies to services declared after it, and
+<b>notransparent</b> turns it off again for the services
+after that. Built into the binary since 1.0.1, and
+previously the separate TransparentPlugin. <br>
+On Linux the kernel is asked, so <b>iptables</b> or
+<b>nftables</b> redirection is enough. On the BSDs pf is
+asked through <b>/dev/pf</b>, which 3proxy must be able to
+read, so <b>rdr</b> rules work; a redirection that leaves
+the destination on the socket is used where there is one, as
+<b>divert-to</b> on OpenBSD and <b>ipfw fwd</b> on FreeBSD
+do. macOS ships no header for pf and has neither of those,
+so the commands exist in a macOS build but cannot be used.
+<br>
+The mechanism is chosen automatically. The optional argument
+pins it for an installation that has more than one:
+<b>auto</b> is the default, <b>netfilter</b> asks the Linux
+kernel, <b>pf</b> looks the connection up in the packet
+filter, and <b>socket</b> reads the address off the socket.
+A mode the build has no code for is refused rather than
+ignored. <br>
+A connection that reaches a <b>socket</b> mode service
+without having been redirected is refused: its destination
+is the address the service listens on, and using that would
+send the service to itself. <br>
+A redirected connection carries no destination of its own,
+so without this the service uses whatever it would use
+otherwise: the <b>Host</b> header for an HTTP request, or
+the address a port mapper was configured with. <b>tlspr</b>
+receives nothing at all unless traffic is redirected to it
+or the clients resolve names to it, and with a redirection
+it has the address as well as the name from the handshake,
+which is what allows access rules to be written with host
+names. With it, every service reaches the address the client
+was trying to reach, and access rules, parents, limits and
+logging apply to it as usual. <br>
+The redirection rules must not match the connections the
+proxy itself makes to those destinations, or the traffic
+returns to the proxy and loops. Give the service an outgoing
+address with <b>-e</b> and exclude that address in the
+rules, or run 3proxy as its own user and exclude that user.
+See the <b>TRANSPARENT PROXYING</b> section of the
+documentation for rules per platform. <b><br>
+notransparent</b> <br>
+Stop taking the destination from the packet filter for the
+services declared after it.</p>
+
 <p style="margin-left:9%; margin-top: 1em"><b>flush</b>
 <br>
 empty the active access list. The access list must be
