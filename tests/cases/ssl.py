@@ -162,13 +162,21 @@ def run(t):
     # what the machine running the tests puts in its hosts file.
     target = f"https://intercepted.test:{origin}/secret/page"
 
-    # The client trusts our CA, which is what signs the spoofed certificate.
-    # Verification is not strict: 3proxy issues those certificates without an
-    # Authority Key Identifier, which Python rejects under its 3.13 defaults.
-    # The spoofed certificate names the upstream host rather than the one
-    # asked for, so the chain is checked but the name is not.
-    r = t.https(target, proxy=f"127.0.0.1:{mitm}", ca=certs.ca, strict=False,
+    # The client trusts our CA, which is what signs the spoofed certificate,
+    # and checks it the way a current client does. The certificate names the
+    # upstream host rather than the one asked for, so the chain is verified
+    # but the name is not.
+    r = t.https(target, proxy=f"127.0.0.1:{mitm}", ca=certs.ca,
                 verify_name=False)
+    if r.status is None and "Authority Key Identifier" in (r.error or ""):
+        # A build against wolfSSL cannot generate certificate extensions,
+        # so the identifiers a strict verifier looks for are absent there.
+        t.skip("strict verification of an intercepted certificate "
+               "(this build cannot generate the key identifiers)")
+        r = t.https(target, proxy=f"127.0.0.1:{mitm}", ca=certs.ca,
+                    strict=False, verify_name=False)
+    else:
+        t.ok("the intercepted certificate satisfies a strict verifier")
     t.eq(200, r.status, "MITM passes the request through")
     t.contains(r, "path=/secret/page", "the intercepted request reaches the origin")
 
@@ -186,7 +194,7 @@ def run(t):
     # Without interception the same request is opaque: the proxy logs the
     # CONNECT target and nothing from inside the tunnel.
     before = len(proxies.output())
-    r = t.https(target, proxy=f"127.0.0.1:{plain}", ca=certs.ca, strict=False,
+    r = t.https(target, proxy=f"127.0.0.1:{plain}", ca=certs.ca,
                 verify_name=False)
     t.eq(200, r.status, "the plain proxy tunnels the same request")
     tunnelled = t.wait_output(proxies, "intercepted.test", since=before)

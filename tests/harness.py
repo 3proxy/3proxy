@@ -130,6 +130,20 @@ class Tester:
 
     # ---- servers -----------------------------------------------------
 
+    def has_ipv6(self):
+        """Whether this machine can use the IPv6 loopback at all."""
+        try:
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        except OSError:
+            return False
+        try:
+            sock.bind(("::1", 0))
+            return True
+        except OSError:
+            return False
+        finally:
+            sock.close()
+
     def free_port(self):
         """A port nothing is listening on. Closed again before it is used,
         which is racy in principle and reliable enough in practice."""
@@ -150,7 +164,11 @@ class Tester:
         return path
 
     def start(self, name, config, ports=()):
-        """Write a configuration, run it, and wait for its ports to open."""
+        """Write a configuration, run it, and wait for its ports to open.
+
+        A port may be given as a number, or as (address, port) for a service
+        bound somewhere other than 127.0.0.1.
+        """
         path = self.write_config(name, config)
         logfile = os.path.join(self.tmpdir, name + ".out")
         with open(logfile, "wb") as out:
@@ -159,8 +177,9 @@ class Tester:
         server = Server(name, path, proc, logfile)
         self.servers.append(server)
 
-        for port in ports:
-            if not self.wait_port(port):
+        for entry in ports:
+            host, port = entry if isinstance(entry, tuple) else ("127.0.0.1", entry)
+            if not self.wait_port(port, host=host):
                 code = proc.poll()
                 if code is None:
                     died = "the process is still running"
@@ -181,11 +200,11 @@ class Tester:
                               stderr=subprocess.STDOUT, timeout=15)
         return done.stdout.decode("utf-8", "replace")
 
-    def wait_port(self, port, timeout=5.0):
+    def wait_port(self, port, timeout=5.0, host="127.0.0.1"):
         deadline = time.time() + timeout
         while time.time() < deadline:
             try:
-                with socket.create_connection(("127.0.0.1", port), 0.25):
+                with socket.create_connection((host, port), 0.25):
                     return True
             except OSError:
                 time.sleep(0.02)
@@ -242,7 +261,10 @@ class Tester:
                                        tunnel=tunnel)
             target = path
             if proxy and not tunnel:
-                target = f"http://{host}:{port}{path}"
+                # an address with colons goes back in brackets, or the
+                # absolute URI cannot be read
+                authority = f"[{host}]" if ":" in host else host
+                target = f"http://{authority}:{port}{path}"
             if body is not None and not isinstance(body, bytes):
                 body = body.encode()
             conn.request(method, target, body=body, headers=headers)
@@ -479,6 +501,8 @@ class Tester:
 
             if remote_dns:
                 target = b"\x03" + bytes([len(host)]) + host.encode()
+            elif ":" in host:
+                target = b"\x04" + socket.inet_pton(socket.AF_INET6, host)
             else:
                 target = b"\x01" + socket.inet_aton(socket.gethostbyname(host))
             sock.sendall(b"\x05\x01\x00" + target + struct.pack("!H", port))
@@ -681,7 +705,8 @@ class Tester:
         try:
             if body is not None and not isinstance(body, bytes):
                 body = body.encode()
-            conn.request(method, f"http://{host}:{port}{path}", body=body,
+            authority = f"[{host}]" if ":" in host else host
+            conn.request(method, f"http://{authority}:{port}{path}", body=body,
                          headers=headers or {})
             reply = conn.getresponse()
             return Response(reply.status, reply.read(), dict(reply.getheaders()))
@@ -740,17 +765,28 @@ class Tester:
 
     @staticmethod
     def _hostport(value):
+        if value.startswith("["):
+            host, _, rest = value[1:].partition("]")
+            return host, int(rest[1:])
         host, _, port = value.rpartition(":")
         return host or "127.0.0.1", int(port)
 
     @staticmethod
     def _split(url, default_port=80):
+        """Split a URL, understanding an address in brackets.
+
+        The brackets are dropped: they belong to the URL, not to the address
+        a socket call or a certificate check wants.
+        """
         for prefix in ("http://", "https://"):
             if url.startswith(prefix):
                 url = url[len(prefix):]
                 break
         authority, _, path = url.partition("/")
-        if ":" in authority:
+        if authority.startswith("["):
+            host, _, rest = authority[1:].partition("]")
+            port = rest[1:] if rest.startswith(":") else default_port
+        elif ":" in authority:
             host, _, port = authority.rpartition(":")
         else:
             host, port = authority, default_port

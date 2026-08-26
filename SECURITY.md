@@ -7,6 +7,25 @@
 | 0.9.8   | :white_check_mark: |
 | < 0.9.8 | :x:                |
 
+## Hardening a deployment
+
+Configuration is where most of the risk lives. The security recommendations are
+kept in [doc/html/securityen.html](doc/html/securityen.html), published at
+<https://3proxy.org/securityen.html>: how to run the service, what the
+ACLs have to cover, and the settings whose defaults are safe only until
+something else is enabled alongside them.
+
+Read it before exposing a service. Recurring points from it:
+
+- Run unprivileged, never suid, and chroot where the platform allows.
+- Name the internal and external interfaces explicitly, and limit sources and
+  destinations with ACLs rather than relying on defaults.
+- Enabling IPv6 makes ACLs written in IPv4 incomplete: the same host is
+  reachable through an IPv4-mapped address, and the IPv6 loopback is an
+  address of its own.
+- Anything that terminates or intercepts TLS holds key material and sees full
+  request URLs; both the key and the logs need protecting.
+
 ## Reporting a Vulnerability
 
 Report to 3proxy@3proxy.org or via [GitHub security reporting](https://github.com/3proxy/3proxy/security)

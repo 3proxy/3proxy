@@ -69,7 +69,9 @@ means to stand on its own should start with one - otherwise an earlier
 
 ## What is not covered yet
 
-41 of the 112 configuration commands appear in a test. What follows is
+41 of the 112 configuration commands appear in a test, and the count says
+nothing about service options: the IPv6 case, for instance, exercises -4,
+-6, -46, -64 and -i without adding a command to it. What follows is
 roughly the order worth working through: how much of the product a gap
 covers, and how much of a fixture it needs.
 
@@ -103,11 +105,12 @@ ranges, time and weekday fields, and operation lists beyond the single
 `HTTP_CONNECT` used today. `weight` needs several parents and enough
 requests to see the split.
 
-### IPv6
+### IPv6, what is left of it
 
-Not one test binds or connects over `::1`, though the tree is full of
-`#ifndef NOIPV6` and `extip` has an IPv6 CIDR-randomisation path of its own.
-Most existing cases would work over IPv6 with the address parameterised.
+`tests/cases/ipv6.py` covers listening on `::1`, proxying to and from it,
+SOCKS with an IPv6 destination, rules naming an IPv6 address, and which
+family each of `-4 -6 -46 -64` will use. Still open: `extip` with an IPv6 CIDR, whose
+randomisation path has no coverage.
 
 ### Authentication
 
@@ -156,7 +159,6 @@ takes effect, or that services come back.
 
 A request rewrite that changes the method or the authority is ignored, and
 the manual says so; a test that pinned the current behaviour would have to
-change when that does. Certificates 3proxy generates for MITM carry no
-Authority Key Identifier, so `tests/cases/ssl.py` verifies the chain without
-strict checking - if that is fixed, the test should tighten rather than stay
-as it is.
+change when that does. An intercepted certificate is verified strictly where the build can
+generate the key identifiers, and the case skips that one check on a wolfSSL
+build, which cannot. If wolfSSL gains the ability, the skip should go.

@@ -132,7 +132,8 @@ change default server port to NUMBER
 Only resolve IPv6 addresses. IPv4 addresses are packed in IPv6 in IPV6_V6ONLY compatible way.
 .br
 .B -4
-Only resolve IPv4 addresses
+Only resolve IPv4 addresses. This is the default: a service reaches an IPv6
+address only when told to with \fB-6\fR, \fB-46\fR or \fB-64\fR.
 .br
 .B -46
 Prefer IPv4. Resolve IPv6 addresses if IPv4 address is not resolvable
@@ -521,14 +522,18 @@ If not specified, nserver is used. The syntax is the same as for nserver.
 .br
  Cache \fI<cachesize>\fR records for name resolution (\fBnscache\fR for IPv4,
 \fBnscache6\fR for IPv6). The cache size should usually be large enough
-(for example, 65536).
+(for example, 65536). The two are separate: a name that resolves to an IPv6
+address, including one given with \fBnsrecord\fR, is only held when
+\fBnscache6\fR is configured, and \fBnscache\fR does nothing for it. Both
+caches are global rather than per-service.
 
 .br
 .BR nsrecord
 \fI<hostname>\fR \fI<hostaddr>\fR
 .br
  Adds static record to nscache. \fBnscache\fR must be enabled and must come
-first, because the record is placed in the table it allocates, and
+first, because the record is placed in the table it allocates - \fBnscache6\fR
+for a record naming an IPv6 address - and
 \fBnserver\fR must be set as well: without it the system resolver is used and
 static records are never consulted. If 0.0.0.0
 is used as a hostaddr host will never resolve, it can be used to

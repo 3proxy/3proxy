@@ -19,6 +19,45 @@ authentication is currently available.
 <li>Always limit connections to the internal network and localhost (to 127.0.0.1 and
 all interfaces) with ACLs. Be careful, because the BIND command in SOCKS requires the
 BIND method with the external interface IP address to be allowed.
+<li>Services resolve IPv4 only unless told otherwise ('-4' is the default). Enabling
+IPv6 with '-6', '-46' or '-64' makes every ACL written in IPv4 incomplete, because the
+same host can be asked for in another way. A proxy that denies 127.0.0.1 but has IPv6
+enabled still reaches that host as '::ffff:127.0.0.1', and reaches the machine again as
+'::1', which is a different address the IPv4 rule never mentioned. When IPv6 is enabled,
+deny the mapped form '::ffff:0:0/96' as well unless it is needed, and deny the IPv6
+addresses that correspond to whatever the IPv4 rules protect: '::1' and '::' for the
+local machine, 'fe80::/10' for link-local and 'fc00::/7' for unique local addresses.
+Denying the IPv4 spelling alone is not enough.
+<li>With '-46' or '-64' a name resolves to either family, so a target ACL that names
+only one of a host's addresses does not limit that host. Names are resolved into
+separate caches, and a name that resolves to an IPv6 address is only cached when
+'nscache6' is configured.
+<li>The 'admin' service hands out counters, the list of running services and a way to
+trigger a configuration reload. Bind it to an internal interface, and put
+authentication and an ACL in front of it. The '-s' option limits what the pages offer
+but is not authentication.
+<li>The 'echo' and 'data' operations of the 'http' command exist for testing. 'data'
+returns a response of whatever size the request asks for, so a listener offering it to
+anyone is a traffic amplifier. Do not configure them on a public service.
+<li>'ssl_server_ca_key' is the private key of a certificate authority that clients have
+been told to trust. Anyone who obtains it can impersonate any site to those clients, so
+protect it as a signing key and use a CA created for this purpose only, never one that
+is trusted for anything else. Restrict the 'ssl_certcache' directory as well: it holds
+the certificates generated from that key.
+<li>Interception ('ssl_mitm') ends the guarantee the client believes it has. The full
+URL of every request inside the tunnel, query string included, becomes visible to the
+proxy and reaches the log, where a plain CONNECT would have shown only a host and a
+port. Treat those logs accordingly.
+<li>Certificates generated for interception by a build against wolfSSL carry no key
+identifiers, because that library cannot generate certificate extensions, and a client
+verifying strictly (OpenSSL 'x509_strict', which recent Python enables by default)
+rejects them. Builds against OpenSSL generate them. Where they are missing, turning
+verification off in the client removes the protection interception was supposed to
+preserve; use an OpenSSL build instead.
+<li>Regular expression rules ('pcre', 'pcre_rewrite') are matched without
+authentication and do not replace ACLs. A rewrite that would change the method or the
+destination of a request is ignored, because the destination was already authorized;
+do not rely on one to redirect traffic.
 <li>Before 3proxy 0.8, always use nserver and nscache under Unix; otherwise, a DoS attack is possible
 with an unreachable DNS server (because gethostbyname will block other threads).
 <li>Keep logs in a secure location, because some confidential information from
