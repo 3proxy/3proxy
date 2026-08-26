@@ -1,31 +1,56 @@
-<h3>3proxy TransparentPlugin (Linux/BSD only)</h3>
+<h3>3proxy transparent proxying (Linux/BSD only)</h3>
 
-This plugin can turn 3proxy into a transparent proxy for virtually any TCP-based protocol
-and use all 3proxy features - redirections, parent proxies, ACLs, traffic limitations,
-etc. The TransparentPlugin takes the destination IP:port from Linux and uses this
-information as the target IP in the proxy. An example usage:
+Transparent proxying is part of 3proxy itself since 1.0.1. It was the separate
+TransparentPlugin before that, and the <b>plugin</b> line that used to load it
+is no longer needed: the <b>transparent</b> and <b>notransparent</b> commands
+are always available on the platforms that can redirect a connection.
+
+<p>
+It turns 3proxy into a transparent proxy for virtually any TCP-based protocol,
+with the rest of 3proxy applying as usual - redirections, parent proxies, ACLs,
+traffic limitations and logging. The destination IP and port come from the
+packet filter that redirected the connection, and are used as the target of the
+proxied connection.
+</p>
 
 <pre>
-plugin /path/to/TransparentPlugin.ld.so transparent_plugin
 log /path/to/log
 auth iponly
 allow * * * 80
 parent 1000 http 0.0.0.0 0
 allow *
 parent 1000 socks5 SOCKS5_IP SOCKS5_PORT USER PASSWORD
+
 transparent
-tcppm -iLOCAL_IP 12345 127.0.0.1 11111
+tcppm -eLOCAL_IP 12345 127.0.0.1 11111
 notransparent
 proxy
 </pre>
-Now, any TCP traffic transparently redirected to port 12345 will be routed via
-the parent SOCKSv5 proxy and logged; all URLs for web requests are visible in logs.
-The parameters '127.0.0.1 11111' in this case are not used and are overwritten by
-the destination IP:port for each transparent connection.
 
-<h4>Download:</h4>
-<ul>
- <li>Plugin is included in 3proxy 0.8
-</li></ul>
+<p>
+Any TCP traffic redirected to port 12345 is routed through the parent SOCKSv5
+proxy and logged, with the URLs of web requests visible in the log. The
+'127.0.0.1 11111' arguments are not used in that case: they are replaced by the
+destination the client was trying to reach.
+</p>
+
+<p>
+The destination is looked up in pf on the BSDs, through <b>/dev/pf</b>, and
+asked of the kernel on Linux; a redirection that leaves the address on the
+socket is used where there is one. <b>transparent</b> takes an optional
+<b>auto</b>, <b>netfilter</b>, <b>pf</b> or <b>socket</b> to pin that choice.
+</p>
+<p>
+The redirection rules must not match the connections 3proxy itself makes, or
+the traffic returns to the proxy and loops. Give the service an address to
+connect from with <b>-e</b> and exclude it in the rules, or run 3proxy as its
+own account and exclude that account.
+</p>
+
+<p>
+Redirection rules for iptables, nftables, firewalld, ufw and pf are in
+<a href="../howtoe.html#TRANSPARENT">How to proxy transparently</a>, and the
+commands are described in 3proxy.cfg(5).
+</p>
 
 &copy; Vladimir Dubrovin, License: BSD style

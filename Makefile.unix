@@ -46,7 +46,13 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.unix
-PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin FilePlugin
+PLUGINS ?= StringsPlugin TrafficPlugin FilePlugin
+
+# Transparent proxying is not built here: this makefile is for the systems
+# without a redirection 3proxy can read the original destination from. Where
+# the platform has one - OpenBSD divert-to is the case that fits - uncomment:
+#CFLAGS += -DWITH_TRANSPARENT
+#TRANSPARENT_OBJS = transparent$(OBJSUFFICS)
 ifeq ($(STATIC), true)
     LDFLAGS += -static
     CFLAGS += -DNOPLUGINS -DNOSTDRESOLVE -DNOCRYPT

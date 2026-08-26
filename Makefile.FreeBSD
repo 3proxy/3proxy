@@ -44,7 +44,20 @@ AFTERCLEAN = (find . -type f -name "*.o" -delete && find src/ -type f -name "Mak
 TYPECOMMAND = cat
 COMPATLIBS =
 MAKEFILE = Makefile.FreeBSD
-PLUGINS ?= StringsPlugin TrafficPlugin TransparentPlugin FilePlugin
+PLUGINS ?= StringsPlugin TrafficPlugin FilePlugin
+
+# Transparent proxying, built in. The destination of a redirected connection
+# comes from pf where its headers are available, and from the socket where a
+# redirection leaves it there (OpenBSD divert-to, FreeBSD ipfw fwd). macOS
+# has /dev/pf but ships no pfvar.h, so only the socket route is built there
+# and no macOS redirection leaves the address on the socket.
+CFLAGS += -DWITH_TRANSPARENT
+TRANSPARENT_OBJS = transparent$(OBJSUFFICS)
+
+PF_CHECK ?= $(shell printf "\#include <sys/types.h>\\n\#include <sys/socket.h>\\n\#include <net/if.h>\\n\#include <net/pfvar.h>\\n int main(){return 0;}" | tr -d \\\\ | $(CC) -x c $(CFLAGS) -o testpf.o -c - 2>/dev/null && rm testpf.o && echo true||echo false)
+ifeq ($(PF_CHECK), true)
+    CFLAGS += -DWITH_PF
+endif
 ifeq ($(STATIC), true)
     LDFLAGS += -static
     CFLAGS += -DNOPLUGINS -DNOSTDRESOLVE -DNOCRYPT
