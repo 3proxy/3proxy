@@ -68,6 +68,15 @@ def run(t):
     t.not_contains(_config(t, "notransparent", "log\ntransparent\nnotransparent"),
                    "'notransparent'", "notransparent is accepted")
 
+    # A configuration written for the plugin still loads: the line that used
+    # to load it is accepted and does nothing, the way the ssl and pcre ones
+    # are, so an existing configuration does not have to be edited first.
+    out = _config(t, "plugin_line",
+                  "log\nplugin /usr/local/lib/TransparentPlugin.ld.so transparent_plugin")
+    t.not_contains(out, "failed", "loading the old plugin is accepted and ignored")
+    t.contains(_config(t, "plugin_missing", "log\nplugin /nope/NoSuch.so nosuch_plugin"),
+               "failed", "an unknown plugin still fails to load")
+
     # --- and the redirection itself ------------------------------------
     if platform.system() != "Linux":
         # The BSDs need a redirection that leaves the original destination on

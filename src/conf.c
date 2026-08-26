@@ -1624,6 +1624,11 @@ static int h_plugin(int argc, unsigned char **argv){
 		return 0;
 	}
 #endif
+#ifdef WITH_TRANSPARENT
+	if(argc >= 3 && !strcmp((char *)argv[2], "transparent_plugin")){
+		return 0;
+	}
+#endif
 #ifdef NOPLUGINS
 	return 999;
 #else
