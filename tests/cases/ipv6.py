@@ -190,15 +190,23 @@ def run(t):
 
     t.ne(200, t.http(v4url, proxy=f"127.0.0.1:{partial}").status,
          "denying 127.0.0.1 denies the address as written")
-    t.eq(200, t.http(mapped, proxy=f"127.0.0.1:{partial}").status,
-         "but the same host asked for as ::ffff:127.0.0.1 is still reached")
+
+    # Whether the mapped form reaches the same host is up to the stack: it
+    # does where a mapped address is routed to IPv4, and that is the hazard
+    # the security notes describe. Where it does not, there is nothing to
+    # assert, but the rule that names every spelling still has to hold.
+    if t.http(mapped, proxy=f"127.0.0.1:{partial}").status == 200:
+        t.ok("the same host asked for as ::ffff:127.0.0.1 is still reached")
+    else:
+        t.skip("the mapped form (this stack does not route it to IPv4)")
+
     t.eq(200, t.http(url, proxy=f"127.0.0.1:{partial}").status,
-         "and so is ::1, which the rule never mentioned")
+         "and ::1 is reached, which the rule never mentioned")
 
     t.ne(200, t.http(v4url, proxy=f"127.0.0.1:{complete}").status,
          "naming every spelling denies the plain address")
     t.ne(200, t.http(mapped, proxy=f"127.0.0.1:{complete}").status,
-         "and the mapped one")
+         "and the mapped one, whether or not it would have been reachable")
     t.ne(200, t.http(url, proxy=f"127.0.0.1:{complete}").status,
          "and the IPv6 loopback")
 

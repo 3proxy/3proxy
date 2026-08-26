@@ -152,6 +152,21 @@ void daemonize(void);
 #endif
 #endif
 
+/* A UDP service answers from the address the client sent to, so the reply has
+   to leave the listening socket. Sharing that socket with the request handler
+   is the simple way, and what every Unix build does.
+
+   Older Windows cannot have two operations in flight on one socket, so a
+   build for it binds a second socket to the same address instead, which needs
+   SO_REUSEADDR on the listening socket as well. A build for those versions
+   asks for that with NO_SHARE_UDP_SOCKET, as Makefile.watcom does.
+ */
+#ifndef SHARE_UDP_SOCKET
+#ifndef NO_SHARE_UDP_SOCKET
+#define SHARE_UDP_SOCKET
+#endif
+#endif
+
 #ifndef _WIN32
 size_t threadstacksize(int extra);
 #endif

@@ -1,5 +1,7 @@
 """dnspr: a caching DNS proxy, answering from what it has been told."""
 
+import time
+
 
 def run(t):
     port = t.free_port()
@@ -15,8 +17,11 @@ def run(t):
         allow *
         dnspr -p{port}
     """)
-    # wait for the service: a datagram sent too early is simply lost
-    for _ in range(100):
+    # Wait for the service: a datagram sent too early is simply lost. Bound
+    # by the clock, not by a number of attempts, so a server that answers
+    # nothing costs seconds rather than minutes.
+    deadline = time.time() + 5
+    while time.time() < deadline:
         if t.dns_query(port, "host.test"):
             break
 
