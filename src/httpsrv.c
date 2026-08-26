@@ -27,6 +27,7 @@
 #define HTTPSRV_LINE	1024
 #define HTTPSRV_BLOCK	8192
 #define HTTPSRV_MAXHDR	64
+#define HTTPSRV_MAXBODY	1048576
 
 
 /* Returns the value of a query parameter, or def when it is missing or not a
@@ -363,6 +364,28 @@ int httpopbyname(const unsigned char *name)
 	return -1;
 }
 
+/* Read and discard a request body.
+
+   The reply is followed by a close, and closing a socket that still holds
+   unread data resets the connection rather than ending it, which costs the
+   client the reply it was about to read. Bounded, so a client cannot keep
+   the server reading.
+ */
+static void httpsrv_drain(struct clientparam *param, unsigned long len)
+{
+	char buf[HTTPSRV_BLOCK];
+
+	if(len > HTTPSRV_MAXBODY) len = HTTPSRV_MAXBODY;
+	while(len){
+		int want = (len > (unsigned long)sizeof(buf))? (int)sizeof(buf) : (int)len;
+		int got = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, want, EOF,
+			conf.timeouts[STRING_S]);
+
+		if(got <= 0) break;
+		len -= (unsigned long)got;
+	}
+}
+
 void * httpsrvchild(struct clientparam *param)
 {
 	struct httpreq r;
@@ -450,6 +473,8 @@ void * httpsrvchild(struct clientparam *param)
 			sscanf(buf + 15, "%lu", &r.contentlen);
 		}
 	}
+
+	if(r.contentlen) httpsrv_drain(param, r.contentlen);
 
 	if(r.host[0]){
 		char host[sizeof(r.host)];

@@ -104,6 +104,8 @@ class Certs:
         self.other = self.dir + "/other.pem"
         self.other_key = self.dir + "/other.key"
         self.cache = self.dir + "/cache/"
+        self.verified = False
+        self.verify_output = ""
 
 
 class Failure(Exception):
@@ -435,34 +437,52 @@ class Tester:
         os.makedirs(c.cache, exist_ok=True)
         csr = c.dir + "/server.csr"
         ext = c.dir + "/server.ext"
+        ca_ext = c.dir + "/ca.ext"
         with open(ext, "w") as fp:
             fp.write("subjectAltName=IP:127.0.0.1,DNS:localhost\n")
+        # A CA without these is not usable as one. They go in a file rather
+        # than in -addext, which LibreSSL - the openssl on a stock macOS -
+        # does not apply the same way.
+        with open(ca_ext, "w") as fp:
+            fp.write("basicConstraints=critical,CA:TRUE\n"
+                     "keyUsage=critical,keyCertSign,cRLSign\n"
+                     "subjectKeyIdentifier=hash\n")
 
-        # OpenSSL 3 refuses to trust a CA without these extensions
-        ca_ext = ["-addext", "basicConstraints=critical,CA:TRUE",
-                  "-addext", "keyUsage=critical,keyCertSign,cRLSign"]
-        steps = [
-            ["openssl", "genrsa", "-out", c.ca_key, "2048"],
-            ["openssl", "req", "-x509", "-new", "-nodes", "-key", c.ca_key,
-             "-sha256", "-days", "3650", "-subj", "/CN=3proxy-test-ca",
-             "-out", c.ca] + ca_ext,
-            ["openssl", "genrsa", "-out", c.other_key, "2048"],
-            ["openssl", "req", "-x509", "-new", "-nodes", "-key", c.other_key,
-             "-sha256", "-days", "3650", "-subj", "/CN=3proxy-test-other-ca",
-             "-out", c.other] + ca_ext,
-            ["openssl", "genrsa", "-out", c.server_key, "2048"],
-            ["openssl", "req", "-new", "-key", c.server_key,
-             "-subj", "/CN=127.0.0.1", "-out", csr],
-            ["openssl", "x509", "-req", "-in", csr, "-CA", c.ca,
-             "-CAkey", c.ca_key, "-CAcreateserial", "-out", c.server,
-             "-days", "3650", "-sha256", "-extfile", ext],
-        ]
+        def ca_steps(key, csr_path, out, name):
+            return [
+                ["openssl", "genrsa", "-out", key, "2048"],
+                ["openssl", "req", "-new", "-nodes", "-key", key,
+                 "-subj", "/CN=" + name, "-out", csr_path],
+                ["openssl", "x509", "-req", "-in", csr_path, "-signkey", key,
+                 "-days", "3650", "-sha256", "-extfile", ca_ext, "-out", out],
+            ]
+
+        steps = (
+            ca_steps(c.ca_key, c.dir + "/ca.csr", c.ca, "3proxy-test-ca") +
+            ca_steps(c.other_key, c.dir + "/other.csr", c.other,
+                     "3proxy-test-other-ca") +
+            [
+                ["openssl", "genrsa", "-out", c.server_key, "2048"],
+                ["openssl", "req", "-new", "-key", c.server_key,
+                 "-subj", "/CN=127.0.0.1", "-out", csr],
+                ["openssl", "x509", "-req", "-in", csr, "-CA", c.ca,
+                 "-CAkey", c.ca_key, "-CAcreateserial", "-out", c.server,
+                 "-days", "3650", "-sha256", "-extfile", ext],
+            ])
         for step in steps:
             done = subprocess.run(step, stdout=subprocess.PIPE,
                                   stderr=subprocess.STDOUT, timeout=60)
             if done.returncode:
                 self._certs = False
                 return None
+
+        # If the chain does not verify, the fault is in the generation, not
+        # in whatever is about to present it.
+        check = subprocess.run(["openssl", "verify", "-CAfile", c.ca, c.server],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, timeout=60)
+        c.verified = check.returncode == 0
+        c.verify_output = check.stdout.decode("utf-8", "replace").strip()
 
         self._certs = c
         return c

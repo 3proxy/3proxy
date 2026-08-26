@@ -16,6 +16,14 @@ def run(t):
         t.skip("TLS (openssl is not available to generate certificates)")
         return
 
+    # The key material has to be sound before anything is asked of the
+    # proxy, or every failure below points at the wrong thing.
+    if not certs.verified:
+        t.fail("the generated certificate chain verifies", "OK",
+               certs.verify_output or "openssl verify failed")
+        return
+    t.ok("the generated certificate chain verifies")
+
     # --- a proxy wrapped in TLS (ssl_serv) ----------------------------
     origin = t.free_port()
     tlsproxy = t.free_port()
