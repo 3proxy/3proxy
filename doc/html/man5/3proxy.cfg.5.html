@@ -1348,7 +1348,7 @@ Apply a rule for matching regular expression. <b><br>
 pcre_rewrite</b> <i>TYPE FILTER_ACTION REGEXP
 REWRITE_EXPRESSION [ACE]</i> <br>
 Match and replace with rewrite expression. <b><br>
-pcre_extend</b> <i>FILTER_ACTION [ACE]</i> <br>
+pcre_extend</b> <i>ACE</i> <br>
 Extend the ACL of the last pcre or pcre_rewrite command by
 adding an additional ACE. <b><br>
 pcre_options</b> <i>OPTION1 [OPTION2 ...]</i> <br>
@@ -1407,7 +1407,14 @@ required.</p>
 - substitution string. May contain Perl-style substrings $1,
 $2, etc. $0 means the whole matched string. \r and \n may be
 used to insert new lines; the string may be empty
-(&quot;&quot;).</p>
+(&quot;&quot;). <br>
+A rewritten request is what the server receives. The
+destination is chosen, and the access rules are applied to
+it, before the filters run, so a rewrite that names another
+host or changes the method is logged but not acted on: the
+request is still sent where the access rules allowed.
+Rewriting the path or the query works on a direct connection
+and through a parent alike.</p>
 
 <p style="margin-left:9%; margin-top: 1em">ACE - access
 control entry (user names, source IPs, destination IPs,
