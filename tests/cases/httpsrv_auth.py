@@ -6,14 +6,14 @@ def run(t):
     openport = t.free_port()
     t.start("httpsrv_auth", f"""
         log
-        http * /echo echo
+        http echo * /echo
         auth strong
         users alice:CL:secret bob:CL:hunter2
         allow alice
         httpsrv -p{srv}
 
         flush
-        http * /echo echo
+        http echo * /echo
         auth iponly
         allow *
         httpsrv -p{openport}

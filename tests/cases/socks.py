@@ -10,8 +10,8 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
-        http * /data data
+        http echo * /echo**
+        http data * /data
         httpsrv -p{srv}
 
         flush

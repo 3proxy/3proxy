@@ -9,9 +9,9 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
-        http * /data data
-        http * /small data size=64
+        http echo * /echo**
+        http data * /data
+        http data * /small size=64
         httpsrv -p{srv}
     """, ports=[srv])
 

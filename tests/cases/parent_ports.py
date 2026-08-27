@@ -43,7 +43,7 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{srv}
 
         # every outgoing connection binds inside the range

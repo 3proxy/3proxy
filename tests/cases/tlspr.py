@@ -17,7 +17,7 @@ def run(t):
         ssl_serv
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{origin}
 
         flush

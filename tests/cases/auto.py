@@ -21,7 +21,7 @@ def run(t):
         ssl_serv
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{secure}
         ssl_noserv"""
 
@@ -30,7 +30,7 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{plain}
 {tls_origin}
 

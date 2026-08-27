@@ -169,6 +169,7 @@ void daemonize(void);
 
 #ifndef _WIN32
 size_t threadstacksize(int extra);
+
 #endif
 
 #ifdef WITH_ODBC
@@ -386,7 +387,18 @@ int readconfig(FILE * fp);
 void initcommands(void);
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
 int bindwithrange(struct clientparam *param, SOCKET sock, PROXYSOCKADDRTYPE *sa, uint32_t range);
+#ifdef WITH_PCRE
+/* One regular expression implementation for the whole program: the pcre
+   commands and every pattern that carries a pcre: prefix. */
+void * pcre_pattern_compile(const unsigned char *pattern, char *errbuf, int errlen);
+void pcre_pattern_free(void *re);
+int pcre_pattern_match(void *re, const unsigned char *subject, struct capture *caps, int maxcaps);
+#endif
+
 int parsepattern(struct hostname *h, unsigned char *arg);
+int parsepathpattern(struct hostname *h, unsigned char *arg);
+int patternmatchcaps(const struct hostname *h, const unsigned char *str,
+	struct capture *caps, int *ncaps);
 int patternmatch(const struct hostname *h, const unsigned char *str);
 int patternmatchpos(const struct hostname *h, const unsigned char *str, int *start, int *len);
 void applyportranges(struct clientparam * param, struct ace * acentry);

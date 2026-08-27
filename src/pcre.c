@@ -629,6 +629,71 @@ static struct symbol regexp_symbols[] = {
 };
 
 
+/* Compiling and matching for patterns outside the pcre commands: a host name
+   or a URL in an http rule, an access rule naming a host. They go through the
+   same compile, with whatever pcre_options is set to, so one kind of regular
+   expression is understood everywhere.
+ */
+void * pcre_pattern_compile(const unsigned char *pattern, char *errbuf, int errlen)
+{
+	pcre2_code *re;
+	int errcode;
+	PCRE2_SIZE erroffset;
+
+	re = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, pcre_options,
+		&errcode, &erroffset, NULL);
+	if(!re){
+		if(errbuf && errlen > 0){
+			PCRE2_UCHAR message[256];
+
+			pcre2_get_error_message(errcode, message, sizeof(message));
+			snprintf(errbuf, errlen, "%s at offset %d", (char *)message, (int)erroffset);
+		}
+		return NULL;
+	}
+	return re;
+}
+
+void pcre_pattern_free(void *re)
+{
+	if(re) pcre2_code_free((pcre2_code *)re);
+}
+
+/* Returns the number of captures placed, or 0 when the subject does not
+   match. Element 0 is the whole match. The match data is per call: a rule is
+   matched from several threads at once.
+ */
+int pcre_pattern_match(void *re, const unsigned char *subject, struct capture *caps, int maxcaps)
+{
+	pcre2_match_data *match_data;
+	PCRE2_SIZE *ovector;
+	int count, i, placed = 0;
+
+	if(!re || !subject) return 0;
+	match_data = pcre2_match_data_create_from_pattern((pcre2_code *)re, NULL);
+	if(!match_data) return 0;
+
+	count = pcre2_match((pcre2_code *)re, (PCRE2_SPTR)subject, PCRE2_ZERO_TERMINATED,
+		0, 0, match_data, NULL);
+	if(count > 0){
+		ovector = pcre2_get_ovector_pointer(match_data);
+		if(count > maxcaps) count = maxcaps;
+		for(i = 0; i < count; i++){
+			if(ovector[i*2] == PCRE2_UNSET){
+				caps[i].start = 0;
+				caps[i].len = 0;
+			}
+			else {
+				caps[i].start = (int)ovector[i*2];
+				caps[i].len = (int)(ovector[i*2+1] - ovector[i*2]);
+			}
+		}
+		placed = count;
+	}
+	pcre2_match_data_free(match_data);
+	return placed;
+}
+
 void pcre_install(void){
 
 	struct filter *flt, *tmpflt;

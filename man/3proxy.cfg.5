@@ -39,7 +39,9 @@ For included file <CR> (end of line characters) is treated as space character
 (arguments delimiter instead of end of command delimiter). 
 Thus, include files are only useful to store long single-line commands
 (like userlist, network lists, etc).
-To use dollar sign somewhere in argument it must be quoted. 
+To use dollar sign somewhere in argument it must be quoted or doubled: inside
+quotes a dollar is ordinary text, and \fB$$\fR stands for a single dollar and is
+not read as an include.
 Recursion is not allowed.
 
 .br
@@ -743,6 +745,17 @@ Since 0.6, the targetlist may also contain host names,
 instead of addresses. It\'s possible to use a wildmask in
 the beginning and at the end of the hostname, e.g. *badsite.com or *badcontent*.
 The hostname is only checked if a hostname is present in the request.
+A name written with a \fBpcre:\fR prefix (\fBregex:\fR is the same thing) is a
+regular expression instead of a wildmask, in a build with PCRE support:
+.br
+ deny * * "pcre:^(ads|track)[0-9]*\\.example\\.(com|net)$"
+.br
+ The name is lowercased and any trailing dots are removed before it is matched,
+so patterns are written in lower case. A pattern ending in \fB$\fR has to be
+quoted or written \fB$$\fR, since a lone dollar outside quotes begins the name
+of a file to include. The same patterns, and the same prefix, are used by the
+\fBhttp\fR command, see BUILT IN HTTP SERVER. Regular expressions are matched
+per request and cost more than a wildmask, which is enough for most rules.
 Targetportlist may contain ports (X) or port ranges lists (X-Y). For any field *
 sign means ANY. If access list is empty it\'s assumed to be
 .br
@@ -1511,6 +1524,15 @@ PCRE_NOTEMPTY, PCRE_UTF8, PCRE_NO_AUTO_CAPTURE, PCRE_NO_UTF8_CHECK, PCRE_AUTO_CA
 PCRE_PARTIAL, PCRE_DFA_SHORTEST, PCRE_DFA_RESTART, PCRE_FIRSTLINE, PCRE_DUPNAMES,
 PCRE_NEWLINE_CR, PCRE_NEWLINE_LF, PCRE_NEWLINE_CRLF, PCRE_NEWLINE_ANY, PCRE_NEWLINE_ANYCRLF,
 PCRE_BSR_ANYCRLF, PCRE_BSR_UNICODE.
+.br
+ These options apply to every pattern the configuration compiles, the host
+patterns of access rules and \fBhttp\fR rules included, so set them before the
+rules which are to use them.
+.br
+ Regular expressions are not only for these commands: a host name in the target
+list of an access rule, and the host and URL of an \fBhttp\fR rule, take one
+when it is written with a \fBpcre:\fR prefix. See \fBallow\fR and BUILT IN
+HTTP SERVER.
 
 .SS PCRE Parameters
 TYPE - type of filtered data (comma-delimited list):
@@ -1550,6 +1572,166 @@ identical to allow/deny/bandlimin commands. The regular expression is only
 matched if the ACL matches the connection data.
 Warning: Regular expressions don't require authentication and cannot replace
 authentication and/or allow/deny ACLs.
+
+.SH BUILT IN HTTP SERVER
+The \fBhttpsrv\fR service answers requests itself instead of forwarding them.
+What it does with a request is decided by \fBhttp\fR rules, which are taken in
+the order they are written: the first whose host and URL both match handles the
+request. Rules belong to the service that follows them, the way access rules do,
+and \fBadmin\fR is \fBhttpsrv\fR with a set of rules already in place.
+
+.BR http
+\fIOPERATION HOST URL [PARAMETERS]\fR
+.br
+ Handle a request for \fIURL\fR on \fIHOST\fR with \fIOPERATION\fR. HOST is
+matched against the Host header, URL against the path, with the query string
+removed.
+
+.SS Operations
+.br
+ \fBfile\fR \fIPATH [TYPE [MAX-AGE [HEADERS [CODE]]]]\fR - send the file at PATH.
+The file is handed to the socket by the system where it can do that (sendfile,
+TransmitFile) and read here where it cannot, as when the connection carries TLS.
+The arguments after PATH are described below, and each of them may be written as
+\fB*\fR to leave it out.
+.br
+ \fBcache\fR \fIPATH [TYPE [MAX-AGE [HEADERS [CODE]]]]\fR - the same, but the
+file is read into memory on the first request and answered from there afterwards.
+A file that has changed on disk is read again, and one larger than a megabyte is
+sent as \fBfile\fR would. With a MAX-AGE the file is not looked at again for
+that long: the rule has already told clients the file may be treated as
+unchanged for that time, so the server treats its own copy the same way and a
+request costs nothing but the copy out. Without one every request stats the
+file, so a change is picked up at once.
+.br
+ \fBreply\fR \fI[CODE [HEADERS]]\fR - answer with a status and nothing else.
+CODE is the status to send, 200 without one. A status which carries no body of
+its own (1xx, 204, 304) is sent without a length; anything else is sent with a
+length of zero.
+.br
+ \fBredir\fR \fI[CODE] LOCATION\fR - answer with a redirect. CODE is 301 or 302,
+or any status from 300 to 399; without one, 302 is used.
+.br
+ \fBrewrite\fR \fIPATH\fR - change the path of the request and hand it to the
+rules that follow this one.
+.br
+ \fBrewrite_host\fR \fIHOST\fR - the same for the host, which decides which of
+the rules after it match. \fB$1\fR upwards stand for what the stars, or the
+groups, of this rule\'s host pattern matched, the way they stand for those of
+the URL in a \fBrewrite\fR. What is built has to be a host name; the name the
+client sent is what access rules matched and what the log records.
+.br
+ \fBecho\fR - answer with a description of the request: the method, path, query,
+host, and the address and port it came from. For testing.
+.br
+ \fBdata\fR \fI[size=N] [block=N] [status=N] [chunked=1] [delay=N]\fR - answer
+with generated content of the size asked for. For testing.
+.br
+ \fBadmin\fR, \fBadmin_counters\fR, \fBadmin_reload\fR, \fBadmin_services\fR -
+the pages of the administration interface.
+
+.SS What a rule adds to the answer
+\fBTYPE\fR is the content type to answer with. Without it, or with \fB*\fR, the
+type is worked out from the name of the file, see \fBhttp_content_type\fR.
+.br
+ \fBMAX-AGE\fR is a number of seconds, and is sent as Cache-Control: max-age.
+Without it, or with \fB*\fR, nothing is said about caching.
+.br
+ \fBHEADERS\fR is one argument holding whole header lines, separated by a
+backslash and an n \- the two characters, since a configuration line cannot
+carry a line ending. Each becomes a real line ending in the answer. Quote the
+argument if any header holds a space, which they usually do.
+.br
+ \fBCODE\fR is the status to answer with instead of 200, which is how a file
+serves as the body of an error page.
+.br
+ A rule's headers and MAX-AGE go with whatever status that rule asked for. They
+are not sent with a refusal the server itself decided on: a request for a file
+which is not there is answered 404 by the server, not by the rule.
+.br
+ \fBfile\fR and \fBcache\fR send Last-Modified, and answer a request carrying
+If-Modified-Since with 304 and no body when the file has not changed since the
+time it names. All three date formats HTTP allows are read; one which cannot be
+read is treated as no date at all. A rule answering with a CODE of its own is
+answering something other than the file, so it is never turned into a 304.
+.br
+ http file * /err/** "/usr/local/web/404.html" text/html * "X-Served: static" 404
+.br
+ http reply * /health** 200 "X-Health: ok"
+.br
+ http reply * /down** 503 "Retry-After: 30"
+
+.BR http_content_type
+\fIEXTENSION TYPE\fR
+.br
+ Answer for a file with that extension with that content type, in addition to
+the types already known. The extension may be written with or without its dot.
+A type named by a rule is used whatever this says, and a name the server knows
+nothing about is answered as application/octet-stream.
+.br
+ http_content_type .webp image/webp
+
+.SS Patterns
+A URL is matched with stars, or with a regular expression when it carries a
+\fBpcre:\fR prefix (\fBregex:\fR is taken as well). A host is matched the way an
+access list matches one, and takes the same prefix.
+.br
+ \fB*\fR stands for any run of characters within one element of the path: it
+does not cross a \fB/\fR, so a rule cannot reach into a directory it did not
+name.
+.br
+ \fB**\fR crosses them, and is what a rule which should match everything below a
+point, or everything at all, is written with.
+.br
+ Each star, and each group of a regular expression, is remembered in the order
+it appears. \fB$1\fR upwards stand for them in the path or location a rule
+builds, and \fB$0\fR for the whole request path.
+.br
+ Outside quotes a dollar begins the name of a file to include, so an argument
+holding one \- a path or location built with \fB$1\fR, a regular expression
+anchored with \fB$\fR \- is written in quotes. \fB$$\fR stands for a single
+dollar and is not read as an include either, which is how a dollar reaches a
+rule as text.
+
+.SS Connections
+An answer is sent as HTTP/1.1 to a client which asked in HTTP/1.1, and the
+connection is kept for the next request unless the client sent
+\fBConnection: close\fR. A 1.0 client gets a 1.0 answer, and the connection is
+kept only when it asked with \fBConnection: keep-alive\fR.
+.br
+ The connection is kept only when what was sent is framed exactly: every
+operation but the administration pages states a length, or sends a chunked body
+a 1.1 client can read, so the pages of \fBadmin\fR are always the last thing on
+a connection. A request body which cannot be read to its end ends the connection
+as well: one sent with \fBTransfer-Encoding\fR, which this server does not read,
+and one longer than a megabyte, which it will not.
+
+.SS Paths a rule builds
+The path a rule builds is used as it is, so it is refused rather than corrected
+when it is not a plain full path. A relative path is refused: it would be read
+against whatever directory the service happens to be in. So is one holding
+\fB.\fR or \fB..\fR as an element, a carriage return, a newline or a star. On
+Windows a path must name a drive or a share, and is converted to the extended
+\\\\?\\ form and opened through the wide interface, so a long path works.
+.br
+ A request is checked before any of this: a path which decodes to one leaving
+the tree is refused outright.
+
+.SS Examples
+.br
+ http file example.com /my/webpath/*.html "/usr/local/web/$1.html"
+.br
+ http cache example.com "pcre:^/(.*)/pic/(.*)\.(gif|jpeg)$" "/usr/local/web/picts/$1/$2.$3"
+.br
+ http redir * /old/** 301 "https://example.org/$1"
+.br
+ http rewrite * /alias/** "/w/$1"
+.br
+ http rewrite_host *.old.example ** "$1.new.example"
+.br
+ http file * /static/** "/usr/local/web/static/$1"
+.br
+ httpsrv -p8080
 
 .SH BUGS
 Report all bugs to

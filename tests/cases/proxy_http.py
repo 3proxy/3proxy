@@ -16,15 +16,15 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
-        http * /data data
+        http echo * /echo**
+        http data * /data
         httpsrv -p{srv}
 
         # a second origin, used as a destination the rules must keep out
         flush
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{other}
 
         # an open proxy

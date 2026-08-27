@@ -11,8 +11,8 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
-        http * /safe/* echo
+        http echo * /echo**
+        http echo * /safe/**
         httpsrv -p{srv}
     """, ports=[srv])
 
@@ -62,3 +62,28 @@ def run(t):
                headers={"Content-Type": "application/x-www-form-urlencoded"})
     t.contains(r, "method=POST", "POST reaches the handler")
     t.contains(r, "content.length=9", "the POST content length is parsed")
+
+    # --- dollars in the configuration ------------------------------------
+    # Outside quotes a dollar begins the name of a file to include, so an
+    # argument holding one is quoted. Two dollars stand for one, which is how
+    # a dollar reaches a rule as text.
+    dsrv = t.free_port()
+    t.start("httpsrv_dollar", f"""
+        log
+        auth iponly
+        allow *
+        http redir * /old** 301 "http://example.org/x$$y/$1"
+        http redir * "pcre:^/re/([a-z]+)$" 302 "http://example.org/re/$1"
+        http echo * /**
+        httpsrv -p{dsrv}
+    """, ports=[dsrv])
+
+    durl = f"http://127.0.0.1:{dsrv}"
+    r = t.http(durl + "/old/a")
+    t.eq(301, r.status, "a rule holding a doubled dollar loads")
+    t.eq("http://example.org/x$y//a", r.header("Location"),
+         "and two dollars reach the location as one")
+    t.eq(302, t.http(durl + "/re/abc").status,
+         "a quoted regular expression keeps its anchor")
+    t.eq(200, t.http(durl + "/re/ab9").status,
+         "and the anchor is real: what it excludes falls through")
