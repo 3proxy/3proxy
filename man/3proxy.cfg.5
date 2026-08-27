@@ -1627,6 +1627,9 @@ host, and the address and port it came from. For testing.
  \fBdata\fR \fI[size=N] [block=N] [status=N] [chunked=1] [delay=N]\fR - answer
 with generated content of the size asked for. For testing.
 .br
+ \fBproxypass\fR - hand the request to the proxy code, which fetches it the
+way \fBproxy\fR would, see BOTH A SITE AND A PROXY.
+.br
  \fBadmin\fR, \fBadmin_counters\fR, \fBadmin_reload\fR, \fBadmin_services\fR -
 the pages of the administration interface.
 
@@ -1692,6 +1695,63 @@ holding one \- a path or location built with \fB$1\fR, a regular expression
 anchored with \fB$\fR \- is written in quotes. \fB$$\fR stands for a single
 dollar and is not read as an include either, which is how a dollar reaches a
 rule as text.
+
+.SS Both a site and a proxy
+A request may arrive the way it arrives at a site, naming a path and a host in
+the Host header, or the way it arrives at a proxy, naming the whole URL, or, for
+a tunnel, the host alone with CONNECT. Both are read. A request in the proxy
+form authenticates with Proxy-Authorization and is refused with 407, as a proxy
+refuses one; a request in the site form uses Authorization and 401.
+.br
+ What answers a request is still decided by the rules. \fBproxypass\fR is the
+rule which answers by fetching, so a service can serve what it has and proxy the
+rest:
+.br
+ http file * /local/** "/usr/local/web/$1"
+.br
+ http proxypass * /**
+.br
+ httpsrv -p8080
+.br
+ The same happens without a rule for it where an access rule redirects to the
+local proxy, which is written as a chain of no address: the rules are asked
+first, and a request none of them answers is fetched.
+.br
+ allow *
+.br
+ parent 1000 http 0.0.0.0 0
+.br
+ allow *
+.br
+ The second \fBallow\fR is what the proxy matches on the pass it makes itself:
+a rule carrying the chain is not taken twice. Authentication happens twice for
+the same reason, once for the service and once for the proxy, so a configuration
+asking for credentials asks for them as a proxy does.
+.br
+ The access rules are read from the top on both passes, and it is the second
+pass which describes where the request is going. On the first one the service is
+answering for itself, so the destination an address or a port is matched against
+is the address the client connected to; the name from the request is matched on
+both. On the second the destination is the one the request names, so rules
+written with an address, a port or a name decide what the proxy is allowed to
+fetch, and they decide it before the connection is made:
+.br
+ allow *
+.br
+ parent 1000 http 0.0.0.0 0
+.br
+ allow * * * 80,443
+.br
+ deny *
+.br
+ Everything reaches the rules, and only ports 80 and 443 are fetched. A rule
+before the one carrying the chain applies on both passes just the same, so a
+\fBdeny\fR written there stops the request as well.
+.br
+ The connection to the server is kept for the request after it, and closed when
+the request after it goes somewhere else, or when the server has closed it in
+the meantime. A tunnel is fetched by the proxy code as well, which means the
+connection carrying it belongs to that request alone.
 
 .SS Connections
 An answer is sent as HTTP/1.1 to a client which asked in HTTP/1.1, and the

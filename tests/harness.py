@@ -123,6 +123,7 @@ class Tester:
         self.servers = []
         self.checks = []
         self.timeout = 10
+        self._raw_kept = []
         self._skipped = 0
         self._certs = None
         self.logs = []
@@ -356,6 +357,48 @@ class Tester:
         except OSError as exc:
             return f"<no reply: {exc}>", True
         return b"".join(chunks).decode("utf-8", "replace"), closed
+
+    def raw_server(self, port, reply, close_after=True, host="127.0.0.1"):
+        """Answer every connection with fixed bytes. Returns a stop function.
+
+        For the shapes a real server would have to be talked into: an answer
+        whose body is delimited by the close, or one which promises to stay
+        and does not.
+        """
+        sock = socket.socket()
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((host, port))
+        sock.listen(8)
+        running = [True]
+
+        def serve():
+            while running[0]:
+                try:
+                    conn, _ = sock.accept()
+                except OSError:
+                    break
+                try:
+                    conn.settimeout(self.timeout)
+                    conn.recv(65536)
+                    conn.sendall(reply)
+                    if close_after:
+                        conn.close()
+                    else:
+                        self._raw_kept.append(conn)
+                except OSError:
+                    pass
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+
+        def stop():
+            running[0] = False
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+        return stop
 
     # ---- UDP ---------------------------------------------------------
 

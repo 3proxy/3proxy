@@ -30,7 +30,7 @@ ifeq ($(HTTPSRV),true)
 endif
 DLFLAGS ?= -shared
 DLSUFFICS = .dll
-LIBS += -lws2_32 -lodbc32 -ladvapi32 -luser32 -lbcrypt
+LIBS += -lws2_32 -lmswsock -lodbc32 -ladvapi32 -luser32 -lbcrypt
 LIBSPREFIX = -l
 LIBSSUFFIX =
 LNOUT = -o 

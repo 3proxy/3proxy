@@ -169,7 +169,7 @@ if(WIN32)
     endif()
 
     # Windows libraries
-    set(WINDOWS_LIBS ws2_32 advapi32 user32 kernel32 gdi32 crypt32)
+    set(WINDOWS_LIBS ws2_32 mswsock advapi32 user32 kernel32 gdi32 crypt32)
 
     # Windows plugins (always built)
     set(DEFAULT_PLUGINS

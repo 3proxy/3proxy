@@ -385,6 +385,14 @@ struct httpreq {
 	int keepalive;		/* whether the connection carries another request */
 	int first;		/* the first request on this connection */
 	int chunkedreq;		/* a body this server does not know how to read */
+	int proxy;		/* the client asked the way it asks a proxy */
+	int connect;		/* and asked for a tunnel */
+	int mayproxy;		/* an access rule sent this to the local proxy */
+	unsigned char *raw;	/* the request as it arrived, for handing on */
+	int rawlen, rawsize;
+	int drained;		/* the body has been read and thrown away */
+	char *lasthost;		/* where the last request on this connection went */
+	void *handoff;		/* a child which takes the connection over */
 	struct clientparam *param;
 	char method[16];
 	char path[256];
@@ -745,6 +753,12 @@ struct clientparam {
 	int udp_nhops;
 	struct ace *lastace;
 	time_t time_start;
+	/* Set by a service which read a request itself and handed it to another
+	   child to answer: that child answers this one request and returns,
+	   leaving the connection to the service which called it. Added last so
+	   that a plugin built against an older header still finds the fields it
+	   knows where they were. */
+	int onerequest;
 };
 
 struct filemon {
