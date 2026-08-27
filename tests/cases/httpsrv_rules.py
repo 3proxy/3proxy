@@ -8,19 +8,25 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /exact echo
-        http * /pre* echo
-        http * *.suffix echo
-        http * *mid* echo
-        http host.example.com /byhost echo
-        http *.wild.example.com /bywild echo
-        http * /only-first echo
+        http echo * /exact
+        http echo * /pre*
+        http echo * /deep/**
+        http echo * **.suffix
+        http echo * **mid**
+        http echo host.example.com /byhost
+        http echo *.wild.example.com /bywild
+        http echo * /only-first
+
+        http rewrite_host *.old.example ** "$1.new.example"
+        http rewrite_host "pcre:^legacy-(.*)$" ** "$1.new.example"
+        http rewrite_host * /badhost** "not a host name"
+        http echo one.new.example /**
         httpsrv -p{srv}
 
         flush
         auth iponly
         allow *
-        http * /only-second echo
+        http echo * /only-second
         httpsrv -p{srv2}
     """, ports=[srv, srv2])
 
@@ -31,8 +37,15 @@ def run(t):
     t.eq(404, t.http(url + "/exactly").status,
          "an exact URL does not match a longer path")
     t.eq(200, t.http(url + "/pre").status, "a prefix matches the bare prefix")
-    t.eq(200, t.http(url + "/pretty/deep").status,
-         "a prefix matches a longer path")
+    t.eq(200, t.http(url + "/pretty").status,
+         "a prefix matches a longer name in the same path element")
+
+    # a single star stays inside one element of the path, which is what keeps
+    # a rule from reaching into directories it did not name
+    t.eq(404, t.http(url + "/pretty/deep").status,
+         "a prefix does not cross a slash")
+    t.eq(200, t.http(url + "/deep/a/b/c").status,
+         "a double star does cross one")
     t.eq(200, t.http(url + "/any.suffix").status, "a suffix matches")
     t.eq(404, t.http(url + "/any.suffixx").status,
          "a suffix is anchored at the end")
@@ -67,3 +80,19 @@ def run(t):
          "the second service has its own rules")
     t.eq(404, t.http(f"http://127.0.0.1:{srv2}/only-first").status,
          "the second service does not have the earlier rules")
+
+    # --- a rule which changes the host --------------------------------
+    # The stars of the host pattern are what $1 upwards stand for here, the
+    # way the stars of the URL stand for themselves in a rewrite.
+    r = t.http(url + "/anything", headers={"Host": "one.old.example"})
+    t.eq(200, r.status, "a rewritten host reaches the rules after it")
+    t.contains(r, "host=one.new.example", "and the request carries the new name")
+
+    t.eq(200, t.http(url + "/anything", headers={"Host": "legacy-one"}).status,
+         "a regular expression names the part to keep")
+
+    t.eq(404, t.http(url + "/anything", headers={"Host": "other.example"}).status,
+         "a host no rule rewrites is left as it was")
+
+    t.eq(403, t.http(url + "/badhost", headers={"Host": "x"}).status,
+         "a rule may not build something which is not a host name")

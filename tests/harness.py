@@ -321,6 +321,42 @@ class Tester:
         except OSError as exc:
             return f"<no reply: {exc}>"
 
+    def raw_session(self, port, request, host="127.0.0.1", quiet=0.5):
+        """Send bytes and read until the server closes or goes quiet.
+
+        Returns (text, closed). closed says the server ended the connection
+        rather than leaving it open for another request, which is the whole
+        question a keep-alive test asks.
+        """
+        if not isinstance(request, bytes):
+            request = request.encode("latin-1")
+        closed = False
+        chunks = []
+        try:
+            with socket.create_connection((host, port), self.timeout) as sock:
+                try:
+                    sock.sendall(request)
+                except OSError:
+                    # the server answered and closed before taking all of it,
+                    # which is an answer in itself
+                    closed = True
+                sock.settimeout(quiet)
+                while True:
+                    try:
+                        piece = sock.recv(65536)
+                    except socket.timeout:
+                        break               # quiet: the connection is still open
+                    except OSError:
+                        closed = True       # reset: it is not
+                        break
+                    if not piece:
+                        closed = True
+                        break
+                    chunks.append(piece)
+        except OSError as exc:
+            return f"<no reply: {exc}>", True
+        return b"".join(chunks).decode("utf-8", "replace"), closed
+
     # ---- UDP ---------------------------------------------------------
 
     def udp_echo(self, prefix=b"echo:"):

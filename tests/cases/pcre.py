@@ -29,9 +29,9 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
-        http * /secret* echo
-        http * /data data
+        http echo * /echo**
+        http echo * /secret**
+        http data * /data
         httpsrv -p{origin}
     """, ports=[origin])
 
@@ -88,6 +88,27 @@ def run(t):
     t.eq(200, t.http(url + "/echo", proxy=p).status,
          "an extension that matches nothing changes nothing")
 
+    # --- a regular expression where a host name is expected -----------------
+    # The same prefix works in an access rule and in an http rule, so one
+    # kind of expression is understood wherever a name can be written.
+    named = t.free_port()
+    t.start("pcre_named", f"""
+        log
+        flush
+        nserver 127.0.0.1
+        nscache 1024
+        nsrecord host1.test 127.0.0.1
+        nsrecord other.test 127.0.0.1
+        auth iponly
+        allow * * "pcre:^host[0-9]+\\.test$"
+        proxy -p{named}
+    """, ports=[named])
+
+    t.eq(200, t.http(f"http://host1.test:{origin}/echo", proxy=f"127.0.0.1:{named}").status,
+         "a destination matching the expression is allowed")
+    t.ne(200, t.http(f"http://other.test:{origin}/echo", proxy=f"127.0.0.1:{named}").status,
+         "one that does not match is refused")
+
     # --- rewriting the reply ------------------------------------------------
     p = proxy_with("rewrite_srv",
                    'pcre_rewrite srvheader dunno "text/plain" "text/rewritten"',
@@ -143,7 +164,7 @@ def run(t):
         flush
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{elsewhere}
     """, ports=[elsewhere])
 

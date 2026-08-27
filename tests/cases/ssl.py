@@ -32,7 +32,7 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{origin}
 
         flush
@@ -76,8 +76,8 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
-        http * /data data
+        http echo * /echo**
+        http data * /data
         httpsrv -p{origin}
 
         flush
@@ -129,7 +129,7 @@ def run(t):
         ssl_serv
         auth iponly
         allow *
-        http * /secret* echo
+        http echo * /secret**
         httpsrv -p{origin}
     """, ports=[origin])
 

@@ -21,8 +21,8 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
-        http * /data data
+        http echo * /echo**
+        http data * /data
         httpsrv -p{origin} -i::1
 
         # reached over IPv6, and allowed to reach IPv6
@@ -102,7 +102,7 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{v4origin}
         {"".join(sections)}
     """, ports=[v4origin] + list(family_ports.values()))

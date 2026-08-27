@@ -97,14 +97,14 @@ def run(t):
         log
         auth iponly
         allow *
-        http * /echo* echo
+        http echo * /echo**
         httpsrv -p{origin_port} -i{ORIGIN_ADDR}
 
         # a second server, to tell apart where a connection actually went
         flush
         auth iponly
         allow *
-        http * * data size=13
+        http data * * size=13
         httpsrv -p{decoy_port} -i{DECOY_ADDR}
 
         # a port mapper aimed at the decoy: with the destination taken from

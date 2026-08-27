@@ -350,21 +350,47 @@ struct period {
 
 #define MATCHBEGIN 1
 #define MATCHEND 2
+/* A pattern is either the star form above, matched by matchtype, or a regular
+   expression compiled once when the configuration is read. */
+#define MATCHGLOB  4	/* stars anywhere: * within a path element, ** across */
+#define MATCHREGEX 5
+
+/* What a star or a capturing group stood for. Element 0 is the whole
+   subject, so a template writes it as $0 and the groups as $1 upwards. */
+#define MAXCAPTURES 10
+struct capture {
+	int start;
+	int len;
+};
 
 struct hostname {
 	struct hostname *next;
 	unsigned char * name;
 	int matchtype;
+	void * re;		/* compiled regular expression, MATCHREGEX only */
 };
 
 /* A request handed to an http operation. */
 struct httpreq {
+	struct capture caps[MAXCAPTURES];
+	int ncaps;
+	struct capture hostcaps[MAXCAPTURES];
+	int nhostcaps;
+	const char *ctype;
+	const char *hdrs;
+	int maxage;
+	int code;
+	time_t ims;		/* what If-Modified-Since asked about, or 0 */
+	int version;		/* 0 for HTTP/1.0, 1 for HTTP/1.1 */
+	int keepalive;		/* whether the connection carries another request */
+	int first;		/* the first request on this connection */
+	int chunkedreq;		/* a body this server does not know how to read */
 	struct clientparam *param;
 	char method[16];
 	char path[256];
 	char query[512];
 	char host[256];
-	unsigned long contentlen;
+	uint64_t contentlen;
 	int globstart, globlen;
 };
 
@@ -377,6 +403,10 @@ struct httprule {
 	struct hostname url;
 	int op;
 	unsigned char *params;
+	unsigned char *ctype;	/* type named by the rule, or NULL to work it out */
+	unsigned char *hdrs;	/* headers the rule adds, already CRLF separated */
+	int maxage;		/* seconds to allow caching for, or -1 to say nothing */
+	int code;		/* status the rule answers with, or 0 for the usual */
 };
 
 struct ace {

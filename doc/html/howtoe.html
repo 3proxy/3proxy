@@ -34,6 +34,7 @@
  <li><a href="#ISFTP">How to set up an FTP proxy</a></li>
  <li><a href="#TLSPR">How to set up an SNI proxy (tlspr)</a></li>
  <li><a href="#DNSPR">How to set up a DNS proxy (dnspr)</a></li>
+ <li><a href="#HTTPSRV">How to serve pages with the built-in HTTP server (httpsrv)</a></li>
  <li><a href="#SSLPLUGIN">How to set up TLS/SSL (https proxy, mTLS)</a></li>
  <li><a href="#CERTIFICATES">How to create CA and certificates for SSL</a></li>
  <li><a href="#PCRE">How to use PCRE filtering (regular expressions)</a></li>
@@ -728,6 +729,159 @@ nscache6 65536
 dnspr -p53 -F10.0.0.1
 </pre>
  </p>
+ <li><a name="HTTPSRV"><i>How to serve pages with the built-in HTTP server (httpsrv)</i></a>
+<p>
+httpsrv answers requests itself instead of forwarding them. What it does with a
+request is decided by <code>http</code> rules written before the service, the way
+access rules are: the first rule whose host and URL both match handles the
+request. It is useful for a status page, a small static site, a block page for
+requests an ACL rejects, or a health check an upstream balancer can poll.
+</p><pre>
+http OPERATION HOST URL [PARAMETERS]
+</pre>
+<p>
+HOST is matched against the Host header, URL against the path with the query
+string removed. A minimal static site:
+</p><pre>
+auth iponly
+allow *
+
+http file * /           /usr/local/web/index.html
+http file * /*.html     "/usr/local/web/$1.html"
+http file * /css/*.css  "/usr/local/web/css/$1.css"
+http cache * /img/**    "/usr/local/web/img/$1" * 3600
+httpsrv -p80 -i127.0.0.1
+</pre>
+<p>
+<b>Patterns.</b> <code>*</code> stands for any run of characters within one
+element of the path and does not cross a <code>/</code>, so a rule cannot reach
+into a directory it did not name. <code>**</code> crosses them. Each star, and
+each group of a regular expression, is remembered in order: <code>$1</code>
+upwards stand for them in the path or location the rule builds, and
+<code>$0</code> for the whole request path. A <code>rewrite_host</code> rule
+uses the stars of its own host pattern instead, since that is what it is
+rewriting. With a PCRE build a pattern may be
+written as a regular expression with a <code>pcre:</code> prefix, for the URL and
+for the host alike:
+</p><pre>
+http file  * /d/*.txt       "/usr/local/web/$1.txt"
+http cache * "pcre:^/(.*)/pic/(.*)\.(gif|jpeg)$" "/usr/local/web/picts/$1/$2.$3"
+http file  status.example.com /**  "/usr/local/web/status/$1"
+http file  "pcre:^(www|web)\.example\.com$" /**  "/usr/local/web/$1"
+</pre>
+<p>
+Outside quotes a dollar begins the name of a file to include, so an argument
+holding one - a path built with <code>$1</code>, a regular expression anchored
+with <code>$</code> - is written in quotes, as above. <code>$$</code> stands for
+a single dollar and is not read as an include either.
+</p>
+<p>
+<b>Operations.</b>
+</p><pre>
+&#35; file - send the file, using sendfile/TransmitFile where the system can
+http file * /dl/**  "/usr/local/web/dl/$1"
+
+&#35; cache - read it into memory on the first request and answer from there
+http cache * /css/*.css "/usr/local/web/css/$1.css"
+
+&#35; redir - answer with a redirect, 302 unless a status is given
+http redir * /old/**  301 "https://example.org/$1"
+
+&#35; rewrite - change the path and hand the request to the rules after this one
+http rewrite * /alias/** "/w/$1"
+
+&#35; rewrite_host - the same for the host, which decides which rules match next
+http rewrite_host *.old.example ** "$1.new.example"
+
+&#35; reply - a status and nothing else
+http reply * /health**  200 "X-Health: ok"
+http reply * /down**    503 "Retry-After: 30"
+
+&#35; echo, data - describe the request, or generate content of a given size
+http echo * /echo**
+http data * /gen** size=1048576
+</pre>
+<p>
+<b>What a rule adds to the answer.</b> <code>file</code> and <code>cache</code>
+take, after the path, a content type, a max-age, headers to add and a status to
+answer with. Each may be left out or written as <code>*</code>:
+</p><pre>
+http OPERATION HOST URL PATH [TYPE [MAX-AGE [HEADERS [CODE]]]]
+
+&#35; type worked out from the name, cached by clients for an hour
+http file * /img/*.png "/usr/local/web/img/$1.png" * 3600
+
+&#35; a type of its own, and a header
+http file * /api/*.json "/usr/local/web/api/$1.json" application/json * "X-Api: 1"
+
+&#35; a file serving as the body of an error page
+http file * /err/** /usr/local/web/404.html text/html * * 404
+</pre>
+<p>
+HEADERS is one argument holding whole header lines, separated by a backslash and
+an n - the two characters, since a configuration line cannot carry a line
+ending. Quote it, headers contain spaces. A rule's headers and max-age go with
+whatever status that rule asked for, but not with a refusal the server itself
+decided on: a request for a file which is not there is answered 404 by the
+server, not by the rule.
+</p>
+<p>
+Types not known to the server are registered with
+<code>http_content_type</code>, and a type named by a rule is used whatever the
+name of the file says:
+</p><pre>
+http_content_type .webp image/webp
+http_content_type wasm  application/wasm
+</pre>
+<p>
+<b>Files and dates.</b> Only a full path is taken - a relative one would be read
+against whatever directory the service happens to be in - and a path holding
+<code>.</code> or <code>..</code> as an element, a line ending or a star is
+refused. On Windows a path must name a drive or a share (<code>"C:\web\$1"</code>
+or <code>"\\host\share\$1"</code>). A request which decodes to a path leaving the
+tree is refused before any of this. Every answer carries Last-Modified, and a
+request carrying If-Modified-Since is answered 304 with no body when the file
+has not changed.
+</p>
+<p>
+<b>Caching.</b> <code>cache</code> reads the file once and answers from memory
+afterwards; a file which has changed on disk is read again, and one larger than
+a megabyte is sent as <code>file</code> would. With a MAX-AGE the file is not
+looked at again for that long - the rule has already told clients the file may
+be treated as unchanged for that time - so a request costs nothing but the copy
+out. Without one every request stats the file and a change is picked up at once.
+</p>
+<p>
+<b>A block page.</b> A service which rejects a request with a redirect can send
+the client to an httpsrv running beside it:
+</p><pre>
+auth iponly
+deny * * "pcre:^(ads|track)[0-9]*\.example\.(com|net)$"
+allow *
+proxy -p3128 -i192.168.1.1
+
+flush
+auth iponly
+allow *
+http file * /**  /usr/local/web/blocked.html text/html * * 403
+httpsrv -p8080 -i127.0.0.1
+</pre>
+<p>
+<b>Connections.</b> A client asking in HTTP/1.1 gets a 1.1 answer and the
+connection is kept for the next request, unless it sent
+<code>Connection: close</code>; a 1.0 client has to ask for keep-alive. The
+connection is only kept when the length of the answer is known exactly, which is
+true of every operation except the administration pages, so those are always the
+last thing on a connection. A request body the server cannot read to its end -
+one sent chunked, or one larger than a megabyte - ends the connection too.
+</p>
+<p>
+<b>Administration.</b> The <code>admin</code> service is httpsrv with the pages
+of the administration interface already declared, see
+<a href="#ADMIN">Administering and information analysis</a>. Rules may be added
+before it in the same way, and are taken first.
+</p>
+ </p>
  <li><a name="SSLPLUGIN"><i>How to set up TLS/SSL (https proxy, mTLS)</i></a>
 <p>
 Since version 0.9.7, SSL/TLS support is built into 3proxy when compiled with OpenSSL
@@ -1223,6 +1377,34 @@ pcre_extend deny * 192.168.0.1/16
 <p>
 <b>Note:</b> Regular expressions don't require authentication and cannot replace
 authentication and/or allow/deny ACLs.
+</p>
+<p>
+<b>Regular expressions in host names:</b> a host name in the target list of an
+access rule may be written as a regular expression instead of a wildmask, by
+giving it a <code>pcre:</code> prefix (<code>regex:</code> means the same). This
+needs a build with PCRE support, the same as the <code>pcre</code> commands
+above.
+</p><pre>
+&#35; Wildmask: a name may only be matched at its beginning and its end
+deny * * *ads.example.com
+
+&#35; Regular expression: anything PCRE can express
+deny * * "pcre:^(ads|track)[0-9]*\.example\.(com|net)$"
+allow * * "pcre:^(www|api)\.example\.com$"
+</pre>
+<p>
+The name is lowercased and trailing dots are removed before the pattern is
+matched, so write patterns in lower case. Quote a pattern which ends in
+<code>$</code>, or write it as <code>$$</code>: outside quotes a lone dollar
+begins the name of a file to include. Only the target list takes names - the
+source list is addresses - and the name is only checked when the request
+carries one. A wildmask is cheaper and is enough for most rules; a regular
+expression is matched per request.
+</p>
+<p>
+The same prefix and the same patterns are used by the <code>http</code> command
+of the built-in HTTP server, for the host a rule answers for and for the URL it
+matches.
 </p>
  <li><A NAME="AUTH">How to limit service access</a>
 <p>

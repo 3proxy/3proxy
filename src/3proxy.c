@@ -16,6 +16,9 @@ void pcre_install(void);
 #ifdef WITH_TRANSPARENT
 void transparent_install(void);
 #endif
+#ifdef WITH_HTTPSRV
+void httpsrv_init(void);
+#endif
 #ifndef _WIN32
 #include <sys/resource.h>
 #ifndef NOPLUGINS
@@ -534,6 +537,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #endif
 #ifdef WITH_TRANSPARENT
   transparent_install();
+#endif
+#ifdef WITH_HTTPSRV
+  httpsrv_init();
 #endif
 
   freeconf(&conf);
