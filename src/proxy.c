@@ -1271,6 +1271,16 @@ REQUESTEND:
 	RETURN(0);
  }
  if(param->transparent && (!ckeepalive || !keepalive)) {RETURN (0);}
+ /* Another service read this request and handed it here to be answered. It
+    keeps the connection and decides what the next request on it is, so this
+    one is done. Whatever was opened towards the server stays open in param
+    for the next one. */
+ if(param->onerequest){
+	/* 2 says the client connection may carry another request, 1 that it may
+	   not, which is what the service holding it needs to know. */
+	param->onerequest = (ckeepalive && keepalive)? 2 : 1;
+	RETURN(0);
+ }
  logurl(param, (char *)buf, (char *)req, ftp);
  param->status = 0;
 

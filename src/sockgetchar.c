@@ -88,6 +88,35 @@ int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
 	return (int)*param->clibuf;
 }
 
+/* Put bytes back in front of whatever the client has not been read yet, so a
+   service which has already taken a request off the socket can hand it to
+   another one, which reads it the way it reads anything else. */
+int pushbackcli(struct clientparam * param, const unsigned char * data, int len){
+	unsigned left = 0;
+	unsigned need;
+
+	if(len <= 0) return 0;
+	if(param->clibuf) left = param->cliinbuf - param->clioffset;
+	need = (unsigned)len + left;
+
+	if(!param->clibuf){
+		if(!(param->clibuf = malloc(need > SRVBUFSIZE? need : SRVBUFSIZE))) return 1;
+		param->clibufsize = need > SRVBUFSIZE? need : SRVBUFSIZE;
+	}
+	else if(param->clibufsize < need){
+		unsigned char *nb = realloc(param->clibuf, need);
+
+		if(!nb) return 1;
+		param->clibuf = nb;
+		param->clibufsize = need;
+	}
+	if(left) memmove(param->clibuf + len, param->clibuf + param->clioffset, left);
+	memcpy(param->clibuf, data, (size_t)len);
+	param->clioffset = 0;
+	param->cliinbuf = need;
+	return 0;
+}
+
 unsigned long sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec){
 	int len;
 

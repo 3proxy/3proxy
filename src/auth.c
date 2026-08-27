@@ -20,8 +20,9 @@ int alwaysauth(struct clientparam * param){
 	if(conf.connlimiter && !param->connlim  && startconnlims(param)) return 10;
 #ifdef WITH_HTTPSRV
 	/* The http server answers the request itself, so authorization must not
-	   try to reach a destination that does not exist. */
-	res = (param->srv->service == S_HTTPSRV)? 0 : doconnect(param);
+	   try to reach a destination that does not exist. A request it has handed
+	   to another child does have one, and that child needs it opened. */
+	res = (param->srv->service == S_HTTPSRV && !param->onerequest)? 0 : doconnect(param);
 #else
 	res = doconnect(param);
 #endif

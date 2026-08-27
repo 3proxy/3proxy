@@ -395,6 +395,7 @@ void pcre_pattern_free(void *re);
 int pcre_pattern_match(void *re, const unsigned char *subject, struct capture *caps, int maxcaps);
 #endif
 
+int pushbackcli(struct clientparam * param, const unsigned char * data, int len);
 int parsepattern(struct hostname *h, unsigned char *arg);
 int parsepathpattern(struct hostname *h, unsigned char *arg);
 int patternmatchcaps(const struct hostname *h, const unsigned char *str,

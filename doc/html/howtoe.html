@@ -867,6 +867,65 @@ http file * /**  /usr/local/web/blocked.html text/html * * 403
 httpsrv -p8080 -i127.0.0.1
 </pre>
 <p>
+<b>Both a site and a proxy.</b> A request may arrive the way it arrives at a
+site - a path, with the name in the Host header - or the way it arrives at a
+proxy, naming the whole URL, or the host alone with CONNECT. Both are read. A
+proxy-form request authenticates with Proxy-Authorization and is refused with
+407, the way a proxy refuses one; a site-form request uses Authorization and
+401. What answers it is decided by the rules either way.
+</p>
+<p>
+<code>proxypass</code> is the rule which answers by fetching, so one service can
+serve what it has and proxy the rest:
+</p><pre>
+auth iponly
+allow *
+http file * /local/** "/usr/local/web/$1"
+http proxypass * /**
+httpsrv -p8080
+</pre>
+<p>
+An access rule redirecting to the local proxy does the same without a rule for
+it. The chain with no address is what "the local proxy" is written as, and the
+second <code>allow</code> is what the proxy matches on the pass it makes itself,
+since a rule carrying the chain is not taken twice:
+</p><pre>
+auth iponly
+allow *
+parent 1000 http 0.0.0.0 0
+allow *
+http file * /local/** "/usr/local/web/$1"
+httpsrv -p8080
+</pre>
+<p>
+Authentication happens twice for the same reason - once for the service, once
+for the proxy - so a configuration which asks for credentials asks for them the
+way a proxy does.
+</p>
+<p>
+The access rules are read from the top on both passes, and the second one is
+where the request's destination is known. On the first pass the service is
+answering for itself, so an address or a port in a rule is matched against the
+address the client connected to; the name from the request is matched on both
+passes. On the second the destination is the one the request names, so rules
+written with an address, a port or a name decide what the proxy may fetch, and
+they decide it before it connects:
+</p><pre>
+auth iponly
+allow *
+parent 1000 http 0.0.0.0 0
+allow * * * 80,443
+deny *
+httpsrv -p8080
+</pre>
+<p>
+Everything reaches the rules, only ports 80 and 443 are fetched, and a
+<code>deny</code> written before the rule carrying the chain applies on both
+passes just the same. The connection to the server is kept for the next request and
+closed when that request goes elsewhere, or when the server has closed it in the
+meantime.
+</p>
+<p>
 <b>Connections.</b> A client asking in HTTP/1.1 gets a 1.1 answer and the
 connection is kept for the next request, unless it sent
 <code>Connection: close</code>; a 1.0 client has to ask for keep-alive. The

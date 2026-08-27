@@ -54,6 +54,8 @@
    after it should be tried again. */
 #define HTTPSRV_REWRITTEN 2
 #define HTTPSRV_MAXBODY	1048576
+/* the most of a request this server keeps in case it hands it on */
+#define HTTPSRV_MAXRAW	65536
 /* lengths a reply is written with: a count, or one of these */
 #define HTTPSRV_LEN_CHUNKED	(-1)
 #define HTTPSRV_LEN_NONE	(-2)
@@ -1035,11 +1037,14 @@ static int op_authrequired(struct httpreq *r)
 	r->hdrs = NULL;
 	r->maxage = -1;
 	r->keepalive = 0;
-	if(httpsrv_printf(r, "HTTP/1.0 401 Authentication Required\r\n"
-		"WWW-Authenticate: Basic realm=\"3proxy\"\r\n"
+	if(httpsrv_printf(r, "HTTP/1.0 %s\r\n"
+		"%s: Basic realm=\"3proxy\"\r\n"
 		"Content-Type: text/plain\r\n"
 		"Content-Length: %d\r\n"
-		"Connection: close\r\n\r\n", (int)sizeof(body) - 1)) return 1;
+		"Connection: close\r\n\r\n",
+		r->proxy? "407 Proxy Authentication Required" : "401 Authentication Required",
+		r->proxy? "Proxy-Authenticate" : "WWW-Authenticate",
+		(int)sizeof(body) - 1)) return 1;
 	return httpsrv_send(r, body, (int)sizeof(body) - 1);
 }
 
@@ -1079,20 +1084,22 @@ static struct httpop {
 	const char *name;
 	int (*fn)(struct httpreq *, const unsigned char *params);
 	int framed;	/* the answer says how long it is, so the connection may be kept */
+	int handoff;	/* the request is answered by the proxy code, not here */
 } httpops[] = {
-	{"echo", op_echo, 1},
-	{"data", op_data, 1},
-	{"file", op_file, 1},
-	{"cache", op_cache, 1},
-	{"redir", op_redir, 1},
-	{"reply", op_reply, 1},
-	{"rewrite", op_rewrite, 1},
-	{"rewrite_host", op_rewrite_host, 1},
-	{"admin", op_admin, 0},
-	{"admin_counters", op_admin_counters, 0},
-	{"admin_reload", op_admin_reload, 0},
-	{"admin_services", op_admin_services, 0},
-	{NULL, NULL, 0}
+	{"echo", op_echo, 1, 0},
+	{"data", op_data, 1, 0},
+	{"file", op_file, 1, 0},
+	{"cache", op_cache, 1, 0},
+	{"redir", op_redir, 1, 0},
+	{"reply", op_reply, 1, 0},
+	{"rewrite", op_rewrite, 1, 0},
+	{"rewrite_host", op_rewrite_host, 1, 0},
+	{"admin", op_admin, 0, 0},
+	{"admin_counters", op_admin_counters, 0, 0},
+	{"admin_reload", op_admin_reload, 0, 0},
+	{"admin_services", op_admin_services, 0, 0},
+	{"proxypass", NULL, 0, 1},
+	{NULL, NULL, 0, 0}
 };
 
 void freehttprules(struct httprule *rule)
@@ -1143,12 +1150,100 @@ static void httpsrv_drain(struct clientparam *param, uint64_t len)
 	}
 }
 
+/* Keeps the request as the client wrote it. Only what a handoff needs: the
+   request line and the headers, exactly as they came, since the proxy code
+   reads them again from the beginning. */
+static int rawkeep(struct httpreq *r, const char *line, int len)
+{
+	if(r->rawlen + len + 3 > r->rawsize){
+		int want = r->rawsize? r->rawsize * 2 : 2048;
+		unsigned char *grown;
+
+		while(want < r->rawlen + len + 3) want *= 2;
+		if(want > HTTPSRV_MAXRAW) return 1;
+		grown = realloc(r->raw, (size_t)want);
+		if(!grown) return 1;
+		r->raw = grown;
+		r->rawsize = want;
+	}
+	memcpy(r->raw + r->rawlen, line, (size_t)len);
+	r->rawlen += len;
+	return 0;
+}
+
+/* Hands the request to the proxy code, which reads it again from the client
+   buffer and answers it as a proxy would, asking for its own credentials if
+   the configuration wants them. The connection stays with this service. */
+static int proxypass(struct clientparam *param, struct httpreq *r)
+{
+	void *next;
+	int state, stale = 0;
+
+	/* This is the one place a child is called rather than returned, so it
+	   is the one place a chain of them could nest. It cannot: the proxy
+	   returns whatever child it would redirect to instead of calling it, and
+	   a request already being answered on behalf of another child is never
+	   handed on again. */
+	if(param->onerequest) return 1;
+	if(!r->raw || rawkeep(r, "\r\n", 2)) return 1;	/* the end of the headers */
+
+	/* What is open towards the server belongs to the request before this
+	   one. It is no use for this request if it went somewhere else, and no
+	   use at all if the server has since closed it: the proxy watches for
+	   that between its own requests, and this is where that falls to when it
+	   is entered one request at a time. */
+	if(param->remsock != INVALID_SOCKET){
+		struct pollfd fd;
+
+		memset(&fd, 0, sizeof(fd));
+		fd.fd = param->remsock;
+		fd.events = POLLIN;
+		if(param->srv->so._poll(param->sostate, &fd, 1, 0) > 0
+		   && (fd.revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL))){
+			/* anything arriving now belongs to no request */
+			stale = 1;
+		}
+	}
+	if(param->remsock != INVALID_SOCKET && (stale || (r->lasthost
+	   && strcasecmp(r->lasthost, r->host)))){
+		param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+		param->srv->so._closesocket(param->sostate, param->remsock);
+		param->remsock = INVALID_SOCKET;
+		param->redirected = 0;
+		param->redirtype = 0;
+		memset(&param->sinsl, 0, sizeof(param->sinsl));
+		memset(&param->sinsr, 0, sizeof(param->sinsr));
+		memset(&param->req, 0, sizeof(param->req));
+	}
+	if(r->lasthost){
+		strncpy(r->lasthost, r->host, 255);
+		r->lasthost[255] = 0;
+	}
+
+	if(pushbackcli(param, r->raw, r->rawlen)) return 1;
+
+	param->onerequest = 1;
+	next = proxychild(param);
+	state = param->onerequest;
+	param->onerequest = 0;
+
+	/* The proxy asked for another child to take the connection over: it is
+	   no longer this service's to keep. */
+	if(next){
+		r->handoff = next;
+		return 2;
+	}
+	if(state != 2) r->keepalive = 0;
+	return 0;
+}
+
 /* Reads one request and answers it. Returns 0 when nothing more came on a
    connection which was being kept open, which is not a request and not an
    error, so there is nothing to answer and nothing to log. */
 static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 {
 	char buf[HTTPSRV_LINE];
+	char rootpath[2];
 	char *sp, *q;
 	struct httprule *rule;
 	int i, hdrs = 0;
@@ -1157,6 +1252,7 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 		conf.timeouts[STRING_S]);
 	if(i <= 0 && !r->first) return 0;	/* the client is done with us */
 	if(i < 5) RETURN(701);
+	if(rawkeep(r, buf, i)) RETURN(710);
 	buf[i] = 0;
 
 	sp = strchr(buf, ' ');
@@ -1186,6 +1282,35 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 	   when the client asks for it. */
 	r->keepalive = r->version;
 
+	/* A client talking to a proxy names the whole URL, or, for a tunnel, the
+	   host alone. The name in the request is the one that counts then, and
+	   the credentials arrive in Proxy-Authorization, because the client is
+	   identifying itself to a proxy and not to a site. */
+	if(!strncasecmp(sp, "http://", 7)){
+		char *slash;
+
+		r->proxy = 1;
+		sp += 7;
+		slash = strchr(sp, '/');
+		if(slash) *slash = 0;
+		if(copyfield(r->host, sizeof(r->host), sp)) RETURN(706);
+		if(slash){
+			*slash = '/';
+			sp = slash;
+		}
+		else {
+			strcpy(rootpath, "/");
+			sp = rootpath;
+		}
+	}
+	else if(!strcasecmp(r->method, "CONNECT")){
+		r->proxy = r->connect = 1;
+		if(copyfield(r->host, sizeof(r->host), sp)) RETURN(706);
+		strcpy(rootpath, "/");
+		sp = rootpath;
+	}
+	else if(*sp != '/') RETURN(702);
+
 	q = strchr(sp, '?');
 	if(q){
 		*q = 0;
@@ -1205,18 +1330,20 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 	while(hdrs++ < HTTPSRV_MAXHDR &&
 	      (i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf) - 1,
 			'\n', conf.timeouts[STRING_S])) > 2){
+		if(rawkeep(r, buf, i)) RETURN(710);
 		buf[i] = 0;
-		if(!strncasecmp(buf, "host:", 5)){
+		if(!strncasecmp(buf, "host:", 5) && !r->proxy){
 			sp = buf + 5;
 			while(isspace((unsigned char)*sp)) sp++;
 			sp[strcspn(sp, "\r\n")] = 0;
 			if(copyfield(r->host, sizeof(r->host), sp)) RETURN(706);
 		}
-		else if(!strncasecmp(buf, "authorization:", 14)){
+		else if((!r->proxy && !strncasecmp(buf, "authorization:", 14))
+		     || (r->proxy && !strncasecmp(buf, "proxy-authorization:", 20))){
 			char creds[256];
 			int clen;
 
-			sp = buf + 14;
+			sp = buf + (r->proxy? 20 : 14);
 			while(isspace((unsigned char)*sp)) sp++;
 			if(strncasecmp(sp, "basic", 5)) continue;
 			sp += 5;
@@ -1259,9 +1386,11 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 
 	/* The next request begins where this body ends, so a body which cannot
 	   be read to its end - one this server does not frame, or one longer
-	   than it is willing to read - closes the connection instead. */
+	   than it is willing to read - closes the connection instead.
+
+	   The body itself is left where it is until this server knows it is the
+	   one answering: a request handed to the proxy carries its body there. */
 	if(r->chunkedreq || r->contentlen > HTTPSRV_MAXBODY) r->keepalive = 0;
-	if(r->contentlen) httpsrv_drain(param, r->contentlen);
 
 	if(r->host[0]){
 		char host[sizeof(r->host)];
@@ -1291,6 +1420,24 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 	param->req = param->sincl;
 
 	i = (*param->srv->authfunc)(param);
+	/* A rule which redirects is answered by another child: authorization
+	   names it and reports success, or, where the destination was not needed
+	   to decide, reports the redirect itself. Where that child is the local
+	   proxy, this server still answers whatever it has a rule for and lets
+	   the proxy have the rest, which is what makes one service both a site
+	   and a proxy. Any other child takes the connection over as it always
+	   has. */
+	if(i == REDIRECT) i = 0;
+	if(!i && param->redirectfunc){
+		if(param->redirectfunc == (REDIRECTFUNC)proxychild) r->mayproxy = 1;
+		/* A redirect back to this service would only ask the same rules
+		   the same question, so it is left alone rather than bounced
+		   between children until the count runs out. */
+		else if(param->redirectfunc != (REDIRECTFUNC)httpsrvchild){
+			r->handoff = (void *)param->redirectfunc;
+			return 1;
+		}
+	}
 	if(i && i != 10){
 		/* 4 no credentials, 5 unknown user, 6 wrong password: all of them
 		   should let the client offer credentials again. */
@@ -1313,6 +1460,25 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 		r->globstart = r->ncaps > 1? r->caps[1].start : 0;
 		r->globlen = r->ncaps > 1? r->caps[1].len : 0;
 
+		/* A rule which hands the request on answers nothing itself, and
+		   the body has to still be there when it does. */
+		if(httpops[rule->op].handoff){
+			i = proxypass(param, r);
+			if(i == 1){
+				r->keepalive = 0;
+				op_badrequest(r);
+				RETURN(711);
+			}
+			RETURN(0);
+		}
+
+		/* This server is answering, so the body is read and thrown away
+		   before the answer goes out. */
+		if(!r->drained){
+			if(r->contentlen) httpsrv_drain(param, r->contentlen);
+			r->drained = 1;
+		}
+
 		/* Only an answer which says how long it is may be followed by
 		   another request on the same connection. */
 		if(!httpops[rule->op].framed) r->keepalive = 0;
@@ -1332,6 +1498,21 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 		op_badrequest(r);
 		RETURN(709);
 	}
+	/* Nothing here answers it. An access rule may have said the local proxy
+	   should, which is what makes a service both a site and a proxy. */
+	if(r->mayproxy){
+		i = proxypass(param, r);
+		if(i == 1){
+			r->keepalive = 0;
+			op_badrequest(r);
+			RETURN(711);
+		}
+		RETURN(0);
+	}
+	if(!r->drained){
+		if(r->contentlen) httpsrv_drain(param, r->contentlen);
+		r->drained = 1;
+	}
 	op_notfound(r);
 	RETURN(404);
 
@@ -1347,16 +1528,25 @@ CLEANRET:
 void * httpsrvchild(struct clientparam *param)
 {
 	struct httpreq r;
+	char lasthost[256];
+	void *handoff = NULL;
 	int first = 1;
 
+	lasthost[0] = 0;
 	for(;;){
+		int answered;
+
 		memset(&r, 0, sizeof(r));
 		r.maxage = -1;		/* until a rule says otherwise */
 		r.param = param;
 		r.first = first;
+		r.lasthost = lasthost;
 		param->res = 0;
 
-		if(!httpsrv_request(param, &r)) break;
+		answered = httpsrv_request(param, &r);
+		handoff = r.handoff;
+		if(r.raw) free(r.raw);
+		if(!answered) break;
 
 		/* Log the request the way the proxy does: the parameters decide
 		   what was served, so a bare path is not enough to explain a
@@ -1371,10 +1561,12 @@ void * httpsrvchild(struct clientparam *param)
 			dolog(param, (unsigned char *)logbuf);
 		}
 
-		if(!r.keepalive) break;
+		if(handoff || !r.keepalive) break;
 		first = 0;
 	}
-	return NULL;
+	/* A child named by an access rule takes the connection over, which the
+	   caller arranges rather than this service calling it. */
+	return handoff;
 }
 
 #endif
