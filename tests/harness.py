@@ -375,12 +375,14 @@ class Tester:
         text, _ = self.raw_session(pport, request, host=phost, quiet=2)
         return text
 
-    def raw_server(self, port, reply, close_after=True, host="127.0.0.1"):
+    def raw_server(self, port, reply, close_after=True, host="127.0.0.1",
+                   drain=False):
         """Answer every connection with fixed bytes. Returns a stop function.
 
         For the shapes a real server would have to be talked into: an answer
         whose body is delimited by the close, or one which promises to stay
-        and does not.
+        and does not. drain reads the whole request first, however large,
+        which is what a test of the sending side needs.
         """
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -395,8 +397,13 @@ class Tester:
                 except OSError:
                     break
                 try:
-                    conn.settimeout(self.timeout)
-                    conn.recv(65536)
+                    conn.settimeout(0.5 if drain else self.timeout)
+                    while True:
+                        try:
+                            if not conn.recv(65536) or not drain:
+                                break
+                        except socket.timeout:
+                            break       # it has stopped sending
                     conn.sendall(reply)
                     if close_after:
                         conn.close()

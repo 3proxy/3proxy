@@ -937,7 +937,11 @@ static int op_rewrite(struct httpreq *r, const unsigned char *params)
 	if(!params || !*params) return op_forbidden(r);
 	if(expand(path, sizeof(path), params, r->path, r->caps, r->ncaps))
 		return op_forbidden(r);
-	if(targetunsafe(path) || path[0] != '/') return op_forbidden(r);
+	/* What comes out is a request path and is checked as one. A path on this
+	   machine is a different thing, and asking a rewrite to look like one
+	   would leave nothing writable on Windows, where such a path names a
+	   drive or a share. */
+	if(path[0] != '/' || pathunsafe(path)) return op_forbidden(r);
 	strcpy(r->path, path);
 	return HTTPSRV_REWRITTEN;
 }
@@ -1327,9 +1331,12 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 		strcpy(r->path, decoded);
 	}
 
-	while(hdrs++ < HTTPSRV_MAXHDR &&
+	/* A header longer than the buffer arrives as several lines, so the count
+	   bounds what is read and not what a client may send in one header. */
+	while(hdrs < HTTPSRV_MAXHDR &&
 	      (i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf) - 1,
 			'\n', conf.timeouts[STRING_S])) > 2){
+		hdrs++;
 		if(rawkeep(r, buf, i)) RETURN(710);
 		buf[i] = 0;
 		if(!strncasecmp(buf, "host:", 5) && !r->proxy){
@@ -1383,6 +1390,11 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 			sscanf(buf + 15, "%"SCNu64"", &r->contentlen);
 		}
 	}
+
+	/* The headers ran past what this server reads, so the rest of the request
+	   is still in the stream and there is no answering it: what follows would
+	   be read as the request after this one. */
+	if(hdrs >= HTTPSRV_MAXHDR) RETURN(712);
 
 	/* The next request begins where this body ends, so a body which cannot
 	   be read to its end - one this server does not frame, or one longer
