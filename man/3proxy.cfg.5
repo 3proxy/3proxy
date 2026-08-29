@@ -245,6 +245,12 @@ Never ask for username/password
 .B -a2
 (for proxy) generate Via: and X-Forwarded-For: instead of Forwarded:
 .br
+.B -Xftp
+(for proxy) fetch \fBftp://\fR URLs, in a build with FTP support. Without
+this the scheme is not one the service knows, whatever the build: fetching it
+opens a second connection and builds a listing, which a service serving http
+has no use for.
+.br
  Also, all options mentioned for 
 .BR proxy (8)
 .BR socks (8)
@@ -1580,7 +1586,8 @@ authentication and/or allow/deny ACLs.
 The mail proxies and FTP are built when they are asked for, and are not in a
 default build. \fBMAILPROXY=true\fR builds \fBpop3p\fR, \fBimapp\fR and
 \fBsmtpp\fR, and \fBFTP=true\fR builds \fBftppr\fR and the \fBftp://\fR
-scheme of the HTTP proxy; with CMake the switches are
+scheme of the HTTP proxy, which a \fBproxy\fR service then still has to ask
+for with \fB-Xftp\fR; with CMake the switches are
 \fB-D3PROXY_USE_MAILPROXY=ON\fR and \fB-D3PROXY_USE_FTP=ON\fR. The standalone
 binaries of those services are built with them and not without.
 .br

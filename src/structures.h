@@ -611,6 +611,7 @@ struct srvparam {
 	int haproxy;
 	int nostarttls;
 	PROXYSERVICE srvstarttls;
+	int allowftp;		/* the http proxy fetches ftp:// for this service */
 	uint32_t fakeip;
 	unsigned char fakeip6[16];
 #ifdef WITHSPLICE

@@ -584,6 +584,12 @@ int MODULEMAINFUNC (int argc, char** argv){
 			if(!strncasecmp(argv[i]+2, "imap", 4)) srv.srvstarttls = S_IMAPP;
 			else if(!strncasecmp(argv[i]+2, "pop3", 4)) srv.srvstarttls = S_POP3P;
 			else if(!strncasecmp(argv[i]+2, "smtp", 4)) srv.srvstarttls = S_SMTPP;
+#ifdef WITH_FTP
+			/* The http proxy fetches ftp:// only where it was asked to:
+			   the protocol brings a second connection and a listing to
+			   build, which a service serving http has no use for. */
+			else if(!strncasecmp(argv[i]+2, "ftp", 3)) srv.allowftp = 1;
+#endif
 			else error = 1;
 			break;
 		 case 'F':

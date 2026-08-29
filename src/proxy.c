@@ -387,6 +387,7 @@ for(;;){
 	}
 #ifdef WITH_FTP
 	else if (!strncasecmp((char *)sb, "ftp://", 6)) {
+		if(!param->srv->allowftp) RETURN(513);
 		ftp = 1;
 		sb += 6;
 	}
@@ -1357,6 +1358,9 @@ struct proxydef childdef = {
 	S_PROXY,
 	"-a - anonymous proxy\r\n"
 	"-a1 - anonymous proxy with random client IP spoofing\r\n"
+#ifdef WITH_FTP
+	"-Xftp - fetch ftp:// URLs\r\n"
+#endif
 };
 #include "proxymain.c"
 #endif
