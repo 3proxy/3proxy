@@ -64,6 +64,13 @@ void * ftpprchild(struct clientparam* param) {
 
 	}
 	else if (!strncasecmp((char *)buf, "PASS ", 5)){
+		/* The user name carries the server to log in to, and it arrives
+		   with USER. Without it there is nothing to log in to, and what
+		   follows would read the name and the host as if there were. */
+		if(!param->hostname || !param->extusername){
+			socksend(param, param->ctrlsock, (unsigned char *)"503 Login with USER first\r\n", 27, conf.timeouts[STRING_S]);
+			RETURN(805);
+		}
 		param->extpassword = (unsigned char *)strdup((char *)buf+5);
 		inbuf = BUFSIZE;
 		res = ftplogin(param, (char *)buf, &inbuf);
