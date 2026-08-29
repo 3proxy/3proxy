@@ -132,6 +132,12 @@ char * proxy_stringtable[] = {
 };
 
 #define LINESIZE 32768
+/* "Content-Length: " plus 20 digits plus CRLF and a NUL, rounded up */
+#define CLHDRSIZE 48
+/* what the headers this proxy adds of its own can come to: a Forwarded or
+   Via with a host name in it, a Connection, a Proxy-support and a
+   Proxy-Authorization carrying an encoded user and password */
+#define HDRRESERVE 2048
 #define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
 
@@ -149,6 +155,20 @@ static int pst_len(int idx){
 
 static int send_st(struct clientparam *param, int idx){
 	return socksend(param, param->clisock, (unsigned char *)proxy_stringtable[idx], pst_len(idx), conf.timeouts[STRING_S]);
+}
+
+/* Makes room in a buffer whose size is tracked. A filter may hand back one
+   holding exactly what it produced, so nothing may be added to it without
+   asking for the room first. Returns 1 when the room cannot be had. */
+static int growbuf(unsigned char **buf, int *bufsize, int need){
+	unsigned char *newbuf;
+
+	if(need <= *bufsize) return 0;
+	need += BUFSIZE;		/* for what follows too, not just this */
+	if(!(newbuf = realloc(*buf, need))) return 1;
+	*buf = newbuf;
+	*bufsize = need;
+	return 0;
 }
 
 static void freeptr(void *p){
@@ -648,6 +668,10 @@ for(;;){
 	RETURN(0);
  }
  if(action != PASS) RETURN(517);
+ /* A filter may have returned a buffer sized to exactly what it produced.
+    The headers this proxy adds of its own go in after it, so the room for
+    them is taken back before anything is written. */
+ if(growbuf(&buf, &bufsize, inbuf + HDRRESERVE)) RETURN(21);
  param->nolongdatfilter = 0;
 
 #endif
@@ -681,6 +705,7 @@ for(;;){
 	contentlength64 = param->cliinbuf;
 	param->nolongdatfilter = 1;
   }
+  if(growbuf(&buf, &bufsize, (int)strlen((char *)buf) + CLHDRSIZE)) RETURN(21);
   sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"\r\n", contentlength64);
  }
 
@@ -1158,6 +1183,7 @@ for(;;){
 	RETURN(0);
  }
  if(action != PASS) RETURN(517);
+ if(growbuf(&buf, &bufsize, inbuf + HDRRESERVE)) RETURN(21);
 
  param->nolongdatfilter = 0;
 
@@ -1181,6 +1207,7 @@ for(;;){
 	}
 	if(action != PASS) RETURN(517);
 	contentlength64 = param->srvinbuf;
+	if(growbuf(&buf, &bufsize, (int)strlen((char *)buf) + CLHDRSIZE)) RETURN(21);
 	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"\r\n", contentlength64);
 	hascontent = 1;
   }
