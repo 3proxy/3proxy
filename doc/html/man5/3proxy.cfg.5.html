@@ -18,6 +18,14 @@
 <a href="#PCRE FILTERING">PCRE FILTERING</a><br>
 <a href="#PCRE Commands">PCRE Commands</a><br>
 <a href="#PCRE Parameters">PCRE Parameters</a><br>
+<a href="#BUILT IN HTTP SERVER">BUILT IN HTTP SERVER</a><br>
+<a href="#Operations">Operations</a><br>
+<a href="#What a rule adds to the answer">What a rule adds to the answer</a><br>
+<a href="#Patterns">Patterns</a><br>
+<a href="#Both a site and a proxy">Both a site and a proxy</a><br>
+<a href="#Connections">Connections</a><br>
+<a href="#Paths a rule builds">Paths a rule builds</a><br>
+<a href="#Examples">Examples</a><br>
 <a href="#BUGS">BUGS</a><br>
 <a href="#SEE ALSO">SEE ALSO</a><br>
 <a href="#AUTHORS">AUTHORS</a><br>
@@ -77,8 +85,10 @@ characters) is treated as space character (arguments
 delimiter instead of end of command delimiter). Thus,
 include files are only useful to store long single-line
 commands (like userlist, network lists, etc). To use dollar
-sign somewhere in argument it must be quoted. Recursion is
-not allowed.</p>
+sign somewhere in argument it must be quoted or doubled:
+inside quotes a dollar is ordinary text, and <b>$$</b>
+stands for a single dollar and is not read as an include.
+Recursion is not allowed.</p>
 
 <p style="margin-left:9%; margin-top: 1em">Next commands
 start gateway services:</p>
@@ -706,9 +716,24 @@ A.B.C.D - W.X.Y.Z (since 0.8) or CIDRs (W.X.Y.Z/L). Since
 addresses. It&acute;s possible to use a wildmask in the
 beginning and at the end of the hostname, e.g. *badsite.com
 or *badcontent*. The hostname is only checked if a hostname
-is present in the request. Targetportlist may contain ports
-(X) or port ranges lists (X-Y). For any field * sign means
-ANY. If access list is empty it&acute;s assumed to be <br>
+is present in the request. A name written with a
+<b>pcre:</b> prefix (<b>regex:</b> is the same thing) is a
+regular expression instead of a wildmask, in a build with
+PCRE support: <br>
+deny * *
+&quot;pcre:&#710;(ads|track)[0-9]*\.example\.(com|net)$&quot;
+<br>
+The name is lowercased and any trailing dots are removed
+before it is matched, so patterns are written in lower case.
+A pattern ending in <b>$</b> has to be quoted or written
+<b>$$</b>, since a lone dollar outside quotes begins the
+name of a file to include. The same patterns, and the same
+prefix, are used by the <b>http</b> command, see BUILT IN
+HTTP SERVER. Regular expressions are matched per request and
+cost more than a wildmask, which is enough for most rules.
+Targetportlist may contain ports (X) or port ranges lists
+(X-Y). For any field * sign means ANY. If access list is
+empty it&acute;s assumed to be <br>
 allow * <br>
 If access list is not empty last item in access list is
 assumed to be <br>
@@ -1428,8 +1453,17 @@ PCRE_NO_AUTO_CAPTURE, PCRE_NO_UTF8_CHECK, PCRE_AUTO_CALLOUT,
 PCRE_PARTIAL, PCRE_DFA_SHORTEST, PCRE_DFA_RESTART,
 PCRE_FIRSTLINE, PCRE_DUPNAMES, PCRE_NEWLINE_CR,
 PCRE_NEWLINE_LF, PCRE_NEWLINE_CRLF, PCRE_NEWLINE_ANY,
-PCRE_NEWLINE_ANYCRLF, PCRE_BSR_ANYCRLF,
-PCRE_BSR_UNICODE.</p>
+PCRE_NEWLINE_ANYCRLF, PCRE_BSR_ANYCRLF, PCRE_BSR_UNICODE.
+<br>
+These options apply to every pattern the configuration
+compiles, the host patterns of access rules and <b>http</b>
+rules included, so set them before the rules which are to
+use them. <br>
+Regular expressions are not only for these commands: a host
+name in the target list of an access rule, and the host and
+URL of an <b>http</b> rule, take one when it is written with
+a <b>pcre:</b> prefix. See <b>allow</b> and BUILT IN HTTP
+SERVER.</p>
 
 <h3>PCRE Parameters
 <a name="PCRE Parameters"></a>
@@ -1481,6 +1515,264 @@ The regular expression is only matched if the ACL matches
 the connection data. Warning: Regular expressions
 don&rsquo;t require authentication and cannot replace
 authentication and/or allow/deny ACLs.</p>
+
+<h2>BUILT IN HTTP SERVER
+<a name="BUILT IN HTTP SERVER"></a>
+</h2>
+
+
+<p style="margin-left:9%; margin-top: 1em">The
+<b>httpsrv</b> service answers requests itself instead of
+forwarding them. What it does with a request is decided by
+<b>http</b> rules, which are taken in the order they are
+written: the first whose host and URL both match handles the
+request. Rules belong to the service that follows them, the
+way access rules do, and <b>admin</b> is <b>httpsrv</b> with
+a set of rules already in place.</p>
+
+<p style="margin-left:9%; margin-top: 1em"><b>http</b>
+<i>OPERATION HOST URL [PARAMETERS]</i> <br>
+Handle a request for <i>URL</i> on <i>HOST</i> with
+<i>OPERATION</i>. HOST is matched against the Host header,
+URL against the path, with the query string removed.</p>
+
+<h3>Operations
+<a name="Operations"></a>
+</h3>
+
+
+<p style="margin-left:9%; margin-top: 1em"><b>file</b>
+<i>PATH [TYPE [MAX-AGE [HEADERS [CODE]]]]</i> - send the
+file at PATH. The file is handed to the socket by the system
+where it can do that (sendfile, TransmitFile) and read here
+where it cannot, as when the connection carries TLS. The
+arguments after PATH are described below, and each of them
+may be written as <b>*</b> to leave it out. <b><br>
+cache</b> <i>PATH [TYPE [MAX-AGE [HEADERS [CODE]]]]</i> -
+the same, but the file is read into memory on the first
+request and answered from there afterwards. A file that has
+changed on disk is read again, and one larger than a
+megabyte is sent as <b>file</b> would. With a MAX-AGE the
+file is not looked at again for that long: the rule has
+already told clients the file may be treated as unchanged
+for that time, so the server treats its own copy the same
+way and a request costs nothing but the copy out. Without
+one every request stats the file, so a change is picked up
+at once. <b><br>
+reply</b> <i>[CODE [HEADERS]]</i> - answer with a status and
+nothing else. CODE is the status to send, 200 without one. A
+status which carries no body of its own (1xx, 204, 304) is
+sent without a length; anything else is sent with a length
+of zero. <b><br>
+redir</b> <i>[CODE] LOCATION</i> - answer with a redirect.
+CODE is 301 or 302, or any status from 300 to 399; without
+one, 302 is used. <b><br>
+rewrite</b> <i>PATH</i> - change the path of the request and
+hand it to the rules that follow this one. <b><br>
+rewrite_host</b> <i>HOST</i> - the same for the host, which
+decides which of the rules after it match. <b>$1</b> upwards
+stand for what the stars, or the groups, of this
+rule&acute;s host pattern matched, the way they stand for
+those of the URL in a <b>rewrite</b>. What is built has to
+be a host name; the name the client sent is what access
+rules matched and what the log records. <b><br>
+echo</b> - answer with a description of the request: the
+method, path, query, host, and the address and port it came
+from. For testing. <b><br>
+data</b> <i>[size=N] [block=N] [status=N] [chunked=1]
+[delay=N]</i> - answer with generated content of the size
+asked for. For testing. <b><br>
+proxypass</b> - hand the request to the proxy code, which
+fetches it the way <b>proxy</b> would, see BOTH A SITE AND A
+PROXY. <b><br>
+admin</b>, <b>admin_counters</b>, <b>admin_reload</b>,
+<b>admin_services</b> - the pages of the administration
+interface.</p>
+
+<h3>What a rule adds to the answer
+<a name="What a rule adds to the answer"></a>
+</h3>
+
+
+<p style="margin-left:9%; margin-top: 1em"><b>TYPE</b> is
+the content type to answer with. Without it, or with
+<b>*</b>, the type is worked out from the name of the file,
+see <b>http_content_type</b>. <b><br>
+MAX-AGE</b> is a number of seconds, and is sent as
+Cache-Control: max-age. Without it, or with <b>*</b>,
+nothing is said about caching. <b><br>
+HEADERS</b> is one argument holding whole header lines,
+separated by a backslash and an n - the two characters,
+since a configuration line cannot carry a line ending. Each
+becomes a real line ending in the answer. Quote the argument
+if any header holds a space, which they usually do. <b><br>
+CODE</b> is the status to answer with instead of 200, which
+is how a file serves as the body of an error page. <br>
+A rule&rsquo;s headers and MAX-AGE go with whatever status
+that rule asked for. They are not sent with a refusal the
+server itself decided on: a request for a file which is not
+there is answered 404 by the server, not by the rule.
+<b><br>
+file</b> and <b>cache</b> send Last-Modified, and answer a
+request carrying If-Modified-Since with 304 and no body when
+the file has not changed since the time it names. All three
+date formats HTTP allows are read; one which cannot be read
+is treated as no date at all. A rule answering with a CODE
+of its own is answering something other than the file, so it
+is never turned into a 304. <br>
+http file * /err/** &quot;/usr/local/web/404.html&quot;
+text/html * &quot;X-Served: static&quot; 404 <br>
+http reply * /health** 200 &quot;X-Health: ok&quot; <br>
+http reply * /down** 503 &quot;Retry-After: 30&quot;</p>
+
+
+<p style="margin-left:9%; margin-top: 1em"><b>http_content_type</b>
+<i>EXTENSION TYPE</i> <br>
+Answer for a file with that extension with that content
+type, in addition to the types already known. The extension
+may be written with or without its dot. A type named by a
+rule is used whatever this says, and a name the server knows
+nothing about is answered as application/octet-stream. <br>
+http_content_type .webp image/webp</p>
+
+<h3>Patterns
+<a name="Patterns"></a>
+</h3>
+
+
+<p style="margin-left:9%; margin-top: 1em">A URL is matched
+with stars, or with a regular expression when it carries a
+<b>pcre:</b> prefix (<b>regex:</b> is taken as well). A host
+is matched the way an access list matches one, and takes the
+same prefix. <b><br>
+*</b> stands for any run of characters within one element of
+the path: it does not cross a <b>/</b>, so a rule cannot
+reach into a directory it did not name. <b><br>
+**</b> crosses them, and is what a rule which should match
+everything below a point, or everything at all, is written
+with. <br>
+Each star, and each group of a regular expression, is
+remembered in the order it appears. <b>$1</b> upwards stand
+for them in the path or location a rule builds, and
+<b>$0</b> for the whole request path. <br>
+Outside quotes a dollar begins the name of a file to
+include, so an argument holding one - a path or location
+built with <b>$1</b>, a regular expression anchored with
+<b>$</b> - is written in quotes. <b>$$</b> stands for a
+single dollar and is not read as an include either, which is
+how a dollar reaches a rule as text.</p>
+
+<h3>Both a site and a proxy
+<a name="Both a site and a proxy"></a>
+</h3>
+
+
+<p style="margin-left:9%; margin-top: 1em">A request may
+arrive the way it arrives at a site, naming a path and a
+host in the Host header, or the way it arrives at a proxy,
+naming the whole URL, or, for a tunnel, the host alone with
+CONNECT. Both are read. A request in the proxy form
+authenticates with Proxy-Authorization and is refused with
+407, as a proxy refuses one; a request in the site form uses
+Authorization and 401. <br>
+What answers a request is still decided by the rules.
+<b>proxypass</b> is the rule which answers by fetching, so a
+service can serve what it has and proxy the rest: <br>
+http file * /local/** &quot;/usr/local/web/$1&quot; <br>
+http proxypass * /** <br>
+httpsrv -p8080 <br>
+The same happens without a rule for it where an access rule
+redirects to the local proxy, which is written as a chain of
+no address: the rules are asked first, and a request none of
+them answers is fetched. <br>
+allow * <br>
+parent 1000 http 0.0.0.0 0 <br>
+allow * <br>
+The second <b>allow</b> is what the proxy matches on the
+pass it makes itself: a rule carrying the chain is not taken
+twice. Authentication happens twice for the same reason,
+once for the service and once for the proxy, so a
+configuration asking for credentials asks for them as a
+proxy does. <br>
+The access rules are read from the top on both passes, and
+it is the second pass which describes where the request is
+going. On the first one the service is answering for itself,
+so the destination an address or a port is matched against
+is the address the client connected to; the name from the
+request is matched on both. On the second the destination is
+the one the request names, so rules written with an address,
+a port or a name decide what the proxy is allowed to fetch,
+and they decide it before the connection is made: <br>
+allow * <br>
+parent 1000 http 0.0.0.0 0 <br>
+allow * * * 80,443 <br>
+deny * <br>
+Everything reaches the rules, and only ports 80 and 443 are
+fetched. A rule before the one carrying the chain applies on
+both passes just the same, so a <b>deny</b> written there
+stops the request as well. <br>
+The connection to the server is kept for the request after
+it, and closed when the request after it goes somewhere
+else, or when the server has closed it in the meantime. A
+tunnel is fetched by the proxy code as well, which means the
+connection carrying it belongs to that request alone.</p>
+
+<h3>Connections
+<a name="Connections"></a>
+</h3>
+
+
+<p style="margin-left:9%; margin-top: 1em">An answer is
+sent as HTTP/1.1 to a client which asked in HTTP/1.1, and
+the connection is kept for the next request unless the
+client sent <b>Connection: close</b>. A 1.0 client gets a
+1.0 answer, and the connection is kept only when it asked
+with <b>Connection: keep-alive</b>. <br>
+The connection is kept only when what was sent is framed
+exactly: every operation but the administration pages states
+a length, or sends a chunked body a 1.1 client can read, so
+the pages of <b>admin</b> are always the last thing on a
+connection. A request body which cannot be read to its end
+ends the connection as well: one sent with
+<b>Transfer-Encoding</b>, which this server does not read,
+and one longer than a megabyte, which it will not.</p>
+
+<h3>Paths a rule builds
+<a name="Paths a rule builds"></a>
+</h3>
+
+
+<p style="margin-left:9%; margin-top: 1em">The path a rule
+builds is used as it is, so it is refused rather than
+corrected when it is not a plain full path. A relative path
+is refused: it would be read against whatever directory the
+service happens to be in. So is one holding <b>.</b> or
+<b>..</b> as an element, a carriage return, a newline or a
+star. On Windows a path must name a drive or a share, and is
+converted to the extended \\?\ form and opened through the
+wide interface, so a long path works. <br>
+A request is checked before any of this: a path which
+decodes to one leaving the tree is refused outright.</p>
+
+<h3>Examples
+<a name="Examples"></a>
+</h3>
+
+
+<p style="margin-left:9%; margin-top: 1em">http file
+example.com /my/webpath/*.html
+&quot;/usr/local/web/$1.html&quot; <br>
+http cache example.com
+&quot;pcre:&#710;/(.*)/pic/(.*).(gif|jpeg)$&quot;
+&quot;/usr/local/web/picts/$1/$2.$3&quot; <br>
+http redir * /old/** 301 &quot;https://example.org/$1&quot;
+<br>
+http rewrite * /alias/** &quot;/w/$1&quot; <br>
+http rewrite_host *.old.example **
+&quot;$1.new.example&quot; <br>
+http file * /static/** &quot;/usr/local/web/static/$1&quot;
+<br>
+httpsrv -p8080</p>
 
 <h2>BUGS
 <a name="BUGS"></a>
