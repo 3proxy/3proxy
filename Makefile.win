@@ -23,6 +23,16 @@ LDFLAGS += -fno-strict-aliasing -mthreads
 # makefile, including the += above and the STATIC/LIBSTATIC handling below.
 CFLAGS += $(EXTRA_CFLAGS)
 LDFLAGS += $(EXTRA_LDFLAGS)
+MAILPROXY ?= false
+ifeq ($(MAILPROXY),true)
+    CFLAGS += -DWITH_POP3P -DWITH_IMAPP -DWITH_SMTPP
+    MAIL_EXES = $(BUILDDIR)$(PREFIX)pop3p$(EXESUFFICS) $(BUILDDIR)$(PREFIX)imapp$(EXESUFFICS) $(BUILDDIR)$(PREFIX)smtpp$(EXESUFFICS)
+endif
+FTP ?= false
+ifeq ($(FTP),true)
+    CFLAGS += -DWITH_FTP
+    FTP_EXES = $(BUILDDIR)$(PREFIX)ftppr$(EXESUFFICS)
+endif
 HTTPSRV ?= true
 ifeq ($(HTTPSRV),true)
     CFLAGS += -DWITH_HTTPSRV

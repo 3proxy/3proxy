@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+#ifdef WITH_SMTPP
+
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
 #ifdef WITHMAIN
@@ -341,4 +343,16 @@ struct proxydef childdef = {
 
 };
 #include "proxymain.c"
+#endif
+#else
+
+/* Built without this proxy of its own. The command and the redirect
+   naming it are the STARTTLS proxy speaking that protocol, which
+   negotiates the same way and passes the session on: what "tlspr -Xsmtp"
+   does, under the name a configuration already uses. */
+void * smtppchild(struct clientparam * param){
+	param->starttls = S_SMTPP;
+	return (void *)tlsprchild;
+}
+
 #endif

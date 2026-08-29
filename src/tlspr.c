@@ -334,7 +334,8 @@ void * tlsprchild(struct clientparam* param) {
  int lv=-1;
  char proto[PROTOLEN]="-";
  int snipos = 0;
- PROXYSERVICE stlsproto = param->clientstarttls? param->clientstarttls : param->srv->srvstarttls;
+ PROXYSERVICE stlsproto = param->clientstarttls? param->clientstarttls :
+	(param->starttls? param->starttls : param->srv->srvstarttls);
 
  if(!param->clientstarttls && stlsproto){
     res = clistarttls(param, stlsproto);

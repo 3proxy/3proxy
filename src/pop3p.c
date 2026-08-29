@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+#ifdef WITH_POP3P
+
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
 #ifdef WITHMAIN
@@ -87,4 +89,16 @@ struct proxydef childdef = {
 
 };
 #include "proxymain.c"
+#endif
+#else
+
+/* Built without this proxy of its own. The command and the redirect
+   naming it are the STARTTLS proxy speaking that protocol, which
+   negotiates the same way and passes the session on: what "tlspr -Xpop3"
+   does, under the name a configuration already uses. */
+void * pop3pchild(struct clientparam * param){
+	param->starttls = S_POP3P;
+	return (void *)tlsprchild;
+}
+
 #endif

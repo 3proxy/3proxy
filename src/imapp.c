@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+#ifdef WITH_IMAPP
+
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
 #define CL_LOGINCMD 0
@@ -249,4 +251,16 @@ struct proxydef childdef = {
 
 };
 #include "proxymain.c"
+#endif
+#else
+
+/* Built without this proxy of its own. The command and the redirect
+   naming it are the STARTTLS proxy speaking that protocol, which
+   negotiates the same way and passes the session on: what "tlspr -Ximap"
+   does, under the name a configuration already uses. */
+void * imappchild(struct clientparam * param){
+	param->starttls = S_IMAPP;
+	return (void *)tlsprchild;
+}
+
 #endif

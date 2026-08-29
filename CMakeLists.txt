@@ -70,6 +70,8 @@ option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)
 option(3PROXY_USE_TRANSPARENT "Build transparent proxying support (Linux and BSD only)" ON)
 option(3PROXY_USE_UNIX_SOCKETS "Enable Unix domain socket support (Unix only)" ON)
 option(3PROXY_USE_HTTPSRV "Build the HTTP server and the admin interface on top of it" ON)
+option(3PROXY_USE_MAILPROXY "Build the pop3p, imapp and smtpp proxies" OFF)
+option(3PROXY_USE_FTP "Build FTP support: the ftppr service and ftp:// in the HTTP proxy" OFF)
 
 if(NOT WIN32 AND NOT APPLE)
     option(3PROXY_STATIC_LINK "Statically link libraries using -Wl,-Bstatic (Linux/Unix only)" OFF)
@@ -83,10 +85,13 @@ set(3PROXY_BINARY_PREFIX "3proxy_" CACHE STRING "Prefix for standalone module an
 option(3PROXY_BUILD_NONE   "Do not build standalone binaries"   OFF)
 option(3PROXY_BUILD_PROXY  "Build standalone proxy binary"  ON)
 option(3PROXY_BUILD_SOCKS  "Build standalone socks binary"  ON)
-option(3PROXY_BUILD_POP3P  "Build standalone pop3p binary"  ON)
-option(3PROXY_BUILD_IMAPP  "Build standalone imapp binary"  ON)
-option(3PROXY_BUILD_SMTPP  "Build standalone smtpp binary"  ON)
-option(3PROXY_BUILD_FTPPR  "Build standalone ftppr binary"  ON)
+# The mail proxies and FTP are asked for rather than assumed: without them
+# pop3p, imapp and smtpp are the STARTTLS proxy under those names, and ftp
+# is not spoken at all. A standalone binary needs the support it is made of.
+option(3PROXY_BUILD_POP3P  "Build standalone pop3p binary"  OFF)
+option(3PROXY_BUILD_IMAPP  "Build standalone imapp binary"  OFF)
+option(3PROXY_BUILD_SMTPP  "Build standalone smtpp binary"  OFF)
+option(3PROXY_BUILD_FTPPR  "Build standalone ftppr binary"  OFF)
 option(3PROXY_BUILD_TCPPM  "Build standalone tcppm binary"  ON)
 option(3PROXY_BUILD_UDPPM  "Build standalone udppm binary"  ON)
 option(3PROXY_BUILD_TLSPR  "Build standalone tlspr binary"  ON)
@@ -248,6 +253,14 @@ else()
         TrafficPlugin
         FilePlugin
     )
+endif()
+
+if(3PROXY_USE_MAILPROXY)
+    add_compile_definitions(WITH_POP3P WITH_IMAPP WITH_SMTPP)
+endif()
+
+if(3PROXY_USE_FTP)
+    add_compile_definitions(WITH_FTP)
 endif()
 
 if(3PROXY_USE_HTTPSRV)
@@ -681,6 +694,15 @@ endif()
 foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
     string(TOUPPER "${PROXY_NAME}" _MODULE_OPT)
     if(NOT 3PROXY_BUILD_${_MODULE_OPT})
+        continue()
+    endif()
+
+    # A binary of nothing: without the support built, these files hold the
+    # stand-in the main binary uses and no service of their own.
+    if(NOT 3PROXY_USE_MAILPROXY AND PROXY_NAME MATCHES "^(pop3p|imapp|smtpp)$")
+        continue()
+    endif()
+    if(NOT 3PROXY_USE_FTP AND PROXY_NAME STREQUAL "ftppr")
         continue()
     endif()
 

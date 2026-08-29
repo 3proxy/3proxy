@@ -7,6 +7,8 @@
 
 #include "proxy.h"
 
+#ifdef WITH_FTP
+
 /*
  * Read one FTP server response, skipping continuation lines (lines whose
  * 4th character is '-' per RFC 959). Returns the line length on success,
@@ -249,3 +251,5 @@ SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned c
 	}
 	return s;
 }
+
+#endif
