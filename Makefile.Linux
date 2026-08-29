@@ -27,6 +27,16 @@ CFLAGS += $(EXTRA_CFLAGS)
 LDFLAGS += $(EXTRA_LDFLAGS)
 # The HTTP server serves the endpoints declared by http lines. The admin
 # interface is built on top of it, so turning it off removes both.
+MAILPROXY ?= false
+ifeq ($(MAILPROXY),true)
+    CFLAGS += -DWITH_POP3P -DWITH_IMAPP -DWITH_SMTPP
+    MAIL_EXES = $(BUILDDIR)$(PREFIX)pop3p$(EXESUFFICS) $(BUILDDIR)$(PREFIX)imapp$(EXESUFFICS) $(BUILDDIR)$(PREFIX)smtpp$(EXESUFFICS)
+endif
+FTP ?= false
+ifeq ($(FTP),true)
+    CFLAGS += -DWITH_FTP
+    FTP_EXES = $(BUILDDIR)$(PREFIX)ftppr$(EXESUFFICS)
+endif
 HTTPSRV ?= true
 ifeq ($(HTTPSRV),true)
     CFLAGS += -DWITH_HTTPSRV

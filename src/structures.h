@@ -759,6 +759,10 @@ struct clientparam {
 	   that a plugin built against an older header still finds the fields it
 	   knows where they were. */
 	int onerequest;
+	/* A STARTTLS protocol to speak before the session is wrapped, set for
+	   one connection rather than for the service, which is how a redirect
+	   and a service name standing in for a mail proxy reach tlspr. */
+	PROXYSERVICE starttls;
 };
 
 struct filemon {

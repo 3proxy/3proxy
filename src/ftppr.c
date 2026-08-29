@@ -8,6 +8,8 @@
 
 #include "proxy.h"
 
+#ifdef WITH_FTP
+
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 #define BUFSIZE 2048
 
@@ -344,4 +346,17 @@ struct proxydef childdef = {
 	" -hdefault_host[:port] - use this host and port as default if no host specified\n"
 };
 #include "proxymain.c"
+#endif
+
+#else
+
+/* Built without FTP support. The service and the redirect naming it are
+   still known, so a configuration carrying them is read rather than
+   refused, and a client reaching one is turned away. */
+void * ftpprchild(struct clientparam * param){
+	param->res = 878;
+	dolog(param, (unsigned char *)"ftp support is not built in");
+	return NULL;
+}
+
 #endif

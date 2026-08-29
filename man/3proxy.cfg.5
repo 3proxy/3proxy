@@ -95,16 +95,19 @@ SNI proxy (destination address is taken from TLS handshake), may be used to redi
 Proxy with protocol autoselection between proxy / socks / tlspr
 .br
 .B pop3p
-POP3 proxy (default port 110)
+POP3 proxy (default port 110), in a build which has one: otherwise the
+service is \fBtlspr\fR speaking POP3 to negotiate STARTTLS, under this name.
 .br
 .B imapp
-IMAPv4 proxy (default port 143)
+IMAPv4 proxy (default port 143), or \fBtlspr\fR speaking IMAP, as above.
 .br
 .B smtpp
-SMTP proxy (default port 25)
+SMTP proxy (default port 25), or \fBtlspr\fR speaking SMTP, as above.
 .br
 .B ftppr
-FTP proxy (default port 21)
+FTP proxy (default port 21), in a build with FTP support. Without it the
+service is known but answers nothing, and \fBftp://\fR is not a URL the HTTP
+proxy fetches.
 .br
 .B admin
 Web interface (default port 80)
@@ -1572,6 +1575,21 @@ identical to allow/deny/bandlimin commands. The regular expression is only
 matched if the ACL matches the connection data.
 Warning: Regular expressions don't require authentication and cannot replace
 authentication and/or allow/deny ACLs.
+
+.SH OPTIONAL SERVICES
+The mail proxies and FTP are built when they are asked for, and are not in a
+default build. \fBMAILPROXY=true\fR builds \fBpop3p\fR, \fBimapp\fR and
+\fBsmtpp\fR, and \fBFTP=true\fR builds \fBftppr\fR and the \fBftp://\fR
+scheme of the HTTP proxy; with CMake the switches are
+\fB-D3PROXY_USE_MAILPROXY=ON\fR and \fB-D3PROXY_USE_FTP=ON\fR. The standalone
+binaries of those services are built with them and not without.
+.br
+ A configuration naming a service which was not built is still read. The three
+mail proxies become \fBtlspr\fR negotiating STARTTLS in that protocol, which
+is what most of their use amounts to now that the mail protocols are used over
+TLS, and a \fBparent\fR chain naming \fBpop3\fR, \fBimap\fR or \fBsmtp\fR
+does the same. \fBftppr\fR is answered by nothing: a client reaching it is
+turned away and the refusal logged, since there is no protocol to fall back on.
 
 .SH BUILT IN HTTP SERVER
 The \fBhttpsrv\fR service answers requests itself instead of forwarding them.

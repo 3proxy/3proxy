@@ -385,10 +385,12 @@ for(;;){
 	if (!strncasecmp((char *)sb, "http://", 7)) {
 		sb += 7;
 	}
+#ifdef WITH_FTP
 	else if (!strncasecmp((char *)sb, "ftp://", 6)) {
 		ftp = 1;
 		sb += 6;
 	}
+#endif
 	else if(*sb == '/') {
 		param->transparent = 1;
 	}
@@ -712,6 +714,7 @@ for(;;){
 #endif
 
 
+#ifdef WITH_FTP
  if(ftp && param->redirtype != R_HTTP){
 	SOCKET s;
 	int mode = 0;
@@ -963,6 +966,7 @@ for(;;){
 	}
 	RETURN(res);
  }
+#endif
 
  if(isconnect && param->redirtype != R_HTTP) {
 	if(param->redirectfunc) {

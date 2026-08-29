@@ -27,7 +27,7 @@ jobs:
       if: ${{ startsWith(matrix.target, 'ubuntu') }}
       run: sudo apt-get update && sudo apt-get install -y libssl-dev libpam-dev libpcre2-dev
     - name: make
-      run: make -f Makefile.Linux
+      run: make -f Makefile.Linux MAILPROXY=true FTP=true
     - name: regression tests
       run: python3 tests/run.py
     - name: mkdir
