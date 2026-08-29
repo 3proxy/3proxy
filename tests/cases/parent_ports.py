@@ -14,12 +14,19 @@ def _windows():
     net.ipv4.ip_local_port_range; a window outside it is ignored and an
     ordinary ephemeral port is used, so a fixed low window would be
     measuring the kernel's own choice rather than the setting.
+
+    Everywhere else the range is honoured by binding a port out of it at
+    random, ten times before giving up and letting the system choose. A port
+    which carried a connection a moment ago cannot be bound again while it
+    waits out its close - four minutes of it on Windows - so the window has
+    to be wide enough that ten tries do not all land on one. The window the
+    kernel picks from on Linux needs no such room, since it skips them.
     """
     try:
         with open("/proc/sys/net/ipv4/ip_local_port_range") as fp:
             low, high = (int(part) for part in fp.read().split()[:2])
     except (OSError, ValueError):
-        return (21400, 21449), (21500, 21549)
+        return (21400, 21899), (22000, 22499)
     base = low + 1000 if low + 1150 <= high else low
     return (base, base + 49), (base + 100, base + 149)
 
