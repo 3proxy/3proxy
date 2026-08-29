@@ -198,14 +198,24 @@ def run(t):
     # GHSA-h845-prxq-ww3q: a rewrite that doubles the client headers used to
     # leave a buffer holding exactly what it produced, and the Content-Length
     # the data filter regenerates was then written past the end of it.
-    p = proxy_with("rewrite_grow",
-                   'pcre_rewrite cliheader dunno "(?s).*" "$0$0"',
-                   'pcre clidata dunno *')
-    big = "".join("X-%d: %s\r\n" % (i, chr(65 + i) * 20000) for i in range(5))
-    reply = t.raw_proxy_request(p, url + "/echo", extra=big, body="z")
-    t.contains(reply, "200", "a doubled header block with a body is answered")
-    t.contains(t.http(url + "/echo", proxy=p), "path=/echo",
-               "and the proxy is still there afterwards")
+    # The origin here reads whatever it is sent and answers the same way every
+    # time: what is being tested is the proxy in the middle, not what a server
+    # is willing to accept in one request.
+    grown = t.free_port()
+    stop = t.raw_server(grown, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok",
+                        drain=True)
+    try:
+        p = proxy_with("rewrite_grow",
+                       'pcre_rewrite cliheader dunno "(?s).*" "$0$0"',
+                       'pcre clidata dunno *')
+        big = "".join("X-%d: %s\r\n" % (i, chr(65 + i) * 20000) for i in range(5))
+        reply = t.raw_proxy_request(p, f"http://127.0.0.1:{grown}/x",
+                                    extra=big, body="z")
+        t.contains(reply, "200", "a doubled header block with a body is answered")
+        t.contains(t.raw_proxy_request(p, f"http://127.0.0.1:{grown}/x"), "200",
+                   "and the proxy is still there afterwards")
+    finally:
+        stop()
 
     # A reference to a group the pattern does not have is dropped, and dropped
     # by both the pass which measures the result and the pass which writes it.
