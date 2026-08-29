@@ -159,7 +159,10 @@ void * smtppchild(struct clientparam* param) {
 	i = de64(buf,username,255);
 	if(i < 1) {RETURN(664);}
 	username[i] = 0;
-	parseconnusername((char *)username, param, 0, 587);
+	/* The name has to carry the host to connect to, and the answer says
+	   whether it did: without one there is nowhere to go, and what follows
+	   reads the name as if there were. */
+	if(parseconnusername((char *)username, param, 0, 587)) {RETURN(669);}
 	socksend(param, param->clisock, (unsigned char *)"334 UGFzc3dvcmQ6\r\n", 18,conf.timeouts[STRING_S]);	
 	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
 	if(i < 2) {RETURN(665);}
@@ -184,7 +187,7 @@ void * smtppchild(struct clientparam* param) {
 	}
 	if(i < 3 || *username) {RETURN(668);}
 	username[i] = 0;
-	parseconnusername((char *)username+1, param, 0, 587);
+	if(parseconnusername((char *)username+1, param, 0, 587)) {RETURN(670);}
 	res = (int)strlen((char *)username+1) + 2;
 	if(res < i){
 		if(param->extpassword) free(param->extpassword);
