@@ -193,3 +193,33 @@ def run(t):
     r = t.http(url + "/echo/old", proxy=p)
     t.eq(200, r.status, "a rewritten request through a parent arrives")
     t.contains(r, "path=/echo/new", "the origin sees the rewritten path through a parent")
+
+    # --- a rewrite which grows the headers ----------------------------------
+    # GHSA-h845-prxq-ww3q: a rewrite that doubles the client headers used to
+    # leave a buffer holding exactly what it produced, and the Content-Length
+    # the data filter regenerates was then written past the end of it.
+    p = proxy_with("rewrite_grow",
+                   'pcre_rewrite cliheader dunno "(?s).*" "$0$0"',
+                   'pcre clidata dunno *')
+    big = "".join("X-%d: %s\r\n" % (i, chr(65 + i) * 20000) for i in range(5))
+    reply = t.raw_proxy_request(p, url + "/echo", extra=big, body="z")
+    t.contains(reply, "200", "a doubled header block with a body is answered")
+    t.contains(t.http(url + "/echo", proxy=p), "path=/echo",
+               "and the proxy is still there afterwards")
+
+    # A reference to a group the pattern does not have is dropped, and dropped
+    # by both the pass which measures the result and the pass which writes it.
+    p = proxy_with("rewrite_nogroup",
+                   'pcre_rewrite cliheader dunno "(?s)Host:" "$9$9$9$9$9$9$9$9"')
+    r = t.http(url + "/echo", proxy=p, headers={"X-Pad": "P" * 2000})
+    t.eq(200, r.status, "a reference to a group which did not match is left out")
+    t.contains(t.http(url + "/echo", proxy=p), "path=/echo",
+               "and that proxy is still there too")
+
+    # an optional group which took part on one request and not on the next
+    p = proxy_with("rewrite_optgroup",
+                   'pcre_rewrite cliheader dunno "X-Mark: (a)?(b)" "[$1][$2]"')
+    t.eq(200, t.http(url + "/echo", proxy=p, headers={"X-Mark": "ab"}).status,
+         "a group which matched is put in")
+    t.eq(200, t.http(url + "/echo", proxy=p, headers={"X-Mark": "b"}).status,
+         "and one which did not is left out")

@@ -358,6 +358,23 @@ class Tester:
             return f"<no reply: {exc}>", True
         return b"".join(chunks).decode("utf-8", "replace"), closed
 
+    def raw_proxy_request(self, proxy, url, extra="", body="", method=None):
+        """Send one absolute-URI request through a proxy, headers and all.
+
+        For the requests a client library will not send: an oversized header
+        block, or one whose exact bytes matter.
+        """
+        phost, pport = self._hostport(proxy)
+        host, port, path = self._split(url)
+        method = method or ("POST" if body else "GET")
+        request = (f"{method} http://{host}:{port}{path} HTTP/1.1\r\n"
+                   f"Host: {host}:{port}\r\n" + extra)
+        if body:
+            request += f"Content-Length: {len(body)}\r\n"
+        request += "\r\n" + body
+        text, _ = self.raw_session(pport, request, host=phost, quiet=2)
+        return text
+
     def raw_server(self, port, reply, close_after=True, host="127.0.0.1"):
         """Answer every connection with fixed bytes. Returns a stop function.
 
