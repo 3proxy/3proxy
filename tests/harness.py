@@ -22,6 +22,7 @@ configurations it needs, starts them, and states what it expects:
 import base64
 import http.client
 import os
+import random
 import shutil
 import socket
 import ssl
@@ -31,6 +32,11 @@ import sys
 import textwrap
 import threading
 import time
+
+
+# Ports handed out in this run: a service which has finished may still be
+# in TIME_WAIT, and another case binding the same port would fail for it.
+_PORTS_TAKEN = set()
 
 
 class Response:
@@ -146,14 +152,30 @@ class Tester:
             sock.close()
 
     def free_port(self):
-        """A port nothing is listening on. Closed again before it is used,
-        which is racy in principle and reliable enough in practice."""
-        s = socket.socket()
-        try:
-            s.bind(("127.0.0.1", 0))
-            return s.getsockname()[1]
-        finally:
-            s.close()
+        """A port nothing is listening on, and nothing is likely to take.
+
+        Asking the system for an ephemeral port hands back one out of the
+        range it also draws outgoing connections from - 32768 up on Linux,
+        49152 up on Windows - so between the check here and the bind in the
+        service, a connection somewhere else in the suite can take it. That
+        shows up as a service which never listens, or a bind() error deep in
+        a case which has nothing to do with ports. Ports are taken from below
+        both ranges instead, and none is handed out twice in a run.
+        """
+        for _ in range(200):
+            port = random.randint(10000, 19999)
+            if port in _PORTS_TAKEN:
+                continue
+            sock = socket.socket()
+            try:
+                sock.bind(("127.0.0.1", port))
+            except OSError:
+                continue
+            finally:
+                sock.close()
+            _PORTS_TAKEN.add(port)
+            return port
+        raise RuntimeError("no free port in the range the suite uses")
 
     def write_config(self, name, config):
         path = os.path.join(self.tmpdir, name + ".cfg")
