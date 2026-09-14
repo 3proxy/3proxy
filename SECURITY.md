@@ -80,4 +80,12 @@ gh attestation verify 3proxy-0.9.9.x86_64.rpm --owner 3proxy
 gh attestation verify oci://docker.io/3proxy/3proxy:latest --owner 3proxy
 ```
 
-Windows binaries are Authenticode signed in addition to the above.
+Windows binaries are not Authenticode signed: a self-signed certificate gives
+no trust to Windows and made antivirus engines flag the binaries as suspicious.
+Verify the release zip with its checksum file, signature and attestation instead:
+
+```
+gpg --verify SHA256SUMS-win-x64.asc SHA256SUMS-win-x64
+sha256sum -c SHA256SUMS-win-x64
+gh attestation verify 3proxy-1.0.0-x64.zip --owner 3proxy
+```
