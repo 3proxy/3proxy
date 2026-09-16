@@ -15,8 +15,8 @@ For High/Critical patched version is released within 2 weeks
 
 ## Verifying downloads
 
-Release binaries are published with SHA256 checksums, an OpenPGP signature and
-a GitHub build provenance attestation.
+Release binaries and the source tarball are published with SHA256 checksums, an
+OpenPGP signature and a GitHub build provenance attestation.
 
 The release signing key is `3proxy-release-key.asc` in the root of this
 repository, an RSA-4096 key:
@@ -40,6 +40,18 @@ gpg --verify SHA256SUMS-x86_64.asc SHA256SUMS-x86_64
 sha256sum -c SHA256SUMS-x86_64
 ```
 
+The source tarball published with each release is signed as well:
+
+```
+gpg --verify SHA256SUMS-src.asc SHA256SUMS-src
+sha256sum -c SHA256SUMS-src
+gpg --verify 3proxy-0.9.9.tar.gz.asc 3proxy-0.9.9.tar.gz
+```
+
+Prefer it over the `Source code (tar.gz)` link GitHub generates automatically:
+only the published tarball is signed. It is produced with `git archive` from
+the release tag, so it can be regenerated and compared byte for byte.
+
 RPM packages are signed, the signature is checked by rpm itself:
 
 ```
@@ -60,5 +72,3 @@ verified with the GitHub CLI:
 gh attestation verify 3proxy-0.9.9.x86_64.rpm --owner 3proxy
 gh attestation verify oci://docker.io/3proxy/3proxy:lts --owner 3proxy
 ```
-
-Windows binaries are Authenticode signed in addition to the above.
