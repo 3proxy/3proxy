@@ -492,7 +492,11 @@ experimental.</p>
 Nameserver to use for name resolutions. If none specified
 system routines for name resolution is used. Optional port
 number may be specified. If optional /tcp is added to IP
-address, name resolution is performed over TCP.</p>
+address, name resolution is performed over TCP. An IPv6
+address has to be enclosed in square brackets: <b><br>
+nserver 1.1.1.1 <br>
+nserver [2001:4860:4860::8844] <br>
+nserver [2001:4860:4860::8844]:5353/tcp</b></p>
 
 
 <p style="margin-left:9%; margin-top: 1em"><b>authnserver</b>
