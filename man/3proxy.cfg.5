@@ -870,9 +870,35 @@ build proxy chain. Proxies may be grouped. Proxy inside the
 group is selected randomly. If few groups are specified one proxy
 is randomly picked from each group and chain of proxies is created
 (that is second proxy connected through first one and so on).
-Weight is used to group proxies. Weight is a number between 1 and 1000.
-Weights are summed and proxies are grouped together until the weight of
-the group is 1000. That is:
+Weight is used to group proxies. A weight is a share of the whole, written
+either as a fraction of one, anything beginning with 0 or with a point, or the
+old way, in thousandths:
+.br
+ \fB.5\fR and \fB0.5\fR and \fB500\fR are all a half
+.br
+ \fB.333\fR and \fB333\fR are both 333 thousandths
+.br
+ \fB1000\fR and \fB1.0\fR and \fB100%\fR are all the whole share
+.br
+ \fB50.5%\fR and \fB.505\fR and \fB505\fR are all the same share
+.br
+ \fB0\fR is a fallback, described below
+.br
+ A fraction takes up to nine digits after the point, \fB.333333333\fR being
+the finest share there is, and the old notation may now carry further digits
+after a point of its own, so \fB123.456\fR means the same as \fB.123456\fR.
+Weights are scanned as integers, nothing is read as a floating point number.
+\fB1.0\fR, with as many zeroes after the point as you care to write, is the
+one weight read as it looks rather than in thousandths, so that the whole
+share can be written as a fraction too: a bare \fB1\fR is still a thousandth
+of it, and \fB1.5\fR still one and a half of them. A weight ending in
+\fB%\fR is a percentage, and takes up to seven digits after the point.
+.br
+ Weights are summed and proxies are grouped together until the weight of
+the group is the whole share. A group which falls short of it by no more than
+a thousandth, which three weights of \fB333\fR do, is taken for a whole one
+rather than for a group with a remainder, so a share which cannot be divided
+evenly needs no adjusting by hand. That is:
 .br
  allow *
 .br
@@ -881,7 +907,8 @@ the group is 1000. That is:
  parent 500 connect 192.168.10.1 3128
 .br
  makes 3proxy to randomly choose between 2 proxies for all outgoing
-connections. These 2 proxies form 1 group (summarized weight is 1000).
+connections. These 2 proxies form 1 group (their weights are the whole share
+between them).
 .br
  allow * * * 80
 .br
@@ -1014,12 +1041,37 @@ local HTTP proxy parses requests and allows only GET and POST requests.
 .br
  Optional username and password are used to authenticate on parent
 proxy. Username of \'*\' means username must be supplied by user.
+.br
+ A parent which fails is taken out of the choice for the rest of that
+connection, so the next attempt, see \fBparentretries\fR, goes to another
+member of the group instead of the same parent again. Its share is spread over
+the parents of the group which are left, in proportion to their weights.
+.br
+ Weight 0 marks a fallback parent. Such a parent takes no share of the random
+choice, and none of the share left over by a parent which failed, and is only
+used once every weighted parent of its group has failed,
+which is how a parent used only when another one is down is configured:
+.br
+ allow *
+.br
+ parent 1000 socks5 192.168.10.1 1080
+.br
+ parent 0 socks5 192.168.20.1 1080
+.br
+ Several fallbacks are tried in the order they are written. Reaching a fallback
+costs an attempt, so \fBparentretries\fR has to be at least as large as the
+number of parents to try.
+.br
+ When every parent of a group has failed the request fails as well, rather
+than being sent without a parent.
 
 .br
 .BR parentretries
 \fI<number>\fR
 .br
- Number of retries to connect to parent proxy. Default is 1.
+ Number of attempts to reach a parent proxy. Default is 2. Each attempt
+picks a parent again, leaving out the ones which already failed, so this is
+also the number of different parents a request may be tried through.
 
 
 .br

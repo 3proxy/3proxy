@@ -62,6 +62,13 @@ typedef struct _3proxy_sem_s {
 #endif
 #endif
 #define MAXBANDLIMS 10
+#define MAXFAILEDPARENTS 16
+/* Parent weights are kept as a share of WEIGHTSCALE, which is what the
+   weights of a group add up to. WEIGHTFUZZ is how far short of it a group may
+   fall and still be taken for a whole one, a thousandth of the share: three
+   weights of 333, or of .333333333, otherwise leave a remainder. */
+#define WEIGHTSCALE 1000000000u
+#define WEIGHTFUZZ 1000000u
 
 #ifdef WITH_POLL
 #include <poll.h>
@@ -336,7 +343,7 @@ struct chain {
 	unsigned char * exthost;
 	unsigned char * extuser;
 	unsigned char * extpass;
-	unsigned short weight;
+	unsigned weight;
 	unsigned short cidr;
 	/* local port range for extport/intport, first in the low half */
 	uint32_t range;
@@ -763,6 +770,11 @@ struct clientparam {
 	   one connection rather than for the service, which is how a redirect
 	   and a service name standing in for a mail proxy reach tlspr. */
 	PROXYSERVICE starttls;
+	/* Parents which failed for this connection. A retry picks another
+	   member of the group instead of the same one again, and a zero weight
+	   member is only reached once every weighted one is in here. */
+	struct chain *failedparents[MAXFAILEDPARENTS];
+	int nfailedparents;
 };
 
 struct filemon {

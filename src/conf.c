@@ -903,6 +903,82 @@ static int parserange(unsigned char *arg, uint32_t *range)
 	return 0;
 }
 
+/* Scan a parent weight into its share of WEIGHTSCALE, as an integer: there is
+ * no floating point anywhere near a configuration file.
+ *
+ * A weight starting with 0 or . is a fraction of one, so .333 and 0.333 are
+ * both a third. Anything else is the old notation, thousandths, where 1000 is
+ * the whole share, and it may now carry more digits after a dot: 123.456 means
+ * the same as .123456. Either way at most 9 digits are kept, which is the
+ * resolution weights are held at.
+ *
+ * 1 followed by a point and nothing but zeroes is the one weight read as it
+ * looks rather than as thousandths: 1.0 is the whole share, where a bare 1 is
+ * a thousandth of it.
+ *
+ * A weight may also be written as a percentage, which is what a trailing %
+ * makes it: 50.5% is .505 is 505.
+ */
+static int parseweight(unsigned char * s, unsigned * weight){
+  static const unsigned pow10[10] = {1, 10, 100, 1000, 10000, 100000,
+				     1000000, 10000000, 100000000, 1000000000};
+  unsigned char *p, *end;
+  uint64_t val = 0, res;
+  int ndigits = 0, atpoint = -1, after, percent = 0, fraction;
+
+	if(!s || !*s) return 1;
+	end = s + strlen((char *)s);
+	if(end[-1] == '%'){
+		percent = 1;
+		if(--end == s) return 1;
+	}
+	/* 1.0, with as many zeroes after it as anyone cares to write, is the one
+	   weight read as it looks rather than as thousandths: the whole share,
+	   where a bare 1 is a thousandth of it */
+	if(!percent && s[0] == '1' && s[1] == '.' && s[2]){
+		for(p = s + 2; *p == '0'; p++);
+		if(!*p){
+			*weight = WEIGHTSCALE;
+			return 0;
+		}
+	}
+	fraction = (*s == '.' || *s == '0');
+	for(p = s; p < end; p++){
+		if(*p == '.'){
+			if(atpoint >= 0) return 1;
+			atpoint = ndigits;
+			continue;
+		}
+		if(*p < '0' || *p > '9') return 1;
+		if(ndigits == 18) return 1;
+		val = (val * 10) + (unsigned)(*p - '0');
+		ndigits++;
+	}
+	if(!ndigits || val > WEIGHTSCALE) return 1;
+	after = (atpoint < 0)? 0 : ndigits - atpoint;
+	if(percent){
+		/* a hundredth of the whole share for every 1% */
+		if(after > 7) return 1;
+		res = val * pow10[7 - after];
+	}
+	else if(fraction){
+		/* the digits before the point are the leading zero and add
+		   nothing, so only the ones after it say what the share is */
+		if(atpoint < 0) return val? 1 : (*weight = 0, 0);
+		if(after > 9) return 1;
+		res = val * pow10[9 - after];
+	}
+	else {
+		/* thousandths, with the digits after the point carrying on
+		   from them: three digits of a whole share, six more after */
+		if(after > 6) return 1;
+		res = val * pow10[6 - after];
+	}
+	if(res > WEIGHTSCALE) return 1;
+	*weight = (unsigned)res;
+	return 0;
+}
+
 static int h_parent(int argc, unsigned char **argv){
   struct ace *acl = NULL;
   struct chain *chains;
@@ -922,9 +998,10 @@ static int h_parent(int argc, unsigned char **argv){
 		return(21);
 	}
 	memset(chains, 0, sizeof(struct chain));
-	chains->weight = (unsigned)atoi((char *)argv[1]);
-	if(chains->weight == 0 || chains->weight >1000) {
-		fprintf(stderr, "Chaining error: bad chain weight %u line %d\n", chains->weight, linenum);
+	/* 0 is the fallback weight: such a parent is only used once every
+	   weighted parent of its group has failed */
+	if(parseweight(argv[1], &chains->weight)) {
+		fprintf(stderr, "Chaining error: bad chain weight %s line %d\n", argv[1], linenum);
 		free(chains);
 		return(3);
 	}
@@ -1497,7 +1574,7 @@ static int h_ace(int argc, unsigned char **argv){
 			return 5;
 		}
 		*SAPORT(&acl->chains->addr) = htons((uint16_t)atoi((char *)argv[2]));
-		acl->chains->weight = 1000;
+		acl->chains->weight = WEIGHTSCALE;
 	case ALLOW:
 	case DENY:
 		if(!conf.acl){
