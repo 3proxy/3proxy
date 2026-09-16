@@ -18,6 +18,7 @@
 <a href="#PCRE FILTERING">PCRE FILTERING</a><br>
 <a href="#PCRE Commands">PCRE Commands</a><br>
 <a href="#PCRE Parameters">PCRE Parameters</a><br>
+<a href="#OPTIONAL SERVICES">OPTIONAL SERVICES</a><br>
 <a href="#BUILT IN HTTP SERVER">BUILT IN HTTP SERVER</a><br>
 <a href="#Operations">Operations</a><br>
 <a href="#What a rule adds to the answer">What a rule adds to the answer</a><br>
@@ -114,10 +115,17 @@ handshake), may be used to redirect any TLS-based traffic
 <b><br>
 auto</b> Proxy with protocol autoselection between proxy /
 socks / tlspr <b><br>
-pop3p</b> POP3 proxy (default port 110) <b><br>
-imapp</b> IMAPv4 proxy (default port 143) <b><br>
-smtpp</b> SMTP proxy (default port 25) <b><br>
-ftppr</b> FTP proxy (default port 21) <b><br>
+pop3p</b> POP3 proxy (default port 110), in a build which
+has one: otherwise the service is <b>tlspr</b> speaking POP3
+to negotiate STARTTLS, under this name. <b><br>
+imapp</b> IMAPv4 proxy (default port 143), or <b>tlspr</b>
+speaking IMAP, as above. <b><br>
+smtpp</b> SMTP proxy (default port 25), or <b>tlspr</b>
+speaking SMTP, as above. <b><br>
+ftppr</b> FTP proxy (default port 21), in a build with FTP
+support. Without it the service is known but answers
+nothing, and <b>ftp://</b> is not a URL the HTTP proxy
+fetches. <b><br>
 admin</b> Web interface (default port 80) <b><br>
 dnspr</b> caching DNS proxy (default port 53) <b><br>
 tcppm</b> TCP portmapper. Destination address (DSTADDR) can
@@ -828,15 +836,40 @@ grouped. Proxy inside the group is selected randomly. If few
 groups are specified one proxy is randomly picked from each
 group and chain of proxies is created (that is second proxy
 connected through first one and so on). Weight is used to
-group proxies. Weight is a number between 1 and 1000.
+group proxies. A weight is a share of the whole, written
+either as a fraction of one, anything beginning with 0 or
+with a point, or the old way, in thousandths: <b><br>
+.5</b> and <b>0.5</b> and <b>500</b> are all a half <b><br>
+.333</b> and <b>333</b> are both 333 thousandths <b><br>
+1000</b> and <b>1.0</b> and <b>100%</b> are all the whole
+share <b><br>
+50.5%</b> and <b>.505</b> and <b>505</b> are all the same
+share <b><br>
+0</b> is a fallback, described below <br>
+A fraction takes up to nine digits after the point,
+<b>.333333333</b> being the finest share there is, and the
+old notation may now carry further digits after a point of
+its own, so <b>123.456</b> means the same as <b>.123456</b>.
+Weights are scanned as integers, nothing is read as a
+floating point number. <b>1.0</b>, with as many zeroes after
+the point as you care to write, is the one weight read as it
+looks rather than in thousandths, so that the whole share
+can be written as a fraction too: a bare <b>1</b> is still a
+thousandth of it, and <b>1.5</b> still one and a half of
+them. A weight ending in <b>%</b> is a percentage, and takes
+up to seven digits after the point. <br>
 Weights are summed and proxies are grouped together until
-the weight of the group is 1000. That is: <br>
+the weight of the group is the whole share. A group which
+falls short of it by no more than a thousandth, which three
+weights of <b>333</b> do, is taken for a whole one rather
+than for a group with a remainder, so a share which cannot
+be divided evenly needs no adjusting by hand. That is: <br>
 allow * <br>
 parent 500 socks5 192.168.10.1 1080 <br>
 parent 500 connect 192.168.10.1 3128 <br>
 makes 3proxy to randomly choose between 2 proxies for all
-outgoing connections. These 2 proxies form 1 group
-(summarized weight is 1000). <br>
+outgoing connections. These 2 proxies form 1 group (their
+weights are the whole share between them). <br>
 allow * * * 80 <br>
 parent 1000 socks5 192.168.10.1 1080 <br>
 parent 1000 connect 192.168.20.1 3128 <br>
@@ -976,13 +1009,36 @@ Changes the external address for a given connection to
 1.2.3.4 (equivalent to <b>-e1.2.3.4</b>) <br>
 Optional username and password are used to authenticate on
 parent proxy. Username of &acute;*&acute; means username
-must be supplied by user.</p>
+must be supplied by user. <br>
+A parent which fails is taken out of the choice for the rest
+of that connection, so the next attempt, see
+<b>parentretries</b>, goes to another member of the group
+instead of the same parent again. Its share is spread over
+the parents of the group which are left, in proportion to
+their weights. <br>
+Weight 0 marks a fallback parent. Such a parent takes no
+share of the random choice, and none of the share left over
+by a parent which failed, and is only used once every
+weighted parent of its group has failed, which is how a
+parent used only when another one is down is configured:
+<br>
+allow * <br>
+parent 1000 socks5 192.168.10.1 1080 <br>
+parent 0 socks5 192.168.20.1 1080 <br>
+Several fallbacks are tried in the order they are written.
+Reaching a fallback costs an attempt, so
+<b>parentretries</b> has to be at least as large as the
+number of parents to try. <br>
+When every parent of a group has failed the request fails as
+well, rather than being sent without a parent.</p>
 
 
 <p style="margin-left:9%; margin-top: 1em"><b>parentretries</b>
 <i>&lt;number&gt;</i> <br>
-Number of retries to connect to parent proxy. Default is
-1.</p>
+Number of attempts to reach a parent proxy. Default is 2.
+Each attempt picks a parent again, leaving out the ones
+which already failed, so this is also the number of
+different parents a request may be tried through.</p>
 
 <p style="margin-left:9%; margin-top: 1em"><b>nolog</b>
 <i>&lt;n&gt;</i> <br>
@@ -1519,6 +1575,29 @@ The regular expression is only matched if the ACL matches
 the connection data. Warning: Regular expressions
 don&rsquo;t require authentication and cannot replace
 authentication and/or allow/deny ACLs.</p>
+
+<h2>OPTIONAL SERVICES
+<a name="OPTIONAL SERVICES"></a>
+</h2>
+
+
+<p style="margin-left:9%; margin-top: 1em">The mail proxies
+and FTP are built when they are asked for, and are not in a
+default build. <b>MAILPROXY=true</b> builds <b>pop3p</b>,
+<b>imapp</b> and <b>smtpp</b>, and <b>FTP=true</b> builds
+<b>ftppr</b> and the <b>ftp://</b> scheme of the HTTP proxy;
+with CMake the switches are <b>-D3PROXY_USE_MAILPROXY=ON</b>
+and <b>-D3PROXY_USE_FTP=ON</b>. The standalone binaries of
+those services are built with them and not without. <br>
+A configuration naming a service which was not built is
+still read. The three mail proxies become <b>tlspr</b>
+negotiating STARTTLS in that protocol, which is what most of
+their use amounts to now that the mail protocols are used
+over TLS, and a <b>parent</b> chain naming <b>pop3</b>,
+<b>imap</b> or <b>smtp</b> does the same. <b>ftppr</b> is
+answered by nothing: a client reaching it is turned away and
+the refusal logged, since there is no protocol to fall back
+on.</p>
 
 <h2>BUILT IN HTTP SERVER
 <a name="BUILT IN HTTP SERVER"></a>
