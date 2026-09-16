@@ -1471,10 +1471,12 @@ allowed traffic in megabytes (MB). nocountin allows you to set exclusions.
  For name resolution and caching, use the commands nserver, nscache / nscache6, and nsrecord.
   <pre>
   nserver 192.168.1.2
-  nserver 192.168.1.3:5353/tcp</pre>
+  nserver 192.168.1.3:5353/tcp
+  nserver [2001:4860:4860::8844]</pre>
  sets DNS resolvers. 192.168.1.3 will be used via TCP/5353 (instead of default UDP/53)
  only if 192.168.1.2 fails. Up to 5 nservers may be specified.
  If no nserver is configured, default system name resolution functions are used.
+ An IPv6 address has to be written in square brackets.
   <pre>
   nscache 65535
   nscache6 65535</pre>

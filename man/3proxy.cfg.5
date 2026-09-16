@@ -514,6 +514,13 @@ system routines for name resolution is
 used. Optional port number may be specified.
 If optional /tcp is added to IP address, name resolution is
 performed over TCP.
+An IPv6 address has to be enclosed in square brackets:
+.br
+ \fBnserver 1.1.1.1\fR
+.br
+ \fBnserver [2001:4860:4860::8844]\fR
+.br
+ \fBnserver [2001:4860:4860::8844]:5353/tcp\fR
 
 .br
 .BR authnserver
