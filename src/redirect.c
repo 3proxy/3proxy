@@ -273,6 +273,22 @@ void applyportranges(struct clientparam * param, struct ace * acentry){
 	}
 }
 
+static void chainaddr(struct chain * cur, PROXYSOCKADDRTYPE * sa){
+	PROXYSOCKADDRTYPE fresh;
+
+	*sa = cur->addr;
+	if(resolvfunc != myresolver) return;
+	if(!cur->exthost || SAISNULL(&cur->addr)) return;
+#ifdef WITH_UN
+	if(*SAFAMILY(&cur->addr) == AF_UNIX) return;
+#endif
+	if(afdetect(cur->exthost) != -1) return;
+	memset(&fresh, 0, sizeof(fresh));
+	if(!getip46(46, cur->exthost, (struct sockaddr *)&fresh)) return;
+	*SAPORT(&fresh) = *SAPORT(&cur->addr);
+	*sa = fresh;
+}
+
 int handleredirect(struct clientparam * param, struct ace * acentry){
 	int connected = 0;
 	int weight = 1000;
@@ -365,12 +381,12 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
 				uint16_t port = *SAPORT(&param->sinsr);
-				param->sinsr = cur->addr;
+				chainaddr(cur, &param->sinsr);
 				*SAPORT(&param->sinsr) = port;
 			}
 			else if(SAISNULL(&cur->addr) && *SAPORT(&cur->addr)) *SAPORT(&param->sinsr) = *SAPORT(&cur->addr);
 			else {
-				param->sinsr = cur->addr;
+				chainaddr(cur, &param->sinsr);
 			}
 			if(param->operation == UDPASSOC){
 			    SOCKET s;
@@ -400,7 +416,10 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 		}
 		else {
-			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&cur->addr, cur->exthost):0;
+			PROXYSOCKADDRTYPE next;
+
+			chainaddr(cur, &next);
+			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&next, cur->exthost):0;
 			if(res) return res;
 		}
 		redir = cur;
