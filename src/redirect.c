@@ -289,45 +289,105 @@ static void chainaddr(struct chain * cur, PROXYSOCKADDRTYPE * sa){
 	*sa = fresh;
 }
 
+static int parentfailed(struct clientparam * param, struct chain * ch){
+	int i;
+
+	for(i = 0; i < param->nfailedparents; i++)
+		if(param->failedparents[i] == ch) return 1;
+	return 0;
+}
+
+/* Remember a parent which could not be used for this connection, so that a
+ * retry picks another member of its group. The list is per connection: a
+ * parent which is down for one client is not taken away from the others.
+ */
+static void parentfail(struct clientparam * param, struct chain * ch){
+	if(!ch || param->nfailedparents >= MAXFAILEDPARENTS) return;
+	if(parentfailed(param, ch)) return;
+	param->failedparents[param->nfailedparents++] = ch;
+}
+
+/* Pick the parent to use for one group.
+ *
+ * A group is the members whose weights add up to WEIGHTSCALE, together with
+ * the zero weight members among them. *after is left pointing at the group
+ * after this one, or at NULL. A group which lands within WEIGHTFUZZ of the
+ * whole share counts as a whole one, so that 333 three times over is a group
+ * rather than a group and a remainder of a thousandth.
+ *
+ * A member which already failed for this connection is not offered again and
+ * its weight is given to the others, so a retry goes somewhere else. Zero
+ * weight members are the fallback: they are only offered once every weighted
+ * member of the group has failed, and they never take part in the share.
+ * Where the weights add up to plainly less than the whole share the remainder
+ * keeps its meaning of "no parent at all" and is still counted, so such a
+ * group can still leave the connection direct.
+ *
+ * Returns NULL when the group adds no parent. *exhausted tells the two cases
+ * apart: it is set when the group had parents and all of them are gone, which
+ * is a failure rather than a reason to connect directly.
+ */
+static struct chain * pickchain(struct clientparam * param, struct chain * group,
+				struct chain ** after, int * exhausted){
+	struct chain *cur;
+	uint64_t total = 0, avail = 0, slack;
+	uint64_t r;
+
+	*exhausted = 0;
+	for(cur = group; cur; cur = cur->next){
+		if(total + WEIGHTFUZZ >= WEIGHTSCALE && cur->weight) break;
+		total += cur->weight;
+		if(cur->weight && !parentfailed(param, cur)) avail += cur->weight;
+	}
+	*after = cur;
+
+	if(avail){
+		slack = (total + WEIGHTFUZZ < WEIGHTSCALE)? WEIGHTSCALE - total : 0;
+		r = ((uint64_t)myrand() << 32 | myrand()) % (avail + slack);
+		for(cur = group; cur != *after; cur = cur->next){
+			if(!cur->weight || parentfailed(param, cur)) continue;
+			if(r < cur->weight) return cur;
+			r -= cur->weight;
+		}
+		return NULL;
+	}
+	for(cur = group; cur != *after; cur = cur->next){
+		if(!cur->weight && !parentfailed(param, cur)) return cur;
+	}
+	if(total) *exhausted = 1;
+	return NULL;
+}
+
 int handleredirect(struct clientparam * param, struct ace * acentry){
 	int connected = 0;
-	int weight = 1000;
 	int res;
-	int done = 0;
 	int ha = 0;
 	struct chain * cur;
+	struct chain * after;
 	struct chain * redir = NULL;
-	int r2;
 	int saved = 0;
 
 	if((SAISNULL(&param->req) || !*SAPORT(&param->req)) && param->operation != UDPASSOC) {
 		return 100;
 	}
 
-	r2 = (myrand()%1000);
+	for(cur = acentry->chains; cur; cur = after){
+		struct chain * sel;
+		int exhausted;
 
-	for(cur = acentry->chains; cur; cur=cur->next){
-		if(((weight = weight - cur->weight) > r2)|| done) {
-			if(weight <= 0) {
-				weight += 1000;
-				done = 0;
-				r2 = (myrand()%1000);
-			}
-			continue;
-		}
+		sel = pickchain(param, cur, &after, &exhausted);
+		/* every parent of the group is gone: connecting direct instead
+		   would be a way around the rule, so the request fails */
+		if(exhausted) return 13;
+		if(!sel) continue;
+		cur = sel;
 		if(cur->type != R_EXTIP && cur->type != R_HA &&
 		   cur->type != R_EXTPORT && cur->type != R_INTPORT) param->redirected++;
-		done = 1;
-		if(weight <= 0) {
-			weight += 1000;
-			done = 0;
-			r2 = (myrand()%1000);
-		}
 		if(!connected){
 			if(cur->type == R_EXTPORT || cur->type == R_INTPORT){
 				if(cur->type == R_EXTPORT) param->extport = cur->range;
 				else param->intport = cur->range;
-				if(cur->next)continue;
+				if(after)continue;
 				return 0;
 			}
 			if(cur->type == R_EXTIP){
@@ -349,7 +409,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 					}
 				}
 #endif
-				if(cur->next)continue;
+				if(after)continue;
 				return 0;
 			}
 			else if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
@@ -375,7 +435,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				if(cur->type == R_HA){
 				    ha = 1;
 				}
-				if(cur->next)continue;
+				if(after)continue;
 				if(!ha) return 0;
 				if(param->operation == UDPASSOC) return 0;
 			}
@@ -397,6 +457,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			    saved = 1;
 			}
 			if((res = alwaysauth(param))){
+				parentfail(param, cur);
 				return (res >= 10)? res : 60+res;
 			}
 			if(ha) {
@@ -420,7 +481,10 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 
 			chainaddr(cur, &next);
 			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&next, cur->exthost):0;
-			if(res) return res;
+			if(res) {
+				parentfail(param, cur);
+				return res;
+			}
 		}
 		redir = cur;
 		param->redirtype = redir->type;
@@ -444,6 +508,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 
 	if(!connected || !redir) return 0;
 	res =  clientnegotiate(redir, param, (struct sockaddr *)&param->req, param->hostname);
+	if(res) parentfail(param, redir);
 	if(saved){
 	    SOCKET s;
 

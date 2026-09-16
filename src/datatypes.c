@@ -802,7 +802,7 @@ static struct property prop_pwlist[] = {
 static struct property prop_chain[] = {
 	{"addr", ef_chain_addr, TYPE_SA, "parent address"},
 	{"type", ef_chain_type, TYPE_STRING, "parent type"},
-	{"weight", ef_chain_weight, TYPE_SHORT, "parent weight 0-1000"},
+	{"weight", ef_chain_weight, TYPE_INTEGER, "parent weight, 1000000000 is the whole share, 0 is a fallback"},
 	{"user", ef_chain_user, TYPE_STRING, "parent login"},
 	{"password", ef_chain_password, TYPE_PASSWORD, "parent password"},
 	{"secure", ef_chain_secure, TYPE_INTEGER, "secure mode"},
