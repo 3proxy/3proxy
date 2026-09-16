@@ -38,19 +38,8 @@ jobs:
     - name: make Watcom
       shell: cmd
       run: |
-       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
+       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\n^";" >>src/3proxy.c
        nmake /F Makefile.watcom
-    - name: Decode Certificate
-      shell: pwsh
-      run: |
-       $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
-       [System.IO.File]::WriteAllBytes("${{ github.workspace }}\cert.pfx", $pfx_cert_byte)
-    - name: Sign
-      shell: pwsh
-      run: |
-       $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).FullName
-       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy.exe"
-       & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "bin\3proxy_crypt.exe"
     - name: make dist dir
       shell: cmd
       run: |

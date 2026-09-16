@@ -44,28 +44,9 @@ jobs:
        cd "D:/a/3proxy/3proxy"
        set "LIB=%LIB%;c:/vcpkg/installed/x64-windows-static/lib"
        set "INCLUDE=%INCLUDE%;c:/vcpkg/installed/x64-windows-static/include"
-       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\nCode certificate: https://3proxy.org/3proxy.cer\r\n^";" >>src/3proxy.c
+       echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\n^";" >>src/3proxy.c
        echo %NOW% / %RELEASE% / %BUILDDATE% / %VERSION%
        nmake /F Makefile.msvc WOLFSSL=1
-    - name: Decode Certificate
-      shell: pwsh
-      run: |
-       $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
-       [System.IO.File]::WriteAllBytes("${{ github.workspace }}\cert.pfx", $pfx_cert_byte)
-    - name: Extract public certificate
-      shell: pwsh
-      env:
-       CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      run: |
-       $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("${{ github.workspace }}\cert.pfx", "$env:CERT_PASSWORD")
-       [System.IO.File]::WriteAllBytes("${{ github.workspace }}\3proxy.crt", $cert.Export("Cert"))
-    - name: Sign
-      shell: pwsh
-      env:
-       CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      run: |
-       $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).FullName
-       Get-ChildItem bin\*.exe, bin\*.dll | ForEach-Object { & $signtool sign /f "${{ github.workspace }}\cert.pfx" /p "$env:CERT_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName }
     - name: make dist dir
       shell: cmd
       run: |
@@ -96,7 +77,6 @@ jobs:
        copy authors dist\3proxy\
        copy README.md dist\3proxy\
        copy rus.3ps dist\3proxy\
-       copy 3proxy.crt dist\3proxy\
     - name: Get artifact
       uses: actions/upload-artifact@v7
       with:
