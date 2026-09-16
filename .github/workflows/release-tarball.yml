@@ -1,0 +1,85 @@
+name: Release source tarball
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tarball:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    name: "source tarball"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: env
+      run: |
+       if [ -f RELEASE ]; then
+         RELEASE=$(tr -d ' \t\r\n' < RELEASE)
+       else
+         RELEASE=$(tr -d ' \t\r\n' < DEVEL)
+       fi
+       echo "RELEASE=$RELEASE" >> $GITHUB_ENV
+
+    - name: Create tarball
+      run: |
+       # git archive is reproducible from the tag: anyone can regenerate the
+       # tarball and compare it against the published checksum.
+       git archive --format=tar.gz -9 \
+         --prefix="3proxy-${{ env.RELEASE }}/" \
+         -o "3proxy-${{ env.RELEASE }}.tar.gz" HEAD
+       tar tzf "3proxy-${{ env.RELEASE }}.tar.gz" >/dev/null
+       ls -l *.tar.gz
+
+    - name: Get artifact
+      uses: actions/upload-artifact@v7
+      with:
+       name: "3proxy-${{ env.RELEASE }}-src"
+       path: "*.tar.gz"
+
+    - name: Import signing key
+      if: github.event_name == 'release'
+      env:
+       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      run: |
+       if [ -z "$GPG_PRIVATE_KEY" ]; then echo "GPG_PRIVATE_KEY is not set"; exit 1; fi
+       mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+       printf 'allow-loopback-pinentry\n' > ~/.gnupg/gpg-agent.conf
+       gpgconf --kill gpg-agent || true
+       printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+       KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')
+       echo "GPG_KEYID=$KEYID" >> $GITHUB_ENV
+
+    - name: Checksums and detached signatures
+      if: github.event_name == 'release'
+      env:
+       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+       sha256sum *.tar.gz > SHA256SUMS-src
+       for f in *.tar.gz SHA256SUMS-src; do
+         gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+             -u "$GPG_KEYID" --armor --detach-sign "$f"
+       done
+       sha256sum -c SHA256SUMS-src
+       gpg --verify SHA256SUMS-src.asc SHA256SUMS-src
+
+    - name: Attest build provenance
+      if: github.event_name == 'release'
+      uses: actions/attest-build-provenance@v4
+      with:
+        subject-path: |
+          *.tar.gz
+
+    - name: Upload to release
+      if: github.event_name == 'release'
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" *.tar.gz *.tar.gz.asc SHA256SUMS-src SHA256SUMS-src.asc
