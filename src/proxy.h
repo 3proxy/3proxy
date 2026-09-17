@@ -86,6 +86,10 @@
 #ifndef EINPROGRESS
 #define EINPROGRESS WSAEWOULDBLOCK
 #endif
+#ifdef EADDRINUSE
+#undef EADDRINUSE
+#endif
+#define EADDRINUSE WSAEADDRINUSE
 #define EINTR WSAEWOULDBLOCK
 #define SLEEPTIME 1
 #define usleep Sleep
