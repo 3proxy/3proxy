@@ -21,17 +21,22 @@ def _windows():
     waits out its close - four minutes of it on Windows - so the window has
     to be wide enough that ten tries do not all land on one. The window the
     kernel picks from on Linux needs no such room, since it skips them.
+
+    Each service gets a window of its own. A port bound a second time towards
+    a destination it has just been used for makes a pair which is still
+    closing, which Windows refuses at the connect, and services sharing one
+    window all talk to the same origin here.
     """
     try:
         with open("/proc/sys/net/ipv4/ip_local_port_range") as fp:
             low, high = (int(part) for part in fp.read().split()[:2])
     except (OSError, ValueError):
-        return (21400, 21899), (22000, 22499)
-    base = low + 1000 if low + 1150 <= high else low
-    return (base, base + 49), (base + 100, base + 149)
+        return [(21400 + i * 600, 21899 + i * 600) for i in range(4)]
+    base = low + 1000 if low + 1400 <= high else low
+    return [(base + i * 100, base + i * 100 + 49) for i in range(4)]
 
 
-(LOW, HIGH), (ILOW, IHIGH) = _windows()
+(LOW, HIGH), (SLOW, SHIGH), (MLOW, MHIGH), (ILOW, IHIGH) = _windows()
 
 # Privileged ports: the kernel ignores such a range on Linux, since it is
 # outside net.ipv4.ip_local_port_range, and binding them fails outright
@@ -65,7 +70,7 @@ def run(t):
         flush
         auth iponly
         allow * * * * HTTP_CONNECT
-        parent 1000 extport 0.0.0.0 {LOW}-{HIGH}
+        parent 1000 extport 0.0.0.0 {MLOW}-{MHIGH}
         allow *
         proxy -p{meth}
 
@@ -73,7 +78,7 @@ def run(t):
         flush
         auth iponly
         allow *
-        parent 1000 extport 0.0.0.0 {LOW}-{HIGH}
+        parent 1000 extport 0.0.0.0 {SLOW}-{SHIGH}
         socks -p{sks}
     """, ports=[srv, prx, sks, meth])
 
@@ -93,18 +98,18 @@ def run(t):
 
     port = int_field(t.socks_http(f"127.0.0.1:{sks}", origin + "/echo"),
                      "peer.port")
-    t.in_range(port, LOW, HIGH,
+    t.in_range(port, SLOW, SHIGH,
                "socks binds the outgoing connection inside the range")
 
     # --- per-method scoping ------------------------------------------------
     method_proxy = f"127.0.0.1:{meth}"
     port = int_field(t.http(origin + "/echo", proxy=method_proxy, tunnel=True),
                      "peer.port")
-    t.in_range(port, LOW, HIGH, "CONNECT uses the range its rule sets")
+    t.in_range(port, MLOW, MHIGH, "CONNECT uses the range its rule sets")
 
     # a plain GET matches the later rule, which sets no range
     port = int_field(t.http(origin + "/echo", proxy=method_proxy), "peer.port")
-    t.not_in_range(port, LOW, HIGH,
+    t.not_in_range(port, MLOW, MHIGH,
                    "a method outside that rule keeps an ephemeral port")
 
     # --- a range the platform cannot honour --------------------------------
