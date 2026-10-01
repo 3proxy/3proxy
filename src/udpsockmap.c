@@ -288,6 +288,12 @@ int udpsockmap(struct clientparam *param, int timeo)
 			}
 			default: return 997;
 			}
+			/* As for TCP requests, a literal address is the host name,
+			   otherwise an ACL with host names only matches any address */
+			if (!dstname) {
+				myinet_ntop(*SAFAMILY(&dst), SAADDR(&dst), dstnamebuf, sizeof(dstnamebuf));
+				dstname = dstnamebuf;
+			}
 			memcpy(SAPORT(&dst), base + i, 2);
 			i += 2;
 

@@ -5,6 +5,8 @@ def run(t):
     srv = t.free_port()
     sks = t.free_port()
     sauth = t.free_port()
+    sdeny = t.free_port()
+    sallow = t.free_port()
 
     t.start("socks", f"""
         log
@@ -24,7 +26,18 @@ def run(t):
         users alice:CL:secret
         allow alice
         socks -p{sauth}
-    """, ports=[srv, sks, sauth])
+
+        flush
+        auth iponly
+        deny * * *.example.com
+        allow *
+        socks -p{sdeny}
+
+        flush
+        auth iponly
+        allow * * *.example.com
+        socks -p{sallow}
+    """, ports=[srv, sks, sauth, sdeny, sallow])
 
     origin = f"http://127.0.0.1:{srv}"
     plain = f"127.0.0.1:{sks}"
@@ -61,6 +74,16 @@ def run(t):
     _, first = t.socks_udp(plain, "127.0.0.1", echo, b"one")
     _, second = t.socks_udp(plain, "127.0.0.1", echo, b"two")
     t.ne(first, second, "a second association binds its own port")
+
+    # A datagram names its destination by address. A rule listing host names
+    # only has to judge it by that address as text, the way CONNECT is judged,
+    # rather than match whatever the address is.
+    reply, _ = t.socks_udp(f"127.0.0.1:{sdeny}", "127.0.0.1", echo, b"ip")
+    t.eq(b"echo:ip", reply,
+         "a deny by host name leaves datagrams to an address alone")
+    reply, _ = t.socks_udp(f"127.0.0.1:{sallow}", "127.0.0.1", echo, b"ip")
+    t.eq(None, reply,
+         "an allow by host name does not let datagrams to an address through")
 
     # --- authentication ----------------------------------------------------
     t.eq(200, t.socks_http(guarded, origin + "/echo",
