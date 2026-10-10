@@ -1321,7 +1321,16 @@ void srvfree(struct srvparam * srv){
  if(srv->cbsock != INVALID_SOCKET) so._closesocket(srv->so.state, srv->cbsock);
  srv->cbsock = INVALID_SOCKET;
  srv->service = S_ZOMBIE;
- while(srv->child) usleep(SLEEPTIME * 100);
+ /* under the mutex, so the last child has let go of it before it is destroyed */
+ for(;;){
+	struct clientparam *child;
+
+	_3proxy_mutex_lock(&srv->counter_mutex);
+	child = srv->child;
+	_3proxy_mutex_unlock(&srv->counter_mutex);
+	if(!child) break;
+	usleep(SLEEPTIME * 100);
+ }
 #ifndef STDMAIN
  if(srv->filter){
 	while(srv->nfilters){
@@ -1363,22 +1372,13 @@ void srvfree(struct srvparam * srv){
 void freeparam(struct clientparam * param) {
 	if(param->srv){
 		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
-		_3proxy_mutex_lock(&param->srv->counter_mutex);
 #ifndef STDMAIN
-		if(param->srv->service == S_UDPPM) hashdelete(&udp_table, param);
-#endif
-		if(param->prev || param->next || param->srv->child == param){
-			if(param->prev){
-				param->prev->next = param->next;
-			}
-			else
-				param->srv->child = param->next;
-			if(param->next){
-				param->next->prev = param->prev;
-			}
-			(param->srv->childcount)--;
+		if(param->srv->service == S_UDPPM){
+			_3proxy_mutex_lock(&param->srv->counter_mutex);
+			hashdelete(&udp_table, param);
+			_3proxy_mutex_unlock(&param->srv->counter_mutex);
 		}
-		_3proxy_mutex_unlock(&param->srv->counter_mutex);
+#endif
 	}
 	if(param->clibuf) free(param->clibuf);
 	if(param->srvbuf) free(param->srvbuf);
@@ -1418,6 +1418,24 @@ void freeparam(struct clientparam * param) {
 	}
 	if(param->connlim) stopconnlims(param);
 #endif
+	/* Leaving the service comes last. Once its last child is gone, srvfree()
+	   frees the service along with its socket functions, filters and mutex,
+	   and a close above may have lingered for seconds before getting here. */
+	if(param->srv){
+		_3proxy_mutex_lock(&param->srv->counter_mutex);
+		if(param->prev || param->next || param->srv->child == param){
+			if(param->prev){
+				param->prev->next = param->next;
+			}
+			else
+				param->srv->child = param->next;
+			if(param->next){
+				param->next->prev = param->prev;
+			}
+			(param->srv->childcount)--;
+		}
+		_3proxy_mutex_unlock(&param->srv->counter_mutex);
+	}
 	if(param->hostname) free(param->hostname);
 	if(param->username) free(param->username);
 	if(param->password) free(param->password);
