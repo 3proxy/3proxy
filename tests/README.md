@@ -69,7 +69,7 @@ means to stand on its own should start with one - otherwise an earlier
 
 ## What is not covered yet
 
-41 of the 112 configuration commands appear in a test, and the count says
+42 of the 112 configuration commands appear in a test, and the count says
 nothing about service options: the IPv6 case, for instance, exercises -4,
 -6, -46, -64 and -i without adding a command to it. What follows is
 roughly the order worth working through: how much of the product a gap
@@ -78,12 +78,13 @@ covers, and how much of a fixture it needs.
 ### Traffic limits and accounting
 
 `bandlimin` `bandlimout` `nobandlimin` `nobandlimout` `connlim` `noconnlim`
-`countin` `countout` `countall` and the `no*` forms, `maxconn`.
+`countin` `countout` `countall` and the `no*` forms.
 
 Cheap and worth doing first: `data?size=` and a stopwatch measure a
 bandwidth limit, and the admin counters page already shows what a counter
 holds. `countin` appears in a configuration today but nothing checks that it
-counts. `connlim` and `maxconn` need concurrent connections.
+counts. `connlim` needs concurrent connections, held open the way the
+`maxconn` case holds them.
 
 ### The mail proxies
 

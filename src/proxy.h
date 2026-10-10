@@ -322,13 +322,23 @@ extern _3proxy_sem_t udpinit;
 #define _3proxy_sem_init(x, count, maxcount) (((x) = CreateSemaphore(NULL, (count), (maxcount), NULL))? 0 : 1)
 #define _3proxy_sem_lock(x) WaitForSingleObject(x, INFINITE)
 #define _3proxy_sem_unlock(x) ReleaseSemaphore(x, 1, NULL)
+#define _3proxy_sem_init_timed(x, count, maxcount) _3proxy_sem_init(x, (count), (maxcount))
+#define _3proxy_sem_timedlock(x, ms) (WaitForSingleObject(x, ms) != WAIT_OBJECT_0)
+#define _3proxy_sem_destroy(x) CloseHandle(x)
 #else
-int _3proxy_sem_init_f(_3proxy_sem_t *sem, unsigned count, unsigned maxcount);
+int _3proxy_sem_init_f(_3proxy_sem_t *sem, unsigned count, unsigned maxcount, int timed);
 void _3proxy_sem_lock_f(_3proxy_sem_t *sem);
+int _3proxy_sem_timedlock_f(_3proxy_sem_t *sem, unsigned ms);
 void _3proxy_sem_unlock_f(_3proxy_sem_t *sem);
-#define _3proxy_sem_init(x, count, maxcount) _3proxy_sem_init_f(&x, (count), (maxcount))
+void _3proxy_sem_destroy_f(_3proxy_sem_t *sem);
+#define _3proxy_sem_init(x, count, maxcount) _3proxy_sem_init_f(&x, (count), (maxcount), 0)
+/* for a semaphore waited on with a timeout: the wait is not stretched or cut
+   short by the system time being changed, where the platform allows it */
+#define _3proxy_sem_init_timed(x, count, maxcount) _3proxy_sem_init_f(&x, (count), (maxcount), 1)
 #define _3proxy_sem_lock(x) _3proxy_sem_lock_f(&x)
+#define _3proxy_sem_timedlock(x, ms) _3proxy_sem_timedlock_f(&x, (ms))
 #define _3proxy_sem_unlock(x) _3proxy_sem_unlock_f(&x)
+#define _3proxy_sem_destroy(x) _3proxy_sem_destroy_f(&x)
 #endif
 
 
