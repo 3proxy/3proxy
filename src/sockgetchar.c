@@ -63,7 +63,7 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 	if(conf.timetoexit) return EOF;
 	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
 	if (res<1) return 0;
-	sasize = SASIZE(sin);
+	sasize = sizeof(PROXYSOCKADDRTYPE);
 	do {
 		res = param?param->srv->so._recvfrom(param->sostate, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, &sasize):so._recvfrom(so.state, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, &sasize);
 	} while (res < 0 && (errno == EAGAIN || errno == EINTR));
