@@ -308,6 +308,7 @@ int MODULEMAINFUNC (int argc, char** argv){
  FILE *fp = NULL;
  struct linger lg;
  int nlog = 5000;
+ int haveslot = 0, nfull = 0;
 #ifdef __linux__
  int saved_nsfd = -1;
 #endif
@@ -990,14 +991,19 @@ int MODULEMAINFUNC (int argc, char** argv){
 
  for (;;) {
 	for(;;){
-		while((conf.paused == srv.paused && srv.childcount >= srv.maxchild)){
-			nlog++;			
-			if(!srv.silent && nlog > 5000) {
+		/* A connection is only taken with a slot of maxchild in hand, which
+		   goes to its child; a slot not handed on is kept for the next one.
+		   The wait is timed to notice a reload. */
+		while(!haveslot && conf.paused == srv.paused){
+			if(!_3proxy_sem_timedlock(srv.childslots, 1000)){
+				haveslot = 1;
+				nfull = 0;
+				break;
+			}
+			if(!srv.silent && !(nfull++ % 5)) {
 				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv.childcount, srv.maxchild);
 				dolog(&defparam, buf);
-				nlog = 0;
 			}
-			usleep(SLEEPTIME);
 		}
 		if (iscbc) break;
 		if (conf.paused != srv.paused) break;
@@ -1213,6 +1219,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	}
 	else {
 		srv.childcount++;
+		haveslot = 0;
 		newparam->threadid = (uint64_t)thread;
 	}
 	_3proxy_mutex_unlock(&srv.counter_mutex);
@@ -1230,6 +1237,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 
  if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
+ /* srvfree() waits for every slot to come back, this one included */
+ if(haveslot) _3proxy_sem_unlock(srv.childslots);
  srvfree(&srv);
 
 #ifndef _WIN32
@@ -1284,6 +1293,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  _3proxy_mutex_init(&srv->counter_mutex);
+ (void)_3proxy_sem_init_timed(srv->childslots, srv->maxchild, srv->maxchild);
 #ifndef NOUDPMAIN
  if(!udpinited){
     (void)_3proxy_sem_init(udpinit, 1, 1);
@@ -1329,6 +1339,8 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 }
 
 void srvfree(struct srvparam * srv){
+ int i;
+
  if(srv->srvsock != INVALID_SOCKET) {
     so._closesocket(srv->so.state, srv->srvsock);
 #ifdef WITH_UN
@@ -1339,16 +1351,13 @@ void srvfree(struct srvparam * srv){
  if(srv->cbsock != INVALID_SOCKET) so._closesocket(srv->so.state, srv->cbsock);
  srv->cbsock = INVALID_SOCKET;
  srv->service = S_ZOMBIE;
- /* under the mutex, so the last child has let go of it before it is destroyed */
- for(;;){
-	struct clientparam *child;
-
-	_3proxy_mutex_lock(&srv->counter_mutex);
-	child = srv->child;
-	_3proxy_mutex_unlock(&srv->counter_mutex);
-	if(!child) break;
-	usleep(SLEEPTIME * 100);
- }
+ /* Every child returns its slot as the last thing it does with the service,
+   so once all of them are back no child is left. A child posts its slot
+   holding the mutex: taking the mutex once more waits for the last one to
+   have let go of both before they are destroyed. */
+ for(i = srv->maxchild; i; i--) _3proxy_sem_lock(srv->childslots);
+ _3proxy_mutex_lock(&srv->counter_mutex);
+ _3proxy_mutex_unlock(&srv->counter_mutex);
 #ifndef STDMAIN
  if(srv->filter){
 	while(srv->nfilters){
@@ -1367,6 +1376,7 @@ void srvfree(struct srvparam * srv){
  if(srv->authfuncs)freeauth(srv->authfuncs);
 #endif
  _3proxy_mutex_destroy(&srv->counter_mutex);
+ _3proxy_sem_destroy(srv->childslots);
  if(srv->target) free(srv->target);
  if(srv->logtarget) free(srv->logtarget);
  if(srv->logformat) free(srv->logformat);
@@ -1454,6 +1464,9 @@ void freeparam(struct clientparam * param) {
 				param->next->prev = param->prev;
 			}
 			(param->srv->childcount)--;
+			/* under the mutex too: srvfree() may destroy the semaphore as
+			   soon as the mutex shows the last child gone */
+			_3proxy_sem_unlock(param->srv->childslots);
 		}
 		_3proxy_mutex_unlock(&param->srv->counter_mutex);
 	}

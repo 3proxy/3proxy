@@ -47,6 +47,7 @@ typedef struct _3proxy_sem_s {
 	pthread_cond_t cond;
 	unsigned count;
 	unsigned maxcount;
+	int monotonic;		/* timed waits measured on CLOCK_MONOTONIC */
 } _3proxy_sem_t;
 #else
 #include <winsock2.h>
@@ -635,6 +636,7 @@ struct srvparam {
 #endif
 	PROXYSOCKADDRTYPE extsa;
 	_3proxy_mutex_t counter_mutex;
+	_3proxy_sem_t childslots;	/* maxchild of them, one held by each child */
 	struct pollfd fds;
 	FILE *stdlog;
 	unsigned char * target;

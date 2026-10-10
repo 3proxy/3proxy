@@ -415,11 +415,12 @@ set(3PROXY_CORE_SOURCES
 # Object libraries for common sources (shared between executables)
 # ============================================================================
 
-# Common object library (sockmap, sockgetchar, common, log)
+# Common object library (sockmap, sockgetchar, common, sem, log)
 add_library(common_obj OBJECT
     src/sockmap.c
     src/sockgetchar.c
     src/common.c
+    src/sem.c
     src/log.c
 )
 target_include_directories(common_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
