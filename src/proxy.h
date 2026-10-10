@@ -467,6 +467,10 @@ struct dictionary;
 struct node;
 struct property;
 extern _3proxy_mutex_t config_mutex;
+/* services running, and a post each time one of them has finished */
+extern int runningservices;
+extern _3proxy_mutex_t runningservices_mutex;
+extern _3proxy_sem_t serviceexited;
 extern _3proxy_mutex_t bandlim_mutex;
 extern _3proxy_mutex_t connlim_mutex;
 extern _3proxy_mutex_t tc_mutex;

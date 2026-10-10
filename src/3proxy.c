@@ -74,13 +74,8 @@ void __stdcall CommandHandler( DWORD dwCommand )
         SetStatus( SERVICE_STOP_PENDING, 0, 1 );
 	conf.timetoexit = 1;
 	conf.paused++;
-	Sleep(2000);
-        SetStatus( SERVICE_STOPPED, 0, 0 );
-#ifdef WITH_ODBC
-	_3proxy_mutex_lock(&log_mutex);
-	close_sql();
-	_3proxy_mutex_unlock(&log_mutex);
-#endif
+	/* ServiceMain() reports the service stopped once cyclestep() has
+	   seen this and the services are done */
         break;
     case SERVICE_CONTROL_PAUSE:
         SetStatus( SERVICE_PAUSE_PENDING, 0, 1 );
@@ -106,6 +101,13 @@ void __stdcall ServiceMain(int argc, unsigned char* argv[] )
     SetStatus( SERVICE_START_PENDING, 0, 1 );
     SetStatus( SERVICE_RUNNING, 0, 0 );
     cyclestep();
+#ifdef WITH_ODBC
+    _3proxy_mutex_lock(&log_mutex);
+    close_sql();
+    _3proxy_mutex_unlock(&log_mutex);
+#endif
+    /* the last thing: the process may be ended once this is reported */
+    SetStatus( SERVICE_STOPPED, 0, 0 );
 }
 #endif
 
@@ -240,6 +242,39 @@ void dumpcounters(struct trafcount *tlin, int counterd){
  }
 }
 
+/* Lets the services finish before the process exits, for EXITWAIT ms at
+   most: each one waits for its connections, and a connection may hang on
+   its peer. Posts left over from reloads are consumed on the way, the
+   count decides. */
+#define EXITWAIT 3000
+static unsigned long nowms(void){
+#ifdef _WIN32
+ return (unsigned long)GetTickCount();
+#else
+ struct timeval tv;
+
+ gettimeofday(&tv, NULL);
+ return (unsigned long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+#endif
+}
+
+static void waitservices(void){
+ unsigned long start = nowms(), passed;
+
+ for(;;){
+	int n;
+
+	_3proxy_mutex_lock(&runningservices_mutex);
+	n = runningservices;
+	_3proxy_mutex_unlock(&runningservices_mutex);
+	if(!n) return;
+	/* a clock set back makes this huge, which ends the wait as well */
+	passed = nowms() - start;
+	if(passed >= EXITWAIT) return;
+	if(_3proxy_sem_timedlock(serviceexited, (unsigned)(EXITWAIT - passed))) return;
+ }
+}
+
 void cyclestep(void){
  struct tm *tm;
  time_t minutecounter;
@@ -336,9 +371,7 @@ void cyclestep(void){
 	if(conf.timetoexit){
 		conf.paused++;
 		doschedule();
-		usleep(SLEEPTIME*999);
-		usleep(SLEEPTIME*999);
-		usleep(SLEEPTIME*999);
+		waitservices();
 		return;
 	}
 		
@@ -517,6 +550,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   }
 
   _3proxy_mutex_init(&config_mutex);
+  _3proxy_mutex_init(&runningservices_mutex);
   _3proxy_mutex_init(&bandlim_mutex);
   _3proxy_mutex_init(&connlim_mutex);
   _3proxy_mutex_init(&tc_mutex);
@@ -524,7 +558,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #ifndef NORADIUS
   _3proxy_mutex_init(&rad_mutex);
 #endif
-  if(_3proxy_sem_init(conf.threadinit, 1, 1)){
+  if(_3proxy_sem_init(conf.threadinit, 1, 1) || _3proxy_sem_init_timed(serviceexited, 0, 0x7fffffff)){
     fprintf(stderr, "semaphore init failed\n");
     return 1;
   }
