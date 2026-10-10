@@ -185,6 +185,7 @@ void * sockschild(struct clientparam* param) {
 	 if(command == 2){
 		if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN (11);}
 		setopts(param->remsock, param->srv->lissockopts);
+		if(extbindtodevice(param, param->remsock)) {RETURN (12);}
 	 }
 	 break;
 
@@ -244,6 +245,7 @@ fflush(stderr);
 #else
 		fcntl(param->clisock, F_SETFL, O_NONBLOCK | fcntl(param->clisock, F_GETFL));
 #endif
+		if(intbindtodevice(param, param->clisock)) {RETURN (12);}
 		sin = param->sincl;
 		*SAPORT(&sin) = 0;
 		/* the port the client is told to send its datagrams to */

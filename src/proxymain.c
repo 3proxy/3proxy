@@ -862,28 +862,10 @@ int MODULEMAINFUNC (int argc, char** argv){
 		srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
 #endif
 		}
-#if defined SO_BINDTODEVICE
-		if(srv.ibindtodevice && srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_BINDTODEVICE, srv.ibindtodevice, strlen(srv.ibindtodevice) + 1)) {
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+		if(bindtodevice(&srv.so, srv.so.state, sock, srv.ibindtodevice, *SAFAMILY(&srv.intsa))) {
 		    dolog(&defparam, (unsigned char *)"failed to bind device");
 		    return -12;
-		}
-#elif defined IP_BOUND_IF
-		if(srv.ibindtodevice){
-		    int idx;
-		    idx = if_nametoindex(srv.ibindtodevice);
-		    if(!idx || (*SAFAMILY(&srv.intsa) == AF_INET && setsockopt(sock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)))) {
-			dolog(&defparam, (unsigned char *)"failed to bind device");
-			return -12;
-		    }
-#ifndef NOIPV6
-#ifndef IPV6_BOUND_IF
-#define IPV6_BOUND_IF 125
-#endif
-	            if((*SAFAMILY(&srv.intsa) == AF_INET6 && srv.so._setsockopt(srv.so.state, sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx)))) {
-			dolog(&defparam, (unsigned char *)"failed to bind device");
-	        	return -12;
-	    	    }
-#endif
 		}
 #endif
 	}
@@ -1038,6 +1020,15 @@ int MODULEMAINFUNC (int argc, char** argv){
 				setopts(new_sock, srv.cbcsockopts);
 
 				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+				/* as for a listening socket, an interface that cannot be
+				   bound to is not worth retrying */
+				if(bindtodevice(&so, so.state, new_sock, srv.ibindtodevice, *SAFAMILY(&defparam.sincr))) {
+					dolog(&defparam, (unsigned char *)"failed to bind device");
+					so._closesocket(so.state, new_sock);
+					break;
+				}
+#endif
 				if(connectwithpoll(NULL, new_sock,(struct sockaddr *)&defparam.sincr,SASIZE(&defparam.sincr),CONNBACK_TO)) {
 					so._closesocket(so.state, new_sock);
 					new_sock = INVALID_SOCKET;
