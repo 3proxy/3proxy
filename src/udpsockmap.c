@@ -121,6 +121,11 @@ int udpbind(struct clientparam *param)
 	fcntl(s, F_SETFL, O_NONBLOCK | fcntl(s, F_GETFL));
 #endif
 	param->remsock = s;
+	if (extbindtodevice(param, param->remsock)) {
+		param->srv->so._closesocket(param->sostate, param->remsock);
+		param->remsock = INVALID_SOCKET;
+		return 12;
+	}
 	if (bindwithrange(param, param->remsock, &param->sinsl, param->extport)) {
 		if (param->extport) {
 			param->srv->so._closesocket(param->sostate, param->remsock);
