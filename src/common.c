@@ -677,6 +677,49 @@ int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa,
 }
 
 
+/* -Di / -De: ties a socket to the interface asked for, for TCP and UDP alike.
+   Where the option is set per protocol, family is the one of the address the
+   socket will be bound to. */
+int bindtodevice(struct sockfuncs *sf, void *state, SOCKET sock, const char *device, int family){
+	if(!device) return 0;
+#if defined SO_BINDTODEVICE
+	if(sf->_setsockopt(state, sock, SOL_SOCKET, SO_BINDTODEVICE, device, strlen(device) + 1))
+		return 1;
+#elif defined IP_BOUND_IF
+	{
+	    int idx;
+	    idx = if_nametoindex(device);
+	    if(!idx || (family == AF_INET && sf->_setsockopt(state, sock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
+			return 1;
+#ifndef NOIPV6
+#ifndef IPV6_BOUND_IF
+#define IPV6_BOUND_IF 125
+#endif
+	    if(family == AF_INET6 && sf->_setsockopt(state, sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 1;
+#endif
+	}
+#endif
+	return 0;
+}
+
+/* the external side, a socket to be bound to sinsl */
+int extbindtodevice(struct clientparam *param, SOCKET sock){
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+	return bindtodevice(&param->srv->so, param->sostate, sock, param->srv->obindtodevice, *SAFAMILY(&param->sinsl));
+#else
+	return 0;
+#endif
+}
+
+/* the internal side, a socket to be bound to sincl */
+int intbindtodevice(struct clientparam *param, SOCKET sock){
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+	return bindtodevice(&param->srv->so, param->sostate, sock, param->srv->ibindtodevice, *SAFAMILY(&param->sincl));
+#else
+	return 0;
+#endif
+}
+
 int doconnect(struct clientparam * param){
  SASIZETYPE size;
 
@@ -724,25 +767,7 @@ int doconnect(struct clientparam * param){
 	setopts(param->remsock, param->srv->srvsockopts);
 
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
-#if defined SO_BINDTODEVICE
-	if(param->srv->obindtodevice) {
-		if(param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_BINDTODEVICE, param->srv->obindtodevice, strlen(param->srv->obindtodevice) + 1))
-			return 12;
-	}
-#elif defined IP_BOUND_IF
-	if(param->srv->obindtodevice) {
-	    int idx;
-	    idx = if_nametoindex(param->srv->obindtodevice);
-	    if(!idx || (*SAFAMILY(&param->sinsl) == AF_INET && param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
-			return 12;
-#ifndef NOIPV6
-#ifndef IPV6_BOUND_IF
-#define IPV6_BOUND_IF 125
-#endif
-	    if(*SAFAMILY(&param->sinsl) == AF_INET6 && param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 12;
-#endif
-	}
-#endif
+	if(extbindtodevice(param, param->remsock)) return 12;
 #ifdef WITH_UN
 	if(*SAFAMILY(&param->sinsl) != AF_UNIX)
 #endif

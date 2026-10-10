@@ -127,6 +127,7 @@ void * ftpprchild(struct clientparam* param) {
 			clidatasock = INVALID_SOCKET;
 		}
 		if ((clidatasock=socket(SASOCK(&param->sincl), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN(821);}
+		if(intbindtodevice(param, clidatasock)){RETURN(822);}
 		*SAPORT(&param->sincl) = 0;
 		if(param->srv->so._bind(param->sostate, clidatasock, (struct sockaddr *)&param->sincl, SASIZE(&param->sincl))){RETURN(822);}
 		if (pasv) {
