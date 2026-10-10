@@ -35,7 +35,7 @@ RUN TAG=$(curl -s https://api.github.com/repos/wolfSSL/wolfssl/releases/latest \
     make -j$(nproc) && make install
 
 FROM docker.io/alpine:latest AS buildenv
-RUN apk add --no-cache gcc make musl-dev pcre2-dev
+RUN apk add --no-cache gcc make musl-dev linux-headers pcre2-dev
 COPY --from=wolfssl /usr/local /usr/local
 COPY . 3proxy
 RUN cd 3proxy && mkdir -p bin &&\

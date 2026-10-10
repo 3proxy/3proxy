@@ -123,15 +123,18 @@ INSTALL_BIN	= $(INSTALL) -m 755
 INSTALL_DATA	= $(INSTALL) -m 644
 INSTALL_OBJS	= bin/3proxy \
 		  bin/$(CRYPT_PREFIX)crypt \
-		  bin/$(PREFIX)ftppr \
-		  bin/$(PREFIX)imapp \
-		  bin/$(PREFIX)pop3p \
 		  bin/$(PREFIX)proxy \
-		  bin/$(PREFIX)smtpp \
 		  bin/$(PREFIX)socks \
 		  bin/$(PREFIX)tcppm \
 		  bin/$(PREFIX)tlspr \
 		  bin/$(PREFIX)udppm
+# the mail proxies and ftppr are only there when they were built
+ifeq ($(MAILPROXY),true)
+INSTALL_OBJS	+= bin/$(PREFIX)imapp bin/$(PREFIX)pop3p bin/$(PREFIX)smtpp
+endif
+ifeq ($(FTP),true)
+INSTALL_OBJS	+= bin/$(PREFIX)ftppr
+endif
 		  
 
 INSTALL_CFG	 = scripts/3proxy.cfg.chroot
@@ -189,7 +192,7 @@ install-man:
 	$(INSTALL_DATA) man/3proxy.cfg.5 $(MANDIR5)
 	$(INSTALL_DATA) man/3proxy.8 $(MANDIR8)
 	for f in proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr; do \
-	  if [ -f man/$$f.8 ]; then $(INSTALL_DATA) man/$$f.8 $(MANDIR8)/$(PREFIX)$$f.8; fi; \
+	  if [ -f man/$$f.8 ] && [ -f bin/$(PREFIX)$$f ]; then $(INSTALL_DATA) man/$$f.8 $(MANDIR8)/$(PREFIX)$$f.8; fi; \
 	done
 	$(INSTALL_DATA) man/3proxy_crypt.8 $(MANDIR8)/$(CRYPT_PREFIX)crypt.8
 
