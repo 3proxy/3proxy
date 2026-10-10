@@ -38,6 +38,9 @@ _3proxy_mutex_t bandlim_mutex;
 _3proxy_mutex_t connlim_mutex;
 _3proxy_mutex_t tc_mutex;
 _3proxy_mutex_t config_mutex;
+int runningservices = 0;
+_3proxy_mutex_t runningservices_mutex;
+_3proxy_sem_t serviceexited;
 
 int haveerror = 0;
 int linenum = 0;
@@ -76,7 +79,18 @@ DWORD WINAPI startsrv(LPVOID data) {
 void * startsrv(void * data) {
 #endif
   struct child *d = (struct child *)data;
+
+  /* counted here rather than where the service is listed, so every way
+     out of it is counted too; start_proxy_thread() waits for the service
+     to start, so it is counted by the time that returns */
+  _3proxy_mutex_lock(&runningservices_mutex);
+  runningservices++;
+  _3proxy_mutex_unlock(&runningservices_mutex);
   mainfunc(d->argc, (char **)d->argv);
+  _3proxy_mutex_lock(&runningservices_mutex);
+  runningservices--;
+  _3proxy_mutex_unlock(&runningservices_mutex);
+  _3proxy_sem_unlock(serviceexited);
   return 0;
 }
 
