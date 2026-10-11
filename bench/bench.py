@@ -35,6 +35,10 @@ CG = "/sys/fs/cgroup/3proxy-bench"
 # client 10.0.1.2 -- 10.0.1.1 proxy 10.0.2.1 -- 10.0.2.2 origin
 CLI_ADDR, PRX_IN, PRX_OUT, SRV_ADDR = "10.0.1.2", "10.0.1.1", "10.0.2.1", "10.0.2.2"
 HTTP_PORT, TCP_PORT, ORIGIN_HTTP, ORIGIN_TCP = 3128, 5201, 8080, 5201
+# a TCP relay to the origin's web server, standing in for CONNECT where the
+# proxy has none (nginx, haproxy)
+RELAY_HTTP = 5280
+SOCKS_PORT = 1080
 
 FILES = {"1k": 1024, "50k": 50 * 1024, "100k": 100 * 1024, "1m": 1024 * 1024}
 
@@ -46,21 +50,46 @@ SCENARIOS = {
     "http-ka-1k":    ("http", {"file": "1k", "conns": 64}),
     "http-ka-1m":    ("http", {"file": "1m", "conns": 16}),
     "http-ka-50k-2000": ("http", {"file": "50k", "conns": 2000}),
+    "http-ka-2k-50k-2000": ("http", {"file": "50k", "conns": 2000, "body": 2048}),
     "http-close-1k": ("http", {"file": "1k", "conns": 64, "close": True}),
+    # Through tunnels: the load generators run under proxychains, so each of
+    # their connections asks the proxy for one to the origin, with CONNECT
+    # (HTTP proxies) or SOCKSv5. And the same load through a TCP relay to a
+    # fixed destination (3proxy tcppm, nginx stream, haproxy mode tcp).
+    "connect-stream1-down": ("stream", {"streams": 1, "reverse": True, "via": "connect"}),
+    "connect-stream16":  ("stream", {"streams": 16, "via": "connect"}),
+    "connect-ka-1k":     ("http", {"file": "1k", "conns": 64, "via": "connect"}),
+    "connect-ka-50k-2000": ("http", {"file": "50k", "conns": 2000, "via": "connect"}),
+    "connect-close-1k":  ("http", {"file": "1k", "conns": 64, "close": True, "via": "connect"}),
+    "socks-stream1-down": ("stream", {"streams": 1, "reverse": True, "via": "socks"}),
+    "socks-stream16":  ("stream", {"streams": 16, "via": "socks"}),
+    "socks-ka-1k":     ("http", {"file": "1k", "conns": 64, "via": "socks"}),
+    "socks-ka-50k-2000": ("http", {"file": "50k", "conns": 2000, "via": "socks"}),
+    "socks-close-1k":  ("http", {"file": "1k", "conns": 64, "close": True, "via": "socks"}),
+    "relay-stream1-down": ("stream", {"streams": 1, "reverse": True, "via": "relay"}),
+    "relay-stream16":  ("stream", {"streams": 16, "via": "relay"}),
+    "relay-ka-1k":     ("http", {"file": "1k", "conns": 64, "via": "relay"}),
+    "relay-ka-50k-2000": ("http", {"file": "50k", "conns": 2000, "via": "relay"}),
+    "relay-close-1k":  ("http", {"file": "1k", "conns": 64, "close": True, "via": "relay"}),
 }
 
 
 TOOLS = {}
 
 
-def tool(name):
+def tool(*names):
     """A tool by its absolute path: sudo's secure_path may leave out where
-    it was installed, /usr/local/bin for a wrk built by hand."""
+    it was installed, /usr/local/bin for a wrk built by hand. Several names
+    are alternatives."""
+    name = names[0]
     if name not in TOOLS:
-        path = shutil.which(name) or shutil.which(
-            name, path="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin")
+        for n in names:
+            path = shutil.which(n) or shutil.which(
+                n, path="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin")
+            if path:
+                break
         if not path:
-            sys.exit(f"{name} not found")
+            sys.exit(f"{' or '.join(names)} not found")
         TOOLS[name] = path
     return TOOLS[name]
 
@@ -342,6 +371,8 @@ http {{
         listen {SRV_ADDR}:{ORIGIN_HTTP} backlog=65535 reuseport;
         root {www};
         default_type application/octet-stream;
+        # the files answer a POST too, its body read and thrown away
+        error_page 405 =200 $uri;
     }}
 }}
 """)
@@ -368,8 +399,57 @@ def proxy_conf(kind, work, ncpu, label, opts=""):
 auth none
 proxy {opts} -i{PRX_IN} -e{PRX_OUT} -p{HTTP_PORT}
 tcppm {opts} -i{PRX_IN} -e{PRX_OUT} {TCP_PORT} {SRV_ADDR} {ORIGIN_TCP}
+tcppm {opts} -i{PRX_IN} -e{PRX_OUT} {RELAY_HTTP} {SRV_ADDR} {ORIGIN_HTTP}
+socks {opts} -i{PRX_IN} -e{PRX_OUT} -p{SOCKS_PORT}
 """)
         return [conf]
+    if kind == "tinyproxy":
+        conf = os.path.join(work, f"{label}.conf")
+        with open(conf, "w") as f:
+            f.write(f"""Port {HTTP_PORT}
+Listen {PRX_IN}
+Bind {PRX_OUT}
+Timeout 600
+MaxClients 100000
+LogLevel Critical
+LogFile "{work}/{label}.log"
+PidFile "{work}/{label}.pid"
+DisableViaHeader Yes
+""")
+        return ["-d", "-c", conf]
+    if kind == "squid":
+        conf = os.path.join(work, f"{label}.conf")
+        with open(conf, "w") as f:
+            f.write(f"""http_port {PRX_IN}:{HTTP_PORT}
+tcp_outgoing_address {PRX_OUT}
+http_access allow all
+cache deny all
+cache_mem 8 MB
+access_log none
+cache_log {work}/{label}.log
+pid_filename {work}/{label}.pid
+coredump_dir {work}
+cache_effective_user nobody
+max_filedescriptors 65536
+shutdown_lifetime 1 seconds
+via off
+forwarded_for delete
+""")
+        return ["-N", "-f", conf]
+    if kind == "dante":
+        conf = os.path.join(work, f"{label}.conf")
+        with open(conf, "w") as f:
+            f.write(f"""logoutput: {work}/{label}.log
+internal: {PRX_IN} port = {SOCKS_PORT}
+external: {PRX_OUT}
+socksmethod: none
+clientmethod: none
+user.privileged: root
+user.unprivileged: nobody
+client pass {{ from: 0.0.0.0/0 to: 0.0.0.0/0 }}
+socks pass {{ from: 0.0.0.0/0 to: 0.0.0.0/0 }}
+""")
+        return ["-f", conf, "-p", f"{work}/{label}.pid", "-N", "1"]
     if kind == "nginx":
         conf = os.path.join(work, f"{label}.conf")
         with open(conf, "w") as f:
@@ -406,16 +486,25 @@ stream {{
         proxy_pass {SRV_ADDR}:{ORIGIN_TCP};
         proxy_bind {PRX_OUT};
     }}
+    server {{
+        listen {PRX_IN}:{RELAY_HTTP} backlog=65535 reuseport;
+        proxy_pass {SRV_ADDR}:{ORIGIN_HTTP};
+        proxy_bind {PRX_OUT};
+    }}
 }}
 """)
         return ["-c", conf, "-p", work]
     if kind == "haproxy":
         # splice-auto: haproxy's heuristic, splicing a direction once reads
-        # fill its buffer three times in a row; splice: both directions always
+        # fill its buffer three times in a row; splice-response, splice-request
+        # and splice: the server's data, the client's, or both, always
+        # (3proxy's -s1, -s2 and -s3)
         splice = {"": "", "splice-auto": "    option splice-auto\n",
+                  "splice-response": "    option splice-response\n",
+                  "splice-request": "    option splice-request\n",
                   "splice": "    option splice-request\n    option splice-response\n"}
         if opts not in splice:
-            sys.exit("haproxy options: splice-auto or splice")
+            sys.exit("haproxy options: " + ", ".join(k for k in splice if k))
         splice = splice[opts]
         conf = os.path.join(work, f"{label}.cfg")
         with open(conf, "w") as f:
@@ -441,6 +530,11 @@ listen tcp
     bind {PRX_IN}:{TCP_PORT}
     source {PRX_OUT}
     server origin {SRV_ADDR}:{ORIGIN_TCP}
+listen tcphttp
+    mode tcp
+    bind {PRX_IN}:{RELAY_HTTP}
+    source {PRX_OUT}
+    server origin {SRV_ADDR}:{ORIGIN_HTTP}
 """)
         return ["-f", conf]
     raise ValueError(kind)
@@ -463,11 +557,34 @@ class Proxy:
                 sys.exit("nginx takes no options (it does not use splice() at all)")
             self.binary = path or tool(kind)
             self.label = kind + ("-" + self.opts if self.opts else "")
+        elif kind in ("tinyproxy", "squid", "dante"):
+            # dante's server is sockd, danted on Debian
+            self.binary = path or (tool("sockd", "danted") if kind == "dante" else tool(kind))
+            self.label = kind
         elif kind == "none":
             self.binary = None
             self.label = "direct"
         else:
             sys.exit("unknown proxy " + spec)
+
+    # what each proxy listens on, and which scenarios it can take part in:
+    # tinyproxy and squid are HTTP proxies, dante a SOCKS server only
+    PORTS = {"3proxy": (HTTP_PORT, TCP_PORT, SOCKS_PORT, RELAY_HTTP),
+             "nginx": (HTTP_PORT, TCP_PORT, RELAY_HTTP),
+             "haproxy": (HTTP_PORT, TCP_PORT, RELAY_HTTP),
+             "tinyproxy": (HTTP_PORT,), "squid": (HTTP_PORT,), "dante": (SOCKS_PORT,)}
+
+    def serves(self, scenario):
+        kind, params = SCENARIOS[scenario]
+        via = params.get("via")
+        if self.kind == "dante":
+            return via == "socks"
+        if self.kind in ("tinyproxy", "squid"):
+            return via == "connect" or (kind == "http" and not via)
+        if self.kind in ("nginx", "haproxy"):
+            # no CONNECT, no SOCKS
+            return via in (None, "relay")
+        return True
 
     def start(self, args, work):
         cg_remove("prx")
@@ -478,7 +595,7 @@ class Proxy:
                                           self.label, self.opts)
         log = open(os.path.join(work, self.label + ".out"), "a")
         p = spawn("bprx", "prx", argv, log)
-        if not (wait_port("bcli", PRX_IN, HTTP_PORT) and wait_port("bcli", PRX_IN, TCP_PORT)):
+        if not all(wait_port("bcli", PRX_IN, port, 30) for port in self.PORTS[self.kind]):
             stop(p)
             sys.exit(f"{self.label} did not start, see {work}")
         return p
@@ -487,10 +604,15 @@ class Proxy:
 # --- load --------------------------------------------------------------------
 
 WRK_SCRIPT = """
-local path, close = "%s", %s
+local path, close, size = "%s", %s, %d
 local headers = {["Host"] = "%s:%d"}
 if close then headers["Connection"] = "close" end
-local req = wrk.format("GET", path, headers)
+local req
+if size > 0 then
+    req = wrk.format("POST", path, headers, string.rep("u", size))
+else
+    req = wrk.format("GET", path, headers)
+end
 request = function() return req end
 """
 
@@ -504,20 +626,45 @@ def to_ms(text):
     return v * {"us": 1e-3, "ms": 1, "s": 1e3, "m": 6e4}[u]
 
 
+def tunnel(via, work):
+    """argv prefix running a load generator so that its connections go
+    through tunnels of the proxy: CONNECT, or SOCKSv5."""
+    conf = os.path.join(work, f"proxychains-{via}.conf")
+    line = f"http {PRX_IN} {HTTP_PORT}" if via == "connect" else f"socks5 {PRX_IN} {SOCKS_PORT}"
+    with open(conf, "w") as f:
+        f.write(f"strict_chain\nquiet_mode\ntcp_read_time_out 15000\n"
+                f"tcp_connect_time_out 8000\n[ProxyList]\n{line}\n")
+    return [tool("proxychains4"), "-q", "-f", conf]
+
+
+def target(proxy, params, work, direct_port, proxy_port, relay_port):
+    """Where the load generator connects, and what it runs under: the origin
+    itself with no proxy or through a tunnel, the proxy's relay otherwise."""
+    if proxy.kind == "none":
+        return SRV_ADDR, direct_port, []
+    if params.get("via") == "relay":
+        return PRX_IN, relay_port, []
+    if params.get("via"):
+        return SRV_ADDR, direct_port, tunnel(params["via"], work)
+    return PRX_IN, proxy_port, []
+
+
 def run_http(proxy, params, args, work):
-    direct = proxy.kind == "none"
-    host = SRV_ADDR if direct else PRX_IN
-    port = ORIGIN_HTTP if direct else HTTP_PORT
+    host, port, prefix = target(proxy, params, work, ORIGIN_HTTP, HTTP_PORT, RELAY_HTTP)
     path = "/" + params["file"]
-    if not direct:
+    if host == PRX_IN and port == HTTP_PORT:
         path = f"http://{SRV_ADDR}:{ORIGIN_HTTP}{path}"
     script = os.path.join(work, "wrk.lua")
     with open(script, "w") as f:
         f.write(WRK_SCRIPT % (path, "true" if params.get("close") else "false",
-                              SRV_ADDR, ORIGIN_HTTP))
+                              params.get("body", 0), SRV_ADDR, ORIGIN_HTTP))
     threads = len(cpulist(args.cpus["cli"]))
+    if prefix:
+        # proxychains asks for each tunnel inside connect(), blocking the
+        # thread: more threads keep the client's CPUs busy meanwhile
+        threads = min(params["conns"], threads * 4)
     conns = max(params["conns"], threads)
-    out = run_in("bcli", "cli", [tool("wrk"), "-t", str(threads), "-c", str(conns),
+    out = run_in("bcli", "cli", prefix + [tool("wrk"), "-t", str(threads), "-c", str(conns),
                                  "-d", f"{args.duration}s", "--latency", "-s", script,
                                  f"http://{host}:{port}/"], args.duration + 30)
     res = {"raw": out}
@@ -549,10 +696,8 @@ def run_http(proxy, params, args, work):
 
 
 def run_stream(proxy, params, args, work):
-    direct = proxy.kind == "none"
-    host = SRV_ADDR if direct else PRX_IN
-    port = ORIGIN_TCP if direct else TCP_PORT
-    argv = [tool("iperf3"), "-c", host, "-p", str(port), "-t", str(args.duration),
+    host, port, prefix = target(proxy, params, work, ORIGIN_TCP, TCP_PORT, TCP_PORT)
+    argv = prefix + [tool("iperf3"), "-c", host, "-p", str(port), "-t", str(args.duration),
             "-P", str(params["streams"]), "-J"]
     if params.get("reverse"):
         argv.append("-R")
@@ -647,7 +792,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--proxy", action="append", required=True,
                     help="3proxy:<binary>[:<service options>], nginx[:<binary>], "
-                         "haproxy[:<binary>[:splice-auto|splice]] "
+                         "tinyproxy, squid, dante (sockd), "
+                         "haproxy[:<binary>[:splice-auto|splice-response|splice-request|splice]] "
                          "or none (the kernel routing, an upper bound); repeat")
     ap.add_argument("--scenario", action="append", choices=sorted(SCENARIOS),
                     help="default: all")
@@ -667,11 +813,14 @@ def main():
     # fail now rather than after the first scenarios
     for name in ("nginx", "iperf3", "wrk"):
         tool(name)
+    if any(SCENARIOS[s][1].get("via") in ("connect", "socks") for s in scenarios):
+        tool("proxychains4")
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     os.makedirs(args.out, exist_ok=True)
     work = tempfile.mkdtemp(prefix="3proxy-bench-")
-    os.chmod(work, 0o755)
+    # squid writes its log and pid file there after giving up root
+    os.chmod(work, 0o1777)
     csvpath = os.path.join(args.out, f"{stamp}.csv")
     rawpath = os.path.join(args.out, f"{stamp}.raw.txt")
     with open(os.path.join(args.out, f"{stamp}.env.txt"), "w") as f:
@@ -697,6 +846,8 @@ def main():
                 for scenario in scenarios:
                     order = proxies[rep % len(proxies):] + proxies[:rep % len(proxies)]
                     for proxy in order:
+                        if not proxy.serves(scenario):
+                            continue
                         res = measure(proxy, scenario, args, work)
                         res.update(proxy=proxy.label, scenario=scenario, rep=rep)
                         rows.append(res)

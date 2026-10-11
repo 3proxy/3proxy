@@ -19,13 +19,24 @@ appears in, so a later run can add proxies, and a proxy it repeats (run again
 to see how much the conditions moved between the runs) is left out.
 
 --label old=new renames a column, e.g. --label 3proxy-devel-s="devel, splice".
+
+--machine NAME=a.csv,b.csv, given once per machine, makes a single table of
+throughput instead: each cell the machines' medians and their average. The
+best average of each group (no splice, splice) is in bold, and so is any other
+of the group whose range (the average of its slowest runs to that of its
+fastest) reaches the best one's; * marks the best of the row, both groups
+together, in the same way. --split puts the splice group in a table of its own
+(* still compares across both), --prefix connect- takes only the scenarios so
+named.
 """
 
 import argparse
 import csv
 import statistics
 
-STREAM = ("stream1", "stream1-down", "stream16")
+STREAM = ("stream1", "stream1-down", "stream16", "connect-stream1-down", "connect-stream16",
+          "socks-stream1-down", "socks-stream16", "relay-stream1-down", "relay-stream16")
+# connect-ka-1m etc. are bulk too when present
 
 
 def values(rows, key):
@@ -93,9 +104,133 @@ def table(title, scenarios, groups, labels, cell, best):
     return "\n".join(out) + "\n"
 
 
+def load(paths):
+    """Rows of several CSVs, a proxy taken from the first file it is in."""
+    rows, seen = [], set()
+    for path in paths:
+        new = list(csv.DictReader(open(path)))
+        rows += [r for r in new if r["proxy"] not in seen]
+        seen |= {r["proxy"] for r in new}
+    return rows
+
+
+# In the combined table, the bulk scenarios in Gbit/s, the others in
+# thousands of requests per second.
+BULK = STREAM + ("http-ka-1m",)
+
+
+def combined(machines, labels, splice, prefix=None, split=False):
+    """One throughput table for several machines: each cell their medians
+    and their average. Bold: the best of its group; *: the best of the row.
+    split puts the proxies using splice() in a table of their own, * still
+    comparing across both."""
+    data, proxies, scenarios = {}, [], []
+    for name, paths in machines:
+        by = {}
+        for r in load(paths):
+            if prefix and not r["scenario"].startswith(prefix):
+                continue
+            by.setdefault((r["scenario"], r["proxy"]), []).append(r)
+            if r["proxy"] not in proxies:
+                proxies.append(r["proxy"])
+            if r["scenario"] not in scenarios:
+                scenarios.append(r["scenario"])
+        data[name] = by
+
+    def runs(name, s, p):
+        sel = data[name].get((s, p), [])
+        if s in BULK:
+            return values(sel, "gbit")
+        return [x / 1000 for x in values(sel, "rate")]
+
+    def value(name, s, p):
+        xs = runs(name, s, p)
+        return statistics.median(xs) if xs else None
+
+    def average(s, p):
+        xs = [value(n, s, p) for n, _ in machines]
+        return sum(xs) / len(xs) if xs and None not in xs else None
+
+    def spread(s, p):
+        """The range of the average: of the slowest runs to of the fastest."""
+        lows, highs = [], []
+        for n, _ in machines:
+            xs = runs(n, s, p)
+            if not xs:
+                return None
+            lows.append(min(xs))
+            highs.append(max(xs))
+        return sum(lows) / len(lows), sum(highs) / len(highs)
+
+    def leaders(s, ps):
+        """The best average, and those whose range reaches the best one's:
+        the runs cannot tell them apart."""
+        known = {p: average(s, p) for p in ps if p != "direct"}
+        known = {p: a for p, a in known.items() if a is not None}
+        if not known:
+            return set()
+        floor = spread(s, max(known, key=known.get))[0]
+        return {p for p in known if spread(s, p)[1] >= floor}
+
+    plain = [p for p in proxies if p != "direct" and p not in splice]
+    spliced = [p for p in proxies if p in splice]
+    direct = [p for p in proxies if p == "direct"]
+    names = " / ".join(n for n, _ in machines) + " / average"
+
+    def render(tables):
+        """tables: lists of groups, each table printed on its own; bold for
+        the best of a group, * for the best of the row over all of them."""
+        everyone = [p for t in tables for g in t for p in g]
+        for t in tables:
+            head, rule = [], []
+            for i, g in enumerate(t):
+                if i:
+                    head.append("‖")
+                    rule.append(":-:")
+                head += [labels.get(p, p) for p in g]
+                rule += ["---:"] * len(g)
+            out = [f"| scenario ({names}) | " + " | ".join(head) + " |",
+                   "|---|" + "|".join(rule) + "|"]
+            for s in scenarios:
+                unit = "Gbit/s" if s in BULK else "k req/s"
+                overall = leaders(s, everyone)
+                cells = []
+                for i, g in enumerate(t):
+                    if i:
+                        cells.append("‖")
+                    best = leaders(s, g)
+                    for p in g:
+                        vals = [value(n, s, p) for n, _ in machines] + [average(s, p)]
+                        if all(v is None for v in vals):
+                            cells.append("–")
+                            continue
+                        text = " / ".join(fmt(v, 1) for v in vals)
+                        if p in best:
+                            text = f"**{text}**"
+                        if p in overall:
+                            text += " *"
+                        cells.append(text)
+                name = s[len(prefix):] if prefix else s
+                out.append(f"| {name}, {unit} | " + " | ".join(cells) + " |")
+            print("\n".join(out))
+            print()
+
+    if split and spliced:
+        render([[g for g in (direct, plain) if g], [spliced]])
+    else:
+        render([[g for g in (direct, plain, spliced) if g]])
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("csv", nargs="+")
+    ap.add_argument("csv", nargs="*")
+    ap.add_argument("--split", action="store_true",
+                    help="the proxies using splice() in a table of their own")
+    ap.add_argument("--prefix", help="only the scenarios named so, e.g. connect- "
+                    "(the prefix is left out of the rows)")
+    ap.add_argument("--machine", action="append", default=[],
+                    help="NAME=a.csv[,b.csv]: one throughput table for all the "
+                         "machines given, instead of the tables for one")
     ap.add_argument("--label", action="append", default=[], help="old=new")
     ap.add_argument("--title", default="")
     ap.add_argument("--splice", action="append", default=[],
@@ -103,11 +238,11 @@ def main():
     args = ap.parse_args()
     labels = dict(l.split("=", 1) for l in args.label)
 
-    rows, seen = [], set()
-    for path in args.csv:
-        new = list(csv.DictReader(open(path)))
-        rows += [r for r in new if r["proxy"] not in seen]
-        seen |= {r["proxy"] for r in new}
+    if args.machine:
+        combined([(m.split("=", 1)[0], m.split("=", 1)[1].split(","))
+                  for m in args.machine], labels, args.splice, args.prefix, args.split)
+        return
+    rows = load(args.csv)
     proxies, scenarios = [], []
     for r in rows:
         if r["proxy"] not in proxies:
@@ -137,7 +272,7 @@ def main():
         sel = by.get((s, p), [])
         if p == "direct":
             return "–"
-        if s in STREAM or s in ("http-ka-1m", "http-ka-50k-2000"):
+        if s in STREAM or s in ("http-ka-1m", "http-ka-50k-2000", "http-ka-2k-50k-2000"):
             return fmt(median(sel, "cpu_s_per_gb"), 2) + " s/GB"
         return fmt(median(sel, "cpu_us_per_req"), 0) + " µs/req"
 
@@ -147,7 +282,7 @@ def main():
         return fmt(median(by.get((s, p), []), "peak_mb"), 0)
 
     def cpukey(s):
-        return "cpu_s_per_gb" if s in STREAM or s in ("http-ka-1m", "http-ka-50k-2000") \
+        return "cpu_s_per_gb" if s in STREAM or s in ("http-ka-1m", "http-ka-50k-2000", "http-ka-2k-50k-2000") \
             else "cpu_us_per_req"
 
     plain = [p for p in proxies if p != "direct" and p not in args.splice]

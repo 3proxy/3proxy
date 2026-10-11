@@ -71,16 +71,23 @@ host) falls on all of them alike; the summary gives medians.
 | `stream1`, `stream1-down` | one iperf3 stream through a TCP relay (3proxy `tcppm`, nginx `stream`, haproxy `mode tcp`), upload and download |
 | `stream16` | sixteen streams |
 | `http-ka-1k`, `http-ka-1m` | HTTP over kept-alive connections through an HTTP proxy (absolute URIs), 1 KB and 1 MB answers |
-| `http-ka-50k-2000` | the same with 2000 clients at once, 50 KB answers |
+| `http-ka-50k-2000` | 2000 clients at once, GET answered with 50 KB |
+| `http-ka-2k-50k-2000` | the same, each request a POST with a 2 KB body |
 | `http-close-1k` | a new connection for every request |
+| `connect-*` | the same loads through CONNECT tunnels: wrk and iperf3 run under proxychains-ng, so every connection they make asks the proxy for a tunnel to the origin (`connect-close-1k`: a tunnel for every request) |
+| `socks-*` | the same through SOCKSv5 |
+| `relay-*` | the same through a TCP relay to a fixed destination: 3proxy `tcppm`, nginx `stream`, haproxy `mode tcp` |
 
 nginx is not a forward proxy: it answers absolute URIs by passing them to its
 upstream, which is the origin here, and it has no CONNECT or SOCKS, so only
-these scenarios compare like with like.
+these scenarios compare like with like. Neither nginx nor haproxy has CONNECT or SOCKS, so they take part in the
+`relay-*` scenarios but not in the `connect-*` and `socks-*` ones. tinyproxy
+and squid are HTTP proxies, measured in the HTTP and `connect-*` scenarios;
+dante is a SOCKS server, measured in the `socks-*` ones.
 
 ## Running
 
-Root, `iproute2`, `iperf3`, `wrk`, `nginx` (with the stream module:
+Root, `iproute2`, `iperf3`, `wrk`, `proxychains4` (proxychains-ng, for the `connect-*` and `socks-*` scenarios), `nginx` (with the stream module:
 `libnginx-mod-stream` on Debian and Ubuntu, `nginx-mod-stream` on
 RHEL-like systems) and, to compare with it,
 `haproxy`.
@@ -100,17 +107,22 @@ sudo bench/bench.py \
 ```
 
 `bench/report.py <csv>` turns a run into Markdown tables: throughput, the
-proxy's CPU per gigabyte or per request, and its peak memory.
+proxy's CPU per gigabyte or per request, and its peak memory. With
+`--machine NAME=a.csv,b.csv` once per machine it makes a single throughput
+table of all of them, each cell their medians and their average.
 
 After the binary, a 3proxy entry can carry options for both its services:
-`-s0` keeps 0.9.0 to 0.9.8, which use splice() by default, from using it, and
+`-s1`, `-s2` and `-s3` splice downloads, uploads or both (`-s0` keeps 0.9.0 to
+0.9.8, which use splice() both ways by default, from using it), and
 `-ocTCP_NODELAY -osTCP_NODELAY` turns Nagle's algorithm off on the client and
 server sockets.
 
 haproxy can be measured with splice() too: `haproxy::splice-auto` lets its
-heuristic splice a direction once reads fill the buffer three times in a row,
-`haproxy::splice` splices both directions always (`option splice-request` and
-`option splice-response`). nginx has no splice() support, so it has no such
+heuristic splice a direction once reads fill the buffer three times in a row;
+`haproxy::splice-response`, `haproxy::splice-request` and `haproxy::splice`
+always splice the server's data, the client's, or both (`option
+splice-response`, `option splice-request`), as 3proxy's `-s1`, `-s2` and `-s3`
+do. nginx has no splice() support, so it has no such
 variant.
 
 `--scenario` picks scenarios, `--reps` and `--duration` set the repetitions
