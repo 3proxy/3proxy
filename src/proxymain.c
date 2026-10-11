@@ -224,27 +224,62 @@ char * printopts(char *sep){
 }
 
 
-int getopts(const char *s){
-	int i=0, ret=0;
-	for(; sockopts[i].optname; i++)if(strstr(s,sockopts[i].optname)) ret |= (1<<i);
-	return ret;
+/* A comma separated list of options, each NAME or NAME=VALUE; a name alone
+   stands for 1, or for TCP_MAXSEG for the value of maxseg. Options are added
+   to what is already set, so a default is changed only by naming it, and
+   turned off with NAME=0. An unknown name or a value which is not a number
+   makes the whole list fail. */
+int getopts(const char *s, struct sockoptset *opts){
+	while(*s){
+		const char *end = strchr(s, ',');
+		const char *eq;
+		size_t len;
+		int i, value = 1;
+
+		if(!end) end = s + strlen(s);
+		eq = memchr(s, '=', (size_t)(end - s));
+		len = (size_t)((eq? eq : end) - s);
+		if(eq){
+			char *num;
+
+			if(!len) return -1;
+			value = (int)strtol(eq + 1, &num, 0);
+			if(num == eq + 1 || num != end) return -1;
+		}
+		else if(len) {
+#ifdef TCP_MAXSEG
+			if(len == 10 && !strncmp(s, "TCP_MAXSEG", 10)) value = 0;
+#endif
+		}
+		if(len){
+			for(i = 0; sockopts[i].optname; i++)
+				if(strlen(sockopts[i].optname) == len && !strncmp(s, sockopts[i].optname, len)) break;
+			if(!sockopts[i].optname || i >= MAXSOCKOPTS) return -1;
+			opts->set |= (1u << i);
+			opts->value[i] = value;
+		}
+		s = *end? end + 1 : end;
+	}
+	return 0;
 }
 
-void setopts(SOCKET s, int opts){
-	int i, opt, set;
-	for(i = 0; opts >= (opt = (1<<i)); i++){
-		set = 1;
+void setopts(SOCKET s, const struct sockoptset *opts){
+	int i, value;
+
+	for(i = 0; sockopts[i].optname && i < MAXSOCKOPTS; i++){
+		if(!(opts->set & (1u << i))) continue;
+		value = opts->value[i];
 #ifdef TCP_MAXSEG
-		if(sockopts[i].opt == TCP_MAXSEG){
-		    if(!conf.maxseg) continue;
-		    set = conf.maxseg;
+		if(sockopts[i].opt == TCP_MAXSEG && *sockopts[i].optname == 'T'){
+		    if(!value) value = conf.maxseg;
+		    if(!value) continue;
 		}
 #endif
-		if(opts & opt) setsockopt(s, *sockopts[i].optname == 'T'? IPPROTO_TCP:
+		setsockopt(s, *sockopts[i].optname == 'T'? IPPROTO_TCP:
 #ifdef SOL_IP
 			*sockopts[i].optname == 'I'? SOL_IP: 
 #endif
-			SOL_SOCKET, sockopts[i].opt, (char *)&set, sizeof(set));
+			SOL_SOCKET, sockopts[i].opt, (char *)&value, sizeof(value));
 	}
 }
 
@@ -356,7 +391,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -64 Prefer IPv6 for outgoing connections, use both IPv4 and IPv6\n"
 	" -ocOPTIONS, -osOPTIONS, -olOPTIONS, -orOPTIONS -oROPTIONS - options for\n"
 	" to-client (oc), to-server (os), listening (ol) socket, connect back client\n"
-	" (or) socket, connect back server (oR) listening socket\n"
+	" (or) socket, connect back server (oR) listening socket, a comma separated\n"
+	" list of NAME or NAME=VALUE (NAME=0 turns an option off); TCP_NODELAY is\n"
+	" set on to-client and to-server sockets by default\n"
 	" where possible options are: ";
 #endif
 
@@ -401,6 +438,34 @@ int MODULEMAINFUNC (int argc, char** argv){
  srvinit(&srv, &defparam);
  srv.pf = childdef.pf;
  isudp = childdef.isudp;
+
+ /* Default socket options, which -oc, -os, -ol and -oR change by naming
+    them, NAME=0 to turn one off.
+
+    Nagle's algorithm holds back a short write until the previous one is
+    acknowledged, and a peer delays its acknowledgement, which stalls every
+    reply written in more than one piece.
+
+    SO_REUSEADDR is not set on Windows: it is not needed to rebind a
+    listening port there, and it only allows another local process to bind
+    the same address and port, with undefined behaviour as to which socket
+    receives the connections. Use -olSO_EXCLUSIVEADDRUSE to prevent that
+    instead. A Windows build which does not share the listening socket is the
+    exception: its UDP services bind a second socket to the same address to
+    answer from, and Windows only allows that when both sockets ask for it.
+ */
+ (void)getopts("TCP_NODELAY", &srv.clisockopts);
+ (void)getopts("TCP_NODELAY", &srv.srvsockopts);
+#ifndef _WIN32
+ (void)getopts("SO_REUSEADDR", &srv.lissockopts);
+ (void)getopts("SO_REUSEADDR", &srv.cbssockopts);
+#elif !defined SHARE_UDP_SOCKET
+ if(isudp) (void)getopts("SO_REUSEADDR", &srv.lissockopts);
+#endif
+#ifdef SO_REUSEPORT
+ (void)getopts("SO_REUSEPORT", &srv.lissockopts);
+ (void)getopts("SO_REUSEPORT", &srv.cbssockopts);
+#endif
 #ifndef NOUDPMAIN
  if(isudp) {
 	if(!udp_table.ihashtable)inithashtable(&udp_table, 64, 256, 65536);
@@ -638,19 +703,19 @@ int MODULEMAINFUNC (int argc, char** argv){
 		 case 'o':
 			switch(argv[i][2]){
 			 case 's':
-				srv.srvsockopts = getopts(argv[i]+3);
+				error = getopts(argv[i]+3, &srv.srvsockopts);
 				break;
 			 case 'c':
-				srv.clisockopts = getopts(argv[i]+3);
+				error = getopts(argv[i]+3, &srv.clisockopts);
 				break;
 			 case 'l':
-				srv.lissockopts = getopts(argv[i]+3);
+				error = getopts(argv[i]+3, &srv.lissockopts);
 				break;
 			 case 'r':
-				srv.cbcsockopts = getopts(argv[i]+3);
+				error = getopts(argv[i]+3, &srv.cbcsockopts);
 				break;
 			 case 'R':
-				srv.cbcsockopts = getopts(argv[i]+3);
+				error = getopts(argv[i]+3, &srv.cbssockopts);
 				break;
 			 default:
 				error = 1;
@@ -829,42 +894,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 			perror("socket()");
 			return -2;
 		}
-		setopts(sock, srv.lissockopts);
+		setopts(sock, &srv.lissockopts);
 #ifdef _WIN32
 		ioctlsocket(sock, FIONBIO, &ul);
 #else
 		fcntl(sock,F_SETFL,O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
 		srv.srvsock = sock;
-#ifdef WITH_UN
-		if(*SAFAMILY(&srv.intsa) != AF_UNIX)
-#endif
-		{
-/* SO_REUSEADDR is not set on Windows: it is not needed to rebind a listening
-   port there, and it only allows another local process to bind the same
-   address and port, with undefined behaviour as to which socket receives the
-   connections. Use -olSO_EXCLUSIVEADDRUSE to prevent that instead.
-
-   A Windows build which does not share the listening socket is the exception:
-   its UDP services bind a second socket to the same address to answer from,
-   and Windows only allows that when both sockets ask for it.
- */
-#ifndef _WIN32
-		opt = 1;
-		if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
-#else
-#ifndef SHARE_UDP_SOCKET
-		if(isudp){
-			opt = 1;
-			if(srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int)))perror("setsockopt()");
-		}
-#endif
-#endif
-#ifdef SO_REUSEPORT
-		opt = 1;
-		srv.so._setsockopt(srv.so.state, sock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
-#endif
-		}
 #if defined SO_BINDTODEVICE || defined IP_BOUND_IF
 		if(bindtodevice(&srv.so, srv.so.state, sock, srv.ibindtodevice, *SAFAMILY(&srv.intsa))) {
 		    dolog(&defparam, (unsigned char *)"failed to bind device");
@@ -957,16 +993,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		freesrvstrings(&srv, cbc_string, cbl_string);
 		return -6;
 	}
-#ifndef _WIN32
-	opt = 1;
-	srv.so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
-#endif
-#ifdef SO_REUSEPORT
-	opt = 1;
-	srv.so._setsockopt(srv.so.state, srv.cbsock, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(int));
-#endif
-
-	setopts(srv.cbsock, srv.cbssockopts);
+	setopts(srv.cbsock, &srv.cbssockopts);
 
 	if(srv.so._bind(srv.so.state, srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 		dolog(&defparam, (unsigned char *)"Failed to bind connect back socket");
@@ -1025,7 +1052,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 		if(iscbc){
 			new_sock=so._socket(so.state, SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
 			if(new_sock != INVALID_SOCKET){
-				setopts(new_sock, srv.cbcsockopts);
+				setopts(new_sock, &srv.cbcsockopts);
 
 				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
 #if defined SO_BINDTODEVICE || defined IP_BOUND_IF
@@ -1102,7 +1129,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 				}
 				continue;
 			}
-			setopts(new_sock, srv.clisockopts);
+			setopts(new_sock, &srv.clisockopts);
 		}
 		size = sizeof(defparam.sincl);
 		if(srv.so._getsockname(srv.so.state, new_sock, (struct sockaddr *)&defparam.sincl, &size)){

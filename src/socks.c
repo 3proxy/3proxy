@@ -184,7 +184,7 @@ void * sockschild(struct clientparam* param) {
 	 param->operation = command == 2?BIND:UDPASSOC;
 	 if(command == 2){
 		if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN (11);}
-		setopts(param->remsock, param->srv->lissockopts);
+		setopts(param->remsock, &param->srv->lissockopts);
 		if(extbindtodevice(param, param->remsock)) {RETURN (12);}
 	 }
 	 break;

@@ -501,7 +501,8 @@ extern struct socketoptions {
 	int opt;
 	char * optname;
 } sockopts[];
-void setopts(SOCKET s, int opts);
+int getopts(const char *s, struct sockoptset *opts);
+void setopts(SOCKET s, const struct sockoptset *opts);
 char * printopts(char *sep);
 
 #ifdef _WINCE
