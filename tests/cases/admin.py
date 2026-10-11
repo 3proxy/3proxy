@@ -1,10 +1,12 @@
 """The admin interface, now a set of handlers on the HTTP server."""
 
+import time
+
 
 def run(t):
     adm = t.free_port()
     lim = t.free_port()
-    t.start("admin", f"""
+    server = t.start("admin", f"""
         log
         auth iponly
         allow *
@@ -20,16 +22,34 @@ def run(t):
 
     url = f"http://127.0.0.1:{adm}"
 
+    def reload(path):
+        """Ask for a reload and wait for it to be done. It happens on the next
+        tick of the main loop, at most a second later; both old services stop
+        and the new ones start, and a request in between is refused (Windows
+        cannot bind a port still listening) or reset."""
+        before = server.output()
+        accepting = before.count("Accepting connections")
+        exiting = before.count("Exiting thread")
+        reply = t.http(url + path)
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            now = server.output()
+            if (now.count("Accepting connections") >= accepting + 2
+                    and now.count("Exiting thread") >= exiting + 2):
+                break
+            time.sleep(0.05)
+        return reply
+
     # --- the predefined pages -----------------------------------------
     t.eq(200, t.http(url + "/").status, "the main page")
     t.eq(200, t.http(url + "/C").status, "the counters page")
-    t.eq(200, t.http(url + "/R").status, "the reload page")
+    t.eq(200, reload("/R").status, "the reload page")
     t.eq(200, t.http(url + "/S").status, "the services page")
 
     counters = t.http(url + "/C")
     t.contains(counters, "countin", "the counters page names the counter type")
     t.contains(counters, "<tr>", "the counters page renders a table")
-    t.contains(t.http(url + "/R"), "Reload", "the reload page confirms the request")
+    t.contains(reload("/R"), "Reload", "the reload page confirms the request")
     t.contains(t.http(url + "/S"), "<", "the services page returns markup")
 
     # --- the menu no longer offers the removed config editor -----------
