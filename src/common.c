@@ -414,7 +414,6 @@ int
 	return shutdown(s, how);
     }
     int WINAPI def_closesocket(void* state, SOCKET s){
-	usleep(SLEEPTIME);
 	return closesocket(s);
     }
 #else
@@ -736,7 +735,9 @@ int doconnect(struct clientparam * param){
 	if(param->srv->so._getpeername(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &size)==-1) {return (14);}
  }
  else {
+#ifndef _WIN32
 	struct linger lg = {1,conf.timeouts[LINGER_TO]};
+#endif
 
 	if(SAISNULL(&param->sinsr)){
 		if(SAISNULL(&param->req)) {
@@ -766,7 +767,10 @@ int doconnect(struct clientparam * param){
 	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, param->srv->srvsockopts);
 
+#ifndef _WIN32
+	/* not on Windows, see the accepting side in proxymain.c */
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+#endif
 	if(extbindtodevice(param, param->remsock)) return 12;
 #ifdef WITH_UN
 	if(*SAFAMILY(&param->sinsl) != AF_UNIX)
