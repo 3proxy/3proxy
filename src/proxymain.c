@@ -692,7 +692,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		case 's':
 #ifdef WITHSPLICE
-			if(isudp || srv.service == S_ADMIN)
+			/* admin is an httpsrv, where -s is the limited mode */
+			if(isudp || srv.service == S_ADMIN || srv.service == S_HTTPSRV)
 #endif
 				srv.s_option = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
