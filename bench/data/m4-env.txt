@@ -1,0 +1,27 @@
+bench/bench.py --reps 3 --duration 10 --out bench/results-final --proxy none --proxy 3proxy:bench/bin/3proxy-0.9.4:-ocTCP_NODELAY -osTCP_NODELAY --proxy 3proxy:bench/bin/3proxy-0.9.4:-s0 -ocTCP_NODELAY -osTCP_NODELAY --proxy 3proxy:bench/bin/3proxy-1.0.1:-ocTCP_NODELAY -osTCP_NODELAY --proxy 3proxy:bench/bin/3proxy-devel --proxy 3proxy:bench/bin/3proxy-devel:-s --proxy nginx --proxy haproxy
+Linux ubuntu-virt 6.8.0-139-generic #139-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 03:32:48 UTC 2026 aarch64 aarch64 aarch64 GNU/Linux
+Architecture:                            aarch64
+CPU op-mode(s):                          64-bit
+Byte Order:                              Little Endian
+CPU(s):                                  8
+On-line CPU(s) list:                     0-7
+Vendor ID:                               Apple
+BIOS Vendor ID:                          Apple Inc.
+Model name:                              -
+BIOS Model name:                           CPU @ 0.0GHz
+BIOS CPU family:                         257
+Model:                                   0
+Thread(s) per core:                      1
+Core(s) per cluster:                     8
+Socket(s):                               1
+Cluster(s):                              1
+Stepping:                                0x0
+BogoMIPS:                                48,00
+Flags:                                   fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti afp
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-7
+8
+iperf 3.16 (cJSON 1.7.15)
+wrk debian/4.1.0-4build2 [epoll] Copyright (C) 2012 Will Glozer
+nginx version: nginx/1.24.0 (Ubuntu)
+HAProxy version 2.8.16-0ubuntu0.24.04.3 2026/06/19 - https://haproxy.org/

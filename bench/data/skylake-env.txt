@@ -1,0 +1,27 @@
+bench/bench.py --reps 3 --duration 10 --out bench/results-final --proxy none --proxy 3proxy:bench/bin/3proxy-0.9.4:-ocTCP_NODELAY -osTCP_NODELAY --proxy 3proxy:bench/bin/3proxy-0.9.4:-s0 -ocTCP_NODELAY -osTCP_NODELAY --proxy 3proxy:bench/bin/3proxy-1.0.1:-ocTCP_NODELAY -osTCP_NODELAY --proxy 3proxy:bench/bin/3proxy-devel --proxy 3proxy:bench/bin/3proxy-devel:-s --proxy nginx --proxy haproxy
+Linux almalinux10-standard-4-8-60gb.novalocal 6.12.0-211.56.1.el10_2.x86_64 #1 SMP PREEMPT_DYNAMIC Fri Sep 18 09:20:51 EDT 2026 x86_64 GNU/Linux
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           46 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  8
+On-line CPU(s) list:                     0-7
+Vendor ID:                               GenuineIntel
+BIOS Vendor ID:                          Red Hat
+Model name:                              Intel Xeon Processor (Skylake, IBRS, no TSX)
+BIOS Model name:                         RHEL 7.6.0 PC (i440FX + PIIX, 1996)  CPU @ 2.0GHz
+BIOS CPU family:                         1
+CPU family:                              6
+Model:                                   85
+Thread(s) per core:                      1
+Core(s) per socket:                      8
+Socket(s):                               1
+Stepping:                                4
+BogoMIPS:                                3999.99
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault pti ibrs ibpb tpr_shadow flexpriority ept vpid ept_ad fsgsbase bmi1 hle avx2 smep bmi2 erms invpcid rtm avx512f avx512dq rdseed adx smap clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 arat vnmi
+Virtualization:                          VT-x
+8
+iperf 3.17.1 (cJSON 1.7.15)
+wrk 4.2.0 [epoll] Copyright (C) 2012 Will Glozer
+nginx version: nginx/1.26.3
+HAProxy version 3.0.5-8e879a5 2024/09/19 - https://haproxy.org/
