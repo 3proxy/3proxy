@@ -743,6 +743,11 @@ struct clientparam {
 			*clibuf,
 			*srvbuf;
 
+	/* splice() pipes for the client's and the server's data, -1 until
+	   made; kept for the life of the connection */
+	int	pipecli[2],
+		pipesrv[2];
+
 	unsigned 	cliinbuf,
 			srvinbuf,
 			clioffset,

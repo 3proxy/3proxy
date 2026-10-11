@@ -34,7 +34,7 @@ Each connected client requires:
 <ul>
 <li>1 thread (process)
 <li>2 sockets (file descriptors). For FTP, 4 sockets are required.
-<br>With splice() (Linux, -s), 2 more pipes (file descriptors) = 4 file descriptors, 6 for FTP.
+<br>With splice() (Linux, -s), a pipe (2 file descriptors) for each spliced direction: up to 4 more file descriptors, 6 for FTP.
 <br>Up to 128K (up to 256K with splice()) of kernel buffer memory. This is the theoretical maximum; actual numbers depend on connection quality and traffic amount.
 <br>1 additional socket (file descriptor) during name resolution for non-cached names
 <br>1 additional socket during authentication or logging for RADIUS authentication or logging.
@@ -664,15 +664,20 @@ include it, but a service uses it only when given the -s option:
 <pre>
 proxy -s
 socks -s
-tcppm -s 8080 192.168.1.1 80
+tcppm -s3 8080 192.168.1.1 80
 </pre>
--s0 turns it off explicitly. In builds without it (CMake option 3PROXY_USE_SPLICE=OFF,
+-s alone splices both directions where it pays: an HTTP body of known length if at
+least 16K of it is left to read, a stream (CONNECT, SOCKS, tcppm) once it carries
+large reads, going back to copying when they turn small. -s1 always splices what the
+server sends to the client (downloads), -s2 what the client sends to the server
+(uploads), -s3 both; -s5, -s6 and -s7 (the same as -s) do it for those directions
+only where it pays. -s0, the default, turns it off. In builds without it (CMake option 3PROXY_USE_SPLICE=OFF,
 or -DWITHSPLICE removed from the Makefile) -s is accepted and ignored.
 <p>splice() pays off when most of the traffic is large transfers: in the
 <a href="https://github.com/3proxy/3proxy/tree/master/bench">benchmarks</a> it moved
 1.4 to 1.7 times more data than the read/write path at about half the CPU per gigabyte.
 It does not help small requests and short connections, which go slower with it, and
-every spliced connection needs two more pipes (file descriptors) and more kernel
+every spliced direction needs a pipe (two file descriptors) and more kernel
 buffer memory. Data filters are not applied to spliced data.
 <p>TCP_NODELAY and splice() do not conflict and can be combined on high-speed connections.
 

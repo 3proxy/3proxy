@@ -366,7 +366,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -De(DEVICENAME) bind external interface to device, e.g. eth1\n"
 #endif
 #ifdef WITHSPLICE
-	" -s Use splice() - no filtering for data, off by default\n"
+	" -s[N] Use splice(): -s1 server to client, -s2 client to server, -s3 both\n"
+	"  directions; -s (-s7) both, -s5 or -s6 one, only where it pays (large\n"
+	"  transfers) - no filtering for data, off by default\n"
 	" -C connection closed by any of the sides terminates the session, by default\n"
 	"    the session is kept until both sides close it (TCP half-close)\n"
 	" -U(0-3) (for socks) what to do when the destination changes within an UDP\n"
@@ -377,7 +379,7 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
 	" -lFILENAME log to FILENAME\n"
-	" -b(BUFSIZE) size of network buffer (default 4096 for TCP, 16384 for UDP)\n"
+	" -b(BUFSIZE) size of network buffer (default 65536 for TCP, 16384 for UDP)\n"
 	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
 	"\n"
@@ -698,7 +700,9 @@ int MODULEMAINFUNC (int argc, char** argv){
 				srv.s_option = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
 			else
-				srv.usesplice = *(argv[i]+2)? atoi(argv[i]+2) : 1;
+				srv.usesplice = (*(argv[i]+2)? atoi(argv[i]+2) :
+					SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO) &
+					(SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO);
 #endif
 			break;
 		 case 'o':
@@ -1325,6 +1329,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->version = srv->version;
  param->paused = srv->paused;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
+ param->pipecli[0] = param->pipecli[1] = param->pipesrv[0] = param->pipesrv[1] = -1;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  _3proxy_mutex_init(&srv->counter_mutex);
  (void)_3proxy_sem_init_timed(srv->childslots, srv->maxchild, srv->maxchild);
@@ -1447,6 +1452,12 @@ void freeparam(struct clientparam * param) {
 	}
 	if(param->clibuf) free(param->clibuf);
 	if(param->srvbuf) free(param->srvbuf);
+#ifdef WITHSPLICE
+	if(param->pipecli[0] >= 0) close(param->pipecli[0]);
+	if(param->pipecli[1] >= 0) close(param->pipecli[1]);
+	if(param->pipesrv[0] >= 0) close(param->pipesrv[0]);
+	if(param->pipesrv[1] >= 0) close(param->pipesrv[1]);
+#endif
 	/* Not shut down on Windows: there shutting down receiving resets the
 	   connection as soon as the peer sends anything more, and close()
 	   alone sends whatever is queued before its FIN. Elsewhere it stays:
