@@ -1154,6 +1154,37 @@ static void httpsrv_drain(struct clientparam *param, uint64_t len)
 	}
 }
 
+/* Ends a connection this server is closing while the client may still be
+   sending: a body which was not read, or a request sent behind one answered
+   with a close. Closing with that unread resets the connection, and the
+   client loses the answer. The sending side is shut down instead and what
+   arrives is thrown away until the client closes too, for a bounded time
+   and amount, which is what lets the answer be read. */
+static void httpsrv_linger(struct clientparam *param)
+{
+	char buf[HTTPSRV_BLOCK];
+	struct pollfd fd;
+	uint64_t left = HTTPSRV_MAXBODY;
+	time_t deadline = time(NULL) + conf.timeouts[LINGER_TO];
+
+	if(param->clisock == INVALID_SOCKET) return;
+	if(param->srv->so._shutdown(param->sostate, param->clisock, SHUT_WR)) return;
+	while(left){
+		int timeo = (int)(deadline - time(NULL));
+		int got;
+
+		if(timeo <= 0) break;
+		memset(&fd, 0, sizeof(fd));
+		fd.fd = param->clisock;
+		fd.events = POLLIN;
+		if(param->srv->so._poll(param->sostate, &fd, 1, timeo * 1000) <= 0) break;
+		got = (int)param->srv->so._recv(param->sostate, param->clisock, buf,
+			(left > sizeof(buf))? (int)sizeof(buf) : (int)left, 0);
+		if(got <= 0) break;
+		left -= (uint64_t)got;
+	}
+}
+
 /* Keeps the request as the client wrote it. Only what a handoff needs: the
    request line and the headers, exactly as they came, since the proxy code
    reads them again from the beginning. */
@@ -1451,6 +1482,12 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 		}
 	}
 	if(i && i != 10){
+		/* The body goes before the answer, as for any answer this server
+		   gives: left in the stream it would be read as the next request. */
+		if(!r->drained){
+			if(r->contentlen) httpsrv_drain(param, r->contentlen);
+			r->drained = 1;
+		}
 		/* 4 no credentials, 5 unknown user, 6 wrong password: all of them
 		   should let the client offer credentials again. */
 		if(i >= 4 && i <= 6) op_authrequired(r);
@@ -1573,7 +1610,12 @@ void * httpsrvchild(struct clientparam *param)
 			dolog(param, (unsigned char *)logbuf);
 		}
 
-		if(handoff || !r.keepalive) break;
+		if(handoff) break;
+		if(!r.keepalive){
+			/* the client may still be sending; let it read the answer */
+			httpsrv_linger(param);
+			break;
+		}
 		first = 0;
 	}
 	/* A child named by an access rule takes the connection over, which the

@@ -306,7 +306,9 @@ int MODULEMAINFUNC (int argc, char** argv){
  unsigned char *cbc_string = NULL, *cbl_string = NULL;
  PROXYSOCKADDRTYPE cbsa;
  FILE *fp = NULL;
+#ifndef _WIN32
  struct linger lg;
+#endif
  int nlog = 5000;
  int haveslot = 0, nfull = 0;
 #ifdef __linux__
@@ -1117,10 +1119,14 @@ int MODULEMAINFUNC (int argc, char** argv){
 #else
 		fcntl(new_sock,F_SETFL,O_NONBLOCK | fcntl(new_sock,F_GETFL));
 #endif
+#ifndef _WIN32
+		/* Not on Windows: there closesocket() on a non-blocking socket with a linger
+		   timeout fails with WSAEWOULDBLOCK while data is queued, leaving the socket
+		   open. Without it the close completes in the background, data first. */
 		lg.l_onoff = 1;
 		lg.l_linger = conf.timeouts[STRING_L];
-
 		srv.so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+#endif
 		srv.so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
 	}
 #ifndef NOUDPMAIN
@@ -1413,21 +1419,34 @@ void freeparam(struct clientparam * param) {
 	}
 	if(param->clibuf) free(param->clibuf);
 	if(param->srvbuf) free(param->srvbuf);
+	/* Not shut down on Windows: there shutting down receiving resets the
+	   connection as soon as the peer sends anything more, and close()
+	   alone sends whatever is queued before its FIN. Elsewhere it stays:
+	   on the BSDs it discards what is left unread, so the close that
+	   follows is not turned into a reset. */
 	if(param->srv) {
 		if(param->ctrlsocksrv != INVALID_SOCKET && param->ctrlsocksrv != param->remsock) {
+#ifndef _WIN32
 			param->srv->so._shutdown(param->sostate, param->ctrlsocksrv, SHUT_RDWR);
+#endif
 			param->srv->so._closesocket(param->sostate, param->ctrlsocksrv);
 		}
 		if(param->ctrlsock != INVALID_SOCKET && param->ctrlsock != param->clisock) {
+#ifndef _WIN32
 			param->srv->so._shutdown(param->sostate, param->ctrlsock, SHUT_RDWR);
+#endif
 			param->srv->so._closesocket(param->sostate, param->ctrlsock);
 		}
 		if(param->remsock != INVALID_SOCKET) {
+#ifndef _WIN32
 			param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
+#endif
 			param->srv->so._closesocket(param->sostate, param->remsock);
 		}
 		if(param->clisock != INVALID_SOCKET) {
+#ifndef _WIN32
 			param->srv->so._shutdown(param->sostate, param->clisock, SHUT_RDWR);
+#endif
 			param->srv->so._closesocket(param->sostate, param->clisock);
 		}
 	}
