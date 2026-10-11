@@ -746,7 +746,7 @@ int doconnect(struct clientparam * param){
 			param->sinsl = param->srv->extsa;
 	}
 	*SAPORT(&param->sinsl) = 0;
-	setopts(param->remsock, param->srv->srvsockopts);
+	setopts(param->remsock, &param->srv->srvsockopts);
 
 #ifndef _WIN32
 	/* not on Windows, see the accepting side in proxymain.c */

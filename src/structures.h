@@ -529,6 +529,14 @@ struct filterp {
 
 #define MAX_FILTERS 16
 
+/* Socket options for one kind of socket, -oc and the like: which of
+   sockopts[] are given, by their index there, and the value of each. */
+#define MAXSOCKOPTS 32
+struct sockoptset {
+	unsigned set;
+	int value[MAXSOCKOPTS];
+};
+
 
 struct sockfuncs {
 	void * state;
@@ -613,7 +621,7 @@ struct srvparam {
 	int stacksize;
 	int noforce;
 	int anonymous;
-	int clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;
+	struct sockoptset clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;
 	int gracetraf, gracenum, gracedelay;
 	int requirecert;
 	int haproxy;

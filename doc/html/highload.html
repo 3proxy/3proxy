@@ -34,7 +34,8 @@ Each connected client requires:
 <ul>
 <li>1 thread (process)
 <li>2 sockets (file descriptors). For FTP, 4 sockets are required.
-<br>Up to 128K of kernel buffer memory. This is the theoretical maximum; actual numbers depend on connection quality and traffic amount.
+<br>With splice() (Linux, -s), 2 more pipes (file descriptors) = 4 file descriptors, 6 for FTP.
+<br>Up to 128K (up to 256K with splice()) of kernel buffer memory. This is the theoretical maximum; actual numbers depend on connection quality and traffic amount.
 <br>1 additional socket (file descriptor) during name resolution for non-cached names
 <br>1 additional socket during authentication or logging for RADIUS authentication or logging.
 <li>1 ephemeral port (3 ephemeral ports for FTP connections).
@@ -279,6 +280,8 @@ tuning anything else.
 
 If 3proxy is used in a VPS environment, there can be additional limitations.
 For example, kernel resources, system CPU usage, and IOCTLs can be limited differently, and this can become a bottleneck.
+splice() (see below) moves work into the kernel, so where the hosting limits kernel resources
+(seen as nearly 100% CPU usage without any real activity of the application) do not enable it.
 
 <h4>Extending the Ephemeral Port Range</h4>
 
@@ -641,17 +644,37 @@ monitor "/some/path/3proxy/3proxy.ver"
 e.g., with "touch /some/path/3proxy/3proxy.ver".
 </ol>
 
-<h4>Use TCP_NODELAY to Speed Up Connections with Small Amounts of Data</h4>
+<h4>TCP_NODELAY for Connections with Small Amounts of Data</h4>
 
-If most requests require an exchange with a small amount of data in both directions
-without the need for bandwidth, e.g., messengers or small web requests,
-you can eliminate Nagle's algorithm delay with the TCP_NODELAY flag. Usage example:
+TCP_NODELAY is set by default on client (oc) and server (os)
+connections: without it, Nagle's algorithm holds back a short write until the
+previous one is acknowledged, and a peer delays its acknowledgement, so a reply
+written in more than one part (e.g. HTTP headers, then a short body) waits tens
+of milliseconds. On slow connections with high delays, where the bandwidth is the
+bottleneck and fewer packets matter more than latency, it can be turned off:
 <pre>
-proxy -osTCP_NODELAY -ocTCP_NODELAY
+proxy -osTCP_NODELAY=0 -ocTCP_NODELAY=0
 </pre>
-sets TCP_NODELAY for client (oc) and server (os) connections.
-<p>Do not use TCP_NODELAY on slow connections with high delays when
-connection bandwidth is a bottleneck.
+
+<h4>Use Splice to Speed Up Large Data Transfers</h4>
+
+On Linux, splice() passes data between the client and the server connections
+through a kernel pipe, without copying it into the 3proxy process. Linux builds
+include it, but a service uses it only when given the -s option:
+<pre>
+proxy -s
+socks -s
+tcppm -s 8080 192.168.1.1 80
+</pre>
+-s0 turns it off explicitly. In builds without it (CMake option 3PROXY_USE_SPLICE=OFF,
+or -DWITHSPLICE removed from the Makefile) -s is accepted and ignored.
+<p>splice() pays off when most of the traffic is large transfers: in the
+<a href="https://github.com/3proxy/3proxy/tree/master/bench">benchmarks</a> it moved
+1.4 to 1.7 times more data than the read/write path at about half the CPU per gigabyte.
+It does not help small requests and short connections, which go slower with it, and
+every spliced connection needs two more pipes (file descriptors) and more kernel
+buffer memory. Data filters are not applied to spliced data.
+<p>TCP_NODELAY and splice() do not conflict and can be combined on high-speed connections.
 
 <h4>Add Grace Delay to Reduce System Calls</h4>
 
@@ -661,7 +684,7 @@ the minimal number of packets in the same direction to apply the algorithm,
 and the last value is the delay added after polling and prior to reading data.
 The example above adds a 10-millisecond delay before reading data if the average
 polling size is below 8000 bytes and 3 read operations have been made in the same
-direction. <pre>logdump 1 1</pre> is useful
+direction. It's especially useful with splice. <pre>logdump 1 1</pre> is useful
 to see how grace delays work; choose a delay value to avoid filling the read
 buffer (typically 64K) but keep the request sizes close to the chosen average
 on large file uploads/downloads.
