@@ -39,6 +39,18 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 
 #define MAXSPLICE 65536
 
+/* With SPLICE_AUTO, when a direction allowed to splice actually does
+   (without it, an allowed direction always does).
+   A body of known length is spliced if at least SPLICE_MIN of it is left
+   to read once what is already buffered is counted: a smaller one, or one
+   read whole with its headers, is cheaper to copy.
+   A stream of unknown length starts copied and is spliced after
+   SPLICE_STREAK reads in a row of at least SPLICE_MIN each, and goes back to
+   copying after SPLICE_STREAK+1 splices in a row of less than SPLICE_SMALL. */
+#define SPLICE_MIN 16384
+#define SPLICE_SMALL 4096
+#define SPLICE_STREAK 2
+
 #endif
 
 #define MIN(a,b) ((a>b)?b:a)
@@ -49,6 +61,9 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
    before the sockets are closed. */
 #define SESSIONEND (!halfclose && (CLIENTTERMREAD || SERVERTERMREAD))
 
+/* usesplice is a mask of the directions passed with splice() rather than
+   through a buffer: SPLICE_DOWNLOAD, server to client, and SPLICE_UPLOAD,
+   client to server. */
 int sockmap(struct clientparam * param, int timeo, int usesplice){
  int halfclose = param->srv->halfclose;
  uint64_t fromclient=0x7fffffffffffffff, fromserver =0x7fffffffffffffff;
@@ -76,16 +91,30 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 #ifdef WITHSPLICE
  uint64_t inclientpipe = 0, inserverpipe = 0;
  int TOCLIENTPIPE = 0, FROMCLIENTPIPE = 0, TOSERVERPIPE = 0, FROMSERVERPIPE = 0;
- int pipesrv[2] = {-1,-1};
- int pipecli[2] = {-1,-1};
+ /* The client's data goes through pipecli, the server's through pipesrv.
+    They belong to the connection: made when first needed, kept for the
+    next mapping, closed with the connection. */
+ int *pipecli = param->pipecli, *pipesrv = param->pipesrv;
+ /* allowed to splice (-s), splicing now, and a run of reads counted
+    towards switching; wantbuf: go back to copying once the pipe is empty */
+ int allowcli = 0, allowsrv = 0, splicecli = 0, splicesrv = 0, autosplice;
+ int streakcli = 0, streaksrv = 0, wantbufcli = 0, wantbufsrv = 0;
 
  if((!param->nolongdatfilter && (param->ndatfilterscli > 0 || param->ndatfilterssrv))) usesplice = 0;
- if(usesplice){
-	TOCLIENTPIPE = FROMCLIENTPIPE = TOSERVERPIPE = FROMSERVERPIPE = 1;
-	TOCLIENTBUF = TOSERVERBUF = 0;
-	if(pipe2(pipecli, O_NONBLOCK) < 0) RETURN (21);
-	if(pipe2(pipesrv, O_NONBLOCK) < 0) RETURN (21);
+ allowcli = (usesplice & SPLICE_UPLOAD) != 0;
+ allowsrv = (usesplice & SPLICE_DOWNLOAD) != 0;
+ autosplice = (usesplice & SPLICE_AUTO) != 0;
+ if(!autosplice){
+	splicecli = allowcli;
+	splicesrv = allowsrv;
  }
+ TOCLIENTPIPE = FROMCLIENTPIPE = allowcli;
+ TOSERVERPIPE = FROMSERVERPIPE = allowsrv;
+#else
+#define splicecli 0
+#define splicesrv 0
+#define wantbufcli 0
+#define wantbufsrv 0
 #endif
 
  inserverbuf = param->srvinbuf - param->srvoffset;
@@ -108,16 +137,16 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  if(inserverbuf >= fromserver) FROMSERVER = 0;
  if(inclientbuf >= fromclient) FROMCLIENT = 0;
 #ifdef WITHSPLICE
- if(!usesplice)
+ /* a body of known length large enough is spliced from the start */
+ if(autosplice && allowsrv && param->waitserver64 && fromserver > inserverbuf && fromserver - inserverbuf >= SPLICE_MIN) splicesrv = 1;
+ if(autosplice && allowcli && param->waitclient64 && fromclient > inclientbuf && fromclient - inclientbuf >= SPLICE_MIN) splicecli = 1;
 #endif
- {
-	if(fromserver && !param->srvbuf && (!(param->srvbuf=malloc(SRVBUFSIZE)) || !(param->srvbufsize = SRVBUFSIZE))){
-		RETURN (21);
-	}
-	if(fromclient && !param->clibuf && (!(param->clibuf=malloc(SRVBUFSIZE)) || !(param->clibufsize = SRVBUFSIZE))){
-		RETURN (21);
-	}
-
+ /* a spliced direction needs no buffer, only what was read before */
+ if(!splicesrv && fromserver && !param->srvbuf && (!(param->srvbuf=malloc(SRVBUFSIZE)) || !(param->srvbufsize = SRVBUFSIZE))){
+	RETURN (21);
+ }
+ if(!splicecli && fromclient && !param->clibuf && (!(param->clibuf=malloc(SRVBUFSIZE)) || !(param->clibufsize = SRVBUFSIZE))){
+	RETURN (21);
  }
  if(param->srvinbuf == param->srvoffset) param->srvinbuf =param->srvoffset = 0;
  if(param->cliinbuf == param->clioffset) param->cliinbuf =param->clioffset = 0;
@@ -292,8 +321,21 @@ log("done send to client from buf");
 		}
 	}
 #ifdef WITHSPLICE
-	if(usesplice){
-		if(inclientpipe && !inclientbuf && FROMCLIENTPIPE && TOSERVER){
+	/* a direction going back to copying does once its pipe is empty */
+	if(wantbufcli && !inclientpipe){
+		splicecli = wantbufcli = streakcli = 0;
+		if(!param->clibuf && (!(param->clibuf=malloc(SRVBUFSIZE)) || !(param->clibufsize = SRVBUFSIZE))) RETURN (21);
+		if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
+	}
+	if(wantbufsrv && !inserverpipe){
+		splicesrv = wantbufsrv = streaksrv = 0;
+		if(!param->srvbuf && (!(param->srvbuf=malloc(SRVBUFSIZE)) || !(param->srvbufsize = SRVBUFSIZE))) RETURN (21);
+		if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
+	}
+	{
+		/* each direction goes through its pipe if spliced, through its
+		   buffer otherwise; what was in the buffer before is sent first */
+		if(splicecli && inclientpipe && !inclientbuf && FROMCLIENTPIPE && TOSERVER){
 #ifdef WITHLOG
 log("send to server from pipe");
 #endif
@@ -330,7 +372,7 @@ log(logbuf);
 				}
 			}
 		}
-		if(inserverpipe && !inserverbuf && FROMSERVERPIPE && TOCLIENT){
+		if(splicesrv && inserverpipe && !inserverbuf && FROMSERVERPIPE && TOCLIENT){
 #ifdef WITHLOG
 log("send to client from pipe");
 #endif
@@ -360,12 +402,17 @@ log(logbuf);
 				}
 			}
 		}
-		if(fromclient>inclientpipe && FROMCLIENT && TOCLIENTPIPE && !SESSIONEND){
-			int error;
-			socklen_t len=sizeof(error);
+		if(splicecli && !wantbufcli && fromclient>inclientpipe && FROMCLIENT && TOCLIENTPIPE && !SESSIONEND){
 #ifdef WITHLOG
 log("read from client to pipe");
 #endif
+			if(pipecli[0] < 0 && pipe2(pipecli, O_NONBLOCK) < 0){
+				/* no pipe to be had: copy instead */
+				allowcli = splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 0;
+				if(!param->clibuf && (!(param->clibuf=malloc(SRVBUFSIZE)) || !(param->clibufsize = SRVBUFSIZE))) RETURN (21);
+				if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
+				continue;
+			}
 			errno = 0;
 			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)MAXSPLICE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
@@ -396,19 +443,27 @@ log("done read from client to pipe");
 				graceclinum++;
 				graceclitraf += res;
 				gracesrvnum = gracesrvtraf = 0;
+				if(autosplice && !param->waitclient64){
+					if(res >= SPLICE_SMALL) streakcli = 0;
+					else if(++streakcli > SPLICE_STREAK) wantbufcli = 1;
+				}
 				inclientpipe += res;
 				if(inclientpipe >= MAXSPLICE) TOCLIENTPIPE = 0;
 				needaction = 0;
 				continue;
 			}
 		}
-		if(fromserver > inserverpipe && FROMSERVER && TOSERVERPIPE && !SESSIONEND){
-			int error; 
-			socklen_t len=sizeof(error);
-			errno = 0;
+		if(splicesrv && !wantbufsrv && fromserver > inserverpipe && FROMSERVER && TOSERVERPIPE && !SESSIONEND){
 #ifdef WITHLOG
 log("read from server to pipe\n");
 #endif
+			if(pipesrv[0] < 0 && pipe2(pipesrv, O_NONBLOCK) < 0){
+				allowsrv = splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 0;
+				if(!param->srvbuf && (!(param->srvbuf=malloc(SRVBUFSIZE)) || !(param->srvbufsize = SRVBUFSIZE))) RETURN (21);
+				if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
+				continue;
+			}
+			errno = 0;
 			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(MAXSPLICE - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
 log("server to pipe splice finished\n");
@@ -438,6 +493,10 @@ log("done read from server to pipe\n");
 				gracesrvnum++;
 				gracesrvtraf += res;
 				graceclinum = graceclitraf = 0;
+				if(autosplice && !param->waitserver64){
+					if(res >= SPLICE_SMALL) streaksrv = 0;
+					else if(++streaksrv > SPLICE_STREAK) wantbufsrv = 1;
+				}
 			    	param->nreads++;
 				param->statssrv64 += res;
 				inserverpipe += res;
@@ -452,10 +511,9 @@ log("done read from server to pipe\n");
 			}
 		}
 	}
-	else
 #endif
 	{
-		if(fromclient > inclientbuf && FROMCLIENT && TOCLIENTBUF && !SESSIONEND){
+		if(!splicecli && fromclient > inclientbuf && FROMCLIENT && TOCLIENTBUF && !SESSIONEND){
 #ifdef WITHLOG
 log("read from client to buf");
 #endif
@@ -480,6 +538,17 @@ log("done read from client to buf");
 				graceclinum++;
 				graceclitraf += res;
 				gracesrvnum = gracesrvtraf = 0;
+#ifdef WITHSPLICE
+				if(autosplice && allowcli && !param->waitclient64){
+					if(res < SPLICE_MIN) streakcli = 0;
+					else if(++streakcli >= SPLICE_STREAK){
+						/* a stream: splice from now on, after what is
+						   buffered has been sent */
+						splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 1;
+						streakcli = 0;
+					}
+				}
+#endif
 				inclientbuf += res;
 				param->cliinbuf += res;
 				if(param->clibufsize == param->cliinbuf) TOCLIENTBUF = 0;
@@ -488,7 +557,7 @@ log("done read from client to buf");
 			}
 		}
 
-		if(fromserver > inserverbuf && FROMSERVER && TOSERVERBUF && !SESSIONEND){
+		if(!splicesrv && fromserver > inserverbuf && FROMSERVER && TOSERVERBUF && !SESSIONEND){
 #ifdef WITHLOG
 log("read from server to buf");
 #endif
@@ -513,6 +582,15 @@ log("done read from server to buf");
 				gracesrvnum++;
 				gracesrvtraf += res;
 				graceclinum = graceclitraf = 0;
+#ifdef WITHSPLICE
+				if(autosplice && allowsrv && !param->waitserver64){
+					if(res < SPLICE_MIN) streaksrv = 0;
+					else if(++streaksrv >= SPLICE_STREAK){
+						splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 1;
+						streaksrv = 0;
+					}
+				}
+#endif
 			    	param->nreads++;
 				param->statssrv64 += res;
 				inserverbuf += res;
@@ -553,15 +631,8 @@ log("done read from server to buf");
 //		if(!CLIENTTERMREAD || !CLIENTTERMWRITE){
 			if(!after){
 				fds[fdsc].fd = param->clisock;
-				if(fromclient && !CLIENTTERMREAD && !FROMCLIENT && !SESSIONEND && ((
-#ifdef WITHSPLICE
-					!usesplice &&
-#endif
-					TOCLIENTBUF)
-#ifdef WITHSPLICE
-					|| (usesplice)
-#endif
-						))
+				if(fromclient && !CLIENTTERMREAD && !FROMCLIENT && !SESSIONEND &&
+					((!splicecli && TOCLIENTBUF) || (splicecli && !wantbufcli)))
 					cli_events |= POLLIN;
 				if(!TOCLIENT && !CLIENTTERMWRITE && (inserverbuf
 #ifdef WITHSPLICE
@@ -613,15 +684,8 @@ log("ready to write to client");
 //		if(!SERVERTERMREAD || !SERVERTERMWRITE){
 			if(!after){
 				fds[fdsc].fd = param->remsock;
-				if(fromserver && !SERVERTERMREAD && !FROMSERVER && !SESSIONEND && ((
-#ifdef WITHSPLICE
-					!usesplice &&
-#endif
-					TOSERVERBUF)
-#ifdef WITHSPLICE
-					|| (usesplice)
-#endif
-						))
+				if(fromserver && !SERVERTERMREAD && !FROMSERVER && !SESSIONEND &&
+					((!splicesrv && TOSERVERBUF) || (splicesrv && !wantbufsrv)))
 					srv_events |= POLLIN;
 				if(!TOSERVER && !SERVERTERMWRITE && (inclientbuf
 #ifdef WITHSPLICE
@@ -678,8 +742,8 @@ log("server terminated connection");
 			fdsc++;
 //		}
 #ifdef WITHSPLICE
-		if(usesplice){
-			if(fromclient>inclientpipe && !TOCLIENTPIPE && inclientpipe < MAXSPLICE){
+		{
+			if(splicecli && fromclient>inclientpipe && !TOCLIENTPIPE && inclientpipe < MAXSPLICE){
 				if(!after){
 #ifdef WITHLOG
 log("wait writing to client pipe");
@@ -700,7 +764,7 @@ log("ready to write to client pipe");
 				}
 				fdsc++;
 			}
-			if(inclientpipe && !FROMCLIENTPIPE){
+			if(splicecli && inclientpipe && !FROMCLIENTPIPE){
 				if(!after){
 #ifdef WITHLOG
 log("wait reading from client pipe");
@@ -719,7 +783,7 @@ log("ready reading from client pipe");
 				}
 				fdsc++;
 			}
-			if(fromserver>inserverpipe && !TOSERVERPIPE && inserverpipe < MAXSPLICE){
+			if(splicesrv && fromserver>inserverpipe && !TOSERVERPIPE && inserverpipe < MAXSPLICE){
 				if(!after){
 #ifdef WITHLOG
 log("wait writing to server pipe");
@@ -738,7 +802,7 @@ log("ready writing to server pipe");
 				}
 				fdsc++;
 			}
-			if(inserverpipe && !FROMSERVERPIPE){
+			if(splicesrv && inserverpipe && !FROMSERVERPIPE){
 				if(!after){
 #ifdef WITHLOG
 log("wait reading from server pipe");
@@ -822,12 +886,26 @@ log("timeout");
 CLEANRET:
 
 #ifdef WITHSPLICE
- if(pipecli[0] >= 0) close(pipecli[0]);
- if(pipecli[1] >= 0) close(pipecli[1]);
- if(pipesrv[0] >= 0) close(pipesrv[0]);
- if(pipesrv[1] >= 0) close(pipesrv[1]);
+ /* empty pipes stay with the connection for its next mapping; one still
+    holding data, left by an error or a timeout, cannot be used again */
+ if(inclientpipe && pipecli[0] >= 0){
+	close(pipecli[0]);
+	close(pipecli[1]);
+	pipecli[0] = pipecli[1] = -1;
+ }
+ if(inserverpipe && pipesrv[0] >= 0){
+	close(pipesrv[0]);
+	close(pipesrv[1]);
+	pipesrv[0] = pipesrv[1] = -1;
+ }
 #endif
 
  return res;
 }
 #undef SESSIONEND
+#ifndef WITHSPLICE
+#undef splicecli
+#undef splicesrv
+#undef wantbufcli
+#undef wantbufsrv
+#endif

@@ -239,6 +239,11 @@ extern struct extparam conf;
 
 extern int timeouts[12];
 
+/* directions sockmap() passes with splice(): -s1, -s2, -s3; with
+   SPLICE_AUTO (-s alone, -s5 to -s7) only when it pays */
+#define SPLICE_DOWNLOAD 1
+#define SPLICE_UPLOAD 2
+#define SPLICE_AUTO 4
 int sockmap(struct clientparam * param, int timeo, int usesplice);
 int udpsockmap(struct clientparam * param, int timeo);
 int udpbind(struct clientparam * param);
@@ -481,7 +486,7 @@ extern struct datatype datatypes[64];
 extern struct commands commandhandlers[];
 
 #ifdef WITHSPLICE
-#define mapsocket(a,b) ((a->srv->usesplice && !a->ndatfilterssrv && !a->ndatfilterscli)?sockmap(a,b,1):sockmap(a,b,0))
+#define mapsocket(a,b) ((a->srv->usesplice && !a->ndatfilterssrv && !a->ndatfilterscli)?sockmap(a,b,a->srv->usesplice):sockmap(a,b,0))
 #else
 #define mapsocket(a,b) sockmap(a,b, 0)
 #endif
