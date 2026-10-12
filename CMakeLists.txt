@@ -51,7 +51,7 @@ option(3PROXY_USE_OPENSSL "Enable TLS/SSL support via OpenSSL (fallback when wol
 option(3PROXY_USE_PCRE2 "Enable PCRE2 regex filtering" ON)
 option(3PROXY_USE_PAM "Enable PAM/PamAuth" ON)
 option(3PROXY_USE_ODBC "Enable ODBC support (Unix only, always ON on Windows)" OFF)
-option(3PROXY_USE_SPLICE "Build Linux splice() support, slower than read/write for most traffic (Linux only)" OFF)
+option(3PROXY_USE_SPLICE "Build Linux splice() support, used by services given -s (Linux only)" ON)
 option(3PROXY_USE_POLL "Use poll() instead of select() (Unix only)" ON)
 option(3PROXY_USE_WSAPOLL "Use WSAPoll instead of select() (Windows only)" ON)
 option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)
@@ -664,10 +664,7 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
 
-    target_compile_definitions(${PROXY_NAME} PRIVATE
-        WITHMAIN
-        NOPORTMAP
-    )
+    target_compile_definitions(${PROXY_NAME} PRIVATE WITHMAIN)
 
     if(NOT PROXY_NAME STREQUAL "udppm")
         target_compile_definitions(${PROXY_NAME} PRIVATE NOUDPMAIN)
@@ -679,8 +676,12 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
         target_compile_definitions(${PROXY_NAME} PRIVATE ANONYMOUS)
     endif()
 
+    # port mappers take port, host and port as arguments, the others options
+    # only; one of the two is defined, as in src/Makefile.inc
     if(PROXY_NAME STREQUAL "tcppm" OR PROXY_NAME STREQUAL "udppm" OR PROXY_NAME STREQUAL "tlspr")
         target_compile_definitions(${PROXY_NAME} PRIVATE PORTMAP)
+    else()
+        target_compile_definitions(${PROXY_NAME} PRIVATE NOPORTMAP)
     endif()
 
     if(WIN32)
