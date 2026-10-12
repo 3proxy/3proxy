@@ -434,8 +434,8 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 #ifdef WITHSPLICE
 	" -s[N] Use splice(): -s1 server to client, -s2 client to server, -s3 both\n"
-	"  directions; -s (-s7) both, -s5 or -s6 one, only where it pays (large\n"
-	"  transfers) - no filtering for data, off by default\n"
+	"  directions; -s (-s7, the default) both, -s5 or -s6 one, only where it\n"
+	"  pays (large transfers); -s0 never. Not with data filters\n"
 	" -C connection closed by any of the sides terminates the session, by default\n"
 	"    the session is kept until both sides close it (TCP half-close)\n"
 	" -U(0-3) (for socks) what to do when the destination changes within an UDP\n"
@@ -446,7 +446,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
 	" -lFILENAME log to FILENAME\n"
-	" -b(BUFSIZE) size of network buffer, at most and by default 32768\n"
+	" -b(BUFSIZE) size of network buffer, at most and by default 16384\n"
 	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
 	"\n"
@@ -1490,7 +1490,8 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->i_nsfd = srv->o_nsfd = -1;
 #endif
 #ifdef WITHSPLICE
- srv->usesplice = 0;
+ /* where it pays: large transfers, -s0 to never */
+ srv->usesplice = SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO;
 #endif
  srv->halfclose = 1;
  srv->udpauth = 3;

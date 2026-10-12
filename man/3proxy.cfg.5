@@ -208,12 +208,12 @@ it pays: a body of known length if at least 16K of it is left to read, a stream
 once it carries large reads, back to copying when they turn small. \fB-s1\fR always
 splices what the server sends to the client (downloads), \fB-s2\fR what the client
 sends (uploads), \fB-s3\fR both; adding 4 (\fB-s5\fR, \fB-s6\fR, \fB-s7\fR, the last the same as
-\fB-s\fR) splices those directions only where it pays. \fB-s0\fR, the default, turns it
+\fB-s\fR, and the default) splices those directions only where it pays. \fB-s0\fR turns it
 off. splice() suits large transfers: they go faster and use less CPU; small
 requests go slower with it. A spliced direction needs a pipe (two file
 descriptors), made when first needed and kept for the connection, and more
-kernel memory; data filters are not applied to spliced data. Available in builds
-with WITHSPLICE, the default on Linux.
+kernel memory. A service with data filters does not splice, so that the filters
+see all of the data. Available in builds with WITHSPLICE, the default on Linux.
 .br
 .B -C
  (for TCP services) a connection closed by any of the sides terminates the
@@ -1458,7 +1458,7 @@ as
 data filtering will be performed through filtering plugins to avoid data
 corruption and/or Content-Length changing. A body up to this size is read
 whole into memory and filtered at once. 0 removes the limit, but then a body
-is only filtered whole if it fits in the connection's 32K buffer.
+is only filtered whole if it fits in the connection's 16K buffer.
 Default is 1MB (1048576).
 
 .SH SSL/TLS SUPPORT
