@@ -283,72 +283,61 @@ void setopts(SOCKET s, const struct sockoptset *opts){
 	}
 }
 
-static void freesrvstrings(struct srvparam *srv, unsigned char *cbc_string, unsigned char *cbl_string) {
-	if(cbc_string) free(cbc_string);
-	if(cbl_string) free(cbl_string);
-	if(srv->logtarget) free(srv->logtarget);
-	if(srv->logformat) free(srv->logformat);
-#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
-	if(srv->ibindtodevice) free(srv->ibindtodevice);
-	if(srv->obindtodevice) free(srv->obindtodevice);
-#endif
-#ifdef __linux__
-	if(srv->inetns) free(srv->inetns);
-	if(srv->onetns) free(srv->onetns);
-#endif
-}
 
 #ifndef MODULEMAINFUNC
-#define MODULEMAINFUNC main
 #define STDMAIN
-
-#ifndef _WINCE
-
-int main (int argc, char** argv){
-
-#else
-
-int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow){
- int argc;
- char ** argv;
- WNDCLASS wc;
- HWND hwnd = 0;
-
 #endif
 
-#else
- extern int linenum;
- extern int haveerror;
-
-int MODULEMAINFUNC (int argc, char** argv){
-
-#endif
-
-
-
- SOCKET sock = INVALID_SOCKET, new_sock = INVALID_SOCKET;
- int i=0;
- SASIZETYPE size;
- pthread_t thread;
- struct clientparam defparam;
- struct srvparam srv;
- struct clientparam * newparam;
- int error = 0;
- unsigned sleeptime;
- unsigned char buf[256];
- char *hostname=NULL;
- int opt = 1, isudp = 0, iscbl = 0, iscbc = 0;
- unsigned char *cbc_string = NULL, *cbl_string = NULL;
- PROXYSOCKADDRTYPE cbsa;
- FILE *fp = NULL;
+/* A service between its preparation and its run. The preparation, done
+   by the thread reading the configuration, parses the service's options and
+   sets it up, so whatever is wrong with them is reported there; listening,
+   which may wait for its address for long, and the service itself are left
+   to the service's own thread. */
+struct srvstart {
+	struct srvparam srv;
+	struct clientparam defparam;
+	unsigned char *cbc_string, *cbl_string;
+	FILE *fp;
+	int isudp, iscbc, iscbl;
 #ifndef _WIN32
- struct linger lg;
+	pthread_attr_t pa;
 #endif
- int nlog = 5000;
- int haveslot = 0, nfull = 0;
-#ifdef __linux__
- int saved_nsfd = -1;
+#ifdef STDMAIN
+#ifndef _WIN32
+	int inetd;
 #endif
+#endif
+};
+
+/* Releases what the preparation and the run took, s itself excepted. */
+static void srvdiscard(struct srvstart *s){
+ srvfree(&s->srv);
+ if(s->defparam.hostname) free(s->defparam.hostname);
+ if(s->cbc_string) free(s->cbc_string);
+ if(s->cbl_string) free(s->cbl_string);
+ if(s->fp) fclose(s->fp);
+}
+
+#ifndef STDMAIN
+static void srvunlink(struct srvparam *srv){
+ if(srv->next)srv->next->prev = srv->prev;
+ if(srv->prev)srv->prev->next = srv->next;
+ else conf.services = srv->next;
+ srv->next = srv->prev = NULL;
+}
+#endif
+
+/* 0, or 1 for wrong options, 2 for want of memory. Whatever fails, s can
+   be passed to srvdiscard(). */
+static int srvprepare(struct srvstart *s, int argc, char **argv){
+ struct srvparam *srv = &s->srv;
+ struct clientparam *defparam = &s->defparam;
+ int i=0;
+#if defined STDMAIN && !defined _WIN32
+ SASIZETYPE size;
+#endif
+ int error = 0;
+ char *hostname=NULL;
 #if !defined(PORTMAP) || !defined(NOPORTMAP)
  char loghelp[] =
 #ifdef STDMAIN
@@ -399,18 +388,919 @@ int MODULEMAINFUNC (int argc, char** argv){
 	" where possible options are: ";
 #endif
 
+ s->cbc_string = s->cbl_string = NULL;
+ s->fp = NULL;
+ s->iscbc = s->iscbl = 0;
+#ifdef STDMAIN
+#ifndef _WIN32
+ s->inetd = 0;
+#endif
+#endif
+ srvinit(srv, defparam);
+ srv->pf = childdef.pf;
+ s->isudp = childdef.isudp;
+
+ /* Default socket options, which -oc, -os, -ol and -oR change by naming
+    them, NAME=0 to turn one off.
+
+    Nagle's algorithm holds back a short write until the previous one is
+    acknowledged, and a peer delays its acknowledgement, which stalls every
+    reply written in more than one piece.
+
+    SO_REUSEADDR is not set on Windows: it is not needed to rebind a
+    listening port there, and it only allows another local process to bind
+    the same address and port, with undefined behaviour as to which socket
+    receives the connections. Use -olSO_EXCLUSIVEADDRUSE to prevent that
+    instead. A Windows build which does not share the listening socket is the
+    exception: its UDP services bind a second socket to the same address to
+    answer from, and Windows only allows that when both sockets ask for it.
+ */
+ (void)getopts("TCP_NODELAY", &srv->clisockopts);
+ (void)getopts("TCP_NODELAY", &srv->srvsockopts);
+#ifndef _WIN32
+ (void)getopts("SO_REUSEADDR", &srv->lissockopts);
+ (void)getopts("SO_REUSEADDR", &srv->cbssockopts);
+#elif !defined SHARE_UDP_SOCKET
+ if(s->isudp) (void)getopts("SO_REUSEADDR", &srv->lissockopts);
+#endif
+#ifdef SO_REUSEPORT
+ (void)getopts("SO_REUSEPORT", &srv->lissockopts);
+ (void)getopts("SO_REUSEPORT", &srv->cbssockopts);
+#endif
+#ifndef NOUDPMAIN
+ if(s->isudp) {
+	if(!udp_table.ihashtable)inithashtable(&udp_table, 64, 256, 65536);
+	srv->udpbuf = malloc(UDPBUFSIZE);
+	srv->udpbuf2 = malloc(UDPBUFSIZE);
+	if(!srv->udpbuf || !srv->udpbuf2) return 2;
+ }
+#endif
+ srv->service = defparam->service = childdef.service;
+
+#ifdef WITH_HTTPSRV
+ /* http lines accumulate until a service claims them, so each httpsrv takes
+    the rules written above it and the next one starts empty. */
+ if(srv->service == S_HTTPSRV){
+	srv->httprules = conf.httprules;
+	conf.httprules = NULL;
+ }
+#endif
+ 
+#ifndef STDMAIN
+ if(conf.acl){
+	srv->acl = copyacl(conf.acl);
+	if(!srv->acl) return 2;
+ }
+
+ if(conf.authfuncs){
+	srv->authfuncs = copyauth(conf.authfuncs);
+	if(!srv->authfuncs) return 2;
+ }
+#else
+ srv->needuser = 0;
+ _3proxy_mutex_init(&log_mutex);
+#endif
+
+ for (i=1; i<argc; i++) {
+	if(*argv[i]=='-') {
+		switch(argv[i][1]) {
+		 case 'd': 
+			if(!conf.demon)daemonize();
+			conf.demon = 1;
+			break;
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+		 case 'D':
+			if(argv[i][2] == 'i') srv->ibindtodevice = strdup(argv[i] + 3);
+			else srv->obindtodevice = strdup(argv[i] + 3);
+			break;
+#endif
+		 case 'l':
+			srv->logfunc = logstdout;
+			if(srv->logtarget) free(srv->logtarget);
+			srv->logtarget = (unsigned char *)strdup(argv[i] + 2);
+			if(argv[i][2]) {
+				if(argv[i][2]=='@'){
+
+#ifdef STDMAIN
+#ifndef _WIN32
+					openlog(argv[i]+3, LOG_PID, LOG_DAEMON);
+					srv->logfunc = logsyslog;
+#endif
+#endif
+
+				}
+				else {
+					s->fp = fopen(argv[i] + 2, "a");
+					if (s->fp) {
+						srv->stdlog = s->fp;
+					}
+				}
+
+			}
+			break;
+		 case 'i':
+#ifdef WITH_UN
+			if(!strncmp((char *)argv[i]+2, "unix:", 5)){
+				make_un((unsigned char *)argv[i] + 7, (struct sockaddr_un *)&srv->intsa);
+			}
+			else
+#endif
+			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv->intsa);
+			break;
+		 case 'e':
+			{
+#ifndef NOIPV6
+				PROXYSOCKADDRTYPE sa6;
+				memset(&sa6, 0, sizeof(sa6));
+				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&sa6);
+				if(!error) {
+					if (*SAFAMILY(&sa6)==AF_INET) srv->extsa = sa6;
+					else srv->extsa6 = sa6;
+				}
+#else
+				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv->extsa);
+#endif
+			}
+			break;
+		 case 'N':
+			if(argv[i][2] == 'e') getip46(46, (unsigned char *)argv[i]+3, (struct sockaddr *)&srv->extNat);
+			else if(argv[i][2] == 'i') getip46(46, (unsigned char *)argv[i]+3, (struct sockaddr *)&srv->intNat);
+			else getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv->extNat);
+			break;
+		 case 'n':
+#ifdef __linux__
+			if(argv[i][2] == 'i') { if(srv->inetns) free(srv->inetns); srv->inetns = strdup(argv[i] + 3); }
+			else if(argv[i][2] == 'e') { if(srv->onetns) free(srv->onetns); srv->onetns = strdup(argv[i] + 3); }
+#endif
+			break;
+		 case 'p':
+			*SAPORT(&srv->intsa) = htons(atoi(argv[i]+2));
+			break;
+		 case 'P':
+			srv->targetport = ntohs(atoi(argv[i]+2));
+			break;
+		 case '4':
+		 case '6':
+			srv->family = atoi(argv[i]+1);
+			break;
+		 case 'b':
+			srv->bufsize = atoi(argv[i]+2);
+			break;
+#ifdef STDMAIN
+#ifndef _WIN32
+		 case 'I':
+			size = sizeof(defparam->sincl);
+			if(srv->so._getsockname(srv->so.state, 0, (struct sockaddr*)&defparam->sincl, &size) ||
+				*SAFAMILY(&defparam->sincl) != AF_INET) error = 1;
+
+			else s->inetd = 1;
+			break;
+#endif
+#endif
+		 case 'f':
+			if(srv->logformat)free(srv->logformat);
+			srv->logformat = (unsigned char *)strdup(argv[i] + 2);
+			break;
+		 case 't':
+			srv->silent = 1;
+			break;
+		 case 'h':
+			hostname = argv[i] + 2;
+			break;
+		 case 'H':
+			srv->haproxy=1;
+			break;
+		 case 'c':
+			srv->requirecert = 1;
+			if(isdigit(argv[i][2])) srv->requirecert = atoi(argv[i]+2);
+			break;
+		 case 'r':
+			s->cbc_string = (unsigned char *)strdup(argv[i] + 2);
+			s->iscbc = 1;
+			break;
+		 case 'R':
+			s->cbl_string = (unsigned char *)strdup(argv[i] + 2);
+			s->iscbl = 1;
+			break;
+		 case 'u':
+			srv->needuser = 0;
+			if(*(argv[i] + 2)) srv->needuser = atoi(argv[i] + 2);
+			break;
+		 case 'x':
+			srv->nostarttls = 1;
+			break;
+		 case 'X':
+			if(!strncasecmp(argv[i]+2, "imap", 4)) srv->srvstarttls = S_IMAPP;
+			else if(!strncasecmp(argv[i]+2, "pop3", 4)) srv->srvstarttls = S_POP3P;
+			else if(!strncasecmp(argv[i]+2, "smtp", 4)) srv->srvstarttls = S_SMTPP;
+#ifdef WITH_FTP
+			/* The http proxy fetches ftp:// only where it was asked to:
+			   the protocol brings a second connection and a listing to
+			   build, which a service serving http has no use for. */
+			else if(!strncasecmp(argv[i]+2, "ftp", 3)) srv->allowftp = 1;
+#endif
+			else error = 1;
+			break;
+		 case 'F':
+			{
+				PROXYSOCKADDRTYPE fsa;
+				memset(&fsa, 0, sizeof(fsa));
+				if(!getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&fsa)) error = 1;
+				else if(*SAFAMILY(&fsa) == AF_INET) srv->fakeip = *(uint32_t *)SAADDR(&fsa);
+#ifndef NOIPV6
+				else if(*SAFAMILY(&fsa) == AF_INET6) memcpy(srv->fakeip6, SAADDR(&fsa), 16);
+#endif
+				else error = 1;
+			}
+			break;
+		 case 'T':
+			srv->transparent = 1;
+			break;
+		 case 'S':
+			srv->stacksize = atoi(argv[i]+2);
+			break;
+		case 'a':
+			srv->anonymous = 1 + atoi(argv[i]+2);
+			break;
+		case 'g':
+			sscanf(argv[i]+2, "%d,%d,%d", &srv->gracetraf, &srv->gracenum, &srv->gracedelay);
+			break;
+		case 'C':
+			srv->halfclose = *(argv[i]+2)? atoi(argv[i]+2) : 0;
+			break;
+		case 'U':
+			srv->udpauth = *(argv[i]+2)? atoi(argv[i]+2) : 0;
+			break;
+		case 's':
+#ifdef WITHSPLICE
+			/* admin is an httpsrv, where -s is the limited mode */
+			if(s->isudp || srv->service == S_ADMIN || srv->service == S_HTTPSRV)
+#endif
+				srv->s_option = 1 + atoi(argv[i]+2);
+#ifdef WITHSPLICE
+			else
+				srv->usesplice = (*(argv[i]+2)? atoi(argv[i]+2) :
+					SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO) &
+					(SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO);
+#endif
+			break;
+		 case 'o':
+			switch(argv[i][2]){
+			 case 's':
+				error = getopts(argv[i]+3, &srv->srvsockopts);
+				break;
+			 case 'c':
+				error = getopts(argv[i]+3, &srv->clisockopts);
+				break;
+			 case 'l':
+				error = getopts(argv[i]+3, &srv->lissockopts);
+				break;
+			 case 'r':
+				error = getopts(argv[i]+3, &srv->cbcsockopts);
+				break;
+			 case 'R':
+				error = getopts(argv[i]+3, &srv->cbssockopts);
+				break;
+			 default:
+				error = 1;
+			}
+			if(!error) break;
+		 default:
+			error = 1;
+			break;
+		}
+	}
+	else break;
+ }
+
+
+#ifndef STDMAIN
+ if(childdef.port) {
+#endif
+#ifndef PORTMAP
+	if (error || i!=argc) {
+		fprintf(stderr, "%s of %s\n"
+			"Usage: %s options\n"
+			"Available options are:\n"
+			"%s\n"
+			"\t%s\n"
+			" -pPORT - service port to accept connections\n"
+			"%s"
+			"\tExample: %s -i127.0.0.1\n\n"
+			"%s", 
+			argv[0], 
+			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
+#ifdef STDMAIN
+			copyright
+#else
+			""
+#endif
+		);
+		return (1);
+	}
+#endif
+#ifndef STDMAIN
+ }
+ else {
+#endif
+#ifndef NOPORTMAP
+	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv->intsa) = htons((uint16_t)atoi(argv[i])))==0 || (srv->targetport = htons((uint16_t)atoi(argv[i+2])))==0) {
+		fprintf(stderr, "%s of %s\n"
+			"Usage: %s options"
+			" [-e<external_ip>] <port_to_bind>"
+			" <target_hostname> <target_port>\n"
+			"Available options are:\n"
+			"%s\n"
+			"\t%s\n"
+			"%s"
+			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
+			"%s", 
+			argv[0],
+			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
+#ifdef STDMAIN
+			copyright
+#else
+			""
+#endif
+		);
+		return (1);
+	}
+	srv->target = (unsigned char *)strdup(argv[i+1]);
+#endif
+#ifndef STDMAIN
+ }
+
+#else
+#ifndef _WIN32
+ /* main() serves the one connection, as the service was set up so far */
+ if(s->inetd) return 0;
+#endif
+#endif
+
+ 
+ srvinit2(srv, defparam);
+ if(!*SAFAMILY(&srv->intsa)) *SAFAMILY(&srv->intsa) = AF_INET;
+ if(!*SAPORT(&srv->intsa)) *SAPORT(&srv->intsa) = htons(childdef.port);
+ *SAFAMILY(&srv->extsa) = AF_INET;
+#ifndef NOIPV6
+ *SAFAMILY(&srv->extsa6) = AF_INET6;
+#endif
+ if(hostname)parsehostname(hostname, defparam, childdef.port);
+
+
+#ifndef STDMAIN
+ copyfilter(conf.filters, srv);
+#endif
+ return 0;
+}
+
+/* NOUDPMAIN and NOTCPMAIN leave out what only UDP or only TCP services
+   need, for a standalone service of the other kind. */
+
+/* The listening socket. A UDP one also receives the datagrams of new
+   clients, so it is their client socket too. 0, or the code to exit with. */
+static int srvlisten(struct srvstart *s){
+ struct srvparam *srv = &s->srv;
+ struct clientparam *defparam = &s->defparam;
+ SOCKET sock = INVALID_SOCKET;
+ unsigned sleeptime;
+ unsigned char buf[256];
 #ifdef _WIN32
  unsigned long ul = 1;
+#endif
+
+#ifndef NOTCPMAIN
+ if(!s->isudp){
+	sock=srv->so._socket(srv->so.state, SASOCK(&srv->intsa), SOCK_STREAM,
+#ifdef WITH_UN
+        	    *SAFAMILY(&srv->intsa) == AF_UNIX? 0 :
+#endif
+		    IPPROTO_TCP
+	);
+ }
+#endif
+#ifndef NOUDPMAIN
+ if(s->isudp){
+	sock=srv->so._socket(srv->so.state, SASOCK(&srv->intsa), SOCK_DGRAM, IPPROTO_UDP);
+ }
+#endif
+ if( sock == INVALID_SOCKET) {
+	perror("socket()");
+	return -2;
+ }
+ setopts(sock, &srv->lissockopts);
+#ifdef _WIN32
+ ioctlsocket(sock, FIONBIO, &ul);
 #else
- pthread_attr_t pa;
-#ifdef STDMAIN
- int inetd = 0;
+ fcntl(sock,F_SETFL,O_NONBLOCK | fcntl(sock,F_GETFL));
 #endif
+ srv->srvsock = sock;
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+ if(bindtodevice(&srv->so, srv->so.state, sock, srv->ibindtodevice, *SAFAMILY(&srv->intsa))) {
+	dolog(defparam, (unsigned char *)"failed to bind device");
+	return -12;
+ }
 #endif
+#ifdef WITH_UN
+ if(*SAFAMILY(&srv->intsa) == AF_UNIX){
+	struct sockaddr_un *sun = (struct sockaddr_un *)&srv->intsa;
+	if(*sun->sun_path)unlink(sun->sun_path);
+ }
+#endif
+ for(sleeptime = SLEEPTIME * 100; srv->so._bind(srv->so.state, sock, (struct sockaddr*)&srv->intsa, SASIZE(&srv->intsa))==-1; usleep(sleeptime)) {
+	sprintf((char *)buf, "bind(): %s", strerror(errno));
+	if(!srv->silent)dolog(defparam, buf);
+	sleeptime = (sleeptime<<1);
+	if(!sleeptime) return -3;
+ }
+#ifndef NOTCPMAIN
+ if(!s->isudp){
+	if(srv->so._listen (srv->so.state, sock, srv->backlog?srv->backlog : 1+(srv->maxchild>>3))==-1) {
+		sprintf((char *)buf, "listen(): %s", strerror(errno));
+		if(!srv->silent)dolog(defparam, buf);
+		return -4;
+	}
+ }
+#endif
+#ifndef NOUDPMAIN
+ if(s->isudp)
+	defparam->clisock = sock;
+#endif
+ srv->fds.fd = sock;
+ srv->fds.events = POLLIN;
+
+ if(!srv->silent){
+	sprintf((char *)buf, "Accepting connections [%"PRIu64"/%"PRIu64"]", (uint64_t)getpid(), (uint64_t)pthread_self());
+	dolog(defparam, buf);
+ }
+ return 0;
+}
+
+#ifndef NOTCPMAIN
+/* -R: the socket the far side of a TCP service connects back to. */
+static int cblisten(struct srvstart *s){
+ struct srvparam *srv = &s->srv;
+ struct clientparam *defparam = &s->defparam;
+ PROXYSOCKADDRTYPE cbsa;
+
+ parsehost(srv->family, s->cbl_string, (struct sockaddr *)&cbsa);
+ if((srv->cbsock=srv->so._socket(srv->so.state, SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
+	dolog(defparam, (unsigned char *)"Failed to allocate connect back socket");
+	return -6;
+ }
+ setopts(srv->cbsock, &srv->cbssockopts);
+
+ if(srv->so._bind(srv->so.state, srv->cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
+	dolog(defparam, (unsigned char *)"Failed to bind connect back socket");
+	return -7;
+ }
+ if(srv->so._listen(srv->so.state, srv->cbsock, 1 + (srv->maxchild>>4))==-1) {
+	dolog(defparam, (unsigned char *)"Failed to listen connect back socket");
+	return -8;
+ }
+ return 0;
+}
+
+#endif
+
+/* What getting the next client came to. */
+enum { NEXT_CLIENT, NEXT_RETRY, NEXT_STOP };
+
+#ifndef NOTCPMAIN
+/* The next TCP client: accepted, or with -r connected to and asked to
+   go ahead. */
+static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
+ struct srvparam *srv = &s->srv;
+ struct clientparam *defparam = &s->defparam;
+ SOCKET new_sock;
+ SASIZETYPE size;
+ unsigned char buf[256];
+ int error = 0, opt = 1;
+#ifndef _WIN32
+ struct linger lg;
+#else
+ unsigned long ul = 1;
+#endif
+
+ size = sizeof(defparam->sincr);
+ if(s->iscbc){
+	new_sock=so._socket(so.state, SASOCK(&defparam->sincr), SOCK_STREAM, IPPROTO_TCP);
+	if(new_sock == INVALID_SOCKET){
+		usleep(SLEEPTIME);
+		return NEXT_RETRY;
+	}
+	setopts(new_sock, &srv->cbcsockopts);
+
+	parsehost(srv->family, s->cbc_string, (struct sockaddr *)&defparam->sincr);
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+	/* as for a listening socket, an interface that cannot be
+	   bound to is not worth retrying */
+	if(bindtodevice(&so, so.state, new_sock, srv->ibindtodevice, *SAFAMILY(&defparam->sincr))) {
+		dolog(defparam, (unsigned char *)"failed to bind device");
+		so._closesocket(so.state, new_sock);
+		return NEXT_STOP;
+	}
+#endif
+	if(connectwithpoll(NULL, new_sock,(struct sockaddr *)&defparam->sincr,SASIZE(&defparam->sincr),CONNBACK_TO)) {
+		so._closesocket(so.state, new_sock);
+		usleep(SLEEPTIME);
+		return NEXT_RETRY;
+	}
+
+	if(sockrecvfrom(NULL, new_sock,(struct sockaddr*)&defparam->sincr,buf,1,60*1000) != 1 || *buf!='C') {
+		so._closesocket(so.state, new_sock);
+		usleep(SLEEPTIME);
+		return NEXT_RETRY;
+	}
+ }
+ else {
+	new_sock = srv->so._accept(srv->so.state, srv->srvsock, (struct sockaddr*)&defparam->sincr, &size);
+	if(new_sock == INVALID_SOCKET){
+#ifdef _WIN32
+		switch(WSAGetLastError()){
+		case WSAEMFILE:
+		case WSAENOBUFS:
+		case WSAENETDOWN:
+			usleep(SLEEPTIME * 10);
+			break;
+		case WSAEINTR:
+			error = 1;
+			break;
+		default:
+			break;
+		}
+
+#else
+		switch (errno){
+#ifdef EMFILE
+		case EMFILE:
+#endif
+#ifdef ENFILE
+		case ENFILE:
+#endif
+#ifdef ENOBUFS
+		case ENOBUFS:
+#endif
+#ifdef ENOMEM
+		case ENOMEM:
+#endif
+			usleep(SLEEPTIME * 10);
+			break;
+
+		default:
+			break;
+		}
+#endif
+		(*nlog)++;
+		if(!srv->silent && (error || *nlog > 5000)) {
+			sprintf((char *)buf, "accept(): %s", strerror(errno));
+			dolog(defparam, buf);
+			*nlog = 0;
+		}
+		return NEXT_RETRY;
+	}
+	setopts(new_sock, &srv->clisockopts);
+ }
+ size = sizeof(defparam->sincl);
+ if(srv->so._getsockname(srv->so.state, new_sock, (struct sockaddr *)&defparam->sincl, &size)){
+	sprintf((char *)buf, "getsockname(): %s", strerror(errno));
+	if(!srv->silent)dolog(defparam, buf);
+	srv->so._closesocket(srv->so.state, new_sock);
+	return NEXT_RETRY;
+ }
+#ifdef WITH_UN
+ if(*SAFAMILY(&defparam->sincl) == AF_UNIX) defparam->sincr = defparam->sincl;
+#endif
+#ifdef _WIN32
+ ioctlsocket(new_sock, FIONBIO, &ul);
+#else
+ fcntl(new_sock,F_SETFL,O_NONBLOCK | fcntl(new_sock,F_GETFL));
+#endif
+#ifndef _WIN32
+ /* Not on Windows: there closesocket() on a non-blocking socket with a linger
+    timeout fails with WSAEWOULDBLOCK while data is queued, leaving the socket
+    open. Without it the close completes in the background, data first. */
+ lg.l_onoff = 1;
+ lg.l_linger = conf.timeouts[STRING_L];
+ srv->so._setsockopt(srv->so.state, new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
+#endif
+ srv->so._setsockopt(srv->so.state, new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
+ *client = new_sock;
+ return NEXT_CLIENT;
+}
+#endif
+
+#ifndef NOUDPMAIN
+/* The next UDP client: a datagram from a peer with no association yet. One
+   from a known peer is passed on to it here. A new client is returned with
+   udpinit held, for its child to read the datagram and release it. */
+static int udpnext(struct srvstart *s){
+ struct srvparam *srv = &s->srv;
+ struct clientparam *defparam = &s->defparam;
+ struct clientparam *toparam;
+
+ _3proxy_sem_lock(udpinit);
+ srv->udplen = sockrecvfrom(NULL, srv->srvsock, (struct sockaddr *)&defparam->sincr, srv->udpbuf, UDPBUFSIZE, 0);
+ if(srv->udplen <= 0) {
+	_3proxy_sem_unlock(udpinit);
+	return NEXT_RETRY;
+ }
+ if(hashresolv(&udp_table, defparam, &toparam, NULL)) {
+    int i, len=0;
+
+    if(!toparam->bandlimfunc || !(*toparam->bandlimfunc)(toparam, 0, srv->udplen)){
+	if(toparam->udp_nhops){
+	    for(i=1; i < toparam->udp_nhops; i++){
+		len+=socks5_udp_build_hdr(srv->udpbuf2+len, &toparam->udp_relay[i-1]);
+	    }
+	    len += socks5_udp_build_hdr(srv->udpbuf2+len, &toparam->req);
+	}
+	memcpy(srv->udpbuf2+len, srv->udpbuf, srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv->udplen);
+	len += srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv->udplen;
+	srv->so._sendto(toparam->sostate, toparam->remsock, (char *)srv->udpbuf2, len, 0, (struct sockaddr *)&toparam->sinsr, SASIZE(&toparam->sinsr));
+	toparam->statscli64 += srv->udplen;
+	toparam->nwrites++;
+    }
+    _3proxy_sem_unlock(udpinit);
+    return NEXT_RETRY;
+ }
+ return NEXT_CLIENT;
+}
+#endif
+
+/* A thread for the client, client_sock for TCP. 0 once it runs, the slot
+   in hand going with it. */
+static int srvspawn(struct srvstart *s, SOCKET client_sock){
+ struct srvparam *srv = &s->srv;
+ struct clientparam *defparam = &s->defparam;
+ struct clientparam * newparam;
+ pthread_t thread;
+ unsigned char buf[256];
+ int error = 0;
 #ifdef _WIN32
  HANDLE h;
 #endif
+
+ if(! (newparam = malloc (sizeof(*defparam)))){
+	if(!s->isudp) srv->so._closesocket(srv->so.state, client_sock);
+#ifndef NOUDPMAIN
+	else {
+		_3proxy_sem_unlock(udpinit);
+	}
+#endif
+	defparam->res = 21;
+	if(!srv->silent)dolog(defparam, (unsigned char *)"Memory Allocation Failed");
+	usleep(SLEEPTIME);
+	return 1;
+ };
+ *newparam = *defparam;
+ if(defparam->hostname)newparam->hostname=(unsigned char *)strdup((char *)defparam->hostname);
+ clearstat(newparam);
+ if(!s->isudp) newparam->clisock = client_sock;
+ newparam->prev = newparam->next = NULL;
+ _3proxy_mutex_lock(&srv->counter_mutex);
+ if(!srv->child){
+	srv->child = newparam;
+ }
+ else {
+	newparam->next = srv->child;
+	srv->child = srv->child->prev = newparam;
+ }
+#ifdef _WIN32
+#ifndef _WINCE
+ h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv->stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
+#else
+ h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv->stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
+#endif
+ if (h) {
+	CloseHandle(h);
+ }
+ else {
+	sprintf((char *)buf, "_beginthreadex(): %s", _strerror(NULL));
+	error = 1;
+ }
+#else
+
+ if ((error = pthread_create(&thread, &s->pa, threadfunc, (void *)newparam))){
+	sprintf((char *)buf, "pthread_create(): %s", strerror(error));
+ }
+#endif
+ if(error){
+	if(!srv->silent)dolog(defparam, buf);
+	if(newparam->prev) newparam->prev->next = newparam->next;
+	else srv->child = newparam->next;
+	if(newparam->next) newparam->next->prev = newparam->prev;
+	if(newparam->clisock != INVALID_SOCKET){
+		srv->so._shutdown(srv->so.state, newparam->clisock, SHUT_RDWR);
+		srv->so._closesocket(srv->so.state, newparam->clisock);
+		newparam->clisock = INVALID_SOCKET;
+	}
+	newparam->srv = NULL;
+#ifndef NOUDPMAIN
+	if(s->isudp){
+		_3proxy_sem_unlock(udpinit);
+	}
+#endif
+	freeparam(newparam);
+ }
+ else {
+	srv->childcount++;
+	newparam->threadid = (uint64_t)thread;
+ }
+ _3proxy_mutex_unlock(&srv->counter_mutex);
+ memset(&defparam->sincl, 0, sizeof(defparam->sincl));
+ memset(&defparam->sincr, 0, sizeof(defparam->sincr));
+ return error;
+}
+
+static int srvrun(struct srvstart *s){
+ struct srvparam *srv = &s->srv;
+ struct clientparam *defparam = &s->defparam;
+ SOCKET new_sock = INVALID_SOCKET;
+ int error = 0, res = 0, next;
+ unsigned char buf[256];
+ int haveslot = 0, nfull = 0;
+#ifndef NOTCPMAIN
+ int nlog = 5000;
+#endif
+ /* -r: a TCP service connects out for each client instead of listening */
+ int connectback = !s->isudp && s->iscbc;
+#ifdef __linux__
+ int saved_nsfd = -1;
+#endif
+
+#ifndef _WIN32
+ pthread_attr_init(&s->pa);
+ pthread_attr_setstacksize(&s->pa,threadstacksize(srv->stacksize));
+ pthread_attr_setdetachstate(&s->pa,PTHREAD_CREATE_DETACHED);
+#ifndef STDMAIN
+ {
+	sigset_t mask;
+	sigfillset(&mask);
+	pthread_sigmask(SIG_SETMASK, &mask, NULL);
+ }
+#endif
+#endif
+
+#ifdef __linux__
+ if(srv->inetns) {
+	saved_nsfd = open("/proc/self/ns/net", O_RDONLY);
+	if(saved_nsfd == -1) {
+		dolog(defparam, (unsigned char *)"failed to open /proc/self/ns/net");
+		res = -13;
+		goto EXIT;
+	}
+	{
+		int nsfd = open(srv->inetns, O_RDONLY);
+		if(nsfd == -1) {
+			dolog(defparam, (unsigned char *)"failed to open inetns");
+			close(saved_nsfd);
+			res = -13;
+			goto EXIT;
+		}
+		if(setns(nsfd, CLONE_NEWNET)) {
+			dolog(defparam, (unsigned char *)"failed to setns inetns");
+			close(nsfd);
+			close(saved_nsfd);
+			res = -13;
+			goto EXIT;
+		}
+		if(srv->service == S_SOCKS) srv->i_nsfd = nsfd;
+		else close(nsfd);
+	}
+	if(srv->service == S_SOCKS) srv->saved_nsfd = saved_nsfd;
+ }
+#endif
+ if(!connectback && (res = srvlisten(s))) goto EXIT;
+#ifdef __linux__
+ if(saved_nsfd != -1) {
+	if(setns(saved_nsfd, CLONE_NEWNET)) {
+		dolog(defparam, (unsigned char *)"failed to restore netns");
+		if(srv->service == S_SOCKS) {
+			if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
+			srv->saved_nsfd = -1;
+		}
+		close(saved_nsfd);
+		res = -14;
+		goto EXIT;
+	}
+	if(srv->service != S_SOCKS) {
+		close(saved_nsfd);
+		saved_nsfd = -1;
+	}
+ }
+ if(srv->onetns) {
+	int nsfd = open(srv->onetns, O_RDONLY);
+	if(nsfd == -1) {
+		dolog(defparam, (unsigned char *)"failed to open onetns");
+		if(srv->service == S_SOCKS) {
+			if(srv->saved_nsfd >= 0) { close(srv->saved_nsfd); srv->saved_nsfd = -1; }
+			if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
+		}
+		res = -14;
+		goto EXIT;
+	}
+	if(setns(nsfd, CLONE_NEWNET)) {
+		dolog(defparam, (unsigned char *)"failed to setns onetns");
+		close(nsfd);
+		if(srv->service == S_SOCKS) {
+			if(srv->saved_nsfd >= 0) { close(srv->saved_nsfd); srv->saved_nsfd = -1; }
+			if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
+		}
+		res = -14;
+		goto EXIT;
+	}
+	if(srv->service == S_SOCKS) srv->o_nsfd = nsfd;
+	else close(nsfd);
+ }
+#endif
+#ifndef NOTCPMAIN
+ if(!s->isudp && s->iscbl && (res = cblisten(s))) goto EXIT;
+#endif
+
+ for (;;) {
+	for(;;){
+		/* A connection is only taken with a slot of maxchild in hand, which
+		   goes to its child; a slot not handed on is kept for the next one.
+		   The wait is timed to notice a reload. */
+		while(!haveslot && conf.paused == srv->paused){
+			if(!_3proxy_sem_timedlock(srv->childslots, 1000)){
+				haveslot = 1;
+				nfull = 0;
+				break;
+			}
+			if(!srv->silent && !(nfull++ % 5)) {
+				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv->childcount, srv->maxchild);
+				dolog(defparam, buf);
+			}
+		}
+		if (connectback) break;
+		if (conf.paused != srv->paused) break;
+		error = srv->so._poll(srv->so.state, &srv->fds, 1, 1000);
+		if (error >= 1) break;
+		if (error == 0) continue;
+		if (errno != EAGAIN &&	errno != EINTR) {
+			sprintf((char *)buf, "poll(): %s/%d", strerror(errno), errno);
+			if(!srv->silent)dolog(defparam, buf);
+			break;
+		}
+	}
+	if((conf.paused != srv->paused) || (error < 0)) break;
+	error = 0;
+#if defined NOTCPMAIN
+	next = udpnext(s);
+#elif defined NOUDPMAIN
+	next = tcpnext(s, &new_sock, &nlog);
+#else
+	next = s->isudp? udpnext(s) : tcpnext(s, &new_sock, &nlog);
+#endif
+	if(next == NEXT_STOP) break;
+	if(next == NEXT_RETRY) continue;
+	if(!srvspawn(s, new_sock)) haveslot = 0;
+ }
+
+EXIT:
+#ifndef STDMAIN
+ _3proxy_mutex_lock(&config_mutex);
+ srvunlink(srv);
+ _3proxy_mutex_unlock(&config_mutex);
+#endif
+
+ if(!srv->silent) srv->logfunc(defparam, (unsigned char *)"Exiting thread");
+ /* srvfree() waits for every slot to come back, this one included */
+ if(haveslot) _3proxy_sem_unlock(srv->childslots);
+ srvdiscard(s);
+
+#ifndef _WIN32
+ pthread_attr_destroy(&s->pa);
+#endif
+ return res;
+}
+
 #ifdef STDMAIN
+
+#ifndef _WINCE
+
+int main (int argc, char** argv){
+
+#else
+
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow){
+ int argc;
+ char ** argv;
+ WNDCLASS wc;
+ HWND hwnd = 0;
+
+#endif
+ struct srvstart s;
+ int res;
+#ifndef _WIN32
+ int opt = 1;
+ struct linger lg;
+ struct clientparam *newparam;
+#endif
 
 #ifdef _WINCE
  argc = ceparseargs((char *)lpCmdLine);
@@ -435,860 +1325,71 @@ int MODULEMAINFUNC (int argc, char** argv){
 
 #endif
 
-#endif
-
- srvinit(&srv, &defparam);
- srv.pf = childdef.pf;
- isudp = childdef.isudp;
-
- /* Default socket options, which -oc, -os, -ol and -oR change by naming
-    them, NAME=0 to turn one off.
-
-    Nagle's algorithm holds back a short write until the previous one is
-    acknowledged, and a peer delays its acknowledgement, which stalls every
-    reply written in more than one piece.
-
-    SO_REUSEADDR is not set on Windows: it is not needed to rebind a
-    listening port there, and it only allows another local process to bind
-    the same address and port, with undefined behaviour as to which socket
-    receives the connections. Use -olSO_EXCLUSIVEADDRUSE to prevent that
-    instead. A Windows build which does not share the listening socket is the
-    exception: its UDP services bind a second socket to the same address to
-    answer from, and Windows only allows that when both sockets ask for it.
- */
- (void)getopts("TCP_NODELAY", &srv.clisockopts);
- (void)getopts("TCP_NODELAY", &srv.srvsockopts);
+ if((res = srvprepare(&s, argc, argv))) return res;
 #ifndef _WIN32
- (void)getopts("SO_REUSEADDR", &srv.lissockopts);
- (void)getopts("SO_REUSEADDR", &srv.cbssockopts);
-#elif !defined SHARE_UDP_SOCKET
- if(isudp) (void)getopts("SO_REUSEADDR", &srv.lissockopts);
-#endif
-#ifdef SO_REUSEPORT
- (void)getopts("SO_REUSEPORT", &srv.lissockopts);
- (void)getopts("SO_REUSEPORT", &srv.cbssockopts);
-#endif
-#ifndef NOUDPMAIN
- if(isudp) {
-	if(!udp_table.ihashtable)inithashtable(&udp_table, 64, 256, 65536);
-	srv.udpbuf = malloc(UDPBUFSIZE);
-	srv.udpbuf2 = malloc(UDPBUFSIZE);
-	if(!srv.udpbuf || !srv.udpbuf2) {
-#ifndef STDMAIN
-		haveerror = 2;
-		_3proxy_sem_unlock(conf.threadinit);
-#endif
-		return 11;
-	}
- }
-#endif
- srv.service = defparam.service = childdef.service;
-
-#ifdef WITH_HTTPSRV
- /* http lines accumulate until a service claims them, so each httpsrv takes
-    the rules written above it and the next one starts empty. */
- if(srv.service == S_HTTPSRV){
-	srv.httprules = conf.httprules;
-	conf.httprules = NULL;
- }
-#endif
- 
-#ifndef STDMAIN
- if(conf.acl){
-	srv.acl = copyacl(conf.acl);
-	if(!srv.acl) haveerror = 2;
- }
-
- if(conf.authfuncs){
-	srv.authfuncs = copyauth(conf.authfuncs);
-	if(!srv.authfuncs) haveerror = 2;
- }
- if(!conf.services){
-	conf.services = &srv;
- }
- else {
-	srv.next = conf.services;
-	conf.services = conf.services->prev = &srv;
- }
-#ifndef _WIN32
- {
-	sigset_t mask;
-	sigfillset(&mask);
-	pthread_sigmask(SIG_SETMASK, &mask, NULL);
- }
-#endif
-#else
- srv.needuser = 0;
- _3proxy_mutex_init(&log_mutex);
-#endif
-
- for (i=1; i<argc; i++) {
-	if(*argv[i]=='-') {
-		switch(argv[i][1]) {
-		 case 'd': 
-			if(!conf.demon)daemonize();
-			conf.demon = 1;
-			break;
-#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
-		 case 'D':
-			if(argv[i][2] == 'i') srv.ibindtodevice = strdup(argv[i] + 3);
-			else srv.obindtodevice = strdup(argv[i] + 3);
-			break;
-#endif
-		 case 'l':
-			srv.logfunc = logstdout;
-			if(srv.logtarget) free(srv.logtarget);
-			srv.logtarget = (unsigned char *)strdup(argv[i] + 2);
-			if(argv[i][2]) {
-				if(argv[i][2]=='@'){
-
-#ifdef STDMAIN
-#ifndef _WIN32
-					openlog(argv[i]+3, LOG_PID, LOG_DAEMON);
-					srv.logfunc = logsyslog;
-#endif
-#endif
-
-				}
-				else {
-					fp = fopen(argv[i] + 2, "a");
-					if (fp) {
-						srv.stdlog = fp;
-					}
-				}
-
-			}
-			break;
-		 case 'i':
-#ifdef WITH_UN
-			if(!strncmp((char *)argv[i]+2, "unix:", 5)){
-				make_un((unsigned char *)argv[i] + 7, (struct sockaddr_un *)&srv.intsa);
-			}
-			else
-#endif
-			getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.intsa);
-			break;
-		 case 'e':
-			{
-#ifndef NOIPV6
-				PROXYSOCKADDRTYPE sa6;
-				memset(&sa6, 0, sizeof(sa6));
-				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&sa6);
-				if(!error) {
-					if (*SAFAMILY(&sa6)==AF_INET) srv.extsa = sa6;
-					else srv.extsa6 = sa6;
-				}
-#else
-				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extsa);
-#endif
-			}
-			break;
-		 case 'N':
-			if(argv[i][2] == 'e') getip46(46, (unsigned char *)argv[i]+3, (struct sockaddr *)&srv.extNat);
-			else if(argv[i][2] == 'i') getip46(46, (unsigned char *)argv[i]+3, (struct sockaddr *)&srv.intNat);
-			else getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv.extNat);
-			break;
-		 case 'n':
-#ifdef __linux__
-			if(argv[i][2] == 'i') { if(srv.inetns) free(srv.inetns); srv.inetns = strdup(argv[i] + 3); }
-			else if(argv[i][2] == 'e') { if(srv.onetns) free(srv.onetns); srv.onetns = strdup(argv[i] + 3); }
-#endif
-			break;
-		 case 'p':
-			*SAPORT(&srv.intsa) = htons(atoi(argv[i]+2));
-			break;
-		 case 'P':
-			srv.targetport = ntohs(atoi(argv[i]+2));
-			break;
-		 case '4':
-		 case '6':
-			srv.family = atoi(argv[i]+1);
-			break;
-		 case 'b':
-			srv.bufsize = atoi(argv[i]+2);
-			break;
-#ifdef STDMAIN
-#ifndef _WIN32
-		 case 'I':
-			size = sizeof(defparam.sincl);
-			if(srv.so._getsockname(srv.so.state, 0, (struct sockaddr*)&defparam.sincl, &size) ||
-				*SAFAMILY(&defparam.sincl) != AF_INET) error = 1;
-
-			else inetd = 1;
-			break;
-#endif
-#endif
-		 case 'f':
-			if(srv.logformat)free(srv.logformat);
-			srv.logformat = (unsigned char *)strdup(argv[i] + 2);
-			break;
-		 case 't':
-			srv.silent = 1;
-			break;
-		 case 'h':
-			hostname = argv[i] + 2;
-			break;
-		 case 'H':
-			srv.haproxy=1;
-			break;
-		 case 'c':
-			srv.requirecert = 1;
-			if(isdigit(argv[i][2])) srv.requirecert = atoi(argv[i]+2);
-			break;
-		 case 'r':
-			cbc_string = (unsigned char *)strdup(argv[i] + 2);
-			iscbc = 1;
-			break;
-		 case 'R':
-			cbl_string = (unsigned char *)strdup(argv[i] + 2);
-			iscbl = 1;
-			break;
-		 case 'u':
-			srv.needuser = 0;
-			if(*(argv[i] + 2)) srv.needuser = atoi(argv[i] + 2);
-			break;
-		 case 'x':
-			srv.nostarttls = 1;
-			break;
-		 case 'X':
-			if(!strncasecmp(argv[i]+2, "imap", 4)) srv.srvstarttls = S_IMAPP;
-			else if(!strncasecmp(argv[i]+2, "pop3", 4)) srv.srvstarttls = S_POP3P;
-			else if(!strncasecmp(argv[i]+2, "smtp", 4)) srv.srvstarttls = S_SMTPP;
-#ifdef WITH_FTP
-			/* The http proxy fetches ftp:// only where it was asked to:
-			   the protocol brings a second connection and a listing to
-			   build, which a service serving http has no use for. */
-			else if(!strncasecmp(argv[i]+2, "ftp", 3)) srv.allowftp = 1;
-#endif
-			else error = 1;
-			break;
-		 case 'F':
-			{
-				PROXYSOCKADDRTYPE fsa;
-				memset(&fsa, 0, sizeof(fsa));
-				if(!getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&fsa)) error = 1;
-				else if(*SAFAMILY(&fsa) == AF_INET) srv.fakeip = *(uint32_t *)SAADDR(&fsa);
-#ifndef NOIPV6
-				else if(*SAFAMILY(&fsa) == AF_INET6) memcpy(srv.fakeip6, SAADDR(&fsa), 16);
-#endif
-				else error = 1;
-			}
-			break;
-		 case 'T':
-			srv.transparent = 1;
-			break;
-		 case 'S':
-			srv.stacksize = atoi(argv[i]+2);
-			break;
-		case 'a':
-			srv.anonymous = 1 + atoi(argv[i]+2);
-			break;
-		case 'g':
-			sscanf(argv[i]+2, "%d,%d,%d", &srv.gracetraf, &srv.gracenum, &srv.gracedelay);
-			break;
-		case 'C':
-			srv.halfclose = *(argv[i]+2)? atoi(argv[i]+2) : 0;
-			break;
-		case 'U':
-			srv.udpauth = *(argv[i]+2)? atoi(argv[i]+2) : 0;
-			break;
-		case 's':
-#ifdef WITHSPLICE
-			/* admin is an httpsrv, where -s is the limited mode */
-			if(isudp || srv.service == S_ADMIN || srv.service == S_HTTPSRV)
-#endif
-				srv.s_option = 1 + atoi(argv[i]+2);
-#ifdef WITHSPLICE
-			else
-				srv.usesplice = (*(argv[i]+2)? atoi(argv[i]+2) :
-					SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO) &
-					(SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO);
-#endif
-			break;
-		 case 'o':
-			switch(argv[i][2]){
-			 case 's':
-				error = getopts(argv[i]+3, &srv.srvsockopts);
-				break;
-			 case 'c':
-				error = getopts(argv[i]+3, &srv.clisockopts);
-				break;
-			 case 'l':
-				error = getopts(argv[i]+3, &srv.lissockopts);
-				break;
-			 case 'r':
-				error = getopts(argv[i]+3, &srv.cbcsockopts);
-				break;
-			 case 'R':
-				error = getopts(argv[i]+3, &srv.cbssockopts);
-				break;
-			 default:
-				error = 1;
-			}
-			if(!error) break;
-		 default:
-			error = 1;
-			break;
-		}
-	}
-	else break;
- }
-
-
-#ifndef STDMAIN
- if(childdef.port) {
-#endif
-#ifndef PORTMAP
-	if (error || i!=argc) {
-#ifndef STDMAIN
-		haveerror = 1;
-#endif
-		fprintf(stderr, "%s of %s\n"
-			"Usage: %s options\n"
-			"Available options are:\n"
-			"%s\n"
-			"\t%s\n"
-			" -pPORT - service port to accept connections\n"
-			"%s"
-			"\tExample: %s -i127.0.0.1\n\n"
-			"%s", 
-			argv[0], 
-			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
-			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
-#ifdef STDMAIN
-			copyright
-#else
-			""
-#endif
-		);
-#ifndef STDMAIN
-		_3proxy_sem_unlock(conf.threadinit);
-#endif
-
-		return (1);
-	}
-#endif
-#ifndef STDMAIN
- }
- else {
-#endif
-#ifndef NOPORTMAP
-	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv.intsa) = htons((uint16_t)atoi(argv[i])))==0 || (srv.targetport = htons((uint16_t)atoi(argv[i+2])))==0) {
-#ifndef STDMAIN
-		haveerror = 1;
-#endif
-		fprintf(stderr, "%s of %s\n"
-			"Usage: %s options"
-			" [-e<external_ip>] <port_to_bind>"
-			" <target_hostname> <target_port>\n"
-			"Available options are:\n"
-			"%s\n"
-			"\t%s\n"
-			"%s"
-			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
-			"%s", 
-			argv[0],
-			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
-			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
-#ifdef STDMAIN
-			copyright
-#else
-			""
-#endif
-		);
-#ifndef STDMAIN
-		_3proxy_sem_unlock(conf.threadinit);
-#endif
-		return (1);
-	}
-	srv.target = (unsigned char *)strdup(argv[i+1]);
-#endif
-#ifndef STDMAIN
- }
-
-#else
-
-#ifndef _WIN32
- if(inetd) {
+ if(s.inetd) {
 	fcntl(0,F_SETFL,O_NONBLOCK | fcntl(0,F_GETFL));
-	if(!isudp){
+	if(!s.isudp){
 		lg.l_onoff = 1;
 		lg.l_linger = conf.timeouts[STRING_L];
-		srv.so._setsockopt(srv.so.state, 0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
-		srv.so._setsockopt(srv.so.state, 0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
+		s.srv.so._setsockopt(s.srv.so.state, 0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
+		s.srv.so._setsockopt(s.srv.so.state, 0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
 	}
-	defparam.clisock = 0;
-	if(! (newparam = malloc (sizeof(defparam)))){
+	s.defparam.clisock = 0;
+	if(! (newparam = malloc (sizeof(s.defparam)))){
 		return 2;
 	};
-	*newparam = defparam;
+	*newparam = s.defparam;
 	return(childfunc(newparam)? 1:0);
 	
  }
 #endif
-
-
-#endif
-
- 
- srvinit2(&srv, &defparam);
- if(!*SAFAMILY(&srv.intsa)) *SAFAMILY(&srv.intsa) = AF_INET;
- if(!*SAPORT(&srv.intsa)) *SAPORT(&srv.intsa) = htons(childdef.port);
- *SAFAMILY(&srv.extsa) = AF_INET;
-#ifndef NOIPV6
- *SAFAMILY(&srv.extsa6) = AF_INET6;
-#endif
- if(hostname)parsehostname(hostname, &defparam, childdef.port);
-
-
-#ifndef STDMAIN
-
- copyfilter(conf.filters, &srv);
- _3proxy_sem_unlock(conf.threadinit);
-
-
-#endif
-
-
-
-#ifdef __linux__
- if(srv.inetns) {
-	saved_nsfd = open("/proc/self/ns/net", O_RDONLY);
-	if(saved_nsfd == -1) {
-		dolog(&defparam, (unsigned char *)"failed to open /proc/self/ns/net");
-		freesrvstrings(&srv, cbc_string, cbl_string);
-		return -13;
-	}
-	{
-		int nsfd = open(srv.inetns, O_RDONLY);
-		if(nsfd == -1) {
-			dolog(&defparam, (unsigned char *)"failed to open inetns");
-			close(saved_nsfd);
-			freesrvstrings(&srv, cbc_string, cbl_string);
-			return -13;
-		}
-		if(setns(nsfd, CLONE_NEWNET)) {
-			dolog(&defparam, (unsigned char *)"failed to setns inetns");
-			close(nsfd);
-			close(saved_nsfd);
-			freesrvstrings(&srv, cbc_string, cbl_string);
-			return -13;
-		}
-		if(srv.service == S_SOCKS) srv.i_nsfd = nsfd;
-		else close(nsfd);
-	}
-	if(srv.service == S_SOCKS) srv.saved_nsfd = saved_nsfd;
- }
-#endif
- if (!iscbc) {
-	if(srv.srvsock == INVALID_SOCKET){
-		if(!isudp){
-			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_STREAM,
-#ifdef WITH_UN
-        		    *SAFAMILY(&srv.intsa) == AF_UNIX? 0 :
-#endif
-			    IPPROTO_TCP
-			);
-		}
-#ifndef NOUDPMAIN
-		else {
-			sock=srv.so._socket(srv.so.state, SASOCK(&srv.intsa), SOCK_DGRAM, IPPROTO_UDP);
-		}
-#endif
-		if( sock == INVALID_SOCKET) {
-			perror("socket()");
-			return -2;
-		}
-		setopts(sock, &srv.lissockopts);
-#ifdef _WIN32
-		ioctlsocket(sock, FIONBIO, &ul);
-#else
-		fcntl(sock,F_SETFL,O_NONBLOCK | fcntl(sock,F_GETFL));
-#endif
-		srv.srvsock = sock;
-#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
-		if(bindtodevice(&srv.so, srv.so.state, sock, srv.ibindtodevice, *SAFAMILY(&srv.intsa))) {
-		    dolog(&defparam, (unsigned char *)"failed to bind device");
-		    return -12;
-		}
-#endif
-	}
-#ifdef WITH_UN
-	if(*SAFAMILY(&srv.intsa) == AF_UNIX){
-		struct sockaddr_un *sun = (struct sockaddr_un *)&srv.intsa;
-		if(*sun->sun_path)unlink(sun->sun_path);
-	}
-#endif
-	size = sizeof(srv.intsa);
-	for(sleeptime = SLEEPTIME * 100; srv.so._bind(srv.so.state, sock, (struct sockaddr*)&srv.intsa, SASIZE(&srv.intsa))==-1; usleep(sleeptime)) {
-		sprintf((char *)buf, "bind(): %s", strerror(errno));
-		if(!srv.silent)dolog(&defparam, buf);
-		sleeptime = (sleeptime<<1);
-		if(!sleeptime) {
-			srv.so._closesocket(srv.so.state, sock);
-			freesrvstrings(&srv, cbc_string, cbl_string);
-			return -3;
-		}
-	}
- 	if(!isudp){
-		if(srv.so._listen (srv.so.state, sock, srv.backlog?srv.backlog : 1+(srv.maxchild>>3))==-1) {
-			sprintf((char *)buf, "listen(): %s", strerror(errno));
-			if(!srv.silent)dolog(&defparam, buf);
-			srv.so._closesocket(srv.so.state, sock);
-			freesrvstrings(&srv, cbc_string, cbl_string);
-			return -4;
-		}
-	}
-#ifndef NOUDPMAIN
-	else
-		defparam.clisock = sock;
-#endif
-
-	if(!srv.silent && !iscbc){
-		sprintf((char *)buf, "Accepting connections [%"PRIu64"/%"PRIu64"]", (uint64_t)getpid(), (uint64_t)pthread_self());
-		dolog(&defparam, buf);
-	}
- }
-#ifdef __linux__
- if(saved_nsfd != -1) {
-	if(setns(saved_nsfd, CLONE_NEWNET)) {
-		dolog(&defparam, (unsigned char *)"failed to restore netns");
-		if(srv.service == S_SOCKS) {
-			if(srv.i_nsfd >= 0) { close(srv.i_nsfd); srv.i_nsfd = -1; }
-			srv.saved_nsfd = -1;
-		}
-		close(saved_nsfd);
-		freesrvstrings(&srv, cbc_string, cbl_string);
-		return -14;
-	}
-	if(srv.service != S_SOCKS) {
-		close(saved_nsfd);
-		saved_nsfd = -1;
-	}
- }
- if(srv.onetns) {
-	int nsfd = open(srv.onetns, O_RDONLY);
-	if(nsfd == -1) {
-		dolog(&defparam, (unsigned char *)"failed to open onetns");
-		if(srv.service == S_SOCKS) {
-			if(srv.saved_nsfd >= 0) { close(srv.saved_nsfd); srv.saved_nsfd = -1; }
-			if(srv.i_nsfd >= 0) { close(srv.i_nsfd); srv.i_nsfd = -1; }
-		}
-		freesrvstrings(&srv, cbc_string, cbl_string);
-		return -14;
-	}
-	if(setns(nsfd, CLONE_NEWNET)) {
-		dolog(&defparam, (unsigned char *)"failed to setns onetns");
-		close(nsfd);
-		if(srv.service == S_SOCKS) {
-			if(srv.saved_nsfd >= 0) { close(srv.saved_nsfd); srv.saved_nsfd = -1; }
-			if(srv.i_nsfd >= 0) { close(srv.i_nsfd); srv.i_nsfd = -1; }
-		}
-		freesrvstrings(&srv, cbc_string, cbl_string);
-		return -14;
-	}
-	if(srv.service == S_SOCKS) srv.o_nsfd = nsfd;
-	else close(nsfd);
- }
-#endif
- if(iscbl){
-	parsehost(srv.family, cbl_string, (struct sockaddr *)&cbsa);
-	if((srv.cbsock=srv.so._socket(srv.so.state, SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
-		dolog(&defparam, (unsigned char *)"Failed to allocate connect back socket");
-		freesrvstrings(&srv, cbc_string, cbl_string);
-		return -6;
-	}
-	setopts(srv.cbsock, &srv.cbssockopts);
-
-	if(srv.so._bind(srv.so.state, srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
-		dolog(&defparam, (unsigned char *)"Failed to bind connect back socket");
-		srv.so._closesocket(srv.so.state, srv.cbsock);
-		freesrvstrings(&srv, cbc_string, cbl_string);
-		return -7;
-	}
-	if(srv.so._listen(srv.so.state, srv.cbsock, 1 + (srv.maxchild>>4))==-1) {
-		dolog(&defparam, (unsigned char *)"Failed to listen connect back socket");
-		srv.so._closesocket(srv.so.state, srv.cbsock);
-		freesrvstrings(&srv, cbc_string, cbl_string);
-		return -8;
-	}
- }
-
- srv.fds.fd = sock;
- srv.fds.events = POLLIN;
- 
-#ifndef _WIN32
- pthread_attr_init(&pa);
- pthread_attr_setstacksize(&pa,threadstacksize(srv.stacksize));
- pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
-#endif
-
- for (;;) {
-	for(;;){
-		/* A connection is only taken with a slot of maxchild in hand, which
-		   goes to its child; a slot not handed on is kept for the next one.
-		   The wait is timed to notice a reload. */
-		while(!haveslot && conf.paused == srv.paused){
-			if(!_3proxy_sem_timedlock(srv.childslots, 1000)){
-				haveslot = 1;
-				nfull = 0;
-				break;
-			}
-			if(!srv.silent && !(nfull++ % 5)) {
-				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv.childcount, srv.maxchild);
-				dolog(&defparam, buf);
-			}
-		}
-		if (iscbc) break;
-		if (conf.paused != srv.paused) break;
-		error = srv.so._poll(srv.so.state, &srv.fds, 1, 1000);
-		if (error >= 1) break;
-		if (error == 0) continue;
-		if (errno != EAGAIN &&	errno != EINTR) {
-			sprintf((char *)buf, "poll(): %s/%d", strerror(errno), errno);
-			if(!srv.silent)dolog(&defparam, buf);
-			break;
-		}
-	}
-	if((conf.paused != srv.paused) || (error < 0)) break;
-	error = 0;
-	if(!isudp){
-		size = sizeof(defparam.sincr);
-		if(iscbc){
-			new_sock=so._socket(so.state, SASOCK(&defparam.sincr), SOCK_STREAM, IPPROTO_TCP);
-			if(new_sock != INVALID_SOCKET){
-				setopts(new_sock, &srv.cbcsockopts);
-
-				parsehost(srv.family, cbc_string, (struct sockaddr *)&defparam.sincr);
-#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
-				/* as for a listening socket, an interface that cannot be
-				   bound to is not worth retrying */
-				if(bindtodevice(&so, so.state, new_sock, srv.ibindtodevice, *SAFAMILY(&defparam.sincr))) {
-					dolog(&defparam, (unsigned char *)"failed to bind device");
-					so._closesocket(so.state, new_sock);
-					break;
-				}
-#endif
-				if(connectwithpoll(NULL, new_sock,(struct sockaddr *)&defparam.sincr,SASIZE(&defparam.sincr),CONNBACK_TO)) {
-					so._closesocket(so.state, new_sock);
-					new_sock = INVALID_SOCKET;
-					usleep(SLEEPTIME);
-					continue;
-				}
-
-				if(sockrecvfrom(NULL, new_sock,(struct sockaddr*)&defparam.sincr,buf,1,60*1000) != 1 || *buf!='C') {
-					so._closesocket(so.state, new_sock);
-					new_sock = INVALID_SOCKET;
-					usleep(SLEEPTIME);
-					continue;
-				}
-			}
-			else {
-				usleep(SLEEPTIME);
-				continue;
-			}
-		}
-		else {
-			new_sock = srv.so._accept(srv.so.state, sock, (struct sockaddr*)&defparam.sincr, &size);
-			if(new_sock == INVALID_SOCKET){
-#ifdef _WIN32
-				switch(WSAGetLastError()){
-				case WSAEMFILE:
-				case WSAENOBUFS:
-				case WSAENETDOWN:
-					usleep(SLEEPTIME * 10);
-					break;
-				case WSAEINTR:
-					error = 1;
-					break;
-				default:
-					break;
-				}
+ return srvrun(&s);
+}
 
 #else
-				switch (errno){
-#ifdef EMFILE
-				case EMFILE:
-#endif
-#ifdef ENFILE
-				case ENFILE:
-#endif
-#ifdef ENOBUFS
-				case ENOBUFS:
-#endif
-#ifdef ENOMEM
-				case ENOMEM:
-#endif
-					usleep(SLEEPTIME * 10);
-					break;
 
-				default:
-					break;
-				}
-#endif
-				nlog++;			
-				if(!srv.silent && (error || nlog > 5000)) {
-					sprintf((char *)buf, "accept(): %s", strerror(errno));
-					dolog(&defparam, buf);
-					nlog = 0;
-				}
-				continue;
-			}
-			setopts(new_sock, &srv.clisockopts);
-		}
-		size = sizeof(defparam.sincl);
-		if(srv.so._getsockname(srv.so.state, new_sock, (struct sockaddr *)&defparam.sincl, &size)){
-			sprintf((char *)buf, "getsockname(): %s", strerror(errno));
-			if(!srv.silent)dolog(&defparam, buf);
-			srv.so._closesocket(srv.so.state, new_sock);
-			continue;
-		}
-#ifdef WITH_UN
-		if(*SAFAMILY(&defparam.sincl) == AF_UNIX) defparam.sincr = defparam.sincl;
-#endif
-#ifdef _WIN32
-		ioctlsocket(new_sock, FIONBIO, &ul);
-#else
-		fcntl(new_sock,F_SETFL,O_NONBLOCK | fcntl(new_sock,F_GETFL));
-#endif
-#ifndef _WIN32
-		/* Not on Windows: there closesocket() on a non-blocking socket with a linger
-		   timeout fails with WSAEWOULDBLOCK while data is queued, leaving the socket
-		   open. Without it the close completes in the background, data first. */
-		lg.l_onoff = 1;
-		lg.l_linger = conf.timeouts[STRING_L];
-		srv.so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
-#endif
-		srv.so._setsockopt(srv.so.state, new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
-	}
-#ifndef NOUDPMAIN
-	else {
-		struct clientparam *toparam;
+int mainprepare(int argc, char** argv, void **service){
+ struct srvstart *s;
+ int res;
 
-		_3proxy_sem_lock(udpinit);
-		srv.udplen = sockrecvfrom(NULL, srv.srvsock, (struct sockaddr *)&defparam.sincr, srv.udpbuf, UDPBUFSIZE, 0);
-		if(srv.udplen <= 0) {
-			_3proxy_sem_unlock(udpinit);
-			continue;
-		}
-		if(hashresolv(&udp_table, &defparam, &toparam, NULL)) {
-		    int i, len=0;
-		
-		    if(!toparam->bandlimfunc || !(*toparam->bandlimfunc)(toparam, 0, srv.udplen)){
-			if(toparam->udp_nhops){
-			    for(i=1; i < toparam->udp_nhops; i++){
-				len+=socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->udp_relay[i-1]);
-    			    }
-    			    len += socks5_udp_build_hdr(srv.udpbuf2+len, &toparam->req);
-			}
-			memcpy(srv.udpbuf2+len, srv.udpbuf, srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen);
-			len += srv.udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv.udplen;
-			srv.so._sendto(toparam->sostate, toparam->remsock, (char *)srv.udpbuf2, len, 0, (struct sockaddr *)&toparam->sinsr, SASIZE(&toparam->sinsr));
-			toparam->statscli64 += srv.udplen;
-			toparam->nwrites++;
-		    }
-		    _3proxy_sem_unlock(udpinit);
-		    continue;
-		}
-	}
-#endif
-	if(! (newparam = malloc (sizeof(defparam)))){
-		if(!isudp) srv.so._closesocket(srv.so.state, new_sock);
-#ifndef NOUDPMAIN
-		else {
-			_3proxy_sem_unlock(udpinit);
-		}
-#endif
-		defparam.res = 21;
-		if(!srv.silent)dolog(&defparam, (unsigned char *)"Memory Allocation Failed");
-		usleep(SLEEPTIME);
-		continue;
-	};
-	*newparam = defparam;
-	if(defparam.hostname)newparam->hostname=(unsigned char *)strdup((char *)defparam.hostname);
-	clearstat(newparam);
-	if(!isudp) newparam->clisock = new_sock;
-	newparam->prev = newparam->next = NULL;
-	error = 0;
-	_3proxy_mutex_lock(&srv.counter_mutex);
-	if(!srv.child){
-		srv.child = newparam;
-	}
-	else {
-		newparam->next = srv.child;
-		srv.child = srv.child->prev = newparam;
-	}
-#ifdef _WIN32
-#ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
-#else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv.stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
-#endif
-	if (h) {
-		CloseHandle(h);
-	}
-	else {
-		sprintf((char *)buf, "_beginthreadex(): %s", _strerror(NULL));
-		error = 1;
-	}
-#else
-
-	if ((error = pthread_create(&thread, &pa, threadfunc, (void *)newparam))){
-		sprintf((char *)buf, "pthread_create(): %s", strerror(error));
-	}
-#endif
-	if(error){
-		if(!srv.silent)dolog(&defparam, buf);
-		if(newparam->prev) newparam->prev->next = newparam->next;
-		else srv.child = newparam->next;
-		if(newparam->next) newparam->next->prev = newparam->prev;
-		if(newparam->clisock != INVALID_SOCKET){
-			srv.so._shutdown(srv.so.state, newparam->clisock, SHUT_RDWR);
-			srv.so._closesocket(srv.so.state, newparam->clisock);
-			newparam->clisock = INVALID_SOCKET;
-		}
-		newparam->srv = NULL;
-#ifndef NOUDPMAIN
-		if(isudp){
-			_3proxy_sem_unlock(udpinit);
-		}
-#endif
-		freeparam(newparam);
-	}
-	else {
-		srv.childcount++;
-		haveslot = 0;
-		newparam->threadid = (uint64_t)thread;
-	}
-	_3proxy_mutex_unlock(&srv.counter_mutex);
-	memset(&defparam.sincl, 0, sizeof(defparam.sincl));
-	memset(&defparam.sincr, 0, sizeof(defparam.sincr));
+ *service = NULL;
+ if(!(s = malloc(sizeof(*s)))) return 2;
+ if((res = srvprepare(s, argc, argv))){
+	srvdiscard(s);
+	free(s);
+	return res;
  }
-
-
-#ifndef STDMAIN
- _3proxy_mutex_lock(&config_mutex);
- if(srv.next)srv.next->prev = srv.prev;
- if(srv.prev)srv.prev->next = srv.next;
- else conf.services = srv.next;
- _3proxy_mutex_unlock(&config_mutex);
-#endif
-
- if(!srv.silent) srv.logfunc(&defparam, (unsigned char *)"Exiting thread");
- /* srvfree() waits for every slot to come back, this one included */
- if(haveslot) _3proxy_sem_unlock(srv.childslots);
- srvfree(&srv);
-
-#ifndef _WIN32
- pthread_attr_destroy(&pa);
-#endif
- if(defparam.hostname)free(defparam.hostname);
- if(cbc_string)free(cbc_string);
- if(cbl_string)free(cbl_string);
- if(fp) fclose(fp);
-
+ /* listed only once it is sure to run: the thread reading the
+    configuration links and unlinks it here, the service unlinks itself */
+ if(!conf.services){
+	conf.services = &s->srv;
+ }
+ else {
+	s->srv.next = conf.services;
+	conf.services = conf.services->prev = &s->srv;
+ }
+ *service = s;
  return 0;
 }
+
+int mainrun(void *service){
+ int res = srvrun((struct srvstart *)service);
+
+ free(service);
+ return res;
+}
+
+/* A prepared service which could not be started. */
+void maindrop(void *service){
+ struct srvstart *s = (struct srvstart *)service;
+
+ srvunlink(&s->srv);
+ srvdiscard(s);
+ free(s);
+}
+
+#endif
 
 #ifndef NOUDPMAIN
 int udpinited = 0;

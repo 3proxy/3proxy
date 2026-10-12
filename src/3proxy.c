@@ -558,7 +558,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #ifndef NORADIUS
   _3proxy_mutex_init(&rad_mutex);
 #endif
-  if(_3proxy_sem_init(conf.threadinit, 1, 1) || _3proxy_sem_init_timed(serviceexited, 0, 0x7fffffff)){
+  if(_3proxy_sem_init_timed(serviceexited, 0, 0x7fffffff)){
     fprintf(stderr, "semaphore init failed\n");
     return 1;
   }
@@ -581,7 +581,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   res = readconfig(fp);
   conf.version++;
 
-  if(res) RETURN(res);
+  /* readconfig() names the failing line, which an exit status would cut
+     to 8 bits: a failed configuration exits with 1 */
+  if(res) RETURN(1);
   fclose(fp); fp = NULL;
 
 #ifdef _WIN32
@@ -614,6 +616,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 CLEARRETURN:
 
  if(fp && fp != stdin) {fclose(fp); fp = NULL;}
- return 0;
+ return res;
 
 }
