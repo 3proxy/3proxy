@@ -1328,8 +1328,15 @@ groupname. Unix only.</p>
 <i>&lt;path&gt;</i> [<i>&lt;uid&gt;</i>]
 [<i>&lt;gid&gt;</i>] <br>
 calls chroot(path) and sets gid/uid. Unix only. uid/gid
-supported since 0.9, can be numeric or
-username/groupname</p>
+supported since 0.9, can be numeric or username/groupname.
+The time zone and the syslog connection are set up before
+the call. Plugins which read their own configuration or load
+modules while running need them inside the chroot: PAM
+(<i>/etc/pam.d</i> and the modules it names, read for every
+authentication), LDAP (<i>ldap.conf</i> and, for ldaps, the
+CA certificates), ODBC (<i>odbc.ini</i>, <i>odbcinst.ini</i>
+and the driver libraries, loaded again whenever the
+connection is reopened).</p>
 
 
 <p style="margin-left:9%; margin-top: 1em"><b>stacksize</b>
