@@ -268,12 +268,17 @@ CLEANRET:
 	int repcode;
 
 	sasize = sizeof(sin);
-	if(command != 3 && param->remsock != INVALID_SOCKET) param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&sin,  &sasize);
-	if(command != 3 && !SAISNULL(&param->srv->extNat)){
-	    uint16_t port;
-	    port = *SAPORT(&sin);
-	    sin = param->srv->extNat;
-	    *SAPORT(&sin) = port;
+	/* CONNECT and BIND report the address of the socket towards the
+	   destination, UDP ASSOCIATE the one the client sends its datagrams
+	   to, as does a request which never got a socket of its own */
+	if(command != 3 && param->remsock != INVALID_SOCKET){
+	    param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&sin,  &sasize);
+	    if(!SAISNULL(&param->srv->extNat)){
+		uint16_t port;
+		port = *SAPORT(&sin);
+		sin = param->srv->extNat;
+		*SAPORT(&sin) = port;
+	    }
 	}
 	else {
 	    param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin,  &sasize);
