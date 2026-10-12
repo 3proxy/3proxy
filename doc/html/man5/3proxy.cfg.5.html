@@ -210,18 +210,30 @@ or hostname, useful in case of dynamic DNS. <b><br>
 -oR</b><i>OPTIONS</i> options for proxy-to-client
 (<b>-oc</b>), proxy-to-server (<b>-os</b>), proxy listening
 (<b>-ol</b>), connect back client (<b>-or</b>), connect back
-listening (<b>-oR</b>) sockets. Options like TCP_CORK,
-TCP_NODELAY, TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS,
+listening (<b>-oR</b>) sockets. <i>OPTIONS</i> is a comma
+separated list of <i>NAME</i> or <i>NAME</i>=<i>VALUE</i>; a
+name alone sets the option to 1 (TCP_MAXSEG to the value of
+<b>maxseg</b>), and <i>NAME</i>=0 turns it off. Options add
+to the defaults and to the options given earlier for the
+same socket. An unknown name or a value which is not a
+number is an error. TCP_NODELAY is set by default on
+proxy-to-client and proxy-to-server sockets, so a reply
+written in several parts is not delayed by Nagle&rsquo;s
+algorithm; use <b>-ocTCP_NODELAY=0</b> or
+<b>-osTCP_NODELAY=0</b> to turn it off, e.g. to send fewer
+packets on slow links. Options like TCP_CORK, TCP_NODELAY,
+TCP_DEFER_ACCEPT, TCP_QUICKACK, TCP_TIMESTAMPS,
 TCP_FASTOPEN, SO_REUSEADDR, SO_REUSEPORT,
 SO_EXCLUSIVEADDRUSE, SO_PORT_SCALABILITY,
 SO_REUSE_UNICASTPORT, SO_KEEPALIVE, SO_DONTROUTE may be
 supported depending on OS. SO_REUSEADDR and SO_REUSEPORT are
-set on the listening socket by default on Unix. On Windows
-SO_REUSEADDR is not set: it is not required to rebind a
-listening port and it only lets another local process bind
-the same address and port. Use SO_EXCLUSIVEADDRUSE (Windows)
-on the listening socket (<b>-ol</b>) to prevent that.
-<b><br>
+set by default on the listening sockets (<b>-ol</b>,
+<b>-oR</b>) on Unix; <b>-olSO_REUSEPORT=0</b> turns one off.
+On Windows SO_REUSEADDR is not set: it is not required to
+rebind a listening port and it only lets another local
+process bind the same address and port. Use
+SO_EXCLUSIVEADDRUSE (Windows) on the listening socket
+(<b>-ol</b>) to prevent that. <b><br>
 -H</b> (for all services) Expect HAProxy PROXY protocol v1
 header on incoming connection. This allows the proxy to
 receive real client IP address from HAProxy or other load
@@ -236,12 +248,23 @@ second. Useful to minimize polling <b><br>
 -s</b> <br>
 (for admin) secure, allow only secure operations, currently
 only traffic counters view without ability to reset. <br>
-(for TCP services, Linux) enable splice(). splice() is not
-built by default and is disabled even when built, because
-current Linux does not implement SPLICE_F_MOVE, so no real
-zero-copy takes place and the read/write path is faster for
-most traffic. Rebuild with -DWITHSPLICE to make -s
-available, -s0 disables it explicitly. <b><br>
+(for TCP services, Linux) use splice() to pass data between
+the client and the server without copying it through 3proxy.
+<b>-s</b> alone splices both directions where it pays: a
+body of known length if at least 16K of it is left to read,
+a stream once it carries large reads, back to copying when
+they turn small. <b>-s1</b> always splices what the server
+sends to the client (downloads), <b>-s2</b> what the client
+sends (uploads), <b>-s3</b> both; adding 4 (<b>-s5</b>,
+<b>-s6</b>, <b>-s7</b>, the last the same as <b>-s</b>)
+splices those directions only where it pays. <b>-s0</b>, the
+default, turns it off. splice() suits large transfers: they
+go faster and use less CPU; small requests go slower with
+it. A spliced direction needs a pipe (two file descriptors),
+made when first needed and kept for the connection, and more
+kernel memory; data filters are not applied to spliced data.
+Available in builds with WITHSPLICE, the default on Linux.
+<b><br>
 -C</b> <br>
 (for TCP services) a connection closed by any of the sides
 terminates the session, buffered data is delivered before
@@ -277,7 +300,12 @@ client reported) <b><br>
 -a1</b> (for proxy) anonymous proxy (random client
 information reported) <b><br>
 -a2</b> (for proxy) generate Via: and X-Forwarded-For:
-instead of Forwarded: <br>
+instead of Forwarded: <b><br>
+-Xftp</b> (for proxy) fetch <b>ftp://</b> URLs, in a build
+with FTP support. Without this the scheme is not one the
+service knows, whatever the build: fetching it opens a
+second connection and builds a listing, which a service
+serving http has no use for. <br>
 Also, all options mentioned for <b>proxy</b>(8)
 <b>socks</b>(8) <b>pop3p</b>(8) <b>imapp</b>(8)
 <b>tcppm</b>(8) <b>udppm</b>(8) <b>ftppr</b>(8) <br>
@@ -1590,10 +1618,12 @@ authentication and/or allow/deny ACLs.</p>
 and FTP are built when they are asked for, and are not in a
 default build. <b>MAILPROXY=true</b> builds <b>pop3p</b>,
 <b>imapp</b> and <b>smtpp</b>, and <b>FTP=true</b> builds
-<b>ftppr</b> and the <b>ftp://</b> scheme of the HTTP proxy;
-with CMake the switches are <b>-D3PROXY_USE_MAILPROXY=ON</b>
-and <b>-D3PROXY_USE_FTP=ON</b>. The standalone binaries of
-those services are built with them and not without. <br>
+<b>ftppr</b> and the <b>ftp://</b> scheme of the HTTP proxy,
+which a <b>proxy</b> service then still has to ask for with
+<b>-Xftp</b>; with CMake the switches are
+<b>-D3PROXY_USE_MAILPROXY=ON</b> and
+<b>-D3PROXY_USE_FTP=ON</b>. The standalone binaries of those
+services are built with them and not without. <br>
 A configuration naming a service which was not built is
 still read. The three mail proxies become <b>tlspr</b>
 negotiating STARTTLS in that protocol, which is what most of
