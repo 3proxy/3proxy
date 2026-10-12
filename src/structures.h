@@ -199,9 +199,7 @@ int
 
 #define MAX_HASH_SIZE (64)
 #define UDPBUFSIZE 16384
-/* A connection's buffer for each side: 16K, and the 5 byte header of a TLS
-   record that big, which tlspr reads whole. */
-#define CLIENTBUFSIZE (16384 + 64)
+#define CLIENTBUFSIZE 32768
 #define CLIENTTMPBUFSIZE 8192
 #define HOSTNAMELEN 256
 #define USERNAMELEN 128
@@ -805,6 +803,14 @@ struct clientparam {
 			*hdrfilterscli[MAX_FILTERS], *hdrfilterssrv[MAX_FILTERS],
 			*predatfilters[MAX_FILTERS], *datfilterscli[MAX_FILTERS],
 			*datfilterssrv[MAX_FILTERS];
+	/* The thread this structure belongs to, which keeps it from one
+	   connection to the next while it waits in the pool. */
+	struct clientparam *poolnext;	/* next idle worker */
+	_3proxy_sem_t wake;		/* posted when given a connection */
+	size_t stacksize;		/* of its thread */
+	uint64_t workerid;		/* the thread's id */
+	int pooled,			/* waiting in the pool */
+		poolexit;		/* woken to end instead */
 	/* The connection's scratch buffer, for a log line and the like: for
 	   something done at once, never for what has to outlive a call into
 	   anything that could log. */
@@ -814,6 +820,19 @@ struct clientparam {
 	unsigned char	clibufdata[CLIENTBUFSIZE],
 			srvbufdata[CLIENTBUFSIZE];
 };
+
+/* Threads whose connections have ended wait here for the next one, with
+   the clientparam they keep, for any service whose stack fits theirs. */
+struct threadpool {
+	_3proxy_mutex_t mutex;
+	struct clientparam *idle;	/* most recently parked first */
+	unsigned nidle;
+	unsigned limit;			/* the cap last applied */
+	unsigned services;		/* running services and their maxchild, */
+	unsigned maxchild;		/* for the automatic cap */
+	uint64_t created, reused;
+};
+extern struct threadpool tpool;
 
 struct filemon {
 	char * path;
@@ -838,6 +857,7 @@ struct extparam {
 		demon, maxchild, backlog, needreload, timetoexit, version, noforce, bandlimver, parentretries;
 	unsigned authcachetype, authcachetime;
 	int filtermaxsize;
+	int poolmax, pooltimeout;	/* threadpool: idle workers kept, -1 automatic */
 	int gracetraf, gracenum, gracedelay;
 	int maxseg;
 	unsigned char *logname, **archiver;
@@ -1051,7 +1071,8 @@ typedef enum {
 	TYPE_PERIOD,
 	TYPE_SERVER,
 	TYPE_PASSWORD,
-	TYPE_HOSTNAME
+	TYPE_HOSTNAME,
+	TYPE_THREADPOOL
 }DATA_TYPE;
 
 #ifdef  __cplusplus

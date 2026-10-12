@@ -534,6 +534,26 @@ static void * ef_server_childcount(struct node * node){
 	return &((struct srvparam *)node->value) -> childcount;
 }
 
+static void * ef_pool_idle(struct node * node){
+	return &((struct threadpool *)node->value) -> nidle;
+}
+
+static void * ef_pool_limit(struct node * node){
+	return &((struct threadpool *)node->value) -> limit;
+}
+
+static void * ef_pool_timeout(struct node * node){
+	return &conf.pooltimeout;
+}
+
+static void * ef_pool_created(struct node * node){
+	return &((struct threadpool *)node->value) -> created;
+}
+
+static void * ef_pool_reused(struct node * node){
+	return &((struct threadpool *)node->value) -> reused;
+}
+
 static void * ef_server_maxchild(struct node * node){
 	return &((struct srvparam *)node->value) -> maxchild;
 }
@@ -892,6 +912,14 @@ static struct property prop_server[] = {
 };
 
 
+static struct property prop_threadpool[] = {
+	{"idle", ef_pool_idle, TYPE_UNSIGNED, "threads waiting for a connection"},
+	{"limit", ef_pool_limit, TYPE_UNSIGNED, "most threads kept waiting"},
+	{"timeout", ef_pool_timeout, TYPE_INTEGER, "seconds a thread waits before it ends"},
+	{"created", ef_pool_created, TYPE_UNSIGNED64, "threads started"},
+	{"reused", ef_pool_reused, TYPE_UNSIGNED64, "connections given to a waiting thread"}
+};
+
 static struct property prop_client[] = {
 	{"servicetype", ef_client_type, TYPE_STRING, "type of the client"},
 	{"threadid", ef_client_threadid, TYPE_UNSIGNED64, "process thread id"},
@@ -950,5 +978,6 @@ struct datatype datatypes[64] = {
 	{"period", ef_period_next, NULL, prop_period, sizeof(prop_period)/sizeof(struct property)},
 	{"server", ef_server_next, NULL, prop_server, sizeof(prop_server)/sizeof(struct property)},
 	{"password", NULL, pr_password, NULL, 0},
-	{"hostname", ef_hostname_next, pr_hostname, prop_hostname, sizeof(prop_hostname)/sizeof(struct property)}
+	{"hostname", ef_hostname_next, pr_hostname, prop_hostname, sizeof(prop_hostname)/sizeof(struct property)},
+	{"threadpool", NULL, NULL, prop_threadpool, sizeof(prop_threadpool)/sizeof(struct property)}
 };

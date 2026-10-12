@@ -1396,6 +1396,21 @@ LDAP (\fIldap.conf\fR and, for ldaps, the CA certificates),
 ODBC (\fIodbc.ini\fR, \fIodbcinst.ini\fR and the driver libraries, loaded again whenever the connection is reopened).
 
 .br
+.BR threadpool
+\fI<max_idle>\fR [\fI<idle_seconds>\fR]
+.br
+ A thread whose connection has ended waits for the next one, of any service,
+instead of ending, and keeps the memory it had for its connection: a new
+connection starts without creating a thread. At most \fImax_idle\fR threads
+wait, each at most \fIidle_seconds\fR (60 by default; 0 waits without a limit).
+By default up to 32 threads wait for each running service, but no more than
+the services' maxchild together. \fBthreadpool 0\fR ends every thread with its
+connection. A thread serves a service only if its stack is at least as large as
+the service needs (see \fBstacksize\fR), otherwise a new one is created.
+The admin service shows how many threads wait, how many were created and how
+many connections were given to a waiting one on its Running Services page.
+
+.br
 .BR stacksize
 \fI<value_to_add_to_default_stack_size>\fR
 .br
@@ -1443,7 +1458,7 @@ as
 data filtering will be performed through filtering plugins to avoid data
 corruption and/or Content-Length changing. A body up to this size is read
 whole into memory and filtered at once. 0 removes the limit, but then a body
-is only filtered whole if it fits in the connection's 16K buffer.
+is only filtered whole if it fits in the connection's 32K buffer.
 Default is 1MB (1048576).
 
 .SH SSL/TLS SUPPORT

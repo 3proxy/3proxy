@@ -51,6 +51,12 @@ int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADD
    thread does without making a socket of its own, a name looked up through
    the system, a log line, RADIUS, happens in the main namespace. */
 int mainnsfd = -1;
+/* set in a thread left outside the main namespace, which is not reused */
+static __thread int nsfailed;
+
+int nsbroken(void){
+	return nsfailed;
+}
 
 /* Opens the main namespace, once and while /proc can still be reached: a
    chroot may take it away. */
@@ -72,6 +78,7 @@ SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int sid
 		/* Left in the other namespace: no socket from here, and the
 		   connection fails. The thread ends with it. */
 		if(s != INVALID_SOCKET) sf->_closesocket(state, s);
+		nsfailed = 1;
 		return INVALID_SOCKET;
 	}
 	errno = err;
@@ -221,6 +228,8 @@ size_t threadstacksize(int extra){
 }
 #endif
 
+struct threadpool tpool;
+
 struct extparam conf = {
 	.timeouts = timeouts,
 	.acl = NULL,
@@ -231,6 +240,8 @@ struct extparam conf = {
 	.trafcounter = NULL,
 	.services = NULL,
 	.stacksize = 0,
+	.poolmax = -1,
+	.pooltimeout = 60,
 	.counterd = -1,
 	.haveerror = 0,
 	.rotate = 0,

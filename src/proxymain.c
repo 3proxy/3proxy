@@ -14,7 +14,7 @@
 /* Child functions do not call each other, a child requesting redirection to
    another child returns it instead of calling it, to keep the stack flat.
    The child which completed the request returns NULL. param is logged by
-   the child and released here.
+   the child and released here, but not freed: its thread may keep it.
  */
 void * childfunc(struct clientparam * param){
  PROXYFUNC pf = param->srv->pf;
@@ -25,28 +25,21 @@ void * childfunc(struct clientparam * param){
 	param->res = 101;
 	dolog(param, (unsigned char *)"Redirection loop");
  }
- freeparam(param);
+ releaseparam(param);
  return NULL;
 }
 
-#define param ((struct clientparam *) p)
-#ifdef _WIN32
-DWORD WINAPI threadfunc(LPVOID p) {
-#else
-void * threadfunc (void *p) {
-#endif
+/* One connection, from the filters to the end of the child which answers
+   it. The structure is released, not freed, when it returns. */
+static void serveparam(struct clientparam *param){
  int i = -1;
 #ifdef MODULEMAINFUNC
  if(makefilters(param->srv, param) > CONTINUE){
 #ifndef NOUDPMAIN
 	if(param->srv->service == S_UDPPM) _3proxy_sem_unlock(udpinit);
 #endif
-	freeparam(param);
-#ifdef _WIN32
-	return 0;
-#else
-	return NULL;
-#endif
+	releaseparam(param);
+	return;
  }
 #endif
  if(param->srv->cbsock != INVALID_SOCKET){
@@ -96,7 +89,7 @@ void * threadfunc (void *p) {
  }
  if(!i){
 	param->res = 13;
-	freeparam(param);
+	releaseparam(param);
  }
  else {
 
@@ -139,15 +132,101 @@ void * threadfunc (void *p) {
 		}
 	    }
 	}
-	childfunc((struct clientparam *)p);
+	childfunc(param);
  }
+}
+
+/* Frees a worker's structure, once its thread is done with it. */
+static void freeworker(struct clientparam *param){
+ releaseparam(param);
+ _3proxy_sem_destroy(param->wake);
+ free(param);
+}
+
+/* The automatic cap: 32 idle workers for each running service, but never
+   more than all of them could have connections. */
+static unsigned poollimit(void){
+ unsigned limit;
+
+ if(conf.poolmax >= 0) limit = (unsigned)conf.poolmax;
+ else {
+	limit = 32 * tpool.services;
+	if(limit > tpool.maxchild) limit = tpool.maxchild;
+ }
+ tpool.limit = limit;
+ return limit;
+}
+
+/* Parks a worker whose connection has ended and waits for the next one.
+   Returns 0 when the thread is to end instead: on exit, when the pool is
+   full, when the thread was left in another network namespace, or when it
+   waited longer than the idle timeout. */
+static int poolpark(struct clientparam *param){
+ int timeout;
+
+ _3proxy_mutex_lock(&tpool.mutex);
+ if(conf.timetoexit || nsbroken() || tpool.nidle >= poollimit()){
+	_3proxy_mutex_unlock(&tpool.mutex);
+	return 0;
+ }
+ param->poolnext = tpool.idle;
+ tpool.idle = param;
+ tpool.nidle++;
+ param->pooled = 1;
+ timeout = conf.pooltimeout;
+ _3proxy_mutex_unlock(&tpool.mutex);
+
+ if(timeout <= 0) _3proxy_sem_lock(param->wake);
+ else if(_3proxy_sem_timedlock(param->wake, (unsigned)timeout * 1000)){
+	struct clientparam **pp;
+
+	_3proxy_mutex_lock(&tpool.mutex);
+	if(param->pooled){
+		for(pp = &tpool.idle; *pp != param; pp = &(*pp)->poolnext);
+		*pp = param->poolnext;
+		tpool.nidle--;
+		param->pooled = 0;
+		_3proxy_mutex_unlock(&tpool.mutex);
+		return 0;
+	}
+	_3proxy_mutex_unlock(&tpool.mutex);
+	/* taken from the pool as the wait ran out: the connection follows */
+	_3proxy_sem_lock(param->wake);
+ }
+ return !param->poolexit;
+}
+
+/* Wakes every idle worker to end, when the process exits. */
+void pooldrain(void){
+ struct clientparam *param;
+
+ _3proxy_mutex_lock(&tpool.mutex);
+ while((param = tpool.idle)){
+	tpool.idle = param->poolnext;
+	tpool.nidle--;
+	param->pooled = 0;
+	param->poolexit = 1;
+	_3proxy_sem_unlock(param->wake);
+ }
+ _3proxy_mutex_unlock(&tpool.mutex);
+}
+
+#ifdef _WIN32
+DWORD WINAPI threadfunc(LPVOID p) {
+#else
+void * threadfunc (void *p) {
+#endif
+ struct clientparam *param = (struct clientparam *)p;
+
+ do serveparam(param);
+ while(poolpark(param));
+ freeworker(param);
 #ifdef _WIN32
  return 0;
 #else
  return NULL;
 #endif
 }
-#undef param
 
 #ifdef _WIN32
 /* Present since Windows 7 (SO_PORT_SCALABILITY) and Windows 10 / Server 2019
@@ -367,7 +446,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
 	" -lFILENAME log to FILENAME\n"
-	" -b(BUFSIZE) size of network buffer (default 65536 for TCP, 16384 for UDP)\n"
+	" -b(BUFSIZE) size of network buffer, at most and by default 32768\n"
 	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
 	"\n"
@@ -1046,15 +1125,35 @@ static int udpnext(struct srvstart *s){
 static int srvspawn(struct srvstart *s, SOCKET client_sock){
  struct srvparam *srv = &s->srv;
  struct clientparam *defparam = &s->defparam;
- struct clientparam * newparam;
+ struct clientparam * newparam = NULL, **pp;
  pthread_t thread;
  unsigned char buf[256];
- int error = 0;
+ int error = 0, reused;
+ size_t need;
 #ifdef _WIN32
  HANDLE h;
+
+ need = 16384 + srv->stacksize;
+#else
+ need = threadstacksize(srv->stacksize);
 #endif
 
- if(! (newparam = malloc (sizeof(*defparam)))){
+ /* an idle worker if one has the stack this service needs */
+ _3proxy_mutex_lock(&tpool.mutex);
+ for(pp = &tpool.idle; *pp; pp = &(*pp)->poolnext){
+	if((*pp)->stacksize >= need){
+		newparam = *pp;
+		*pp = newparam->poolnext;
+		newparam->pooled = 0;
+		tpool.nidle--;
+		tpool.reused++;
+		break;
+	}
+ }
+ _3proxy_mutex_unlock(&tpool.mutex);
+ reused = newparam != NULL;
+ if(!reused && (!(newparam = malloc (sizeof(*defparam))) || _3proxy_sem_init_timed(newparam->wake, 0, 1))){
+	if(newparam) free(newparam);
 	if(!s->isudp) srv->so._closesocket(srv->so.state, client_sock);
 #ifndef NOUDPMAIN
 	else {
@@ -1066,6 +1165,11 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 	usleep(SLEEPTIME);
 	return 1;
  };
+ if(!reused){
+	newparam->stacksize = need;
+	newparam->pooled = newparam->poolexit = 0;
+	newparam->poolnext = NULL;
+ }
  memcpy(newparam, defparam, offsetof(struct clientparam, filters));
  newparam->clibuf = newparam->clibufdata;
  newparam->srvbuf = newparam->srvbufdata;
@@ -1081,6 +1185,8 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 	newparam->next = srv->child;
 	srv->child = srv->child->prev = newparam;
  }
+ /* a worker from the pool is woken below, once it is one of the children */
+ if(!reused){
 #ifdef _WIN32
 #ifndef _WINCE
  h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv->stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
@@ -1100,6 +1206,7 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 	sprintf((char *)buf, "pthread_create(): %s", strerror(error));
  }
 #endif
+ }
  if(error){
 	if(!srv->silent)dolog(defparam, buf);
 	if(newparam->prev) newparam->prev->next = newparam->next;
@@ -1116,13 +1223,20 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 		_3proxy_sem_unlock(udpinit);
 	}
 #endif
-	freeparam(newparam);
+	freeworker(newparam);
  }
  else {
 	srv->childcount++;
-	newparam->threadid = (uint64_t)thread;
+	if(!reused){
+		newparam->workerid = (uint64_t)thread;
+		_3proxy_mutex_lock(&tpool.mutex);
+		tpool.created++;
+		_3proxy_mutex_unlock(&tpool.mutex);
+	}
+	newparam->threadid = newparam->workerid;
  }
  _3proxy_mutex_unlock(&srv->counter_mutex);
+ if(reused) _3proxy_sem_unlock(newparam->wake);
  memset(&defparam->sincl, 0, sizeof(defparam->sincl));
  memset(&defparam->sincr, 0, sizeof(defparam->sincr));
  return error;
@@ -1158,6 +1272,11 @@ static int srvrun(struct srvstart *s){
  if(!s->isudp && s->iscbl && (res = cblisten(s))) goto EXIT;
 #endif
 
+ /* counted for the automatic cap of the thread pool while it runs */
+ _3proxy_mutex_lock(&tpool.mutex);
+ tpool.services++;
+ tpool.maxchild += srv->maxchild;
+ _3proxy_mutex_unlock(&tpool.mutex);
  for (;;) {
 	for(;;){
 		/* A connection is only taken with a slot of maxchild in hand, which
@@ -1198,6 +1317,10 @@ static int srvrun(struct srvstart *s){
 	if(next == NEXT_RETRY) continue;
 	if(!srvspawn(s, new_sock)) haveslot = 0;
  }
+ _3proxy_mutex_lock(&tpool.mutex);
+ tpool.services--;
+ tpool.maxchild -= srv->maxchild;
+ _3proxy_mutex_unlock(&tpool.mutex);
 
 EXIT:
 #ifndef STDMAIN
@@ -1262,6 +1385,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
  WSAStartup(MAKEWORD( 1, 1 ), &wd);
 
 #endif
+ _3proxy_mutex_init(&tpool.mutex);
 
  if((res = srvprepare(&s, argc, argv))) return res;
 #ifndef _WIN32
@@ -1277,12 +1401,19 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	if(! (newparam = malloc (sizeof(s.defparam)))){
 		return 2;
 	};
-	*newparam = s.defparam;
-	return(childfunc(newparam)? 1:0);
+	memcpy(newparam, &s.defparam, offsetof(struct clientparam, filters));
+	newparam->clibuf = newparam->clibufdata;
+	newparam->srvbuf = newparam->srvbufdata;
+	newparam->clibufsize = newparam->srvbufsize = SRVBUFSIZE(&s.srv);
+	childfunc(newparam);
+	free(newparam);
+	return 0;
 	
  }
 #endif
- return srvrun(&s);
+ res = srvrun(&s);
+ pooldrain();
+ return res;
 }
 
 #else
@@ -1478,7 +1609,11 @@ void srvfree(struct srvparam * srv){
 }
 
 
-void freeparam(struct clientparam * param) {
+/* Ends a connection: everything it holds is released and it leaves its
+   service, but the structure itself stays, with nothing in it pointing to
+   what was freed. After this the service may be gone at any moment, so
+   param->srv is cleared and nothing here touches it again. */
+void releaseparam(struct clientparam * param) {
 	if(param->srv){
 		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
 #ifndef STDMAIN
@@ -1491,11 +1626,14 @@ void freeparam(struct clientparam * param) {
 	}
 	if(param->clibuf != param->clibufdata) free(param->clibuf);
 	if(param->srvbuf != param->srvbufdata) free(param->srvbuf);
+	param->clibuf = param->clibufdata;
+	param->srvbuf = param->srvbufdata;
 #ifdef WITHSPLICE
 	if(param->pipecli[0] >= 0) close(param->pipecli[0]);
 	if(param->pipecli[1] >= 0) close(param->pipecli[1]);
 	if(param->pipesrv[0] >= 0) close(param->pipesrv[0]);
 	if(param->pipesrv[1] >= 0) close(param->pipesrv[1]);
+	param->pipecli[0] = param->pipecli[1] = param->pipesrv[0] = param->pipesrv[1] = -1;
 #endif
 	/* Not shut down on Windows: there shutting down receiving resets the
 	   connection as soon as the peer sends anything more, and close()
@@ -1527,6 +1665,7 @@ void freeparam(struct clientparam * param) {
 #endif
 			param->srv->so._closesocket(param->sostate, param->clisock);
 		}
+		param->ctrlsocksrv = param->ctrlsock = param->remsock = param->clisock = INVALID_SOCKET;
 	}
 #ifndef STDMAIN
 	while(param->nfilters > 0){
@@ -1536,6 +1675,8 @@ void freeparam(struct clientparam * param) {
 	}
 	if(param->connlim) stopconnlims(param);
 #endif
+	/* the sockets were closed and the filters cleared with it */
+	param->sostate = NULL;
 	/* Leaving the service comes last. Once its last child is gone, srvfree()
 	   frees the service along with its socket functions, filters and mutex,
 	   and a close above may have lingered for seconds before getting here. */
@@ -1556,7 +1697,13 @@ void freeparam(struct clientparam * param) {
 			_3proxy_sem_unlock(param->srv->childslots);
 		}
 		_3proxy_mutex_unlock(&param->srv->counter_mutex);
+		param->prev = param->next = NULL;
+		param->srv = NULL;
 	}
+}
+
+void freeparam(struct clientparam * param) {
+	releaseparam(param);
 	free(param);
 }
 

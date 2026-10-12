@@ -519,6 +519,9 @@ int op_admin_services(struct httpreq *r, const unsigned char *params)
 	if(sel[0] == 'X') printstr(&pp, style);
 	else {
 		printstr(&pp, xml);
+		printstr(&pp, "<threadpool>");
+		printval(&tpool, TYPE_THREADPOOL, 0, &pp);
+		printstr(&pp, "</threadpool>\r\n");
 		printval(conf.services, TYPE_SERVER, 0, &pp);
 		printstr(&pp, postxml);
 	}

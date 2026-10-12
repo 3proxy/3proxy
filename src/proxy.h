@@ -245,6 +245,9 @@ int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADD
 #ifdef __linux__
 extern int mainnsfd;
 int nsopen(void);
+int nsbroken(void);
+#else
+#define nsbroken() 0
 #endif
 /* a function everywhere, never a macro: its callers have preprocessor
    lines among its arguments */
@@ -302,6 +305,8 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa);
 int afdetect(unsigned char *name);
 uint32_t myresolver(int, unsigned char *, unsigned char *);
 uint32_t fakeresolver (int, unsigned char *, unsigned char*);
+void releaseparam(struct clientparam * param);
+void pooldrain(void);
 void freeparam(struct clientparam * param);
 void clearstat(struct clientparam * param);
 void dumpcounters(struct trafcount *tl, int counterd);

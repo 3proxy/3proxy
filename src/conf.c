@@ -425,6 +425,12 @@ static int h_stacksize(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_threadpool(int argc, unsigned char **argv){
+	conf.poolmax = atoi((char *)argv[1]);
+	if(argc > 2) conf.pooltimeout = atoi((char *)argv[2]);
+	return 0;
+}
+
 
 static int h_force(int argc, unsigned char **argv){
 	conf.noforce = 0;
@@ -2095,6 +2101,7 @@ struct commands commandhandlers[]={
 	{NULL, "delimchar",h_delimchar, 2, 2},
 	{NULL, "authnserver", h_authnserver, 2, 2},
 	{NULL, "stacksize", h_stacksize, 2, 2},
+	{NULL, "threadpool", h_threadpool, 2, 3},
 	{NULL, "force", h_force, 1, 1},
 	{NULL, "noforce", h_noforce, 1, 1},
 	{NULL, "parentretries", h_parentretries, 2, 2},
@@ -2391,6 +2398,8 @@ void freeconf(struct extparam *confp){
  confp->rotate = 0;
  confp->logtype = NONE;
  confp->logtime = confp->time = 0;
+ confp->poolmax = -1;
+ confp->pooltimeout = 60;
 
  archiverc = confp->archiverc;
  confp->archiverc = 0;
