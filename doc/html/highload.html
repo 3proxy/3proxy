@@ -674,8 +674,8 @@ server sends to the client (downloads), -s2 what the client sends to the server
 only where it pays. -s0, the default, turns it off. In builds without it (CMake option 3PROXY_USE_SPLICE=OFF,
 or -DWITHSPLICE removed from the Makefile) -s is accepted and ignored.
 <p>splice() pays off when most of the traffic is large transfers: in the
-<a href="https://github.com/3proxy/3proxy/tree/master/bench">benchmarks</a> it moved
-1.4 to 1.7 times more data than the read/write path at about half the CPU per gigabyte.
+<a href="https://github.com/3proxy/3proxy/blob/devel/bench/RESULTS.md">benchmarks</a> it moved
+1.3 to 2.1 times more data than the read/write path at 40-55% less CPU per gigabyte.
 It does not help small requests and short connections, which go slower with it, and
 every spliced direction needs a pipe (two file descriptors) and more kernel
 buffer memory. Data filters are not applied to spliced data.
