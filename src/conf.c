@@ -378,7 +378,8 @@ static int h_log(int argc, unsigned char ** argv){
 #ifndef _WIN32
 			conf.logfunc = logsyslog;
 			if(notchanged) return 0;
-			openlog((char *)conf.logtarget+1, LOG_PID, LOG_DAEMON);
+			/* connected now: after a chroot there is no /dev/log to find */
+			openlog((char *)conf.logtarget+1, LOG_PID | LOG_NDELAY, LOG_DAEMON);
 #endif
 		}
 #ifdef WITH_ODBC
@@ -1921,6 +1922,14 @@ static int h_setgid(int argc, unsigned char **argv){
 }
 
 
+/* What the C library reads on first use from files a chroot hides, read
+   while they can still be found: the time zone, without which every time
+   is UTC. Names looked up through the system cannot be helped this way, the
+   hosts file and resolv.conf are read again for lookups to come. */
+static void prechroot(void){
+	tzset();
+}
+
 static int h_chroot(int argc, unsigned char **argv){
 	uid_t uid = 0;
 	gid_t gid = 0;
@@ -1940,6 +1949,8 @@ static int h_chroot(int argc, unsigned char **argv){
         }
 	if(!chrootp){
 		char *p;
+
+		prechroot();
 		if(chroot((char *)argv[1])) {
 			fprintf(stderr, "Unable to chroot %s", argv[1]);
 			return(1);
