@@ -171,6 +171,20 @@ static int growbuf(unsigned char **buf, int *bufsize, int need){
 	return 0;
 }
 
+/* Whether a request line names the host the previous one did, whatever its
+   method: the connection to the server is kept for the same host only, and
+   a POST after a GET to it is no reason to open another one. */
+static int samehost(const unsigned char *line, int len, const unsigned char *host, int hostlen){
+	const unsigned char *p = (const unsigned char *)memchr(line, ' ', len);
+
+	if(!p || hostlen <= 0) return 0;
+	p++;
+	if(!strncasecmp((const char *)p, "http://", 7)) p += 7;
+	if((int)(p - line) + hostlen >= len || strncasecmp((const char *)p, (const char *)host, hostlen))
+		return 0;
+	return p[hostlen] == '/' || p[hostlen] == ' ';
+}
+
 static void freeptr(void *p){
 	void **pp = (void **)p;
 	if(*pp) { free(*pp); *pp = NULL; }
@@ -285,7 +299,7 @@ void * proxychild(struct clientparam* param) {
  int clhdrofs_req = -1;
  int isconnect = 0;
  int redirect = 0;
- int prefix = 0, ckeepalive=0;
+ int prefix = 0, hostofs = 0, ckeepalive=0;
  int ftp = 0;
  int ssoff = 0;
 #ifndef ANONYMOUS
@@ -354,7 +368,7 @@ for(;;){
  buf[i] = 0;
  
  if(req) {
-	if(!param->transparent && !param->srv->transparent && (i<=prefix || strncasecmp((char *)buf, (char *)req, prefix))){
+	if(!param->transparent && !param->srv->transparent && !samehost(buf, i, req + hostofs, prefix - hostofs)){
 		ckeepalive = 0;
 		if(param->remsock != INVALID_SOCKET){
 			param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
@@ -412,6 +426,7 @@ for(;;){
  		*se = 0;
 	}
 	prefix = (int)(se - buf);
+	hostofs = (int)(sb - buf);
 	su = (unsigned char*)strrchr((char *)sb, '@');
 	if(su) {
 		su = (unsigned char *)strdup((char *)sb);
