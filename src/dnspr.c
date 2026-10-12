@@ -46,7 +46,7 @@ void * dnsprchild(struct clientparam* param) {
  _3proxy_sem_unlock(udpinit);
  semlocked = 0;
 #if defined(_WIN32) && !defined(SHARE_UDP_SOCKET)
-	if((param->clisock=param->srv->so._socket(param->sostate, AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
+	if((param->clisock=nssocket(param->srv, &param->srv->so, param->sostate, NS_IN, AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
 	ioctlsocket(param->clisock, FIONBIO, &ul);

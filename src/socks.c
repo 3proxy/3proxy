@@ -179,7 +179,7 @@ void * sockschild(struct clientparam* param) {
 #endif
 	 param->operation = command == 2?BIND:UDPASSOC;
 	 if(command == 2){
-		if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->req), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN (11);}
+		if ((param->remsock=nssocket(param->srv, &param->srv->so, param->sostate, NS_OUT, SASOCK(&param->req), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN (11);}
 		setopts(param->remsock, &param->srv->lissockopts);
 		if(extbindtodevice(param, param->remsock)) {RETURN (12);}
 	 }
@@ -231,10 +231,7 @@ fflush(stderr);
  }
  if(command == 3) {
 		param->ctrlsock = param->clisock;
-#ifdef __linux__
-		if(switch_ns(param->srv, param->srv->i_nsfd)) {RETURN(11);}
-#endif
-		param->clisock = param->srv->so._socket(param->sostate, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
+		param->clisock = nssocket(param->srv, &param->srv->so, param->sostate, NS_IN, SASOCK(&param->sincr), SOCK_DGRAM, IPPROTO_UDP);
 		if(param->clisock == INVALID_SOCKET) {RETURN(11);}
 #ifdef _WIN32
 		{ unsigned long ul = 1; ioctlsocket(param->clisock, FIONBIO, &ul); }

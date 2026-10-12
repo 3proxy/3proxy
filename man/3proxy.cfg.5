@@ -165,10 +165,10 @@ syntax.
 bind internal (\fB-Di\fR) / external (\fB-De\fR) interface to given INTERFACE (e.g. eth0) if \fBSO_BINDTODEVICE\fR is supported by the system. You may need to run as root or have \fBCAP_NET_RAW\fR capability in order to bind to an interface, depending on the system, so this option may require root privileges and can be incompatible with some configuration commands like \fBchroot\fR and \fBsetuid\fR (and \fBdaemon\fR if setcap is used).
 .br
 .B -ni\fIPATH\fB, -ne\fIPATH\fR
-(Linux only) Switch to the network namespace identified by the filesystem path \fIPATH\fR (e.g. \fI/var/run/netns/myns\fR or \fI/proc/PID/ns/net\fR) for the listening socket (\fB-ni\fR) or for outgoing connections (\fB-ne\fR).
-With \fB-ni\fR the current namespace is saved before opening the listening socket and restored immediately after binding, so that the rest of the process (outgoing connections, child threads) runs in the original namespace unless \fB-ne\fR is also given.
-With \fB-ne\fR the process switches to the specified namespace after the listening socket is bound (and after restoring from \fB-ni\fR if applicable).
-Requires \fBCAP_SYS_ADMIN\fR (or \fBCAP_NET_ADMIN\fR on recent kernels) and is incompatible with \fBchroot\fR/\fBsetuid\fR/\fBdaemon\fR if privileges are dropped before the switch takes effect.
+(Linux only) Use the network namespace identified by the filesystem path \fIPATH\fR (e.g. \fI/var/run/netns/myns\fR or \fI/proc/PID/ns/net\fR) for the sockets which face the clients (\fB-ni\fR: the listening socket, and the socket SOCKS UDP ASSOCIATE talks to the client on) or the destinations (\fB-ne\fR: outgoing connections, SOCKS BIND and the UDP sockets towards the destination, and the connect back sockets of \fB-r\fR and \fB-R\fR).
+Threads stay in the namespace 3proxy was started in and enter the configured one only to create such a socket. Everything else is done in the original namespace: name resolution, both through \fBnserver\fR and through the system, including the queries \fBdnspr\fR forwards, logging and RADIUS.
+The paths are opened when the service line is read, so for a service configured after \fBchroot\fR they are looked up inside it; a path which is not a network namespace stops the service from starting.
+Entering a namespace requires \fBCAP_SYS_ADMIN\fR for as long as the service runs, so these options cannot be combined with \fBsetuid\fR to an unprivileged user.
 .br
 .B -Ne
 (for socks) External NAT address (between 3proxy and destination server) to report to client for CONNECT and BIND. By default external address is reported. It's only useful in the case of IP-IP NAT (will not work for PAT).

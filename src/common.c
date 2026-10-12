@@ -45,10 +45,37 @@ int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADD
 #ifdef __linux__
 #include <sched.h>
 
-int switch_ns(struct srvparam *srv, int target_fd) {
-	if(target_fd < 0) return 0;
-	if(srv->saved_nsfd >= 0 && setns(srv->saved_nsfd, CLONE_NEWNET)) return -1;
-	return setns(target_fd, CLONE_NEWNET);
+/* Threads stay in the network namespace the process started in. A socket
+   belongs to the namespace it is made in, whatever thread uses it later,
+   so a service's other namespaces are entered for socket() alone. What a
+   thread does without making a socket of its own, a name looked up through
+   the system, a log line, RADIUS, happens in the main namespace. */
+int mainnsfd = -1;
+
+/* Opens the main namespace, once and while /proc can still be reached: a
+   chroot may take it away. */
+int nsopen(void){
+	if(mainnsfd < 0) mainnsfd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
+	return mainnsfd < 0;
+}
+
+SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int side, int domain, int type, int protocol){
+	int nsfd = (side == NS_OUT)? srv->o_nsfd : srv->i_nsfd;
+	SOCKET s;
+	int err;
+
+	if(nsfd < 0) return sf->_socket(state, domain, type, protocol);
+	if(setns(nsfd, CLONE_NEWNET)) return INVALID_SOCKET;
+	s = sf->_socket(state, domain, type, protocol);
+	err = errno;
+	if(setns(mainnsfd, CLONE_NEWNET)){
+		/* Left in the other namespace: no socket from here, and the
+		   connection fails. The thread ends with it. */
+		if(s != INVALID_SOCKET) sf->_closesocket(state, s);
+		return INVALID_SOCKET;
+	}
+	errno = err;
+	return s;
 }
 #endif
 
@@ -742,7 +769,7 @@ int doconnect(struct clientparam * param){
 	}
 	if(!*SAPORT(&param->sinsr))*SAPORT(&param->sinsr) = *SAPORT(&param->req);
 	for(;;){
-	if ((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->sinsr), SOCK_STREAM, 
+	if ((param->remsock=nssocket(param->srv, &param->srv->so, param->sostate, NS_OUT, SASOCK(&param->sinsr), SOCK_STREAM, 
 #ifdef WITH_UN
 	    *SAFAMILY(&param->sinsr) == AF_UNIX? 0 :
 #endif

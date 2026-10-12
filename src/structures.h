@@ -659,7 +659,7 @@ struct srvparam {
 #ifdef __linux__
 	char * inetns;
 	char * onetns;
-	int saved_nsfd;
+	/* -ni and -ne namespaces, opened with the service, -1 for the main one */
 	int i_nsfd;
 	int o_nsfd;
 #endif

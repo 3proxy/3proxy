@@ -239,8 +239,15 @@ int sockmap(struct clientparam * param, int timeo, int usesplice);
 int udpsockmap(struct clientparam * param, int timeo);
 int udpbind(struct clientparam * param);
 int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADDRTYPE *sa);
+/* which of a service's network namespaces a socket is made in */
+#define NS_IN	0	/* -ni: what faces the clients */
+#define NS_OUT	1	/* -ne: what faces the destinations */
 #ifdef __linux__
-int switch_ns(struct srvparam *srv, int target_fd);
+extern int mainnsfd;
+int nsopen(void);
+SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int side, int domain, int type, int protocol);
+#else
+#define nssocket(srv, sf, state, side, domain, type, protocol) ((sf)->_socket((state), (domain), (type), (protocol)))
 #endif
 int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bufsize, int to);
 int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);

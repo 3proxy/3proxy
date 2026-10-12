@@ -104,16 +104,7 @@ int udpbind(struct clientparam *param)
 	SOCKET s;
 	SASIZETYPE sasize;
 
-#ifdef __linux__
-	if (switch_ns(param->srv, param->srv->o_nsfd)) return 11;
-#endif
-	s = param->srv->so._socket(param->sostate, SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP);
-#ifdef __linux__
-	if (switch_ns(param->srv, param->srv->i_nsfd)) {
-		if (s != INVALID_SOCKET) param->srv->so._closesocket(param->sostate, s);
-		return 11;
-	}
-#endif
+	s = nssocket(param->srv, &param->srv->so, param->sostate, NS_OUT, SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP);
 	if (s == INVALID_SOCKET) return 11;
 #ifdef _WIN32
 	{ unsigned long ul = 1; ioctlsocket(s, FIONBIO, &ul); }

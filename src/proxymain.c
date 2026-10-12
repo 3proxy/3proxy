@@ -748,6 +748,18 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
  if(hostname)parsehostname(hostname, defparam, childdef.port);
 
+#ifdef __linux__
+ /* Opened here, where the configuration is read, before a chroot can hide
+    the paths, and each entered once to be sure it is a network namespace
+    this process may use: a mistake shows now, not on a client's connection. */
+ if(srv->inetns || srv->onetns){
+	if(nsopen()) return 4;
+	if(srv->inetns && (srv->i_nsfd = open(srv->inetns, O_RDONLY | O_CLOEXEC)) < 0) return 4;
+	if(srv->onetns && (srv->o_nsfd = open(srv->onetns, O_RDONLY | O_CLOEXEC)) < 0) return 4;
+	if(srv->i_nsfd >= 0 && (setns(srv->i_nsfd, CLONE_NEWNET) || setns(mainnsfd, CLONE_NEWNET))) return 4;
+	if(srv->o_nsfd >= 0 && (setns(srv->o_nsfd, CLONE_NEWNET) || setns(mainnsfd, CLONE_NEWNET))) return 4;
+ }
+#endif
 
 #ifndef STDMAIN
  if((error = copyfilter(conf.filters, srv))) return error;
@@ -772,7 +784,7 @@ static int srvlisten(struct srvstart *s){
 
 #ifndef NOTCPMAIN
  if(!s->isudp){
-	sock=srv->so._socket(srv->so.state, SASOCK(&srv->intsa), SOCK_STREAM,
+	sock=nssocket(srv, &srv->so, srv->so.state, NS_IN, SASOCK(&srv->intsa), SOCK_STREAM,
 #ifdef WITH_UN
         	    *SAFAMILY(&srv->intsa) == AF_UNIX? 0 :
 #endif
@@ -782,7 +794,7 @@ static int srvlisten(struct srvstart *s){
 #endif
 #ifndef NOUDPMAIN
  if(s->isudp){
-	sock=srv->so._socket(srv->so.state, SASOCK(&srv->intsa), SOCK_DGRAM, IPPROTO_UDP);
+	sock=nssocket(srv, &srv->so, srv->so.state, NS_IN, SASOCK(&srv->intsa), SOCK_DGRAM, IPPROTO_UDP);
  }
 #endif
  if( sock == INVALID_SOCKET) {
@@ -845,7 +857,7 @@ static int cblisten(struct srvstart *s){
  PROXYSOCKADDRTYPE cbsa;
 
  parsehost(srv->family, s->cbl_string, (struct sockaddr *)&cbsa);
- if((srv->cbsock=srv->so._socket(srv->so.state, SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
+ if((srv->cbsock=nssocket(srv, &srv->so, srv->so.state, NS_OUT, SASOCK(&cbsa), SOCK_STREAM, IPPROTO_TCP))==INVALID_SOCKET) {
 	dolog(defparam, (unsigned char *)"Failed to allocate connect back socket");
 	return -6;
  }
@@ -885,7 +897,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 
  size = sizeof(defparam->sincr);
  if(s->iscbc){
-	new_sock=so._socket(so.state, SASOCK(&defparam->sincr), SOCK_STREAM, IPPROTO_TCP);
+	new_sock=nssocket(&s->srv, &so, so.state, NS_OUT, SASOCK(&defparam->sincr), SOCK_STREAM, IPPROTO_TCP);
 	if(new_sock == INVALID_SOCKET){
 		usleep(SLEEPTIME);
 		return NEXT_RETRY;
@@ -1128,10 +1140,6 @@ static int srvrun(struct srvstart *s){
 #endif
  /* -r: a TCP service connects out for each client instead of listening */
  int connectback = !s->isudp && s->iscbc;
-#ifdef __linux__
- int saved_nsfd = -1;
-#endif
-
 #ifndef _WIN32
  pthread_attr_init(&s->pa);
  pthread_attr_setstacksize(&s->pa,threadstacksize(srv->stacksize));
@@ -1145,78 +1153,7 @@ static int srvrun(struct srvstart *s){
 #endif
 #endif
 
-#ifdef __linux__
- if(srv->inetns) {
-	saved_nsfd = open("/proc/self/ns/net", O_RDONLY);
-	if(saved_nsfd == -1) {
-		dolog(defparam, (unsigned char *)"failed to open /proc/self/ns/net");
-		res = -13;
-		goto EXIT;
-	}
-	{
-		int nsfd = open(srv->inetns, O_RDONLY);
-		if(nsfd == -1) {
-			dolog(defparam, (unsigned char *)"failed to open inetns");
-			close(saved_nsfd);
-			res = -13;
-			goto EXIT;
-		}
-		if(setns(nsfd, CLONE_NEWNET)) {
-			dolog(defparam, (unsigned char *)"failed to setns inetns");
-			close(nsfd);
-			close(saved_nsfd);
-			res = -13;
-			goto EXIT;
-		}
-		if(srv->service == S_SOCKS) srv->i_nsfd = nsfd;
-		else close(nsfd);
-	}
-	if(srv->service == S_SOCKS) srv->saved_nsfd = saved_nsfd;
- }
-#endif
  if(!connectback && (res = srvlisten(s))) goto EXIT;
-#ifdef __linux__
- if(saved_nsfd != -1) {
-	if(setns(saved_nsfd, CLONE_NEWNET)) {
-		dolog(defparam, (unsigned char *)"failed to restore netns");
-		if(srv->service == S_SOCKS) {
-			if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
-			srv->saved_nsfd = -1;
-		}
-		close(saved_nsfd);
-		res = -14;
-		goto EXIT;
-	}
-	if(srv->service != S_SOCKS) {
-		close(saved_nsfd);
-		saved_nsfd = -1;
-	}
- }
- if(srv->onetns) {
-	int nsfd = open(srv->onetns, O_RDONLY);
-	if(nsfd == -1) {
-		dolog(defparam, (unsigned char *)"failed to open onetns");
-		if(srv->service == S_SOCKS) {
-			if(srv->saved_nsfd >= 0) { close(srv->saved_nsfd); srv->saved_nsfd = -1; }
-			if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
-		}
-		res = -14;
-		goto EXIT;
-	}
-	if(setns(nsfd, CLONE_NEWNET)) {
-		dolog(defparam, (unsigned char *)"failed to setns onetns");
-		close(nsfd);
-		if(srv->service == S_SOCKS) {
-			if(srv->saved_nsfd >= 0) { close(srv->saved_nsfd); srv->saved_nsfd = -1; }
-			if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
-		}
-		res = -14;
-		goto EXIT;
-	}
-	if(srv->service == S_SOCKS) srv->o_nsfd = nsfd;
-	else close(nsfd);
- }
-#endif
 #ifndef NOTCPMAIN
  if(!s->isudp && s->iscbl && (res = cblisten(s))) goto EXIT;
 #endif
@@ -1419,7 +1356,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->cbsock = INVALID_SOCKET;
  srv->needuser = 1;
 #ifdef __linux__
- srv->saved_nsfd = srv->i_nsfd = srv->o_nsfd = -1;
+ srv->i_nsfd = srv->o_nsfd = -1;
 #endif
 #ifdef WITHSPLICE
  srv->usesplice = 0;
@@ -1530,7 +1467,6 @@ void srvfree(struct srvparam * srv){
 #ifdef __linux__
  if(srv->inetns) free(srv->inetns);
  if(srv->onetns) free(srv->onetns);
- if(srv->saved_nsfd >= 0) { close(srv->saved_nsfd); srv->saved_nsfd = -1; }
  if(srv->i_nsfd >= 0) { close(srv->i_nsfd); srv->i_nsfd = -1; }
  if(srv->o_nsfd >= 0) { close(srv->o_nsfd); srv->o_nsfd = -1; }
 #endif

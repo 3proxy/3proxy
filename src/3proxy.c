@@ -549,6 +549,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	return 1;
   }
 
+#ifdef __linux__
+  nsopen();	/* before a chroot in the configuration takes /proc away */
+#endif
   _3proxy_mutex_init(&config_mutex);
   _3proxy_mutex_init(&runningservices_mutex);
   _3proxy_mutex_init(&bandlim_mutex);

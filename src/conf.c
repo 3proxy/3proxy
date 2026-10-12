@@ -162,7 +162,7 @@ int start_proxy_thread(struct child * chp){
 #endif
 
 	if((res = mainprepare(chp->argc, (char **)chp->argv, &service))) {
-		fprintf(stderr, "Service not started on line: %d%s\n", linenum, res == 2? ": insufficient memory": res == 3? ": too many filters":"");
+		fprintf(stderr, "Service not started on line: %d%s\n", linenum, res == 2? ": insufficient memory": res == 3? ": too many filters": res == 4? ": network namespace unavailable":"");
 		return(40);
 	}
 	_3proxy_mutex_lock(&runningservices_mutex);
