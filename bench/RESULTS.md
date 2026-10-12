@@ -1,40 +1,47 @@
 # Benchmark results
 
-3proxy 0.9.4, 1.0.1 and devel against nginx and haproxy, measured on two
-machines, 11 October 2026; then devel's splice() by direction and with grace
-delay. How the benchmark works is in
-[README.md](README.md); the measurements are in [data/](data/), and
-`bench/report.py` turns them into the tables below.
+3proxy against nginx, haproxy, squid, tinyproxy and dante on two machines,
+as an HTTP proxy, through CONNECT and SOCKSv5 tunnels and as a TCP relay; and
+3proxy's own versions against each other: 0.9.4, 1.0.1 and devel, with and
+without splice(). The current figures are from 11-12 October 2026, for devel
+with splice() by direction, pipes kept per connection and the automatic mode
+(`-s`); the sessions before them, for the earlier devel, are at the end. How
+the benchmark works is in [README.md](README.md); the measurements are in
+[data/](data/), and `bench/report.py` turns them into the tables below.
 
 ## In short
 
-* **Bulk TCP, no splice:** devel and 1.0.1 move 19-22 Gbit/s per CPU core,
-  1.5 to 2.2 times nginx and haproxy and 2.4 to 3.6 times 0.9.4, at 0.36-0.43
-  CPU seconds per gigabyte against 0.59-0.87 for nginx and haproxy.
-* **Bulk TCP and large HTTP answers with splice():** 3proxy with splice moves
-  1.3 to 2.1 times what it does without, at 40-55% less CPU per gigabyte. On
-  the Skylake host it is level with haproxy splicing every connection with TCP
-  streams and 11% behind it with 1 MB HTTP answers; on the M4 it is ahead (37.8
-  against 22.1 Gbit/s with 16 streams, 35.3 against 28.0 with 1 MB HTTP
-  answers). haproxy's own heuristic (`splice-auto`) does not engage for 1 MB
-  HTTP answers on the M4 (haproxy 2.8) and stays at its copying speed.
-* **Small requests:** nginx and haproxy answer 2 to 3 times more 1 KB requests
-  per core over kept-alive connections, and 3 times more when every request
-  opens a new connection: 3proxy runs a thread per connection. splice() makes
-  small requests slower (13.4-14.9k against 15.8-18.1k requests per second),
-  which is why it stays off unless asked for.
-* **2000 clients, 50 KB answers:** devel leads the copying proxies on the
-  Skylake host (10.5k requests per second against nginx's 9.2k and haproxy's
-  7.3k), nginx leads on the M4 (11.0k against devel's 10.4k); haproxy splicing
-  every connection is fastest there (11.9k). splice() does not help 3proxy with
-  answers this small.
-* **1.0.1 against devel:** 1.0.1 manages 6k requests per second over kept-alive
-  connections whatever the CPU, held by a 10 ms sleep each time a request is
-  answered; devel has it removed and also sets TCP_NODELAY by default.
-* **Memory:** with few connections 3proxy needs the least (devel 8-17 MB
-  against 30-54 MB for nginx and haproxy; 57 MB when every request opens a new
-  connection on the Skylake host); with 2000 connections at once, a thread for
-  each costs it 150-200 MB against nginx's 90-113 MB.
+* **Bulk data, copying:** devel moves 19-21 Gbit/s per CPU core through any
+  of its services (HTTP, CONNECT, SOCKS, `tcppm`), as 1.0.1 does: 1.4 times
+  squid, 1.3 to 2.2 times dante, 1.7 to 2.3 times nginx and haproxy as TCP
+  relays, 2.5 to 2.9 times 0.9.4 copying and 17 times tinyproxy.
+* **Bulk data, splice():** about 40 Gbit/s on one stream through every
+  service, level with 0.9.4 and with haproxy splicing every connection; with
+  16 streams devel gets 33-35 Gbit/s, ahead of 0.9.4 (25-26) and haproxy
+  (27). 1 MB HTTP answers go 65% faster than copied (31 against 19 Gbit/s),
+  15% faster than haproxy splicing.
+* **The automatic mode, `-s`,** came within 5% of the best fixed mode in
+  every scenario measured: it splices the bulk streams in both directions and
+  copies small requests. Forcing splice() (`-s3`, and 0.9.4 by default) costs
+  1 KB requests through tunnels and relays 12-21%.
+* **Small requests:** squid (CONNECT) and dante (SOCKS) answer 1 KB requests
+  over kept-alive tunnels 8-45% faster than devel; nginx and haproxy answer
+  1.9 times more as TCP relays and 2.2 to 2.4 times more as HTTP proxies, and
+  1.6 to 3 times more when each request opens a new connection. 3proxy runs
+  a thread per connection; splice() cannot change that.
+* **2000 clients, 50 KB answers:** devel is level with squid and dante in
+  tunnels (13.1-13.6k requests per second), with nginx and haproxy splicing
+  as an HTTP proxy (10-11k), ahead of haproxy copying (8.5k), and with nginx as a TCP relay copying (13.5k); haproxy
+  relaying with splice() is the fastest there, 21.9k against devel's 15.2k.
+* **1.0.1** is level with devel in tunnels and relays, but held to 6k
+  requests per second as an HTTP proxy over kept-alive connections by a 10 ms
+  sleep removed in devel (see the earlier sessions).
+* **16 KB buffers (`-b16384`)** save devel 17-22% of its memory with 2000
+  connections and cost 20-40% of the copying throughput; with `-s` they cost
+  nothing. 64 KB stays the default.
+* **Memory:** with few connections 3proxy needs the least (8-17 MB against
+  30-54 MB for nginx and haproxy); with 2000 connections at once, a thread for
+  each costs it 150-200 MB against nginx's 90-115 MB and haproxy's 160-180 MB.
 
 ## Setup
 
@@ -45,7 +52,11 @@ delay. How the benchmark works is in
 | system | Ubuntu 24.04, Linux 6.8, aarch64 | AlmaLinux 10, Linux 6.12, x86_64 |
 | nginx | 1.24.0 | 1.26.3 |
 | haproxy | 2.8.16 | 3.0.5 |
+| squid | 6.14 | 6.10 |
+| tinyproxy | 1.11.1 | 1.11.2 |
+| dante | 1.4.3 | 1.4.4 |
 | wrk, iperf3 | 4.1.0, 3.16 | 4.2.0, 3.17.1 |
+| proxychains-ng | 4.17 | 4.17 |
 
 ### How the client, the proxy and the origin were kept apart
 
@@ -59,7 +70,8 @@ delay. How the benchmark works is in
   done on its own CPUs too. The proxy has the fewest CPUs on purpose: it has to
   be what runs out first.
 * **Every proxy gets the same CPU:** one nginx worker, one haproxy thread, and
-  3proxy's thread per connection confined to the same CPU.
+  3proxy's thread per connection, squid's, tinyproxy's and dante's processes
+  all confined to the same CPU.
 * **CPU time** is the busy time of the role's CPUs from `/proc/stat`, its own
   processes plus the interrupts and softirqs handled there (a quarter of a
   proxy's time here), so a proxy is also charged for the kernel's work on its
@@ -67,69 +79,228 @@ delay. How the benchmark works is in
 * **Which side set the pace** is recorded for every run: the role whose CPUs,
   or one thread of it, were busy at least 90% of the time.
 * **Repetitions:** three runs of 10 seconds per proxy and scenario, the order
-  of the proxies rotated between repetitions; the tables give medians. The
-  haproxy splice columns come from a second session an hour later, with plain
-  haproxy run again to see how far the conditions moved: by 2.5% or less on
-  the M4 and 7.5% or less on the Skylake host, except for one origin-bound
-  case (-9.7%).
+  of the proxies rotated between repetitions; the tables give medians.
+* **Tunnels:** wrk and iperf3 run under proxychains-ng, which opens a CONNECT
+  or SOCKSv5 tunnel for each connection they make, blocking in `connect()`
+  until the proxy has answered. This costs the client CPU time per connection,
+  so wrk gets more threads there (16 against 4).
 
 ### Proxies
 
 | column | configuration |
 |---|---|
+| devel -s0 | devel, no splice (TCP_NODELAY is on by default) |
+| devel -s1 (download) | splices what the server sends: answers, downloads |
+| devel -s3 (both) | splices both directions |
+| devel -s (auto) | both directions, each switched to splice() once two reads in a row fill 16 KB and back to copying after three small ones; an HTTP body of known length is spliced when 16 KB or more of it remain |
+| devel -b16384 | devel with 16 KB buffers instead of 64 KB |
 | 0.9.4 | 0.9.4, `-s0` (no splice) `-ocTCP_NODELAY -osTCP_NODELAY` |
+| 0.9.4 splice | 0.9.4, which splices both directions by default, `-ocTCP_NODELAY -osTCP_NODELAY` |
 | 1.0.1 | 1.0.1, `-ocTCP_NODELAY -osTCP_NODELAY` (built without splice) |
-| devel | devel as of these tests, defaults (TCP_NODELAY is on by default) |
-| nginx | `proxy_pass` to an upstream with `keepalive 1024`, `stream` for TCP, `reuseport` |
-| haproxy | `mode http` with `http-reuse always`, `mode tcp` for TCP |
-| 0.9.4 splice | 0.9.4, which splices by default, `-ocTCP_NODELAY -osTCP_NODELAY` |
-| devel splice | devel with `-s`, which in this build spliced both directions always (`-s3` since the automatic mode came) |
+| nginx | `proxy_pass` to an upstream with `keepalive 1024`, `stream` for the TCP relay, `reuseport` |
+| haproxy | `mode http` with `http-reuse always`, `mode tcp` for the TCP relay |
+| haproxy splice-response (download) | `option splice-response` |
+| haproxy splice (both) | `option splice-request` and `option splice-response` |
 | haproxy splice-auto | `option splice-auto`: splices a direction once reads fill the buffer three times in a row |
-| haproxy splice | `option splice-request` and `option splice-response`: splices always |
+| squid | no cache, no logs, `via off` |
+| tinyproxy | `DisableViaHeader Yes`, critical messages only |
+| dante | no authentication, one `sockd` process tree (`-N 1`) |
 
-nginx has no splice() support. 3proxy versions are built with the Makefile
-they shipped with (`-O3 -flto` for 1.0.1 and devel, `-O2` for 0.9.4, which on
-gcc 14 also needs `-fpermissive`). Logging is off everywhere.
+nginx has no splice() support. Neither nginx nor haproxy has CONNECT or SOCKS,
+so they are measured as HTTP proxies and TCP relays only; squid and tinyproxy
+only through CONNECT, dante only through SOCKS. 3proxy versions are built with
+the Makefile they shipped with (`-O3 -flto` for 1.0.1 and devel, `-O2` for
+0.9.4, which on gcc 14 also needs `-fpermissive`). Logging is off everywhere.
 
 ### Scenarios
 
 | scenario | load |
 |---|---|
-| stream1, stream1-down | one iperf3 stream through a TCP relay (3proxy `tcppm`), upload and download |
-| stream16 | 16 iperf3 streams |
-| http-ka-1k, http-ka-1m | 64 (1 KB) or 16 (1 MB) kept-alive connections through the HTTP proxy |
-| http-ka-50k-2000 | 2000 kept-alive connections, 50 KB answers |
-| http-close-1k | 64 connections, a new one for every request |
+| stream1, stream1-down | one iperf3 stream, upload and download |
+| stream16 | 16 iperf3 streams, upload |
+| ka-1k, http-ka-1k | 1 KB answers over 64 kept-alive connections |
+| http-ka-1m | 1 MB answers over 16 kept-alive connections |
+| ka-50k-2000, http-ka-50k-2000 | 2000 kept-alive connections, 50 KB answers |
+| http-ka-2k-50k-2000 | the same, each request a POST with a 2 KB body |
+| close-1k, http-close-1k | 64 connections, a new one for every request |
 
-## How to read the table
+`http-*` go through the HTTP proxy (absolute URIs). The CONNECT, SOCKS and
+relay tables run the same loads through a CONNECT tunnel, a SOCKSv5 tunnel or
+a TCP relay to the origin (3proxy `tcppm`, nginx `stream`, haproxy
+`mode tcp`): the HTTP requests are then plain HTTP inside the tunnel.
+
+## How to read the tables
 
 * Each cell: the median on the M4 / on the Skylake host / their average. TCP
   streams and 1 MB HTTP answers in Gbit/s, the other HTTP scenarios in
   thousands of requests per second.
-* Columns: the client talking to the origin with no proxy (only the kernel
-  forwarding, for reference), then the proxies copying through user space,
-  then after the second ‖ the proxies using splice().
-* **Bold**: the best average of its group (copying, splice) in the row, and
-  any other of the group whose runs cannot be told apart from it: the range of
-  its average (from the average of each machine's slowest run to that of the
-  fastest) reaches the best one's.
-* \*: the best of the row, copying and splice together, by the same rule -
-  whether copying or splice() wins the scenario.
+* Each kind of proxying has two tables: the proxies copying through user
+  space (after "no proxy", the client talking to the origin with only the
+  kernel forwarding, for reference), then the proxies using splice().
+* **Bold**: the best average of its table in the row, and any other whose runs
+  cannot be told apart from it: the range of its average (from the average of
+  each machine's slowest run to that of the fastest) reaches the best one's.
+* \*: the best of the row, copying and splice tables together, by the same
+  rule - whether copying or splice() wins the scenario.
+* CPU time per gigabyte or request and peak memory are in the data. CPU adds
+  little: every proxy ran at its CPU limit, so its CPU per unit of work is the
+  inverse of its throughput.
+
+## HTTP proxy
+
+Measured in one session on each machine ([data/](data/) `*-auto-http.csv`).
+
+| scenario (M4 / Intel / average) | no proxy | ‖ | devel -s0 | devel -s0 -b16384 | nginx | haproxy |
+|---|---:|:-:|---:|---:|---:|---:|
+| http-ka-1k, k req/s | 120.8 / 129.3 / 125.0 | ‖ | 16.0 / 18.2 / 17.1 | 16.0 / 18.4 / 17.2 | 37.1 / 36.5 / 36.8 | **44.7 / 36.2 / 40.4** * |
+| http-ka-1m, Gbit/s | 71.2 / 65.5 / 68.3 | ‖ | **22.4 / 15.7 / 19.1** | 13.7 / 9.4 / 11.6 | 12.8 / 5.6 / 9.2 | 5.8 / 7.3 / 6.6 |
+| http-ka-50k-2000, k req/s | 86.1 / 85.2 / 85.7 | ‖ | **10.5 / 11.2 / 10.9** * | 9.2 / 8.2 / 8.7 | 11.3 / 9.0 / 10.1 | 9.8 / 7.2 / 8.5 |
+| http-ka-2k-50k-2000, k req/s | 73.7 / 64.8 / 69.2 | ‖ | **9.6 / 9.6 / 9.6** * | 8.4 / 8.2 / 8.3 | 10.3 / 8.2 / 9.3 | 8.9 / 6.7 / 7.8 |
+| http-close-1k, k req/s | 48.5 / 46.8 / 47.6 | ‖ | 5.2 / 4.7 / 4.9 | 5.2 / 4.7 / 5.0 | 13.5 / 13.2 / 13.3 | **16.7 / 14.7 / 15.7** |
+
+| scenario (M4 / Intel / average) | devel -s1 (download) | devel -s3 (both) | devel -s (auto) | devel -s -b16384 | haproxy splice-response (download) | haproxy splice (both) |
+|---|---:|---:|---:|---:|---:|---:|
+| http-ka-1k, k req/s | 16.0 / 18.6 / 17.3 | 16.0 / 19.1 / 17.6 | 15.8 / 17.8 / 16.8 | 15.9 / 18.2 / 17.0 | **44.2 / 35.3 / 39.8** * | **44.9 / 34.6 / 39.7** * |
+| http-ka-1m, Gbit/s | **36.2 / 27.1 / 31.6** * | **36.2 / 26.7 / 31.5** * | **36.3 / 25.4 / 30.9** * | **35.3 / 26.3 / 30.8** * | 27.9 / 26.6 / 27.3 | 27.3 / 27.3 / 27.3 |
+| http-ka-50k-2000, k req/s | **10.4 / 10.2 / 10.3** * | **10.4 / 11.1 / 10.8** * | **10.5 / 10.5 / 10.5** * | **10.2 / 10.1 / 10.2** * | **12.0 / 9.2 / 10.6** * | **12.0 / 9.4 / 10.7** * |
+| http-ka-2k-50k-2000, k req/s | **9.6 / 9.6 / 9.6** * | 9.6 / 9.4 / 9.5 | 9.4 / 9.8 / 9.6 | **9.4 / 9.7 / 9.6** * | **11.4 / 8.7 / 10.1** * | **11.3 / 8.4 / 9.9** * |
+| http-close-1k, k req/s | 5.2 / 4.8 / 5.0 | 5.2 / 4.4 / 4.8 | 5.2 / 4.8 / 5.0 | 5.3 / 4.6 / 4.9 | **16.8 / 15.3 / 16.1** * | **16.9 / 15.1 / 16.0** * |
+
+* splice() pays off for 1 MB answers, in any mode: 31 against 19 Gbit/s
+  copied, ahead of haproxy splicing (27). With 50 KB answers splicing neither
+  gains nor loses; with 1 KB answers or a new connection per request the mode
+  makes no difference.
+* Since pipes are made when first needed and kept for the connection, `-s1`
+  no longer loses with 50 KB answers (9.6k against 8.7k requests per second
+  in the earlier session, against 9.6k copying).
+* nginx and haproxy answer 2.2-2.4 times more 1 KB requests, 2.7-3.2 times
+  more when every request opens a new connection.
+
+## CONNECT tunnel
+
+Measured in one session on each machine, as were the SOCKS and relay tables
+([data/](data/) `*-tunnels.csv`).
+
+| scenario (M4 / Intel / average) | devel -s0 | 0.9.4 | 1.0.1 | tinyproxy | squid |
+|---|---:|---:|---:|---:|---:|
+| stream1-down, Gbit/s | **22.1 / 20.2 / 21.1** | 9.1 / 5.8 / 7.4 | **22.8 / 19.8 / 21.3** | 1.2 / 1.2 / 1.2 | 15.1 / 13.0 / 14.0 |
+| stream16, Gbit/s | **21.1 / 18.9 / 20.0** | 8.7 / 6.0 / 7.3 | **21.1 / 19.1 / 20.1** | 1.3 / 1.2 / 1.2 | 17.6 / 12.1 / 14.8 |
+| ka-1k, k req/s | 19.6 / 30.7 / 25.2 | 19.7 / 29.1 / 24.4 | 19.6 / 30.9 / 25.3 | 17.0 / 24.1 / 20.6 | **36.6 / 36.4 / 36.5** * |
+| ka-50k-2000, k req/s | 11.2 / 11.5 / 11.3 | 8.3 / 8.2 / 8.3 | 11.2 / 12.7 / 12.0 | 2.3 / 2.4 / 2.3 | **16.3 / 11.0 / 13.6** * |
+| close-1k, k req/s | **4.1 / 4.4 / 4.3** * | **4.2 / 4.6 / 4.4** * | 3.8 / 3.7 / 3.7 | **4.1 / 4.8 / 4.4** * | **5.3 / 3.4 / 4.4** * |
+
+| scenario (M4 / Intel / average) | devel -s1 (download) | devel -s3 (both) | devel -s (auto) | 0.9.4 splice |
+|---|---:|---:|---:|---:|
+| stream1-down, Gbit/s | **47.5 / 32.0 / 39.8** * | **47.1 / 32.1 / 39.6** * | **47.5 / 31.6 / 39.5** * | **47.4 / 32.5 / 39.9** * |
+| stream16, Gbit/s | 20.9 / 18.7 / 19.8 | 37.6 / 28.7 / 33.1 | **38.3 / 31.2 / 34.7** * | 24.1 / 27.7 / 25.9 |
+| ka-1k, k req/s | 17.8 / 28.3 / 23.0 | 16.1 / 23.8 / 20.0 | **19.6 / 28.7 / 24.1** | 16.1 / 26.1 / 21.1 |
+| ka-50k-2000, k req/s | **11.5 / 15.4 / 13.4** | 10.6 / 14.5 / 12.5 | **11.4 / 15.4 / 13.4** * | 10.6 / 15.0 / 12.8 |
+| close-1k, k req/s | 4.0 / 4.2 / 4.1 | 3.8 / 3.8 / 3.8 | **4.1 / 4.4 / 4.3** * | 3.9 / 4.1 / 4.0 |
+
+* tinyproxy stays at 1.2 Gbit/s whatever the load; squid manages 14-15 Gbit/s, devel 20 copying and 34-40 with
+  splice().
+* With 16 upload streams `-s1` copies, as it should; `-s3` and `-s` splice
+  them. 0.9.4 splicing is level with devel on one stream but 25% behind it with
+  16.
+* squid answers 1 KB requests 45% faster than devel and is level with it with
+  2000 clients (ahead on the M4, behind on the Skylake host).
+* With a new tunnel per request the client is the limit on the M4
+  (proxychains does its work there): every proxy shows 4-5k requests per
+  second.
+
+## SOCKSv5 tunnel
+
+| scenario (M4 / Intel / average) | devel -s0 | 0.9.4 | 1.0.1 | dante |
+|---|---:|---:|---:|---:|
+| stream1-down, Gbit/s | **22.5 / 18.9 / 20.7** | 10.6 / 5.7 / 8.2 | **22.6 / 19.7 / 21.2** | 11.2 / 7.8 / 9.5 |
+| stream16, Gbit/s | **21.1 / 18.5 / 19.8** | 8.7 / 5.8 / 7.3 | **21.0 / 19.2 / 20.1** | 14.5 / 15.2 / 14.8 |
+| ka-1k, k req/s | 19.7 / 28.5 / 24.1 | 19.6 / 29.5 / 24.6 | 19.6 / 29.9 / 24.7 | **26.8 / 25.3 / 26.0** * |
+| ka-50k-2000, k req/s | 10.9 / 13.1 / 12.0 | 8.2 / 7.3 / 7.8 | 11.0 / 12.6 / 11.8 | **14.7 / 11.6 / 13.1** * |
+| close-1k, k req/s | 3.9 / 4.3 / 4.1 | **3.9 / 4.4 / 4.2** * | 3.6 / 3.8 / 3.7 | 3.8 / 1.5 / 2.7 |
+
+| scenario (M4 / Intel / average) | devel -s1 (download) | devel -s3 (both) | devel -s (auto) | 0.9.4 splice |
+|---|---:|---:|---:|---:|
+| stream1-down, Gbit/s | **47.3 / 32.2 / 39.8** * | **47.7 / 32.7 / 40.2** * | **47.0 / 31.7 / 39.4** * | **47.5 / 31.3 / 39.4** * |
+| stream16, Gbit/s | 20.9 / 17.8 / 19.4 | **37.5 / 29.4 / 33.5** * | **38.3 / 29.2 / 33.7** * | 24.2 / 26.8 / 25.5 |
+| ka-1k, k req/s | 17.8 / 27.3 / 22.5 | 16.1 / 25.1 / 20.6 | **19.6 / 29.2 / 24.4** | 16.1 / 27.2 / 21.7 |
+| ka-50k-2000, k req/s | **11.4 / 14.4 / 12.9** * | 10.5 / 14.4 / 12.5 | **11.4 / 15.1 / 13.2** * | **10.6 / 14.9 / 12.7** * |
+| close-1k, k req/s | 3.7 / 3.7 / 3.7 | 3.6 / 3.8 / 3.7 | **3.9 / 4.1 / 4.0** | 3.7 / 4.0 / 3.8 |
+
+* dante is 8% faster than devel with 1 KB requests and level with it with 2000
+  clients; devel moves 1.3-2.2 times dante's bulk data copying (20 against
+  9.5-15 Gbit/s) and 2.3-4.2 times with splice(). With a new tunnel per
+  request on the Skylake host dante manages 1.5k requests per second, devel
+  4.3k.
+
+## TCP relay
+
+| scenario (M4 / Intel / average) | devel -s0 | 0.9.4 | 1.0.1 | nginx | haproxy |
+|---|---:|---:|---:|---:|---:|
+| stream1-down, Gbit/s | **22.4 / 19.5 / 20.9** | 10.2 / 5.7 / 8.0 | **22.0 / 19.3 / 20.6** | 13.5 / 9.0 / 11.3 | 13.2 / 8.7 / 11.0 |
+| stream16, Gbit/s | **20.9 / 19.0 / 20.0** | 8.8 / 5.8 / 7.3 | **20.9 / 18.3 / 19.6** | 13.5 / 9.7 / 11.6 | 8.9 / 8.7 / 8.8 |
+| ka-1k, k req/s | 20.1 / 30.2 / 25.1 | 20.1 / 31.1 / 25.6 | 20.1 / 30.4 / 25.2 | **44.0 / 49.6 / 46.8** * | **45.6 / 46.8 / 46.2** * |
+| ka-50k-2000, k req/s | **12.3 / 14.9 / 13.6** | 9.1 / 8.4 / 8.7 | **12.2 / 14.9 / 13.5** | **14.4 / 12.5 / 13.5** | 11.3 / 9.8 / 10.5 |
+| close-1k, k req/s | 5.6 / 5.1 / 5.4 | 5.6 / 5.5 / 5.6 | 5.1 / 4.8 / 5.0 | 8.8 / 8.4 / 8.6 | **9.7 / 8.1 / 8.9** |
+
+| scenario (M4 / Intel / average) | devel -s1 (download) | devel -s3 (both) | devel -s (auto) | 0.9.4 splice | haproxy splice (both) | haproxy splice-response (download) | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| stream1-down, Gbit/s | 46.2 / 27.7 / 36.9 | **48.1 / 31.9 / 40.0** * | **47.8 / 32.1 / 39.9** * | **47.5 / 30.1 / 38.8** * | **46.9 / 31.2 / 39.1** * | **47.1 / 27.4 / 37.3** * | 30.2 / 30.7 / 30.5 |
+| stream16, Gbit/s | 20.8 / 19.1 / 20.0 | **38.1 / 32.2 / 35.2** * | **38.3 / 30.5 / 34.4** * | 24.3 / 28.5 / 26.4 | 23.0 / 31.5 / 27.3 | 8.8 / 8.4 / 8.6 | 15.7 / 30.0 / 22.9 |
+| ka-1k, k req/s | 18.1 / 28.1 / 23.1 | 16.3 / 27.4 / 21.9 | 20.0 / 29.7 / 24.9 | 16.5 / 26.4 / 21.4 | 32.7 / 37.2 / 35.0 | 39.6 / 41.5 / 40.5 | **46.4 / 46.3 / 46.4** * |
+| ka-50k-2000, k req/s | 12.6 / 17.9 / 15.2 | 11.5 / 17.7 / 14.6 | 12.5 / 17.6 / 15.0 | 11.6 / 17.0 / 14.3 | 20.3 / 21.9 / 21.1 | **24.3 / 19.4 / 21.9** * | 17.5 / 19.3 / 18.4 |
+| close-1k, k req/s | 5.2 / 4.9 / 5.0 | 5.1 / 4.9 / 5.0 | 5.6 / 5.3 / 5.4 | 5.2 / 4.7 / 5.0 | **10.1 / 8.8 / 9.4** * | **10.1 / 8.8 / 9.5** * | 9.6 / 8.1 / 8.9 |
+
+* As a relay devel copies 1.7-2.3 times what nginx and haproxy do; with splice()
+  it is level with haproxy splicing on one stream and 26-29% ahead with 16.
+  haproxy's `splice-auto` reaches 30 Gbit/s on one stream, the others 37-40.
+* nginx and haproxy answer 1.9 times more 1 KB requests, 1.6 times more with
+  a new connection for each.
+* With 2000 clients and 50 KB answers devel and nginx are level copying
+  (13.5k); splice() takes devel to 15.2k and haproxy from 10.5k to 21.9k. With
+  2000 connections devel runs 2000 threads on one CPU, haproxy one event loop.
+* Where splice() is forced, 1 KB requests lose 13-24% (devel `-s3`, 0.9.4,
+  haproxy `splice`); `-s` and `splice-auto` lose nothing.
+
+## 16 KB buffers
+
+`-b16384` against the default 64 KB, from the HTTP proxy session:
+
+| | devel -s0 | devel -s0 -b16384 | devel -s | devel -s -b16384 |
+|---|---:|---:|---:|---:|
+| http-ka-1m, Gbit/s (average) | 19.1 | 11.6 | 30.9 | 30.8 |
+| http-ka-50k-2000, k req/s (average) | 10.9 | 8.7 | 10.5 | 10.2 |
+| peak memory with 2000 clients (POST + 50 KB), MB, M4 / Skylake | 199 / 156 | 166 / 128 | 192 / 155 | 150 / 128 |
+| peak memory with 16 streams, MB, M4 | 72 | 34 | | |
+
+Copying with 16 KB buffers takes four times as many system calls for the same
+data, which costs 20-40% of the throughput; with splice() the bulk of the data
+goes through the pipe and the buffer size hardly matters. The memory saved
+with 2000 clients, 17-22%, is far less than the buffers' size would suggest. A smaller buffer also limits what data filters see of a body, and
+`tlspr` needs more than 16 KB.
+
+## Earlier sessions
+
+The tables below are from devel before the automatic mode, whose `-s` then
+spliced both directions always, making a pair of pipes for each mapping
+(`sockmap()` call), and before squid, tinyproxy and dante were added. In the
+first table "devel" is `-s0` and "devel splice" `-s3` of today. The haproxy
+splice columns there come from a second session an hour later, with plain
+haproxy run again to see how far the conditions moved: by 2.5% or less on the
+M4 and 7.5% or less on the Skylake host, except for one origin-bound case
+(-9.7%).
+
 * A few results were limited by the client or the origin rather than by the
   proxy, which can then do more than shown: on the M4, devel splice with single
   and 16 streams (the receiving iperf3 thread at a full core), haproxy with 16
   streams, and several of the 1 MB HTTP runs. The per-run `bound` column in
   [data/](data/) has the detail; `bench/report.py` on one machine's files marks
   them.
-* CPU time per gigabyte or request is in the data, but adds little: every
-  proxy ran at its CPU limit, so its CPU per unit of work is the inverse of its
-  throughput. Peak memory is in the data as well, summed up above.
 * http-ka-50k-2000: every proxy but haproxy leaves some requests waiting longer
   than wrk's 2 second limit (counted as timeouts in the data, 140-540 a run);
   haproxy serves the 2000 connections more evenly, with none over 2 seconds but
   a median wait 2 to 3 times longer.
 
-## Throughput
+### Throughput
 
 | scenario (M4 / Intel / average) | no proxy | ‖ | 0.9.4 | 1.0.1 | devel | nginx | haproxy | ‖ | 0.9.4 splice | devel splice | haproxy splice-auto | haproxy splice |
 |---|---:|:-:|---:|---:|---:|---:|---:|:-:|---:|---:|---:|---:|
@@ -142,7 +313,7 @@ gcc 14 also needs `-fpermissive`). Logging is off everywhere.
 | http-close-1k, k req/s | 48.7 / 52.1 / 50.4 | ‖ | 5.0 / 4.8 / 4.9 | 4.4 / 4.0 / 4.2 | 5.2 / 4.8 / 5.0 | 13.3 / 12.9 / 13.1 | **16.6 / 15.1 / 15.9** * | ‖ | 4.8 / 4.4 / 4.6 | 5.0 / 4.4 / 4.7 | **16.7 / 15.1 / 15.9** * | **16.8 / 15.5 / 16.1** * |
 
 
-## Splice by direction
+### Splice by direction
 
 devel splices what the server sends with `-s1` (downloads), what the client
 sends with `-s2` (uploads), both with `-s3`; haproxy's matching settings are
@@ -172,7 +343,7 @@ session of their own ([data/](data/) `*-splice-direction.csv`).
   25% with 2000 clients from splicing the answers; there it is ahead of devel by
   4-5%.
 
-## Grace delay with splice
+### Grace delay with splice
 
 `-s1` without grace delay, with the setting suggested in the documentation
 (`-g8000,3,10`: wait 10 ms before reading once 3 reads in a row averaged 8 KB or
@@ -210,5 +381,10 @@ not). Measured in a session of their own ([data/](data/) `*-grace.csv`).
 * wrk measures in a closed loop: a slower proxy is offered less load, so
   latencies compare only between runs of similar throughput, and requests over
   2 seconds are left out of its latency figures.
-* The haproxy versions differ between the machines (2.8 and 3.0).
+* The haproxy versions differ between the machines (2.8 and 3.0), and so,
+  slightly, do squid, tinyproxy and dante.
+* In the tunnel scenarios proxychains-ng's work is done in the client: with a
+  new tunnel for every request it sets the pace on the M4. Runs with a new
+  tunnel per request or 2000 clients count a few failed requests (at most 34
+  in a run of 40,000 or more), every proxy alike.
 

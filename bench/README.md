@@ -79,9 +79,9 @@ host) falls on all of them alike; the summary gives medians.
 | `relay-*` | the same through a TCP relay to a fixed destination: 3proxy `tcppm`, nginx `stream`, haproxy `mode tcp` |
 
 nginx is not a forward proxy: it answers absolute URIs by passing them to its
-upstream, which is the origin here, and it has no CONNECT or SOCKS, so only
-these scenarios compare like with like. Neither nginx nor haproxy has CONNECT or SOCKS, so they take part in the
-`relay-*` scenarios but not in the `connect-*` and `socks-*` ones. tinyproxy
+upstream, which is the origin here. Neither nginx nor haproxy has CONNECT or
+SOCKS, so they take part in the HTTP and `relay-*` scenarios but not in the
+`connect-*` and `socks-*` ones. tinyproxy
 and squid are HTTP proxies, measured in the HTTP and `connect-*` scenarios;
 dante is a SOCKS server, measured in the `socks-*` ones.
 
