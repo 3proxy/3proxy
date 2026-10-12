@@ -729,12 +729,12 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
 
-    target_compile_definitions(${PROXY_NAME} PRIVATE
-        WITHMAIN
-        NOPORTMAP
-    )
+    target_compile_definitions(${PROXY_NAME} PRIVATE WITHMAIN)
 
-    if(NOT PROXY_NAME STREQUAL "udppm")
+    # each takes the main loop of its kind only: udppm UDP, the others TCP
+    if(PROXY_NAME STREQUAL "udppm")
+        target_compile_definitions(${PROXY_NAME} PRIVATE NOTCPMAIN)
+    else()
         target_compile_definitions(${PROXY_NAME} PRIVATE NOUDPMAIN)
     endif()
 
@@ -744,8 +744,12 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
         target_compile_definitions(${PROXY_NAME} PRIVATE ANONYMOUS)
     endif()
 
+    # port mappers take port, host and port as arguments, the others options
+    # only; one of the two is defined, as in src/Makefile.inc
     if(PROXY_NAME STREQUAL "tcppm" OR PROXY_NAME STREQUAL "udppm" OR PROXY_NAME STREQUAL "tlspr")
         target_compile_definitions(${PROXY_NAME} PRIVATE PORTMAP)
+    else()
+        target_compile_definitions(${PROXY_NAME} PRIVATE NOPORTMAP)
     endif()
 
     if(WIN32)

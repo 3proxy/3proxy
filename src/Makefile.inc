@@ -47,7 +47,7 @@ tcppm$(OBJSUFFICS): tcppm.c proxy.h structures.h proxymain.c
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOUDPMAIN tcppm.c
 
 udppm$(OBJSUFFICS): udppm.c proxy.h structures.h proxymain.c
-	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP udppm.c
+	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOTCPMAIN udppm.c
 
 tlspr$(OBJSUFFICS): tlspr.c proxy.h structures.h proxymain.c
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOUDPMAIN tlspr.c

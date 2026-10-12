@@ -801,7 +801,6 @@ struct filemon {
 
 
 struct extparam {
-	_3proxy_sem_t threadinit;
 	int *timeouts;
 	struct ace * acl;
 #ifdef WITH_HTTPSRV
