@@ -77,6 +77,11 @@ SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int sid
 	errno = err;
 	return s;
 }
+#else
+/* no network namespaces: a socket is made where it always is */
+SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int side, int domain, int type, int protocol){
+	return sf->_socket(state, domain, type, protocol);
+}
 #endif
 
 

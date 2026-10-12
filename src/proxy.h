@@ -245,10 +245,10 @@ int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADD
 #ifdef __linux__
 extern int mainnsfd;
 int nsopen(void);
-SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int side, int domain, int type, int protocol);
-#else
-#define nssocket(srv, sf, state, side, domain, type, protocol) ((sf)->_socket((state), (domain), (type), (protocol)))
 #endif
+/* a function everywhere, never a macro: its callers have preprocessor
+   lines among its arguments */
+SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int side, int domain, int type, int protocol);
 int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bufsize, int to);
 int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
