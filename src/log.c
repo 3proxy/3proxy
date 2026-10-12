@@ -155,7 +155,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 i+=5;
 				 break;
 				case 'U':
-				 if(param->username && *param->username){
+				 if(*param->username){
 					for(len = 0; i< 4000 && param->username[len]; len++){
 					 buf[i] = param->username[len];
 					 if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
@@ -171,7 +171,7 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 				 }
 				 break;
 				case 'n':
-					len = param->hostname? (int)strlen((char *)param->hostname) : 0;
+					len = (int)strlen((char *)param->hostname);
 					if (len > 0 && !strchr((char *)param->hostname, ':')) for(len = 0; param->hostname[len] && i < 4000; len++, i++){
 						buf[i] = param->hostname[len];
 					 	if(param->srv->nonprintable && (buf[i] < 0x20 || strchr((char *)param->srv->nonprintable, buf[i]))) buf[i] = param->srv->replace;
@@ -338,10 +338,12 @@ void lognone(struct clientparam * param, const unsigned char *s) {
 	clearstat(param);
 }
 
-NOINLINE void logstdout(struct clientparam * param, const unsigned char *s) {
+void logstdout(struct clientparam * param, const unsigned char *s) {
 	FILE *log;
-	unsigned char tmpbuf[8192];
+	unsigned char *tmpbuf;
 
+	/* with no connection, an error from the main thread */
+	tmpbuf = param? param->tmpbuf : logparam.tmpbuf;
 	dobuf(param, tmpbuf, s, NULL);
 	log = (param && param->srv && param->srv->stdlog)?param->srv->stdlog:conf.stdlog?conf.stdlog:stdout;
 	if(!param || !param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
@@ -351,10 +353,8 @@ NOINLINE void logstdout(struct clientparam * param, const unsigned char *s) {
 }
 #ifndef _WIN32
 void logsyslog(struct clientparam * param, const unsigned char *s) {
-
-	unsigned char tmpbuf[8192];
-	dobuf(param, tmpbuf, s, NULL);
-	if(!param->nolog)syslog(LOG_INFO, "%s", tmpbuf);
+	dobuf(param, param->tmpbuf, s, NULL);
+	if(!param->nolog)syslog(LOG_INFO, "%s", param->tmpbuf);
 }
 #endif
 

@@ -142,7 +142,6 @@ static void* transparent_filter_open(void * idata, struct srvparam * param){
 
 static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * param, void** fc){
 
-	char addrbuf[64];
 	int res = 1;
 
 #ifdef WITH_NETFILTER
@@ -164,9 +163,8 @@ static FILTER_ACTION transparent_filter_client(void *fo, struct clientparam * pa
 	   service decides as it would without the command. */
 	if(res) return PASS;
 
-	pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)addrbuf, sizeof(addrbuf));
-	if(param->hostname) pl->freefunc(param->hostname);
-	param->hostname = (unsigned char *)pl->strdupfunc(addrbuf);
+	/* an address always fits the field */
+	pl->myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)param->hostname, sizeof(param->hostname));
 	param->sinsr = param->req;
 	return PASS;
 }

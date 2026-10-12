@@ -280,7 +280,7 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	int dstdep = 0;
 	int preauth = (param->preauth == 1 && acentry->action <= REDIRECT);
 
-	username = param->username?param->username:(unsigned char *)"-";
+	username = *param->username?param->username:(unsigned char *)"-";
 	if(acentry->src) {
 	 for(ipentry = acentry->src; ipentry; ipentry = ipentry->next)
 		if(IPInentry((struct sockaddr *)&param->sincr, ipentry)) {
@@ -291,13 +291,13 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	if(preauth && (acentry->dst || acentry->dstnames)) {
 	 dstdep = 1;
 	}
-	else if((acentry->dst && (!SAISNULL(&param->req) || param->operation==BIND)) || (acentry->dstnames && param->hostname)) {
+	else if((acentry->dst && (!SAISNULL(&param->req) || param->operation==BIND)) || (acentry->dstnames && *param->hostname)) {
 	 for(ipentry = acentry->dst; ipentry; ipentry = ipentry->next)
 		if(IPInentry((struct sockaddr *)&param->req, ipentry)) {
 			break;
 		}
 	 if(!ipentry) {
-		 if(acentry->dstnames && param->hostname){
+		 if(acentry->dstnames && *param->hostname){
 			for(i=0; param->hostname[i]; i++){
 				param->hostname[i] = tolower(param->hostname[i]);
 			}

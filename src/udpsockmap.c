@@ -93,7 +93,7 @@ static void udplog(struct clientparam *param)
 
 	if(!param->srv->logfunc) return;
 	len = sprintf((char *)buf, "UDPMAP ");
-	if(param->hostname) len += sprintf((char *)buf + len, "%.256s", param->hostname);
+	if(*param->hostname) len += sprintf((char *)buf + len, "%.256s", param->hostname);
 	else len += myinet_ntop(*SAFAMILY(&param->req), SAADDR(&param->req), (char *)buf + len, 64);
 	sprintf((char *)buf + len, ":%hu", ntohs(*SAPORT(&param->req)));
 	param->srv->logfunc(param, buf);
@@ -208,12 +208,6 @@ int udpsockmap(struct clientparam *param, int timeo)
 	char lastname[256] = "";
 	struct ace *lastace = NULL;
 
-	if (param->srvbufsize < UDPBUFSIZE) {
-		unsigned char *newbuf = realloc(param->srvbuf, UDPBUFSIZE);
-		if (!newbuf) return 21;
-		param->srvbuf = newbuf;
-		param->srvbufsize = UDPBUFSIZE;
-	}
 	cliaddr = param->sincr;
 	if(param->ctrlsock != INVALID_SOCKET){
 		sasize = sizeof(cliaddr);
@@ -313,13 +307,11 @@ int udpsockmap(struct clientparam *param, int timeo)
 					PROXYSOCKADDRTYPE newdst = dst;
 
 					param->req = lastdst;
-					if (param->hostname) free(param->hostname);
-					param->hostname = *lastname? (unsigned char *)strdup(lastname) : NULL;
+					if (PARAMSTR(param, hostname, lastname)) *param->hostname = 0;
 					udplog(param);
 					dst = newdst;
 				}
-				if (param->hostname) free(param->hostname);
-				param->hostname = dstname? (unsigned char *)strdup(dstname) : NULL;
+				if (PARAMSTR(param, hostname, dstname)) *param->hostname = 0;
 				param->req = dst;
 				if (!nhops) param->sinsr = dst;
 

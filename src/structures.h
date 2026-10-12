@@ -199,6 +199,12 @@ int
 
 #define MAX_HASH_SIZE (64)
 #define UDPBUFSIZE 16384
+/* A connection's buffer for each side: 16K, and the 5 byte header of a TLS
+   record that big, which tlspr reads whole. */
+#define CLIENTBUFSIZE (16384 + 64)
+#define CLIENTTMPBUFSIZE 8192
+#define HOSTNAMELEN 256
+#define USERNAMELEN 128
 
 extern char* NULLADDR;
 typedef enum {
@@ -396,8 +402,6 @@ struct httpreq {
 	int proxy;		/* the client asked the way it asks a proxy */
 	int connect;		/* and asked for a tunnel */
 	int mayproxy;		/* an access rule sent this to the local proxy */
-	unsigned char *raw;	/* the request as it arrived, for handing on */
-	int rawlen, rawsize;
 	int drained;		/* the body has been read and thrown away */
 	char *lasthost;		/* where the last request on this connection went */
 	void *handoff;		/* a child which takes the connection over */
@@ -527,7 +531,7 @@ struct filterp {
 	void *data;
 };
 
-#define MAX_FILTERS 16
+#define MAX_FILTERS 256
 
 /* Socket options for one kind of socket, -oc and the like: which of
    sockopts[] are given, by their index there, and the value of each. */
@@ -688,11 +692,6 @@ struct clientparam {
 	TRAFCOUNTFUNC trafcountfunc;
 
 
-	struct filterp	*filters,
-			**reqfilters, **connectfilters, **afterauthfilters,
-			**hdrfilterscli, **hdrfilterssrv,
-			**predatfilters, **datfilterscli, **datfilterssrv;
-
 	PROXYSERVICE service;
 
 	PROXYSERVICE clientstarttls;
@@ -735,12 +734,7 @@ struct clientparam {
 		preauth,
 		dstindep;
 
-	unsigned char 	*hostname,
-			*username,
-			*password,
-			*extusername,
-			*extpassword,
-			*clibuf,
+	unsigned char	*clibuf,
 			*srvbuf;
 
 	/* splice() pipes for the client's and the server's data, -1 until
@@ -791,6 +785,34 @@ struct clientparam {
 	   member is only reached once every weighted one is in here. */
 	struct chain *failedparents[MAXFAILEDPARENTS];
 	int nfailedparents;
+	/* Where in clibuf a request being read began, -1 when nothing is to be
+	   kept, -2 once a request was too big for the buffer. While it is set,
+	   refilling the buffer keeps everything from there on instead of
+	   starting over, so the request can be read again from the buffer. */
+	int climark;
+	/* Names and credentials, empty when there are none. A value too long
+	   for its field is refused, never cut short: set them with PARAMSTR. */
+	unsigned char	hostname[HOSTNAMELEN],
+			username[USERNAMELEN],
+			password[USERNAMELEN],
+			extusername[USERNAMELEN],
+			extpassword[USERNAMELEN];
+	/* The filters this connection runs, which a new connection makes for
+	   itself: the service's are not copied to it. Ordered for each stage. */
+	struct filterp	filters[MAX_FILTERS],
+			*reqfilters[MAX_FILTERS], *connectfilters[MAX_FILTERS],
+			*afterauthfilters[MAX_FILTERS],
+			*hdrfilterscli[MAX_FILTERS], *hdrfilterssrv[MAX_FILTERS],
+			*predatfilters[MAX_FILTERS], *datfilterscli[MAX_FILTERS],
+			*datfilterssrv[MAX_FILTERS];
+	/* The connection's scratch buffer, for a log line and the like: for
+	   something done at once, never for what has to outlive a call into
+	   anything that could log. */
+	unsigned char	tmpbuf[CLIENTTMPBUFSIZE];
+	/* Each side's data buffer, which clibuf and srvbuf point to unless a
+	   filter needed a bigger one. */
+	unsigned char	clibufdata[CLIENTBUFSIZE],
+			srvbufdata[CLIENTBUFSIZE];
 };
 
 struct filemon {

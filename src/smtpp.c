@@ -33,26 +33,26 @@ int readreply (struct clientparam* param) {
  unsigned char * buf;
  int res, i, bufsize = 640;
 
- if(!(buf = malloc(bufsize))) return 0;
+ buf = param->tmpbuf;	/* a filter may replace it with one of its own */
  do {
 	i = sockgetlinebuf(param, SERVER, buf, bufsize-1, '\n', conf.timeouts[STRING_L]);
 	if(i < 1) break;
 #ifndef WITHMAIN
 	res = handlehdrfilterssrv(param, &buf, &bufsize, 0, &i);
 	if(res != PASS) {
-		free(buf);
+		if(buf != param->tmpbuf) free(buf);
 		return -1;
 	}
 #endif
 	socksend(param, param->clisock, buf, i, conf.timeouts[STRING_S]);	
  } while (i > 3 && buf[3] == '-');
  if(i < 3) {
-	free(buf);
+	if(buf != param->tmpbuf) free(buf);
 	return 0;
  }
  buf[i] = 0;
  res = atoi((char *)buf);
- free(buf);
+ if(buf != param->tmpbuf) free(buf);
  return res;
 }
 
@@ -64,14 +64,14 @@ int readcommand (struct clientparam* param) {
 #endif
  int ret = 1;
 
- if(!(buf = malloc(bufsize))) return 0;
+ buf = param->tmpbuf;	/* a filter may replace it with one of its own */
  i = sockgetlinebuf(param, CLIENT, buf, bufsize-1, '\n', conf.timeouts[STRING_L]);
  if(i < 4) return 0;
 #ifndef WITHMAIN
  if(!strncasecmp((char *)buf, "MAIL", 4) || !strncasecmp((char *)buf, "RCPT", 4) || !strncasecmp((char *)buf, "STARTTLS", 8) || !strncasecmp((char *)buf, "TURN", 4)){
 	res = handlehdrfilterscli(param, &buf, &bufsize, 0, &i);
 	if(res != PASS) {
-		free(buf);
+		if(buf != param->tmpbuf) free(buf);
 		if(res == HANDLED) return 2;
 		return -1;
 	}
@@ -81,7 +81,7 @@ int readcommand (struct clientparam* param) {
  if(!strncasecmp((char *)buf, "STARTTLS", 8) || !strncasecmp((char *)buf, "TURN", 4)){
 	ret = 22;
  }
- free(buf);
+ if(buf != param->tmpbuf) free(buf);
  return ret;
 }
 
@@ -92,12 +92,12 @@ int readdata (struct clientparam* param) {
  int res;
 #endif
 
- if(!(buf = malloc(bufsize))) return 0;
+ buf = param->tmpbuf;	/* a filter may replace it with one of its own */
  while ((i = sockgetlinebuf(param, CLIENT, buf, bufsize-1, '\n', conf.timeouts[STRING_L])) > 0 && !(i==3 && buf[0] == '.')){
 #ifndef WITHMAIN
 	res = handledatfltcli(param, &buf, &bufsize, 0, &i);
 	if(res != PASS) {
-		free(buf);
+		if(buf != param->tmpbuf) free(buf);
 		if(res == HANDLED) return 1;
 		return -1;
 	}
@@ -105,11 +105,11 @@ int readdata (struct clientparam* param) {
 	socksend(param, param->remsock, buf, i, conf.timeouts[STRING_S]);	
  } 
  if(i < 1) {
-	free(buf);
+	if(buf != param->tmpbuf) free(buf);
 	return 0;
  }
  socksend(param, param->remsock, buf, i, conf.timeouts[STRING_S]);	
- free(buf);
+ if(buf != param->tmpbuf) free(buf);
  return 1;
 }
 
@@ -143,7 +143,7 @@ void * smtppchild(struct clientparam* param) {
 		return (void *)tlsprchild;
 	}
 #endif
-	else if(!param->hostname) socksend(param, param->clisock, (unsigned char *)"571 need AUTH first\r\n", 22, conf.timeouts[STRING_S]);
+	else if(!*param->hostname) socksend(param, param->clisock, (unsigned char *)"571 need AUTH first\r\n", 22, conf.timeouts[STRING_S]);
 	else {
 		login = -1;
 		buf[i] = 0;
@@ -172,8 +172,7 @@ void * smtppchild(struct clientparam* param) {
 	i = de64(buf,username,255);
 	if(i < 0) {RETURN(666);}
 	username[i] = 0;
-	if(param->extpassword) free(param->extpassword);
-	param->extpassword = (unsigned char *)strdup((char *)username);
+	if(PARAMSTR(param, extpassword, username)) {RETURN(666);}
  }
  else if(login == 2){
 	if(i > 13) {
@@ -192,16 +191,23 @@ void * smtppchild(struct clientparam* param) {
 	if(parseconnusername((char *)username+1, param, 0, 587)) {RETURN(670);}
 	res = (int)strlen((char *)username+1) + 2;
 	if(res < i){
-		if(param->extpassword) free(param->extpassword);
-		param->extpassword = (unsigned char *)strdup((char *)username + res);
+		if(PARAMSTR(param, extpassword, username + res)) {RETURN(670);}
 	}
  }
 
 #ifndef WITHMAIN
  {
+	/* the host is filtered as a request, in the scratch buffer, where a
+	   filter may also hand back a buffer of its own */
 	int action, reqbufsize, reqsize;
-	reqbufsize = reqsize = (int)strlen((char *)param->hostname) + 1;
-	action = handlereqfilters(param, &param->hostname, &reqbufsize, 0, &reqsize);
+	unsigned char *req = param->tmpbuf;
+
+	reqsize = (int)strlen((char *)param->hostname) + 1;
+	reqbufsize = CLIENTTMPBUFSIZE;
+	memcpy(req, param->hostname, reqsize);
+	action = handlereqfilters(param, &req, &reqbufsize, 0, &reqsize);
+	if(action == PASS && PARAMSTR(param, hostname, req)) action = REJECT;
+	if(req != param->tmpbuf) free(req);
 	if(action == HANDLED){
 		RETURN(0);
 	}
@@ -232,8 +238,8 @@ void * smtppchild(struct clientparam* param) {
 
  } while (i > 3 && buf[3] == '-');
  if(i<3) {RETURN(672);}
- if(!command || (param->extusername && param->extpassword)){
-	if(!param->extusername || !*param->extusername || !param->extpassword || !*param->extpassword || !login){
+ if(!command || (*param->extusername && *param->extpassword)){
+	if(!*param->extusername || !*param->extpassword || !login){
 		socksend(param, param->clisock, (unsigned char *)"235 auth required\r\n", 19,conf.timeouts[STRING_S]);	
 	}
 	if ((login & 1)) {
@@ -285,9 +291,9 @@ void * smtppchild(struct clientparam* param) {
 	res = 1;
 #ifndef WITHMAIN
 	if(!strncasecmp(command, "MAIL", 4) || !strncasecmp(command, "RCPT", 4) || !strncasecmp(command, "STARTTLS", 8) || !strncasecmp(command, "TURN", 4)){
-		res = (int)strlen(command);
-		command[res] = 0;
-		res = handlehdrfilterscli(param, (unsigned char **)&command, &res, 0, &res);
+		int clen = (int)strlen(command), csize = clen + 1;
+
+		res = handlehdrfilterscli(param, (unsigned char **)&command, &csize, 0, &clen);
 		if(res != PASS) {
 			if(res == HANDLED) res = 2;
 			else RETURN(677);
@@ -321,7 +327,7 @@ void * smtppchild(struct clientparam* param) {
 
 CLEANRET:
 
- if(param->hostname&&param->extusername) {
+ if(*param->hostname&&*param->extusername) {
 	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, *SAPORT(&param->sinsr)==587?0:':',ntohs(*SAPORT(&param->sinsr)));
 	 dolog(param, buf);
  }

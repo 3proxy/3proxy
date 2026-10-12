@@ -68,7 +68,7 @@ void * pop3pchild(struct clientparam* param) {
  RETURN (mapsocket(param, 180));
 CLEANRET:
 
- if(param->hostname&&param->extusername) {
+ if(*param->hostname&&*param->extusername) {
 	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, (*SAPORT(&param->sinsr)==110)?0:':', ntohs(*SAPORT(&param->sinsr)));
 	dolog(param, buf);
  }

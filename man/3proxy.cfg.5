@@ -1436,7 +1436,10 @@ as
 .br
  If Content-length (or another data length) is greater than the given value, no
 data filtering will be performed through filtering plugins to avoid data
-corruption and/or Content-Length changing. Default is 1MB (1048576).
+corruption and/or Content-Length changing. A body up to this size is read
+whole into memory and filtered at once. 0 removes the limit, but then a body
+is only filtered whole if it fits in the connection's 16K buffer.
+Default is 1MB (1048576).
 
 .SH SSL/TLS SUPPORT
 SSL/TLS support is built into 3proxy (since 0.9.7) when compiled with OpenSSL

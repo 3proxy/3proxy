@@ -151,7 +151,7 @@ static int ldapfunc(struct clientparam *param)
   char   escuser[512];
 
   /* test proxy user auth ------------------------*/
-  if(!param->username || !param->password) return 4;
+  if(!*param->username || !*param->password) return 4;
   if(strlen(param->password)==0) return 4;
    
   /* init ldap ---------------------- */

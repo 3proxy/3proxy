@@ -54,8 +54,6 @@
    after it should be tried again. */
 #define HTTPSRV_REWRITTEN 2
 #define HTTPSRV_MAXBODY	1048576
-/* the most of a request this server keeps in case it hands it on */
-#define HTTPSRV_MAXRAW	65536
 /* lengths a reply is written with: a count, or one of these */
 #define HTTPSRV_LEN_CHUNKED	(-1)
 #define HTTPSRV_LEN_NONE	(-2)
@@ -582,7 +580,7 @@ static const char * contenttype(const char *path)
 static int sendfilecontent(struct httpreq *r, int fd, uint64_t size)
 {
 	struct clientparam *param = r->param;
-	char buf[HTTPSRV_BLOCK];
+	char *buf = (char *)param->tmpbuf;
 	uint64_t sent = 0;
 
 #ifdef HTTPSRV_SENDFILE
@@ -627,7 +625,7 @@ static int sendfilecontent(struct httpreq *r, int fd, uint64_t size)
 	if(lseek(fd, (off_t)sent, SEEK_SET) == (off_t)-1) return 1;
 	while(sent < size){
 		uint64_t left = size - sent;
-		int want = left > (uint64_t)sizeof(buf)? (int)sizeof(buf) : (int)left;
+		int want = left > (uint64_t)HTTPSRV_BLOCK? (int)HTTPSRV_BLOCK : (int)left;
 		int got;
 
 		got = (int)read(fd, buf, want);
@@ -988,7 +986,7 @@ static int op_echo(struct httpreq *r, const unsigned char *params)
    Produces exactly N bytes of body. */
 static int op_data(struct httpreq *r, const unsigned char *params)
 {
-	char buf[HTTPSRV_BLOCK];
+	char *buf = (char *)r->param->tmpbuf;
 	int64_t size, block, delay, status;
 	int chunked;
 	uint64_t sent = 0;
@@ -1141,11 +1139,12 @@ int httpopbyname(const unsigned char *name)
  */
 static void httpsrv_drain(struct clientparam *param, uint64_t len)
 {
-	char buf[HTTPSRV_BLOCK];
+	char *buf = (char *)param->tmpbuf;
 
+	param->climark = -1;	/* answered here: the request is not needed again */
 	if(len > HTTPSRV_MAXBODY) len = HTTPSRV_MAXBODY;
 	while(len){
-		int want = (len > (uint64_t)sizeof(buf))? (int)sizeof(buf) : (int)len;
+		int want = (len > (uint64_t)HTTPSRV_BLOCK)? (int)HTTPSRV_BLOCK : (int)len;
 		int got = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, want, EOF,
 			conf.timeouts[STRING_S]);
 
@@ -1162,7 +1161,7 @@ static void httpsrv_drain(struct clientparam *param, uint64_t len)
    and amount, which is what lets the answer be read. */
 static void httpsrv_linger(struct clientparam *param)
 {
-	char buf[HTTPSRV_BLOCK];
+	char *buf = (char *)param->tmpbuf;
 	struct pollfd fd;
 	uint64_t left = HTTPSRV_MAXBODY;
 	time_t deadline = time(NULL) + conf.timeouts[LINGER_TO];
@@ -1179,31 +1178,10 @@ static void httpsrv_linger(struct clientparam *param)
 		fd.events = POLLIN;
 		if(param->srv->so._poll(param->sostate, &fd, 1, timeo * 1000) <= 0) break;
 		got = (int)param->srv->so._recv(param->sostate, param->clisock, buf,
-			(left > sizeof(buf))? (int)sizeof(buf) : (int)left, 0);
+			(left > HTTPSRV_BLOCK)? (int)HTTPSRV_BLOCK : (int)left, 0);
 		if(got <= 0) break;
 		left -= (uint64_t)got;
 	}
-}
-
-/* Keeps the request as the client wrote it. Only what a handoff needs: the
-   request line and the headers, exactly as they came, since the proxy code
-   reads them again from the beginning. */
-static int rawkeep(struct httpreq *r, const char *line, int len)
-{
-	if(r->rawlen + len + 3 > r->rawsize){
-		int want = r->rawsize? r->rawsize * 2 : 2048;
-		unsigned char *grown;
-
-		while(want < r->rawlen + len + 3) want *= 2;
-		if(want > HTTPSRV_MAXRAW) return 1;
-		grown = realloc(r->raw, (size_t)want);
-		if(!grown) return 1;
-		r->raw = grown;
-		r->rawsize = want;
-	}
-	memcpy(r->raw + r->rawlen, line, (size_t)len);
-	r->rawlen += len;
-	return 0;
 }
 
 /* Hands the request to the proxy code, which reads it again from the client
@@ -1220,7 +1198,7 @@ static int proxypass(struct clientparam *param, struct httpreq *r)
 	   a request already being answered on behalf of another child is never
 	   handed on again. */
 	if(param->onerequest) return 1;
-	if(!r->raw || rawkeep(r, "\r\n", 2)) return 1;	/* the end of the headers */
+	if(param->climark < 0) return 1;	/* the request is no longer there */
 
 	/* What is open towards the server belongs to the request before this
 	   one. It is no use for this request if it went somewhere else, and no
@@ -1255,7 +1233,9 @@ static int proxypass(struct clientparam *param, struct httpreq *r)
 		r->lasthost[255] = 0;
 	}
 
-	if(pushbackcli(param, r->raw, r->rawlen)) return 1;
+	/* the proxy reads the request from where it began */
+	param->clioffset = (unsigned)param->climark;
+	param->climark = -1;
 
 	param->onerequest = 1;
 	next = proxychild(param);
@@ -1283,11 +1263,15 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 	struct httprule *rule;
 	int i, hdrs = 0;
 
+	/* The request is kept in the client buffer as it is read, so that one
+	   handed to the proxy can be read there again from the start. One which
+	   does not fit in the buffer is not answered. */
+	param->climark = (int)param->clioffset;
 	i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf) - 1, '\n',
 		conf.timeouts[STRING_S]);
 	if(i <= 0 && !r->first) return 0;	/* the client is done with us */
+	if(param->climark == -2) RETURN(710);
 	if(i < 5) RETURN(701);
-	if(rawkeep(r, buf, i)) RETURN(710);
 	buf[i] = 0;
 
 	sp = strchr(buf, ' ');
@@ -1368,7 +1352,6 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 	      (i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf) - 1,
 			'\n', conf.timeouts[STRING_S])) > 2){
 		hdrs++;
-		if(rawkeep(r, buf, i)) RETURN(710);
 		buf[i] = 0;
 		if(!strncasecmp(buf, "host:", 5) && !r->proxy){
 			sp = buf + 5;
@@ -1393,13 +1376,10 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 			creds[clen] = 0;
 
 			q = strchr(creds, ':');
-			if(q){
-				*q = 0;
-				if(param->password) free(param->password);
-				param->password = (unsigned char *)strdup(q + 1);
-			}
-			if(param->username) free(param->username);
-			param->username = (unsigned char *)strdup(creds);
+			if(q) *q = 0;
+			/* credentials too long to keep are no credentials */
+			if((q && PARAMSTR(param, password, q + 1)) || PARAMSTR(param, username, creds))
+				*param->username = *param->password = 0;
 		}
 		else if(!strncasecmp(buf, "connection:", 11)){
 			sp = buf + 11;
@@ -1422,6 +1402,7 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 		}
 	}
 
+	if(param->climark == -2) RETURN(710);
 	/* The headers ran past what this server reads, so the rest of the request
 	   is still in the stream and there is no answering it: what follows would
 	   be read as the request after this one. */
@@ -1453,8 +1434,7 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 			if(colon) *colon = 0;
 		}
 
-		if(param->hostname) free(param->hostname);
-		param->hostname = (unsigned char *)strdup(host);
+		if(PARAMSTR(param, hostname, host)) RETURN(706);
 	}
 
 	/* The request is answered here, so the address it was sent to is the
@@ -1594,7 +1574,7 @@ void * httpsrvchild(struct clientparam *param)
 
 		answered = httpsrv_request(param, &r);
 		handoff = r.handoff;
-		if(r.raw) free(r.raw);
+		param->climark = -1;
 		if(!answered) break;
 
 		/* Log the request the way the proxy does: the parameters decide

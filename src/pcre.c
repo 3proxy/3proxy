@@ -276,6 +276,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 	int replen, num;
 	char * replace;
 	char * tmpbuf, *target, *newbuf;
+	unsigned char *given = *buf_p;
 	int nreplaces=0;
 #define pcrefd ((struct pcre_filter_data *)fc)
 
@@ -358,7 +359,9 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 				return CONTINUE;
 			}
 			memcpy(newbuf, *buf_p, ovector[0]);
-			pl->freefunc(*buf_p);
+			/* The buffer given is the caller's to free; only one
+			   made by an earlier replacement here is ours. */
+			if(*buf_p != given) pl->freefunc(*buf_p);
 			*buf_p = (unsigned char *)newbuf;
 			*bufsize_p = newsize;
 		}

@@ -22,6 +22,7 @@
 #endif
 #endif
 #include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -36,8 +37,9 @@
 #define MAXNSERVERS 5
 #define DEFAULT_MAXCHILD 500
 
-#define TCPBUFSIZE 65536
-#define SRVBUFSIZE (param->srv->bufsize?param->srv->bufsize:((param->service == S_UDPPM)?UDPBUFSIZE:TCPBUFSIZE))
+/* How much of a connection's buffer is read into at once: all of it, or
+   less if the service was told so with -b. */
+#define SRVBUFSIZE(srv) (((srv)->bufsize > 0 && (srv)->bufsize < CLIENTBUFSIZE)? (unsigned)(srv)->bufsize : CLIENTBUFSIZE)
 
 
 #ifdef _WIN32
@@ -116,17 +118,6 @@ void daemonize(void);
 #endif
 #endif
 
-/* Keeps a callee with a large frame out of the caller's frame, e.g. the
-   8K log buffer of logstdout() out of dolog(), which calls it in a branch
-   taken only when there is no service.
- */
-#if defined(__GNUC__)
-#define NOINLINE __attribute__((noinline))
-#elif defined(_MSC_VER)
-#define NOINLINE __declspec(noinline)
-#else
-#define NOINLINE
-#endif
 
 /* Thread stack size, stacksize command value is added to it. BSD libc uses
    significantly more stack, e.g. in vfprintf() called by syslog().
@@ -258,8 +249,12 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 
 int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec);
 int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec);
-unsigned long sockfillbuffcli(struct clientparam * param, unsigned long size, int timeosec);
-unsigned long sockfillbuffsrv(struct clientparam * param, unsigned long size, int timeosec);
+unsigned long sockfillbuf(struct clientparam * param, DIRECTION which, unsigned long size, int timeosec);
+int bufroom(struct clientparam * param, DIRECTION which, unsigned long size);
+int paramstr(unsigned char *field, size_t size, const unsigned char *s);
+/* sets one of a connection's names or credentials; 1 if it is too long */
+#define PARAMSTR(p, f, s) paramstr((p)->f, sizeof((p)->f), (const unsigned char *)(s))
+void bufrelease(struct clientparam * param, DIRECTION which);
 
 int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
 int getmultiline(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, const char *cap, int *found);
@@ -272,7 +267,7 @@ void dolog(struct clientparam * param, const unsigned char *s);
 int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 extern FILE * stdlog;
-NOINLINE void logstdout(struct clientparam * param, const unsigned char *s);
+void logstdout(struct clientparam * param, const unsigned char *s);
 void logsyslog(struct clientparam * param, const unsigned char *s);
 void lognone(struct clientparam * param, const unsigned char *s);
 void logradius(struct clientparam * param, const unsigned char *s);
@@ -387,7 +382,7 @@ void freefilter(struct filter *filter);
 void freeconf(struct extparam *confp);
 struct passwords * copypwl (struct passwords *pwl);
 void freepwl(struct passwords *pw);
-void copyfilter(struct filter *, struct srvparam *srv);
+int copyfilter(struct filter *, struct srvparam *srv);
 FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param);
 FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p);
 FILTER_ACTION handleconnectflt(struct clientparam *param);
@@ -417,7 +412,6 @@ void pcre_pattern_free(void *re);
 int pcre_pattern_match(void *re, const unsigned char *subject, struct capture *caps, int maxcaps);
 #endif
 
-int pushbackcli(struct clientparam * param, const unsigned char * data, int len);
 int parsepattern(struct hostname *h, unsigned char *arg);
 int parsepathpattern(struct hostname *h, unsigned char *arg);
 int patternmatchcaps(const struct hostname *h, const unsigned char *str,

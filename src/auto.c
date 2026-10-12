@@ -12,12 +12,7 @@
 void * autochild(struct clientparam* param) {
     int len;
 
-    if(!param->clibuf){
-	if(!(param->clibuf = malloc(SRVBUFSIZE))) return 0;
-	param->clibufsize = SRVBUFSIZE;
-	param->clioffset = param->cliinbuf = 0;
-    }
-    len = sockfillbuffcli(param, 1, CONNECTION_S);
+    len = sockfillbuf(param, CLIENT, 1, CONNECTION_S);
     if (len != 1){
 	param->res = 801;
 	dolog(param, (unsigned char *)"");

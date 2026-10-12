@@ -54,7 +54,7 @@ unsigned char * conv_utf8_to_cp1251(unsigned char *s){
 
 
  static int aufunc(struct clientparam *param){
-	if(!param->username || !param->password || param->pwtype != 0) return 4;
+	if(!*param->username || !*param->password || param->pwtype != 0) return 4;
 	conv_utf8_to_cp1251(param->username);
 	conv_utf8_to_cp1251(param->password);
 	return 4;

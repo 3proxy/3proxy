@@ -312,7 +312,6 @@ struct srvstart {
 /* Releases what the preparation and the run took, s itself excepted. */
 static void srvdiscard(struct srvstart *s){
  srvfree(&s->srv);
- if(s->defparam.hostname) free(s->defparam.hostname);
  if(s->cbc_string) free(s->cbc_string);
  if(s->cbl_string) free(s->cbl_string);
  if(s->fp) fclose(s->fp);
@@ -751,7 +750,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 
 
 #ifndef STDMAIN
- copyfilter(conf.filters, srv);
+ if((error = copyfilter(conf.filters, srv))) return error;
 #endif
  return 0;
 }
@@ -1055,8 +1054,10 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 	usleep(SLEEPTIME);
 	return 1;
  };
- *newparam = *defparam;
- if(defparam->hostname)newparam->hostname=(unsigned char *)strdup((char *)defparam->hostname);
+ memcpy(newparam, defparam, offsetof(struct clientparam, filters));
+ newparam->clibuf = newparam->clibufdata;
+ newparam->srvbuf = newparam->srvbufdata;
+ newparam->clibufsize = newparam->srvbufsize = SRVBUFSIZE(srv);
  clearstat(newparam);
  if(!s->isudp) newparam->clisock = client_sock;
  newparam->prev = newparam->next = NULL;
@@ -1431,6 +1432,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  param->paused = srv->paused;
  param->remsock = param->clisock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
  param->pipecli[0] = param->pipecli[1] = param->pipesrv[0] = param->pipesrv[1] = -1;
+ param->climark = -1;
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  _3proxy_mutex_init(&srv->counter_mutex);
  (void)_3proxy_sem_init_timed(srv->childslots, srv->maxchild, srv->maxchild);
@@ -1551,8 +1553,8 @@ void freeparam(struct clientparam * param) {
 		}
 #endif
 	}
-	if(param->clibuf) free(param->clibuf);
-	if(param->srvbuf) free(param->srvbuf);
+	if(param->clibuf != param->clibufdata) free(param->clibuf);
+	if(param->srvbuf != param->srvbufdata) free(param->srvbuf);
 #ifdef WITHSPLICE
 	if(param->pipecli[0] >= 0) close(param->pipecli[0]);
 	if(param->pipecli[1] >= 0) close(param->pipecli[1]);
@@ -1590,21 +1592,11 @@ void freeparam(struct clientparam * param) {
 			param->srv->so._closesocket(param->sostate, param->clisock);
 		}
 	}
-	if(param->datfilterssrv) free(param->datfilterssrv);
 #ifndef STDMAIN
-	if(param->reqfilters) free(param->reqfilters);
-	if(param->connectfilters) free(param->connectfilters);
-	if(param->afterauthfilters) free(param->afterauthfilters);
-	if(param->hdrfilterscli) free(param->hdrfilterscli);
-	if(param->hdrfilterssrv) free(param->hdrfilterssrv);
-	if(param->predatfilters) free(param->predatfilters);
-	if(param->datfilterscli) free(param->datfilterscli);
-	if(param->filters){
-		if(param->nfilters)while(param->nfilters--){
-			if(param->filters[param->nfilters].filter->filter_clear)
-				(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
-		}
-		free(param->filters);
+	while(param->nfilters > 0){
+		param->nfilters--;
+		if(param->filters[param->nfilters].filter->filter_clear)
+			(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
 	}
 	if(param->connlim) stopconnlims(param);
 #endif
@@ -1629,11 +1621,6 @@ void freeparam(struct clientparam * param) {
 		}
 		_3proxy_mutex_unlock(&param->srv->counter_mutex);
 	}
-	if(param->hostname) free(param->hostname);
-	if(param->username) free(param->username);
-	if(param->password) free(param->password);
-	if(param->extusername) free(param->extusername);
-	if(param->extpassword) free(param->extpassword);
 	free(param);
 }
 
@@ -1650,6 +1637,18 @@ FILTER_ACTION handleconnectflt(struct clientparam *cparam){
 	return PASS;
 }
 
+
+/* A buffer filter given a buffer too small for what it makes of it hands
+   back one of its own, allocated with malloc, and leaves the one it was given
+   alone: nothing refers to that one any more, so it is freed here, unless it
+   is one of the connection's own buffers. The caller owns whatever *buf_p
+   points to on return. */
+static void filterswap(struct clientparam *param, unsigned char **cur, unsigned char *now){
+	if(now != *cur){
+		if(*cur != param->clibufdata && *cur != param->srvbufdata && *cur != param->tmpbuf) free(*cur);
+		*cur = now;
+	}
+}
 
 #ifndef STDMAIN
 static void * itcopy (void * from, size_t size){
@@ -1817,18 +1816,25 @@ ERRORNEXT:
 }
 
 
-void copyfilter (struct filter *filter, struct srvparam *srv){
+/* Returns 2 when out of memory, 3 when there are more filters than a
+   connection has room for: a service started without some of its filters
+   could pass what one of them was there to stop. */
+int copyfilter (struct filter *filter, struct srvparam *srv){
  int nfilters = 0;
 
- if(!filter) return;
+ if(!filter) return 0;
  for(srv->filter = filter; srv->filter; srv->filter = srv->filter->next) nfilters++;
  srv->filter = malloc(sizeof(struct filter) * nfilters);
- if(!srv->filter) return;
+ if(!srv->filter) return 2;
 
  for(; filter; filter = filter->next){
 	void *data = NULL;
 
 	if(!filter->filter_open || !(data = (*filter->filter_open)(filter->data, srv))) continue;
+	if(srv->nfilters >= MAX_FILTERS){
+		if(filter->filter_close) (*filter->filter_close)(data);
+		return 3;
+	}
 
 	srv->filter[srv->nfilters] = *filter;
 	srv->filter[srv->nfilters].data = data;
@@ -1843,6 +1849,7 @@ void copyfilter (struct filter *filter, struct srvparam *srv){
 	if(filter->filter_data_srv)srv->ndatfilterssrv++;
 	if(filter->filter_data_cli)srv->ndatfilterscli++;
  }
+ return 0;
 }
 
 FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
@@ -1852,20 +1859,6 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 
 	if(!srv->nfilters) return PASS;
 
-	if(!(param->filters = malloc(sizeof(struct filterp) * srv->nfilters)) ||
-	   (srv->nreqfilters && !(param->reqfilters = malloc(sizeof(struct filterp *) * srv->nreqfilters))) ||
-	   (srv->nconnectfilters && !(param->connectfilters = malloc(sizeof(struct filterp *) * srv->nconnectfilters))) ||
-	   (srv->nafterauthfilters && !(param->afterauthfilters = malloc(sizeof(struct filterp *) * srv->nafterauthfilters))) ||
-	   (srv->nhdrfilterssrv && !(param->hdrfilterssrv = malloc(sizeof(struct filterp *) * srv->nhdrfilterssrv))) ||
-	   (srv->nhdrfilterscli && !(param->hdrfilterscli = malloc(sizeof(struct filterp *) * srv->nhdrfilterscli))) ||
-	   (srv->npredatfilters && !(param->predatfilters = malloc(sizeof(struct filterp *) * srv->npredatfilters))) ||
-	   (srv->ndatfilterssrv && !(param->datfilterssrv = malloc(sizeof(struct filterp *) * srv->ndatfilterssrv))) ||
-	   (srv->ndatfilterscli && !(param->datfilterscli = malloc(sizeof(struct filterp *) * srv->ndatfilterscli)))
-	  ){
-		param->res = 21;
-		return REJECT;
-	}
-		
 	for(i=0; i<srv->nfilters; i++){
 		if(!srv->filter[i].filter_client)continue;
 		action = (*srv->filter[i].filter_client)(srv->filter[i].data, param, &param->filters[param->nfilters].data);
@@ -1937,9 +1930,11 @@ FILTER_ACTION handleafterauthflt(struct clientparam *cparam){
 FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
+	unsigned char *cur = *buf_p;
 
 	for(i=0; i<param->nreqfilters; i++){
 		action =  (*param->reqfilters[i]->filter->filter_request)(param->reqfilters[i]->data, param, buf_p, bufsize_p, offset, length_p);
+		filterswap(param, &cur, *buf_p);
 		if(action!=CONTINUE) return action;
 	}
 	return PASS;
@@ -1948,9 +1943,11 @@ FILTER_ACTION handlereqfilters(struct clientparam *param, unsigned char ** buf_p
 FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
+	unsigned char *cur = *buf_p;
 
 	for(i=0; i<param->nhdrfilterssrv; i++){
 		action =  (*param->hdrfilterssrv[i]->filter->filter_header_srv)(param->hdrfilterssrv[i]->data, param, buf_p, bufsize_p, offset, length_p);
+		filterswap(param, &cur, *buf_p);
 		if(action!=CONTINUE) return action;
 	}
 	return PASS;
@@ -1959,9 +1956,11 @@ FILTER_ACTION handlehdrfilterssrv(struct clientparam *param, unsigned char ** bu
 FILTER_ACTION handlehdrfilterscli(struct clientparam *param, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
+	unsigned char *cur = *buf_p;
 
 	for(i = 0; i < param->nhdrfilterscli; i++){
 		action =  (*param->hdrfilterscli[i]->filter->filter_header_cli)(param->hdrfilterscli[i]->data, param, buf_p, bufsize_p, offset, length_p);
+		filterswap(param, &cur, *buf_p);
 		if(action!=CONTINUE) return action;
 	}
 	return PASS;
@@ -1988,9 +1987,11 @@ FILTER_ACTION handledatfltcli(struct clientparam *cparam, unsigned char ** buf_p
 #ifndef STDMAIN
 	FILTER_ACTION action;
 	int i;
+	unsigned char *cur = *buf_p;
 
 	for(i=0; i<cparam->ndatfilterscli ;i++){
 		action =  (*cparam->datfilterscli[i]->filter->filter_data_cli)(cparam->datfilterscli[i]->data, cparam, buf_p, bufsize_p, offset, length_p);
+		filterswap(cparam, &cur, *buf_p);
 		if(action!=CONTINUE) return action;
 	}
 #endif
@@ -2000,9 +2001,11 @@ FILTER_ACTION handledatfltcli(struct clientparam *cparam, unsigned char ** buf_p
 FILTER_ACTION handledatfltsrv(struct clientparam *cparam, unsigned char ** buf_p, int * bufsize_p, int offset, int * length_p){
 	FILTER_ACTION action;
 	int i;
+	unsigned char *cur = *buf_p;
 
 	for(i=0; i<cparam->ndatfilterssrv; i++){
 		action =  (*cparam->datfilterssrv[i]->filter->filter_data_srv)(cparam->datfilterssrv[i]->data, cparam, buf_p, bufsize_p, offset, length_p);
+		filterswap(cparam, &cur, *buf_p);
 		if(action!=CONTINUE) return action;
 	}
 	return PASS;

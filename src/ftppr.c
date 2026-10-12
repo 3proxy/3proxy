@@ -28,7 +28,7 @@ void * ftpprchild(struct clientparam* param) {
 #endif
  struct pollfd fds;
 
- if(!(buf = malloc(BUFSIZE))) RETURN(876);
+ buf = param->tmpbuf;	/* a filter may replace it with one of its own */
  param->ctrlsock = param->clisock;
  param->operation = CONNECT;
 #ifndef _WIN32
@@ -73,11 +73,11 @@ void * ftpprchild(struct clientparam* param) {
 		/* The user name carries the server to log in to, and it arrives
 		   with USER. Without it there is nothing to log in to, and what
 		   follows would read the name and the host as if there were. */
-		if(!param->hostname || !param->extusername){
+		if(!*param->hostname || !*param->extusername){
 			socksend(param, param->ctrlsock, (unsigned char *)"503 Login with USER first\r\n", 27, conf.timeouts[STRING_S]);
 			RETURN(805);
 		}
-		param->extpassword = (unsigned char *)strdup((char *)buf+5);
+		if(PARAMSTR(param, extpassword, buf+5)){RETURN(806);}
 		inbuf = BUFSIZE;
 		res = ftplogin(param, (char *)buf, &inbuf);
 		param->res = res;
@@ -341,7 +341,7 @@ CLEANRET:
 	dolog(param, (unsigned char *)((req && (param->res > 802))? req:NULL));
  }
  if(req) free(req);
- if(buf) free(buf);
+ if(buf != param->tmpbuf) free(buf);
  return (NULL);
 }
 

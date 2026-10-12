@@ -152,7 +152,7 @@ void * imappchild(struct clientparam* param) {
 	socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
  }
  if(parseconnusername((char *)ub, param, 0, 143)){RETURN(694);}
- if(*pb && !param->password) param->password = (unsigned char *)strdup((char *)pb);
+ if(*pb && !*param->password && PARAMSTR(param, password, pb)){RETURN(694);}
  param->operation = CONNECT;
  res = (*param->srv->authfunc)(param);
  if(res) {RETURN(res);}
@@ -227,7 +227,7 @@ void * imappchild(struct clientparam* param) {
  RETURN (mapsocket(param, 180));
 CLEANRET:
 
- if(param->hostname&&param->extusername) {
+ if(*param->hostname&&*param->extusername) {
 	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, (*SAPORT(&param->sinsr)==143)?0:':', ntohs(*SAPORT(&param->sinsr)));
 	dolog(param, buf);
  }

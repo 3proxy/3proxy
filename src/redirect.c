@@ -26,16 +26,11 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 
 	user = redir->extuser;
 	pass = redir->extpass;
-	if (!param->srvbufsize){
-		param->srvbufsize = SRVBUFSIZE;
-		param->srvbuf = malloc(param->srvbufsize);
-		if(!param->srvbuf) return 21;
-	}
 	buf = param->srvbuf;
 	username = buf + 2048;
 	if(user) {
 		if (*user == '*') {
-			if(!param->username) return 4;
+			if(!*param->username) return 4;
 			user = param->username;
 			pass = param->password;
 		}
@@ -415,15 +410,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			else if(SAISNULL(&cur->addr) && !*SAPORT(&cur->addr)){
 				int i;
 				if(cur->extuser){
-					if(param->extusername)
-						free(param->extusername);
-					param->extusername = (unsigned char *)strdup((char *)((*cur->extuser == '*' && param->username)? param->username : cur->extuser));
-					if(cur->extpass){
-						if(param->extpassword)
-							free(param->extpassword);
-						param->extpassword = (unsigned char *)strdup((char *)((*cur->extuser == '*' && param->password)?param->password : cur->extpass));
-					}
-					if(*cur->extuser == '*' && !param->username) return 4;
+					if(*cur->extuser == '*' && !*param->username) return 4;
+					if(PARAMSTR(param, extusername, (*cur->extuser == '*')? param->username : cur->extuser)) return 21;
+					if(cur->extpass && PARAMSTR(param, extpassword, (*cur->extuser == '*' && *param->password)?param->password : cur->extpass)) return 21;
 				}
 
 				for(i=0; redirs[i].name; i++){
@@ -490,15 +479,9 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		param->redirtype = redir->type;
 		if(redir->type == R_TCP || redir->type ==R_HTTP) {
 			if(cur->extuser){
-				if(*cur -> extuser == '*' && !param->username) return 4;
-				if(param->extusername)
-					free(param->extusername);
-				param->extusername = (unsigned char *)strdup((char *)((*cur->extuser == '*' && param->username)? param->username : cur->extuser));
-				if(cur->extpass){
-					if(param->extpassword)
-						free(param->extpassword);
-					param->extpassword = (unsigned char *)strdup((char *)((*cur->extuser == '*' && param->password)?param->password : cur->extpass));
-				}
+				if(*cur -> extuser == '*' && !*param->username) return 4;
+				if(PARAMSTR(param, extusername, (*cur->extuser == '*')? param->username : cur->extuser)) return 21;
+				if(cur->extpass && PARAMSTR(param, extpassword, (*cur->extuser == '*' && *param->password)?param->password : cur->extpass)) return 21;
 			}
 			if(redir->secure) return ssl_parent(param);
 			return 0;
@@ -507,7 +490,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	}
 
 	if(!connected || !redir) return 0;
-	res =  clientnegotiate(redir, param, (struct sockaddr *)&param->req, param->hostname);
+	res =  clientnegotiate(redir, param, (struct sockaddr *)&param->req, *param->hostname? param->hostname : NULL);
 	if(res) parentfail(param, redir);
 	if(saved){
 	    SOCKET s;

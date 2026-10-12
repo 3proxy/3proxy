@@ -50,10 +50,6 @@ void * udppmchild(struct clientparam* param) {
 	if(authres) { RETURN(authres); }
 	if((authres = udpbind(param))) { RETURN(authres); }
 	if(!param->srv->s_option)hashadd(&udp_table, param, &param, MAX_COUNTER_TIME);
-	if(!param->srvbuf){
-	    if(!(param->srvbuf = malloc(UDPBUFSIZE)))RETURN(11);
-	    param->srvbufsize = UDPBUFSIZE;
-	}
 	if(!param->bandlimfunc || !(*param->bandlimfunc)(param, 0, param->srv->udplen)){
 	    if(param->udp_nhops){
 		for(i=1; i < param->udp_nhops; i++){

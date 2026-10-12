@@ -157,9 +157,11 @@ static int send_st(struct clientparam *param, int idx){
 	return socksend(param, param->clisock, (unsigned char *)proxy_stringtable[idx], pst_len(idx), conf.timeouts[STRING_S]);
 }
 
+#ifndef WITHMAIN
 /* Makes room in a buffer whose size is tracked. A filter may hand back one
    holding exactly what it produced, so nothing may be added to it without
-   asking for the room first. Returns 1 when the room cannot be had. */
+   asking for the room first; without filters, as in a proxy built on its
+   own, there is nothing to ask. Returns 1 when the room cannot be had. */
 static int growbuf(unsigned char **buf, int *bufsize, int need){
 	unsigned char *newbuf;
 
@@ -170,6 +172,16 @@ static int growbuf(unsigned char **buf, int *bufsize, int need){
 	*bufsize = need;
 	return 0;
 }
+
+/* Reads a body of a known length into one buffer, to be filtered whole.
+   One bigger than the connection's own is had for it, up to filtermaxsize;
+   with no limit set a body is only read whole if it fits the buffer.
+   Returns how much is there, less than len if the body did not all come. */
+static uint64_t fillwhole(struct clientparam *param, DIRECTION which, uint64_t len){
+	if(conf.filtermaxsize && bufroom(param, which, (unsigned long)len)) return 0;
+	return sockfillbuf(param, which, (unsigned long)len, CONNECTION_S);
+}
+#endif
 
 static void freeptr(void *p){
 	void **pp = (void **)p;
@@ -467,16 +479,11 @@ for(;;){
 			sb = (unsigned char *)strchr((char *)username, ':');
 			if(sb){
 				*sb = 0;
-				if(param->password)free(param->password);
-				param->password = (unsigned char *)strdup((char *)sb+1);
 				param->pwtype = 0;
 			}
-			else if(param->password){
-				free(param->password);
-				param->password = NULL;
-			}
-			if(param->username)free(param->username);
-			param->username = (unsigned char *)strdup((char *)username);
+			/* credentials too long to keep are no credentials */
+			if(PARAMSTR(param, password, sb? sb+1 : NULL) || PARAMSTR(param, username, username))
+				*param->username = *param->password = 0;
 			continue;
 		}
 	}
@@ -512,11 +519,10 @@ for(;;){
 			c = *se;
 			*se = 0;
 		}
-		if(param->hostname && (!*param->hostname || isnumber(param->hostname[strlen((char *)param->hostname) - 1]))){
-		    free(param->hostname);
-		    param->hostname = NULL;
+		if(*param->hostname && isnumber(param->hostname[strlen((char *)param->hostname) - 1])){
+		    *param->hostname = 0;
 		}
-		if(!param->hostname){
+		if(!*param->hostname){
 			if(parsehostname((char *)sb, param, 80)) RETURN(100);
 		}
 		newbuf = malloc(strlen((char *)req) + strlen((char *)(buf+inbuf)) + 8);
@@ -543,17 +549,9 @@ for(;;){
 			if(i<=0)continue;
 			username[i] = 0;
 			sb = (unsigned char *)strchr((char *)username, ':');
-			if(sb){
-				*sb = 0;
-				if(param->extpassword)free(param->extpassword);
-				param->extpassword = (unsigned char *)strdup((char *)sb+1);
-			}
-			else if(param->extpassword){
-				free(param->extpassword);
-				param->extpassword = NULL;
-			}
-			if(param->extusername)free(param->extusername);
-			param->extusername = (unsigned char *)strdup((char *)username);
+			if(sb) *sb = 0;
+			if(PARAMSTR(param, extpassword, sb? sb+1 : NULL) || PARAMSTR(param, extusername, username))
+				*param->extusername = *param->extpassword = 0;
 			continue;
 		}
 	}
@@ -606,7 +604,7 @@ for(;;){
 #endif
 
 
- if(param->srv->needuser > 1 && !param->username) {RETURN(4);}
+ if(param->srv->needuser > 1 && !*param->username) {RETURN(4);}
  if((res = (*param->srv->authfunc)(param))) {
 	if (res <= 10 || haveconnection || param->transparent) RETURN(res);
 	param->srv->so._closesocket(param->sostate, param->remsock);
@@ -698,7 +696,7 @@ for(;;){
  }
  else if(param->ndatfilterscli > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64){
   uint64_t newlen64;
-  newlen64 = (uint64_t) sockfillbuffcli(param, (unsigned long)contentlength64, CONNECTION_S);
+  newlen64 = fillwhole(param, CLIENT, contentlength64);
   if(newlen64 == contentlength64) {
 	action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, 0, (int *)&param->cliinbuf);
 	if(action == HANDLED){
@@ -1025,9 +1023,9 @@ for(;;){
  if(keepalive <= 1) {
 	hlen += sprintf((char*)buf + hlen, "Connection: %s\r\n", keepalive? "keep-alive":"close");
  }
- if(param->extusername){
+ if(*param->extusername){
 	hlen += sprintf((char*)buf + hlen, "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
-	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword?param->extpassword:(unsigned char*)"");
+	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword);
 	if(!(sb = en64(username, buf + hlen, (int)strlen((char *)username), bufsize - hlen))) {RETURN(21);}
 	hlen = (int)(sb - buf);
 	hlen += sprintf((char*)buf + hlen, "\r\n");
@@ -1198,7 +1196,7 @@ for(;;){
  }
  else if(param->ndatfilterssrv > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64 && param->operation != HTTP_HEAD && res != 204 && res != 304){
   uint64_t newlen;
-  newlen = (uint64_t)sockfillbuffsrv(param, (unsigned long) contentlength64, CONNECTION_S);
+  newlen = fillwhole(param, SERVER, contentlength64);
   if(newlen == contentlength64) {
 	action = handlepredatflt(param);
 	if(action == HANDLED){

@@ -401,7 +401,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	total_length += (2+len);
 
 	/* Called-Station-ID */
-	if(param->hostname){
+	if(*param->hostname){
 		*ptr++ = PW_CALLED_STATION_ID;
 		len = strlen((char *)param->hostname);
 		if(len > 253) len = 253;
@@ -443,7 +443,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 
 
 	/* Username */
-	if(param->username){
+	if(*param->username){
 	    len = strlen((char *)param->username);
 	    if(len>128)len=128;
 	    *ptr++ = PW_USER_NAME;
@@ -502,7 +502,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 		total_length+=6;
 	}
 	
-	if(auth && param->password){
+	if(auth && *param->password){
     	    len = strlen((char *)param->password);
 	    if(len > 128) len = 128;
 	    *ptr++ = PW_PASSWORD;

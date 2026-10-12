@@ -16,12 +16,12 @@
 void * tcppmchild(struct clientparam* param) {
  int res;
 
- if(!param->hostname){ 
+ if(!*param->hostname){ 
 #ifdef WITH_UN
     if(!strncmp((char *)param->srv->target, "unix:", 5)){
 	make_un(param->srv->target + 5, (struct sockaddr_un *)&param->sinsr);
 	make_un(param->srv->target + 5, (struct sockaddr_un *)&param->req);
-	param->hostname = (unsigned char *)strdup((char *)param->srv->target);
+	if(PARAMSTR(param, hostname, param->srv->target)) RETURN(100);
     } else
 #endif
     if(
@@ -46,7 +46,7 @@ void * tcppmchild(struct clientparam* param) {
  RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
 CLEANRET:
  
- dolog(param, param->hostname);
+ dolog(param, *param->hostname? param->hostname : NULL);
  return (NULL);
 }
 

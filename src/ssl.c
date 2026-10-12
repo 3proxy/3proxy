@@ -453,11 +453,13 @@ int docli(struct clientparam* param){
 
  SSL_CONN ServerConn;
  SSL_CERT ServerCert=NULL;
- unsigned char *hostname;
- hostname = param->hostname;
- param->hostname = (unsigned char *)PCONF->client_sni;
+ unsigned char hostname[HOSTNAMELEN];
+
+ /* the name given to the server is the configured one, if any */
+ memcpy(hostname, param->hostname, sizeof(hostname));
+ if(PARAMSTR(param, hostname, PCONF->client_sni)) *param->hostname = 0;
  ServerConn = dosrvcon(param, &ServerCert);
- param->hostname = hostname;
+ memcpy(param->hostname, hostname, sizeof(hostname));
  _ssl_cert_free(ServerCert);
 
  if(!ServerConn) return 1;

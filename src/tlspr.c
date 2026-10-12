@@ -266,64 +266,30 @@ int parsehello(int type, unsigned char *hello, unsigned len, char *sni, int * sn
     return snifound;
 }
 
-int tlstobufcli(struct clientparam *param){
-    unsigned long  len, newlen;
-    if(!param->clibuf){
-	if(!(param->clibuf = malloc(SRVBUFSIZE))) return -1;
-        param->clibufsize = SRVBUFSIZE;
-	param->clioffset = param->cliinbuf = 0;
-    }
-    if(param->srvinbuf != param->srvoffset){
-	len = socksend(param, param->clisock, param->srvbuf+param->srvoffset,param->srvinbuf-param->srvoffset, conf.timeouts[STRING_S]);
-	if(len != param->srvinbuf-param->srvoffset){
-	    return -2;
-	}
-	param->srvinbuf = param->srvoffset = 0;
-    }
-    len = sockfillbuffcli(param, 5, conf.timeouts[STRING_S]);
-    if(len < 5) return -2;
-    if(param->clibuf[1] != 3) {
-	return -3;
-    }
-    else {
-	len = 5 + size16(param->clibuf+3);
-        if(len > param->clibufsize) return -4;
-	for(newlen=param->cliinbuf; newlen < len; newlen=param->cliinbuf){
-	    sockfillbuffcli(param, len, conf.timeouts[STRING_S]);
-	    if(param->cliinbuf <= newlen) return -5;
-	}
-    }
-    return (int)len;
-}
+/* Has one whole TLS record from one side at the start of its buffer, once
+   whatever is still buffered from the other side is passed on. Returns its
+   length, or less than 0; the server's codes are one further on than the
+   client's, as the log has always had them. */
+static int tlstobuf(struct clientparam *param, DIRECTION which){
+    unsigned *oinbuf = which? &param->cliinbuf : &param->srvinbuf;
+    unsigned *ooffset = which? &param->clioffset : &param->srvoffset;
+    unsigned char *obuf = which? param->clibuf : param->srvbuf;
+    unsigned char *buf;
+    int e = which? 1 : 0;
+    unsigned long len;
 
-int tlstobufsrv(struct clientparam *param){
-    unsigned long len, newlen;
-
-    if(param->cliinbuf != param->clioffset){
-	len = socksend(param, param->remsock, param->clibuf+param->clioffset,param->cliinbuf-param->clioffset, conf.timeouts[STRING_S]);
-	if(len != param->cliinbuf-param->clioffset){
-	    return -1;
-	}
-	param->cliinbuf = param->clioffset = 0;
+    if(*oinbuf != *ooffset){
+	len = *oinbuf - *ooffset;
+	if((unsigned long)socksend(param, which? param->remsock : param->clisock, obuf + *ooffset, (int)len, conf.timeouts[STRING_S]) != len)
+	    return which? -1 : -2;
+	*oinbuf = *ooffset = 0;
     }
-    if(!param->srvbuf){
-        if(!(param->srvbuf = malloc(SRVBUFSIZE))) return -1;
-	param->srvbufsize = SRVBUFSIZE;
-	param->srvoffset = param->srvinbuf = 0;
-    }
-    len = sockfillbuffsrv(param, 5, conf.timeouts[STRING_S]);
-    if(len < 5) return -3;
-    if(param->srvbuf[1] != 3) {
-	return -4;
-    }
-    else {
-	len = 5 + size16(param->srvbuf+3);
-	if(len > param->srvbufsize) return -5;
-	for(newlen=param->srvinbuf; newlen < len; newlen=param->srvinbuf){
-	    sockfillbuffsrv(param, len, conf.timeouts[STRING_S]);
-	    if(param->srvinbuf <= newlen) return -6;
-	}
-    }
+    if(sockfillbuf(param, which, 5, conf.timeouts[STRING_S]) < 5) return -2 - e;
+    buf = which? param->srvbuf : param->clibuf;
+    if(buf[1] != 3) return -3 - e;
+    len = 5 + size16(buf + 3);
+    if(len > (which? param->srvbufsize : param->clibufsize)) return -4 - e;
+    if(sockfillbuf(param, which, len, conf.timeouts[STRING_S]) < len) return -5 - e;
     return (int)len;
 }
 
@@ -343,7 +309,7 @@ void * tlsprchild(struct clientparam* param) {
     if(res < 0) RETURN(0);
  }
 
- res = tlstobufcli(param);
+ res = tlstobuf(param, CLIENT);
  if(res <= 0 || param->clibuf[0] != 22){
      if(param->srv->requirecert)RETURN(300-res);
  }
@@ -351,12 +317,10 @@ void * tlsprchild(struct clientparam* param) {
     lv = param->clibuf[2];
     res = parsehello(1, param->clibuf, (unsigned)res, sni, &snipos, &lv, proto);
     if(res > 0){
-	if(param->hostname){
-	    free(param->hostname);
-	    param->hostname = NULL;
+	if(*param->hostname){
+	    if(PARAMSTR(param, hostname, sni)) RETURN (100);
 	}
 	else if (parsehostname(sni, param, param->srv->targetport? ntohs(param->srv->targetport):starttlsport(stlsproto))) RETURN (100);
-	if (!param->hostname)param->hostname = (unsigned char *)strdup(sni);
 	if(param->srv->s_option && snipos && res > 1){
 	    int len;
 	    
@@ -395,7 +359,7 @@ void * tlsprchild(struct clientparam* param) {
  }
 
  if(param->srv->requirecert > 1){
-    res = tlstobufsrv(param);
+    res = tlstobuf(param, SERVER);
     if(res <= 0 || param->srvbuf[0] != 22) RETURN(340-res);
     lv = param->srvbuf[2];
     res = parsehello(2, param->srvbuf, (unsigned)res, sni, &snipos, &lv, proto);
@@ -408,7 +372,7 @@ void * tlsprchild(struct clientparam* param) {
 	len = param->srvinbuf;
 	if(socksend(param, param->clisock, param->srvbuf,len, conf.timeouts[STRING_S]) != len) RETURN(371);
 	param->srvinbuf = 0;
-	res = tlstobufsrv(param);
+	res = tlstobuf(param, SERVER);
 	if(res <= 0) RETURN(380-res);
 	if(param->srvbuf[0]!= 22) break;
 	switch(param->srvbuf[5]){
@@ -430,7 +394,7 @@ void * tlsprchild(struct clientparam* param) {
     if(param->srv->requirecert > 3){
 	if(!reqcert) RETURN(374);
     	for(done=0;!done;) {
-	    res = tlstobufcli(param);
+	    res = tlstobuf(param, CLIENT);
 	    if(res <= 0) RETURN(390-res);
 	    len = res;
 	    if(param->clibuf[0]!= 22) break;
@@ -456,7 +420,7 @@ void * tlsprchild(struct clientparam* param) {
  RETURN (mapsocket(param, conf.timeouts[CONNECTION_L]));
 CLEANRET:
  
- sprintf(req, "%sv%d.%d %s %s", lv<0?"NONE":lv?"TLS":"SSL", lv<0?0:lv?1:3, lv<0?0:lv?lv-1:0, param->hostname?(char *)param->hostname:"-", proto);
+ sprintf(req, "%sv%d.%d %s %s", lv<0?"NONE":lv?"TLS":"SSL", lv<0?0:lv?1:3, lv<0?0:lv?lv-1:0, *param->hostname?(char *)param->hostname:"-", proto);
  dolog(param, (unsigned char *)req);
  return (NULL);
 }

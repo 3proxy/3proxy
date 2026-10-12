@@ -201,9 +201,9 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 		    s2 = s1;
 		}
 		*s2 = 0;
-		if(param->username)free(param->username);
-		param->username = (unsigned char *)strdup ((char *)buf + k + 13);
-		
+		/* a name longer than the field is no name to authenticate */
+		if(PARAMSTR(param, username, buf + k + 13)) return 0;
+
 		return udpresolve(af,param->username, value, NULL, NULL, 2);
 	    }
 	}

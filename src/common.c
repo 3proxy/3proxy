@@ -561,9 +561,10 @@ int parsehostname(char *hostname, struct clientparam *param, uint16_t port){
 		if(sp) *sp = ':';
 		return 1;
 	}
-	if(hostname != (char *)param->hostname){
-		if(param->hostname) free(param->hostname);
-		param->hostname = (unsigned char *)strdup(hostname + (se!=0));
+	if(PARAMSTR(param, hostname, hostname + (se!=0))){
+		if(se) *se = ']';
+		if(sp) *sp = ':';
+		return 1;
 	}
 	if(sp){
 		port = atoi(sp+1);
@@ -576,6 +577,22 @@ int parsehostname(char *hostname, struct clientparam *param, uint16_t port){
 	return ret;
 }
 
+/* Copies a string into one of a connection's fixed fields. One too long for
+   it is refused rather than cut short, which could name another host or
+   another user; NULL empties it. The string may be part of the field. */
+int paramstr(unsigned char *field, size_t size, const unsigned char *s){
+	size_t len;
+
+	if(!s){
+		*field = 0;
+		return 0;
+	}
+	len = strlen((const char *)s);
+	if(len >= size) return 1;
+	memmove(field, s, len + 1);
+	return 0;
+}
+
 int parseusername(char *username, struct clientparam *param, int extpasswd){
 	char *sb = NULL, *se = NULL, *sp = NULL;
 
@@ -584,13 +601,12 @@ int parseusername(char *username, struct clientparam *param, int extpasswd){
 		*sb = 0;
 		*se = 0;
 		if(sp) *sp = 0;
-		if(*(sb+1)) {
-			if(param->password) free(param->password);
-			param->password = (unsigned char *)strdup(sb+1);
-		}
-		if(*username) {
-			if(param->username) free(param->username);
-			param->username = (unsigned char *)strdup(username);
+		if((*(sb+1) && PARAMSTR(param, password, sb+1)) ||
+		   (*username && PARAMSTR(param, username, username))){
+			*sb = ':';
+			*se = ':';
+			if(sp) *sp = ':';
+			return 1;
 		}
 		username = se+1;
 	 }
@@ -598,24 +614,22 @@ int parseusername(char *username, struct clientparam *param, int extpasswd){
 		if(!sp) sp = strchr(username, ':');
 		if(sp){
 			*sp = 0;
-			if(param->extpassword) free(param->extpassword);
-			param->extpassword = (unsigned char *) strdup(sp+1);
+			if(PARAMSTR(param, extpassword, sp+1)) extpasswd = -1;
 		}
 	}
-	if(param->extusername) free(param->extusername);
-	param->extusername = (unsigned char *)strdup(username);
+	if(extpasswd < 0 || PARAMSTR(param, extusername, username)) extpasswd = -1;
 	if(sb) *sb = ':';
 	if(se) *se = ':';
 	if(sp) *sp = ':';
-	return 0;
+	return extpasswd < 0;
 }
 
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, uint16_t port){
 	char *sb, *se;
 	if(!username || !*username) return 1;
         if ((sb=strchr(username, conf.delimchar)) == NULL){
-		if(!param->hostname && param->remsock == INVALID_SOCKET) return 2;
-		if(param->hostname)parsehostname((char *)param->hostname, param, *SAPORT(&param->req)? ntohs(*SAPORT(&param->req)) : port);
+		if(!*param->hostname && param->remsock == INVALID_SOCKET) return 2;
+		if(*param->hostname)parsehostname((char *)param->hostname, param, *SAPORT(&param->req)? ntohs(*SAPORT(&param->req)) : port);
 		return parseusername(username, param, extpasswd);
 	}
 	while ((se=strchr(sb+1, conf.delimchar)))sb=se;

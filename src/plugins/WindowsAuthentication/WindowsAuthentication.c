@@ -31,7 +31,7 @@ extern "C" {
 	PTOKEN_GROUPS ptg = (PTOKEN_GROUPS)tokenbuf;
 
 
-	if(!param->username || !param->password || param->pwtype != 0) return 4;
+	if(!*param->username || !*param->password || param->pwtype != 0) return 4;
 	dom = strchr((char *)param->username, '\\');
 	if(dom)*dom++=0;
 	if(!LogonUser(	dom?dom:(char *)param->username,

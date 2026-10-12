@@ -141,13 +141,6 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  if(autosplice && allowsrv && param->waitserver64 && fromserver > inserverbuf && fromserver - inserverbuf >= SPLICE_MIN) splicesrv = 1;
  if(autosplice && allowcli && param->waitclient64 && fromclient > inclientbuf && fromclient - inclientbuf >= SPLICE_MIN) splicecli = 1;
 #endif
- /* a spliced direction needs no buffer, only what was read before */
- if(!splicesrv && fromserver && !param->srvbuf && (!(param->srvbuf=malloc(SRVBUFSIZE)) || !(param->srvbufsize = SRVBUFSIZE))){
-	RETURN (21);
- }
- if(!splicecli && fromclient && !param->clibuf && (!(param->clibuf=malloc(SRVBUFSIZE)) || !(param->clibufsize = SRVBUFSIZE))){
-	RETURN (21);
- }
  if(param->srvinbuf == param->srvoffset) param->srvinbuf =param->srvoffset = 0;
  if(param->cliinbuf == param->clioffset) param->cliinbuf =param->clioffset = 0;
  if(param->clibufsize == param->cliinbuf) TOCLIENTBUF = 0;
@@ -268,7 +261,7 @@ log("done send to server from buf");
 			inclientbuf -= res;
 			fromclient -= res;
 			param->clioffset += res;
-			if(param->clioffset == param->cliinbuf)param->clioffset = param->cliinbuf = 0;
+			bufrelease(param, CLIENT);
 			if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
 			if(param->bandlimfunc) {
 				int sl1;
@@ -314,7 +307,7 @@ log("done send to client from buf");
 			inserverbuf -= res;
 			fromserver -= res;
 			param->srvoffset += res;
-			if(param->srvoffset == param->srvinbuf)param->srvoffset = param->srvinbuf =0;
+			bufrelease(param, SERVER);
 			if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
 			needaction = 0;
 			continue;
@@ -324,12 +317,10 @@ log("done send to client from buf");
 	/* a direction going back to copying does once its pipe is empty */
 	if(wantbufcli && !inclientpipe){
 		splicecli = wantbufcli = streakcli = 0;
-		if(!param->clibuf && (!(param->clibuf=malloc(SRVBUFSIZE)) || !(param->clibufsize = SRVBUFSIZE))) RETURN (21);
 		if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
 	}
 	if(wantbufsrv && !inserverpipe){
 		splicesrv = wantbufsrv = streaksrv = 0;
-		if(!param->srvbuf && (!(param->srvbuf=malloc(SRVBUFSIZE)) || !(param->srvbufsize = SRVBUFSIZE))) RETURN (21);
 		if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
 	}
 	{
@@ -409,7 +400,6 @@ log("read from client to pipe");
 			if(pipecli[0] < 0 && pipe2(pipecli, O_NONBLOCK) < 0){
 				/* no pipe to be had: copy instead */
 				allowcli = splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 0;
-				if(!param->clibuf && (!(param->clibuf=malloc(SRVBUFSIZE)) || !(param->clibufsize = SRVBUFSIZE))) RETURN (21);
 				if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
 				continue;
 			}
@@ -459,7 +449,6 @@ log("read from server to pipe\n");
 #endif
 			if(pipesrv[0] < 0 && pipe2(pipesrv, O_NONBLOCK) < 0){
 				allowsrv = splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 0;
-				if(!param->srvbuf && (!(param->srvbuf=malloc(SRVBUFSIZE)) || !(param->srvbufsize = SRVBUFSIZE))) RETURN (21);
 				if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
 				continue;
 			}

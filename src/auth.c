@@ -83,8 +83,8 @@ int cacheauth(struct clientparam * param){
 
 
 	if(
-	((type & 2) && !param->username) ||
-	((type & 4) && !param->password) ||
+	((type & 2) && !*param->username) ||
+	((type & 4) && !*param->password) ||
 	(
 	 (type & 1) && *SAFAMILY(&param->sincr) != AF_INET
 #ifndef NOIPV6
@@ -100,10 +100,7 @@ int cacheauth(struct clientparam * param){
 	    return 10;
 	}
 
-	if(!(type&2) && *ac.username){
-	    if(param->username) free(param->username);
-	    param->username = (unsigned char *)strdup((char *)ac.username);
-	}
+	if(!(type&2) && *ac.username && PARAMSTR(param, username, ac.username)) return 4;
 	if((type & 32)){
 	    memset(&param->sinsl, 0, sizeof(param->sinsl));
 	    *(SAFAMILY(&param->sinsl)) = ac.sinsl_family;
@@ -125,13 +122,11 @@ int doauth(struct clientparam * param){
 			if(authfuncs->authorize &&
 				(res = (*authfuncs->authorize)(param)))
 					return res;
-			if(param->srv->authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && param->username && (!(param->srv->authcachetype&4) || (!param->pwtype && param->password))){
+			if(param->srv->authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && *param->username && (!(param->srv->authcachetype&4) || (!param->pwtype && *param->password))){
 			    struct authcache ac={.username=""};
 
-			    if(param->username) {
-				strncpy((char *)ac.username, (char *)param->username, 64);
-				ac.username[63] = 0;
-			    }
+			    strncpy((char *)ac.username, (char *)param->username, 64);
+			    ac.username[63] = 0;
 			    if(*SAFAMILY(&param->sincr) == AF_INET
 #ifndef NOIPV6
 				 || *SAFAMILY(&param->sincr) == AF_INET6
@@ -158,7 +153,7 @@ int doauth(struct clientparam * param){
 	}
 	if(!res){
 		ret = (param->preauth == 2)? 0 : alwaysauth(param);
-		if (param->afterauthfilters){
+		if (param->nafterauthfilters){
 		    FILTER_ACTION action;
 
 		    action = handleafterauthflt(param);
@@ -173,16 +168,18 @@ int doauth(struct clientparam * param){
 
 int ipauth(struct clientparam * param){
 	int res;
-	unsigned char *username;
-	username = param->username;
-	param->username = NULL;
+	unsigned char c;
+
+	/* the rules are matched as if no name had been given */
+	c = *param->username;
+	*param->username = 0;
 	res = checkACL(param);
-	param->username = username;
+	*param->username = c;
 	return res;
 }
 
 int userauth(struct clientparam * param){
-	return (param->username)? 0:4;
+	return (*param->username)? 0:4;
 }
 
 int dnsauth(struct clientparam * param){
@@ -221,7 +218,7 @@ int dnsauth(struct clientparam * param){
 		return 3;
 	}
 
-	return param->username? 0:3;
+	return *param->username? 0:3;
 }
 
 static int ctmemcmp(const void *a, const void *b, size_t len){
@@ -246,8 +243,8 @@ int strongauth(struct clientparam * param){
 	unsigned char buf[256];
 	char pass[256] = {0};
 
-	if (!param->username) return 4;
-	if (!param->pwtype && param->password) {
+	if (!*param->username) return 4;
+	if (!param->pwtype && *param->password) {
 		if (pwl_table.ihashtable && hashresolv(&pwl_table, param->username, pass, NULL)) {
 			switch(pass[0]){
 			    case CL: {
