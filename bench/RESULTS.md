@@ -146,6 +146,18 @@ a TCP relay to the origin (3proxy `tcppm`, nginx `stream`, haproxy
   \* marks the best of the row over both groups, by the same rule.
 * CONNECT and SOCKS, where devel is the only proxy using splice(): only the
   best of the row is marked, bold and with \*.
+* Latency tables: each cell the medians over the runs of their 50th and
+  99th percentile, in ms; bold is the lowest 99th percentile of its group
+  and any other whose runs overlap it, \* the lowest of the row. iperf3
+  streams have none. wrk runs a closed loop, each connection sending its
+  next request once the answer is in, so a proxy answering fewer requests
+  shows a longer median by that alone (64 connections at 16k requests a
+  second are 4 ms each); what compares is the 99th percentile against the
+  median, how evenly a proxy serves its connections, which matters most with
+  2000 clients. wrk leaves requests over 2 seconds out (they are counted as
+  timeouts). The mix `-3k` runs are an open loop at a fixed rate, the ones
+  where latency compares directly; mix counts in steps of a sixteenth of a
+  power of two (16.4 means 16.4-17.4 ms).
 * CPU time per gigabyte or request and peak memory are in the data. CPU adds
   little: every proxy ran at its CPU limit, so its CPU per unit of work is the
   inverse of its throughput.
@@ -175,6 +187,28 @@ relay tables ([data/](data/) `*-full-*.csv`).
 | ka-2k-50k-2000, k req/s | **7.5** | **8.8** * | 7.3 | **8.3** | 4.9 | 1.6 | 1.8 | ‖ | **9.4** * | 7.1 |
 | close-1k, k req/s | 5.8 | 3.9 | **14.8** * | 12.9 | 5.8 | 3.6 | 3.9 | ‖ | 5.5 | **15.0** * |
 
+Latency, the 50th / 99th percentile in ms:
+
+**ARM (M4)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| ka-1k | 3.99 / 8.25 | 10.7 / 12.4 | **1.36 / 2.06** * | 1.68 / 2.18 * | 2.60 / 3.82 | 15.2 / 24.8 | 2.93 / 3.62 | ‖ | 3.98 / 8.14 | **1.37 / 2.05** * |
+| ka-1m | 9.75 / 16.0 | 10.9 / 11.8 | 23.1 / 27.6 | 10.3 / 15.9 | **5.58 / 8.26** * | 123 / 148 | 39.7 / 48.1 | ‖ | **3.62 / 7.92** * | 22.5 / 25.2 |
+| ka-50k-2000 | 67.9 / 256 | 69.5 / 226 | 196 / 539 | **83.4 / 96.9** * | 172 / 394 | 625 / 1,490 | 224 / 367 | ‖ | **52.2 / 165** | 194 / 640 |
+| ka-2k-50k-2000 | 79.9 / 176 | 89.9 / 211 | 218 / 726 | **77.2 / 96.9** * | 172 / 261 | 634 / 1,680 | 266 / 369 | ‖ | **68.1 / 171** | 217 / 700 |
+| close-1k | 10.7 / 16.9 | 13.9 / 21.9 | **3.66 / 4.33** * | 4.64 / 5.31 | 3.96 / 5.68 | 15.4 / 25.2 | 8.70 / 9.54 | ‖ | 10.7 / 17.1 | **3.69 / 4.34** * |
+
+**Intel (Skylake)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| ka-1k | 3.51 / 7.53 | 10.4 / 11.9 | **1.90 / 3.12** * | **1.86 / 2.90** * | 6.05 / 10.2 | 16.2 / 26.9 | 6.94 / 10.5 | ‖ | 3.40 / 7.01 | **1.74 / 2.96** * |
+| ka-1m | 13.6 / 31.0 | **10.7 / 12.1** | 19.5 / 26.2 | 22.6 / 36.3 | 11.1 / 16.6 | 117 / 157 | 60.0 / 81.7 | ‖ | 5.01 / 11.9 | **5.62 / 9.29** * |
+| ka-50k-2000 | 67.8 / 139 | **49.2 / 101** * | 266 / 710 | 124 / 166 | 314 / 540 | 646 / 1,700 | 485 / 578 | ‖ | **60.4 / 127** * | 261 / 673 |
+| ka-2k-50k-2000 | 76.4 / 150 | **56.3 / 101** * | 262 / 658 | 130 / 174 | 383 / 608 | 657 / 1,680 | 560 / 631 | ‖ | **56.4 / 108** * | 268 / 728 |
+| close-1k | 10.5 / 19.6 | 15.5 / 27.5 | **3.94 / 5.99** * | 4.56 / 6.71 | 10.7 / 16.9 | 16.6 / 28.1 | 15.6 / 21.2 | ‖ | 10.8 / 22.1 | **3.99 / 5.86** * |
+
 * 1 MB answers: devel splices them at 35 Gbit/s on ARM and 25 on Intel, 2.7
   to 6.1 times nginx and haproxy copying and 1.5-2.1 times envoy, the fastest
   of the copying proxies here. haproxy `splice-auto` keeps up on Intel (22.5)
@@ -196,6 +230,10 @@ relay tables ([data/](data/) `*-full-*.csv`).
 * 1.0.1, with TCP_NODELAY set this time, answers 6k 1 KB requests a second
   over kept-alive connections (1.5k without it): one every 10.6 ms on each of
   the 64 connections, held by a 10 ms sleep removed in devel.
+* Latency: with 2000 clients devel's 99th percentile is 108-171 ms, nginx's
+  97-174 ms and the closest to its median, haproxy's 540-730 ms and envoy's
+  260-610 ms. With 1 KB requests devel's is 7-8 ms against 2-3 for nginx and
+  haproxy, which answer twice as many.
 
 ## CONNECT tunnel
 
@@ -221,6 +259,26 @@ relay tables ([data/](data/) `*-full-*.csv`).
 | ka-2k-50k-2000, k req/s | 9.8 | 12.8 | 2.4 | 11.4 | ‖ | **14.6** * |
 | close-1k, k req/s | 5.3 ‡ | 3.7 | 5.1 ‡ | 3.7 | ‖ | **5.3 ‡** * |
 
+Latency, the 50th / 99th percentile in ms:
+
+**ARM (M4)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | tinyproxy | squid | ‖ | devel |
+|---|---:|---:|---:|---:|:-:|---:|
+| ka-1k | 3.04 / 6.80 | 3.04 / 6.78 | 3.59 / 6.71 | **1.74 / 2.13** * | ‖ | **3.04 / 6.74** |
+| ka-50k-2000 | 178 / 354 | 147 / 320 | 757 / 1,120 | **118 / 130** * | ‖ | **145 / 318** |
+| ka-2k-50k-2000 | 195 / 367 | 157 / 326 | 750 / 1,190 | **126 / 136** * | ‖ | **159 / 321** |
+| close-1k | 5.49 / 13.6 | 6.34 / 15.7 | 5.99 / 15.0 | **5.34 / 10.5** * | ‖ | **5.20 / 13.3** |
+
+**Intel (Skylake)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | tinyproxy | squid | ‖ | devel |
+|---|---:|---:|---:|---:|:-:|---:|
+| ka-1k | 1.94 / 3.42 | 1.92 / 3.54 | 2.03 / 3.55 | **1.63 / 2.63** * | ‖ | **1.97 / 3.54** |
+| ka-50k-2000 | 135 / 253 | 109 / 223 | 477 / 1,390 | **160 / 185** * | ‖ | **82.4 / 213** |
+| ka-2k-50k-2000 | 118 / 270 | 110 / 203 | 463 / 1,380 | **163 / 177** * | ‖ | **86.0 / 176** * |
+| close-1k | **3.75 / 11.8** * | 5.29 / 16.0 | **3.70 / 11.0** * | 6.80 / 15.2 | ‖ | **3.31 / 11.3** * |
+
 * With splice() devel moves 32-47 Gbit/s through a tunnel, 2.2-3.1 times
   squid; copying with 16 KB buffers (`-s0`) it does 10-14, below 1.0.1's
   20-23 with its 64 KB buffers, which is what the automatic mode is for.
@@ -229,6 +287,8 @@ relay tables ([data/](data/) `*-full-*.csv`).
   on Intel (15.8k against 11.7k).
 * With a new tunnel per request proxychains on the client sets the pace on
   ARM; on Intel devel does 5.3k a second, squid 3.7k.
+* Latency: squid serves 2000 clients the most evenly, its 99th percentile
+  130-185 ms against devel's 210-320.
 
 ## SOCKSv5 tunnel
 
@@ -254,11 +314,33 @@ relay tables ([data/](data/) `*-full-*.csv`).
 | ka-2k-50k-2000, k req/s | 10.1 | 12.7 | 11.5 | ‖ | **14.7** * |
 | close-1k, k req/s | **5.3** * | 3.9 | 1.6 | ‖ | **5.1** * |
 
+Latency, the 50th / 99th percentile in ms:
+
+**ARM (M4)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | dante | ‖ | devel |
+|---|---:|---:|---:|:-:|---:|
+| ka-1k | 3.03 / 6.75 | 3.03 / 6.75 | **1.15 / 4.34** * | ‖ | **3.03 / 6.73** |
+| ka-50k-2000 | 183 / 355 | 144 / 610 | **185 / 198** * | ‖ | **150 / 321** |
+| ka-2k-50k-2000 | 203 / 367 | 163 / 331 | **186 / 201** * | ‖ | **164 / 322** |
+| close-1k | **5.48 / 14.0** * | 5.91 / 15.8 | 6.11 / 17.8 | ‖ | **5.40 / 14.0** * |
+
+**Intel (Skylake)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | dante | ‖ | devel |
+|---|---:|---:|---:|:-:|---:|
+| ka-1k | **1.93 / 3.62** * | **1.97 / 3.48** * | 1.46 / 5.66 | ‖ | **1.98 / 3.72** * |
+| ka-50k-2000 | 137 / 257 | **118 / 221** | 2.25 / 328 | ‖ | **82.0 / 186** * |
+| ka-2k-50k-2000 | 152 / 267 | **119 / 218** | 2.35 / 331 | ‖ | **101 / 195** * |
+| close-1k | **3.49 / 11.2** * | 4.81 / 15.0 | 14.1 / 40.0 | ‖ | **3.75 / 12.2** * |
+
 * devel moves 32-48 Gbit/s with splice(), 2-4.3 times dante.
 * On ARM dante answers 45% more 1 KB requests and 29% more with 2000 clients;
   on Intel devel leads both (by 19% and 26%).
 * With a new tunnel per request devel manages 4.4-5.3k a second, dante 3.8k
   on ARM and 1.6k on Intel.
+* Latency: with 2000 clients dante's 99th percentile is 200-330 ms, devel's
+  190-320.
 
 ## TCP relay
 
@@ -284,6 +366,26 @@ relay tables ([data/](data/) `*-full-*.csv`).
 | ka-2k-50k-2000, k req/s | 10.5 | **13.8** | 9.7 | 12.1 | 12.4 | ‖ | 16.4 | **18.6** * |
 | close-1k, k req/s | 6.8 | 4.8 | **8.8** * | **8.6** * | 5.4 | ‖ | 6.5 | **8.7** * |
 
+Latency, the 50th / 99th percentile in ms:
+
+**ARM (M4)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | haproxy | nginx | envoy | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|:-:|---:|---:|
+| ka-1k | 2.96 / 6.86 | 2.98 / 6.92 | 1.33 / 1.98 | **1.41 / 1.89** * | 1.72 / 2.70 | ‖ | 2.97 / 6.97 | **1.38 / 2.13** |
+| ka-50k-2000 | 55.3 / 169 | 47.8 / 162 | 177 / 1,010 | **55.8 / 77.5** * | 130 / 219 | ‖ | **43.8 / 309** | 82.5 / 932 |
+| ka-2k-50k-2000 | 58.6 / 156 | 52.1 / 153 | 172 / 1,110 | **65.5 / 81.0** * | 140 / 234 | ‖ | **50.1 / 260** | 82.5 / 1,180 |
+| close-1k | 9.71 / 16.3 | 12.3 / 19.5 | **6.49 / 7.28** * | 7.11 / 7.99 | 6.34 / 9.16 | ‖ | 9.72 / 16.3 | **6.47 / 7.29** * |
+
+**Intel (Skylake)**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | haproxy | nginx | envoy | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|:-:|---:|---:|
+| ka-1k | 2.02 / 4.14 | 1.98 / 3.99 | **1.28 / 1.84** * | **1.24 / 1.82** * | 1.64 / 2.87 | ‖ | 1.98 / 3.98 | **1.29 / 1.87** * |
+| ka-50k-2000 | **36.3 / 86.2** | **28.9 / 65.7** | 190 / 978 | 79.8 / 105 | 150 / 348 | ‖ | **23.4 / 49.9** * | 90.8 / 744 |
+| ka-2k-50k-2000 | **40.5 / 94.5** | **32.6 / 68.7** * | 196 / 1,110 | 80.9 / 100 | 154 / 386 | ‖ | **25.4 / 47.5** * | 97.2 / 750 |
+| close-1k | 9.16 / 16.6 | 12.7 / 24.0 | **6.99 / 9.78** * | **7.09 / 10.2** * | 11.3 / 16.8 | ‖ | 9.33 / 17.7 | **7.08 / 10.0** * |
+
 * On streams devel splices 32-48 Gbit/s; haproxy `splice-auto` is level on
   Intel (32.7 and 30.7), behind on ARM (30 and 16). Of the copying proxies
   envoy is level with 1.0.1 and its 64 KB buffers on one stream (18-29),
@@ -295,6 +397,9 @@ relay tables ([data/](data/) `*-full-*.csv`).
 * nginx runs with `proxy_half_close on` (`nginx::halfclose`), off by default,
   without which its relays cut short the exchanges whose client shuts down
   its sending side first.
+* Latency: with 2000 clients nginx's 99th percentile is 78-105 ms; devel's
+  is 48-50 ms on Intel, the lowest, and 260-310 ms on ARM; haproxy's about a
+  second, with or without splice().
 
 ## HTTPS: TLS in the proxy
 
@@ -474,6 +579,19 @@ client.
 | mix-socks-3k | **1,405** | 1,559 | – | – | – | – | – | 6,627 | ‖ | **1,422** | – |
 | mix-relay-3k | 1,293 | 1,462 | **268** | 576 | 598 | – | – | – | ‖ | 1,308 | **268** |
 
+**latency, 50th / 99th percentile, ms**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | dante | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 19.5 / 6,291 | 12.8 / 8,126 | 8.70 / 3,146 | 4.35 / 3,932 | **262 / 393** * | 65.5 / 6,291 | 262 / 5,243 | – | ‖ | 17.4 / 6,291 | **8.19 / 3,146** |
+| mix-connect | 47.1 / 4,456 | 38.9 / 5,505 | – | – | – | 98.3 / 6,816 | **13.8 / 3,670** * | – | ‖ | **57.3 / 4,719** | – |
+| mix-socks | **69.6 / 4,456** * | 36.9 / 5,243 | – | – | – | – | – | **131 / 5,243** * | ‖ | **45.1 / 4,456** * | – |
+| mix-relay | 13.8 / 5,243 | 7.42 / 5,243 | 34.8 / 3,277 | 4.10 / 3,801 | **246 / 393** * | – | – | – | ‖ | 13.8 / 4,719 | **30.7 / 3,277** |
+| mix-http-3k | **1.47 / 16.4** * | 1.86 / 21.5 | **1.15 / 16.4** * | **1.22 / 16.4** * | **1.28 / 16.4** * | 1,507 / 6,291 | 2.18 / 26.6 | – | ‖ | **1.47 / 16.4** * | **1.15 / 16.4** * |
+| mix-connect-3k | **1.28 / 16.4** * | **1.28 / 16.4** * | – | – | – | 1,507 / 6,291 | **1.28 / 16.4** * | – | ‖ | **1.28 / 16.4** * | – |
+| mix-socks-3k | **1.34 / 16.4** * | **1.28 / 16.4** * | – | – | – | – | – | 63.5 / 5,243 | ‖ | **1.28 / 16.4** * | – |
+| mix-relay-3k | **1.28 / 16.4** * | **1.28 / 16.4** * | **1.22 / 16.4** * | **1.15 / 16.4** * | **1.22 / 16.4** * | – | – | – | ‖ | **1.28 / 16.4** * | **1.22 / 16.4** * |
+
 ### Intel (Skylake)
 
 **throughput, Gbit/s (thousands of requests per second for HTTP)**
@@ -515,6 +633,19 @@ client.
 | mix-socks-3k | **1,400** | 1,573 | – | – | – | – | – | ‖ | **1,413** | – |
 | mix-relay-3k | 1,357 | 1,529 | **315** | 625 | 614 | – | – | ‖ | 1,372 | **321** |
 
+**latency, 50th / 99th percentile, ms**
+
+| scenario, p50 / p99 ms | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 6.14 / 5,767 | 4.86 / 5,767 | 115 / 2,621 | 8.19 / 3,801 | **344 / 475** * | 81.9 / 5,505 | 36.9 / 7,340 | ‖ | 4.61 / 4,981 | **139 / 1,311** |
+| mix-connect | **4.35 / 3,539** | **5.89 / 3,408** | – | – | – | 77.8 / 5,505 | 12.8 / 3,670 | ‖ | **3.07 / 3,146** * | – |
+| mix-socks | **4.61 / 3,277** * | **4.86 / 3,146** * | – | – | – | – | – | ‖ | **3.33 / 3,146** * | – |
+| mix-relay | 2.56 / 3,670 | 3.33 / 3,277 | 111 / 2,621 | 3.46 / 2,884 | **213 / 344** * | – | – | ‖ | 1.98 / 3,146 | **69.6 / 2,359** |
+| mix-http-3k | **1.34 / 16.4** * | 1.47 / 21.5 | **1.22 / 16.4** * | **1.28 / 19.5** * | **1.66 / 17.4** * | 1,049 / 5,767 | 1,245 / 7,078 | ‖ | **1.34 / 17.4** * | **1.15 / 17.4** * |
+| mix-connect-3k | **1.15 / 16.4** * | **1.15 / 17.4** * | – | – | – | 24.6 / 2,228 | 1.28 / 18.4 | ‖ | **1.15 / 17.4** * | – |
+| mix-socks-3k | **1.15 / 16.4** * | **1.15 / 16.4** * | – | – | – | – | – | ‖ | **1.15 / 17.4** * | – |
+| mix-relay-3k | **1.15 / 16.4** * | **1.15 / 17.4** * | **1.15 / 16.4** * | **1.15 / 16.4** * | 1.47 / 1,114 | – | – | ‖ | **1.15 / 16.4** * | **1.15 / 16.4** * |
+
 * Many small exchanges: devel does 63% of nginx's as an HTTP proxy on ARM,
   74% of haproxy `splice-auto`'s on Intel, and 81-95% of nginx's as a relay;
   through CONNECT and SOCKS it leads on Intel. At a fixed rate it takes 8-23%
@@ -534,6 +665,12 @@ client.
 * envoy at the fixed rate on Intel relays more than 3000 a second: it fell
   behind at times (p99 0.7-1.2 s) and the client made up the delayed
   exchanges.
+* Latency: at the fixed rate devel answers in 1.15-1.47 ms (median) and
+  16.4-17.4 ms (99th percentile), as nginx and haproxy do; tinyproxy, squid
+  as an HTTP proxy on Intel and dante on ARM fall behind, to seconds. With
+  2000 exchanges in flight every proxy queues them, to 99th percentiles of
+  1.3-8 seconds, but envoy, which keeps them to 340-480 ms around a median of
+  210-340.
 
 ## Earlier sessions
 
@@ -580,7 +717,6 @@ M4 and 7.5% or less on the Skylake host, except for one origin-bound case
 | http-ka-50k-2000, k req/s | 84.5 / 85.7 / 85.1 | ‖ | 7.6 / 7.0 / 7.3 | 9.0 / 10.3 / 9.6 | **10.4 / 10.5 / 10.5** * | 11.0 / 9.2 / 10.1 | 9.6 / 7.3 / 8.4 | ‖ | 9.1 / 9.4 / 9.3 | 9.9 / 9.0 / 9.4 | 9.6 / 7.7 / 8.6 |
 | http-close-1k, k req/s | 48.7 / 52.1 / 50.4 | ‖ | 5.0 / 4.8 / 4.9 | 4.4 / 4.0 / 4.2 | 5.2 / 4.8 / 5.0 | 13.3 / 12.9 / 13.1 | **16.6 / 15.1 / 15.9** * | ‖ | 4.8 / 4.4 / 4.6 | 5.0 / 4.4 / 4.7 | **16.7 / 15.1 / 15.9** * |
 
-
 ### Grace delay with splice
 
 `-s1` without grace delay, with the setting suggested in the documentation
@@ -598,7 +734,6 @@ not). Measured in a session of their own ([data/](data/) `*-grace.csv`).
 | http-ka-1m, Gbit/s | **35.6 / 25.5 / 30.5** * | **35.5 / 25.2 / 30.3** * | **36.1 / 25.4 / 30.8** * |
 | http-ka-2k-50k-2000, k req/s | **9.0 / 8.3 / 8.6** * | **9.0 / 8.3 / 8.7** * | **9.1 / 8.5 / 8.8** * |
 | http-close-1k, k req/s | **5.1 / 4.5 / 4.8** * | **5.1 / 4.6 / 4.8** * | **5.1 / 4.7 / 4.9** * |
-
 
 * Grace delay makes little difference here: 4% more 1 KB requests over
   kept-alive connections, nothing elsewhere - except on the M4 with a single

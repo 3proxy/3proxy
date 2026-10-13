@@ -27,7 +27,8 @@ of the group whose range (the average of its slowest runs to that of its
 fastest) reaches the best one's; * marks the best of the row, both groups
 together, in the same way. --split puts the splice group in a table of its own
 (* still compares across both), --prefix connect- takes only the scenarios so
-named. --overall marks the best of the row only, in bold and with *: for
+named. --latency makes one table of the runs' 50th and 99th percentile
+latency for a single CSV instead, ranked by the 99th. --overall marks the best of the row only, in bold and with *: for
 tables where one group has a single proxy, its group's best says nothing.
 """
 
@@ -235,6 +236,65 @@ def combined(machines, labels, splice, prefix=None, split=False, overall_only=Fa
         render([[g for g in (direct, plain, spliced) if g]])
 
 
+def latency(path, labels, splice, prefix=None):
+    """Latency of one machine's runs: each cell the medians of the runs' 50th
+    and 99th percentiles, in milliseconds. Bold: the lowest 99th percentile
+    of its group and any other whose runs overlap it; *: the same over the
+    row. Scenarios without a latency (iperf3 streams) are left out."""
+    by, proxies, scenarios = {}, [], []
+    for r in load([path]):
+        if prefix and not r["scenario"].startswith(prefix):
+            continue
+        if not values([r], "p99_ms"):
+            continue
+        by.setdefault((r["scenario"], r["proxy"]), []).append(r)
+        if r["proxy"] not in proxies:
+            proxies.append(r["proxy"])
+        if r["scenario"] not in scenarios:
+            scenarios.append(r["scenario"])
+
+    def ms(x):
+        if x is None:
+            return "–"
+        return fmt(x, 2 if x < 10 else 1 if x < 100 else 0)
+
+    plain = [p for p in proxies if p != "direct" and p not in splice]
+    spliced = [p for p in proxies if p in splice]
+    groups = [g for g in ([p for p in proxies if p == "direct"], plain, spliced) if g]
+    everyone = [p for g in groups for p in g]
+    head, rule = [], []
+    for i, g in enumerate(groups):
+        if i:
+            head.append("‖")
+            rule.append(":-:")
+        head += [labels.get(p, p) for p in g]
+        rule += ["---:"] * len(g)
+    out = ["| scenario, p50 / p99 ms | " + " | ".join(head) + " |",
+           "|---|" + "|".join(rule) + "|"]
+    for s in scenarios:
+        overall = winners(by, s, everyone, "p99_ms", False)
+        cells = []
+        for i, g in enumerate(groups):
+            if i:
+                cells.append("‖")
+            best = winners(by, s, g, "p99_ms", False)
+            for p in g:
+                sel = by.get((s, p), [])
+                if not sel:
+                    cells.append("–")
+                    continue
+                text = f"{ms(median(sel, 'p50_ms'))} / {ms(median(sel, 'p99_ms'))}"
+                if p in best:
+                    text = f"**{text}**"
+                if p in overall:
+                    text += " *"
+                cells.append(text)
+        name = s[len(prefix):] if prefix else s
+        out.append(f"| {name} | " + " | ".join(cells) + " |")
+    print("\n".join(out))
+    print()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("csv", nargs="*")
@@ -251,8 +311,15 @@ def main():
     ap.add_argument("--title", default="")
     ap.add_argument("--splice", action="append", default=[],
                     help="a proxy (as named in the CSV) using splice(); repeat")
+    ap.add_argument("--latency", action="store_true",
+                    help="one table of latency, 50th / 99th percentile, for the "
+                         "one CSV given")
     args = ap.parse_args()
     labels = dict(l.split("=", 1) for l in args.label)
+
+    if args.latency:
+        latency(args.csv[0], labels, args.splice, args.prefix)
+        return
 
     if args.machine:
         combined([(m.split("=", 1)[0], m.split("=", 1)[1].split(","))
