@@ -109,6 +109,8 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  int CLIENTTERMREAD = 0, CLIENTTERMWRITE = 0, SERVERTERMREAD = 0, SERVERTERMWRITE = 0;
  /* the side has hung up: closed by the peer after its own was shut down */
  int CLIENTHUP = 0, SERVERHUP = 0;
+ /* whether the side's socket is in this round's poll() */
+ int clipolled = 1, srvpolled = 1;
  int after = 0;
  struct pollfd fds[8];
  int fdsc = 0;
@@ -664,8 +666,10 @@ log("done read from server to buf");
 						))
 					cli_events |= POLLOUT;
 				/* poll() reports a hang-up whatever is asked, and would
-				   return at once every time: wait for the other side then */
-				if(!cli_events && CLIENTHUP) fds[fdsc].fd = INVALID_SOCKET;
+				   return at once every time: the socket is left out then,
+				   rather than given as an invalid one, which WSAPoll takes
+				   for an error */
+				clipolled = cli_events || !CLIENTHUP;
 				if(cli_events){
 					fds[fdsc].fd = param->clisock;
 					fds[fdsc].events = cli_events;
@@ -676,6 +680,8 @@ if(cli_events & POLLOUT)
 log("wait writing to client");
 #endif
 				}
+			}
+			else if(!clipolled){
 			}
 			else if(cli_events){
 				if(fds[fdsc].revents &  (POLLERR|POLLNVAL)) {
@@ -712,7 +718,7 @@ log("ready to write to client");
 				   read, once the buffer has room for it */
 				CLIENTHUP = 1;
 			}
-			fdsc++;
+			if(clipolled) fdsc++;
 
 //		if(!SERVERTERMREAD || !SERVERTERMWRITE){
 			if(!after){
@@ -726,7 +732,7 @@ log("ready to write to client");
 #endif
 						))
 					srv_events |= POLLOUT;
-				if(!srv_events && SERVERHUP) fds[fdsc].fd = INVALID_SOCKET;
+				srvpolled = srv_events || !SERVERHUP;
 				if(srv_events){
 					fds[fdsc].fd = param->remsock;
 					fds[fdsc].events = srv_events;
@@ -737,6 +743,8 @@ if(srv_events & POLLOUT)
 log("wait writing from server");
 #endif
 				}
+			}
+			else if(!srvpolled){
 			}
 			else if(srv_events){
 				if(fds[fdsc].revents &  (POLLERR|POLLNVAL)) {
@@ -779,7 +787,7 @@ log("server terminated connection");
 				/* the rest of the answer may still be waiting to be read */
 				SERVERHUP = 1;
 			}
-			fdsc++;
+			if(srvpolled) fdsc++;
 //		}
 #ifdef WITHSPLICE
 		{
