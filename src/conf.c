@@ -675,16 +675,16 @@ static int h_flushusers(int argc, unsigned char **argv){
 static int h_nserver(int argc, unsigned char **argv){
   char *str;
 
-	if(numservers < MAXNSERVERS) {
+	if(conf.numservers < MAXNSERVERS) {
 		if((str = strchr((char *)argv[1], '/')))
 			*str = 0;
-		*SAPORT(&nservers[numservers].addr) = htons(53);
-		if(parsehost(46, argv[1], (struct sockaddr *)&nservers[numservers].addr)) return 1;
+		*SAPORT(&conf.nservers[conf.numservers].addr) = htons(53);
+		if(parsehost(46, argv[1], (struct sockaddr *)&conf.nservers[conf.numservers].addr)) return 1;
 		if(str) {
-			nservers[numservers].usetcp = strstr(str + 1, "tcp")? 1:0;
+			conf.nservers[conf.numservers].usetcp = strstr(str + 1, "tcp")? 1:0;
 			*str = '/';
 		}
-		numservers++;
+		conf.numservers++;
 
 	}
 	resolvfunc = myresolver;
@@ -696,10 +696,10 @@ static int h_authnserver(int argc, unsigned char **argv){
 
 	if((str = strchr((char *)argv[1], '/')))
 		*str = 0;
-	if(parsehost(46, argv[1], (struct sockaddr *)&authnserver.addr)) return 1;
-	*SAPORT(&authnserver.addr) = htons(53);
+	if(parsehost(46, argv[1], (struct sockaddr *)&conf.authnserver.addr)) return 1;
+	*SAPORT(&conf.authnserver.addr) = htons(53);
 	if(str) {
-		authnserver.usetcp = strstr(str + 1, "tcp")? 1:0;
+		conf.authnserver.usetcp = strstr(str + 1, "tcp")? 1:0;
 		*str = '/';
 	}
 	return 0;
@@ -1773,21 +1773,21 @@ static int h_delimchar(int argc, unsigned char **argv){
 static int h_radius(int argc, unsigned char **argv){
 	uint16_t port;
 
-	memset(radiuslist, 0, sizeof(radiuslist));
+	memset(conf.radiuslist, 0, sizeof(conf.radiuslist));
 	if(strlen((char *)argv[1]) > 63) argv[1][63] = 0;
-	strcpy(radiussecret, (char *)argv[1]);
-	for( nradservers=0; nradservers < MAXRADIUS && nradservers < argc -2; nradservers++){
+	strcpy(conf.radiussecret, (char *)argv[1]);
+	for( conf.nradservers=0; conf.nradservers < MAXRADIUS && conf.nradservers < argc -2; conf.nradservers++){
 		char *s = 0;
-		if((s=strchr((char *)argv[nradservers + 2], '/'))){
+		if((s=strchr((char *)argv[conf.nradservers + 2], '/'))){
 			*s = 0;
 			s++;
 		}
-		if( !getip46(46, argv[nradservers + 2], (struct sockaddr *)&radiuslist[nradservers].authaddr)) return 1;
-		if( s && !getip46(46, (unsigned char *)s, (struct sockaddr *)&radiuslist[nradservers].localaddr)) return 2;
-		if(!*SAPORT(&radiuslist[nradservers].authaddr))*SAPORT(&radiuslist[nradservers].authaddr) = htons(1812);
-		port = ntohs(*SAPORT(&radiuslist[nradservers].authaddr));
-		radiuslist[nradservers].logaddr = radiuslist[nradservers].authaddr;
- 	        *SAPORT(&radiuslist[nradservers].logaddr) = htons(port+1);
+		if( !getip46(46, argv[conf.nradservers + 2], (struct sockaddr *)&conf.radiuslist[conf.nradservers].authaddr)) return 1;
+		if( s && !getip46(46, (unsigned char *)s, (struct sockaddr *)&conf.radiuslist[conf.nradservers].localaddr)) return 2;
+		if(!*SAPORT(&conf.radiuslist[conf.nradservers].authaddr))*SAPORT(&conf.radiuslist[conf.nradservers].authaddr) = htons(1812);
+		port = ntohs(*SAPORT(&conf.radiuslist[conf.nradservers].authaddr));
+		conf.radiuslist[conf.nradservers].logaddr = conf.radiuslist[conf.nradservers].authaddr;
+ 	        *SAPORT(&conf.radiuslist[conf.nradservers].logaddr) = htons(port+1);
 	}
 	return 0;
 }
@@ -2419,7 +2419,7 @@ void freeconf(struct extparam *confp){
  confp->maxchild = DEFAULT_MAXCHILD;
  confp->backlog = 0;
  resolvfunc = NULL;
- numservers = 0;
+ conf.numservers = 0;
  acl = confp->acl;
  confp->acl = NULL;
 

@@ -488,7 +488,13 @@ struct nserver {
 	PROXYSOCKADDRTYPE addr;
 	int usetcp;
 };
-extern int numservers;
+
+#define MAXNSERVERS 5
+#define MAXRADIUS 5
+
+struct radserver {
+	PROXYSOCKADDRTYPE authaddr, logaddr, localaddr;
+};
 
 typedef void * (* PROXYFUNC)(struct clientparam *);
 
@@ -886,6 +892,11 @@ struct extparam {
 	time_t logtime, time;
 	unsigned logdumpsrv, logdumpcli;
 	char delimchar;
+	struct nserver nservers[MAXNSERVERS], authnserver;
+	int numservers;
+	struct radserver radiuslist[MAXRADIUS];
+	int nradservers;
+	char radiussecret[64];
 };
 
 struct property {

@@ -162,11 +162,7 @@
 
 
 
-struct radserver radiuslist[MAXRADIUS];
-
 static int ntry = 0;
-int nradservers = 0;
-char radiussecret[64]="";
 
 _3proxy_mutex_t rad_mutex;
 
@@ -310,7 +306,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	char buf[64];
 
 
-	if(!nradservers) {
+	if(!conf.nradservers) {
 		return 4;
 	}
 
@@ -510,7 +506,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	    memcpy(ptr, param->password, len);
 	    rad_pwencode((char *)ptr,
 		     &len,
-		     radiussecret, 
+		     conf.radiussecret, 
 		     (char *)packet.vector);
 	    *(ptr-1) = len + 2;
 	    ptr+=len;
@@ -521,17 +517,17 @@ int radsend(struct clientparam * param, int auth, int stop){
 	packet.length = htons(total_length);
 	
 	if(!auth){
-		len = strlen(radiussecret);
-		memcpy(ptr,radiussecret,len);
+		len = strlen(conf.radiussecret);
+		memcpy(ptr,conf.radiussecret,len);
 		md5_calc(packet.vector, (u_char *)&packet, total_length + len);
 	}
 	memcpy(vector, packet.vector, AUTH_VECTOR_LEN);
 	
-	for (loop = 0; loop < nradservers && loop < MAXRADIUS; loop++) {
+	for (loop = 0; loop < conf.nradservers && loop < MAXRADIUS; loop++) {
 		SOCKET remsock;
 
 
-		saremote = auth?radiuslist[loop].authaddr : radiuslist[loop].logaddr;
+		saremote = auth?conf.radiuslist[loop].authaddr : conf.radiuslist[loop].logaddr;
 #ifdef NOIPV6
 		if(*SAFAMILY(&saremote)!= AF_INET) {
 			continue;
@@ -552,9 +548,9 @@ int radsend(struct clientparam * param, int auth, int stop){
 			remsock = sockfd;
 /*
 		}
-		else remsock = radiuslist[loop].logsock;
+		else remsock = conf.radiuslist[loop].logsock;
 */
-		so._bind(so.state, remsock,(struct sockaddr *)&radiuslist[loop].localaddr,SASIZE(&radiuslist[loop].localaddr));
+		so._bind(so.state, remsock,(struct sockaddr *)&conf.radiuslist[loop].localaddr,SASIZE(&conf.radiuslist[loop].localaddr));
 		len = so._sendto(so.state, remsock, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
@@ -586,7 +582,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 			continue;
 		}
 
-		if (calc_replydigest((char *)&rpacket, (char *)packet.vector, radiussecret,
+		if (calc_replydigest((char *)&rpacket, (char *)packet.vector, conf.radiussecret,
 			data_len) ){
 			continue;
 		}

@@ -34,7 +34,6 @@
 
 #define MAXUSERNAME 128
 #define _PASSWORD_LEN 256
-#define MAXNSERVERS 5
 #define DEFAULT_MAXCHILD 500
 
 /* How much of a connection's buffer is read into at once: all of it, or
@@ -203,7 +202,6 @@ size_t threadstacksize(int extra);
 
 #include "structures.h"
 
-#define MAXRADIUS 5
 
 #define DEFLOGFORMAT "G%y%m%d%H%M%S.%. %p %E %U %C:%c %R:%r %O %I %h %T"
 
@@ -298,8 +296,6 @@ int handleredirect(struct clientparam * param, struct ace * acentry);
 
 int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
-extern struct nserver nservers[MAXNSERVERS];
-extern struct nserver authnserver;
 uint32_t getip(unsigned char *name);
 uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa);
 int afdetect(unsigned char *name);
@@ -502,12 +498,6 @@ void make_un(const unsigned char *path, struct sockaddr_un * sun);
 #endif
 
 
-extern struct radserver {
-	PROXYSOCKADDRTYPE authaddr, logaddr, localaddr;
-} radiuslist[MAXRADIUS];
-
-extern char radiussecret[64];
-extern int nradservers;
 extern struct socketoptions {
 	int opt;
 	char * optname;

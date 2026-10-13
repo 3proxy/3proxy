@@ -1,7 +1,5 @@
 #include "proxy.h"
 
-struct nserver nservers[MAXNSERVERS] = {{{0},0}, {{0},0}, {{0},0}, {{0},0}, {{0},0}};
-struct nserver authnserver;
 
 static int dnsqmatch(const unsigned char *a, const unsigned char *b, int len){
 	int i;
@@ -28,7 +26,7 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
     if((af == AF_INET6) && (retval = hashresolv(&dns6_table, name, value, retttl))) {
 	return retval;
     }
-    n = (makeauth && !SAISNULL(&authnserver.addr))? 1 : numservers;
+    n = (makeauth && !SAISNULL(&conf.authnserver.addr))? 1 : conf.numservers;
     for(i=0; i<n; i++){
 	unsigned short nq, na;
 	unsigned char b[4098], *buf, *s1, *s2;
@@ -51,13 +49,13 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	memset(sinsr, 0, sizeof(addr));
 	
 
-	if(makeauth && !SAISNULL(&authnserver.addr)){
-	    usetcp = authnserver.usetcp;
-	    *SAFAMILY(sinsl) = *SAFAMILY(&authnserver.addr);
+	if(makeauth && !SAISNULL(&conf.authnserver.addr)){
+	    usetcp = conf.authnserver.usetcp;
+	    *SAFAMILY(sinsl) = *SAFAMILY(&conf.authnserver.addr);
 	}
 	else {
-	    usetcp = nservers[i].usetcp;
-	    *SAFAMILY(sinsl) = *SAFAMILY(&nservers[i].addr);
+	    usetcp = conf.nservers[i].usetcp;
+	    *SAFAMILY(sinsl) = *SAFAMILY(&conf.nservers[i].addr);
 	}
 	if((sock=so._socket(so.state, SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
 	if(so._bind(so.state, sock,(struct sockaddr *)sinsl,SASIZE(sinsl))){
@@ -65,11 +63,11 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	    so._closesocket(so.state, sock);
 	    break;
 	}
-	if(makeauth && !SAISNULL(&authnserver.addr)){
-	    *sinsr = authnserver.addr;
+	if(makeauth && !SAISNULL(&conf.authnserver.addr)){
+	    *sinsr = conf.authnserver.addr;
 	}
 	else {
-	    *sinsr = nservers[i].addr;
+	    *sinsr = conf.nservers[i].addr;
 	}
 	if(usetcp){
 	    if(connectwithpoll(NULL, sock,(struct sockaddr *)sinsr,SASIZE(sinsr),conf.timeouts[CONNECT_TO])) {

@@ -296,7 +296,6 @@ struct extparam conf = {
 	.delimchar = '@',
 };
 
-int numservers=0;
 
 char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
