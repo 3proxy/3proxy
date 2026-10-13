@@ -45,6 +45,14 @@ can do at least that much.
 `none` is no proxy at all: the client reaches the origin through the proxy
 namespace with the kernel forwarding, the upper bound for every scenario.
 
+Each run also takes the next of eight addresses for the proxy to connect from
+(10.0.2.10-17), and the `mix-*` client the next of eight sets of sixteen
+(10.0.1.100-227). Connections left in TIME_WAIT by a run, tens of thousands
+of them when a run opens many, are then not between the addresses the next
+runs use, and have expired by the time an address is taken again; without
+that, a run after one which opened as many connections finds the kernel
+searching for a free port on every connect.
+
 ## What is reported
 
 For every run, in a CSV under `bench/results/`:
@@ -77,6 +85,66 @@ host) falls on all of them alike; the summary gives medians.
 | `connect-*` | the same loads through CONNECT tunnels: wrk and iperf3 run under proxychains-ng, so every connection they make asks the proxy for a tunnel to the origin (`connect-close-1k`: a tunnel for every request) |
 | `socks-*` | the same through SOCKSv5 |
 | `relay-*` | the same through a TCP relay to a fixed destination: 3proxy `tcppm`, nginx `stream`, haproxy `mode tcp` |
+| `mix-http`, `mix-connect`, `mix-socks`, `mix-relay` | a pool of connections open through the proxy and exchanges on random ones of them (see below), `--mix-active` of them going at once all the time |
+| `mix-*-3k` | the same, exchanges started at 3000 a second whether the proxy keeps up or not: latencies compared at equal load |
+| `tls-term-ka-1k`, `tls-term-ka-1m`, `tls-term-close-1k` | TLS ended by the proxy: wrk speaks HTTPS to a relay of the proxy, which passes plain TCP to the origin; kept-alive connections with 1 KB and 1 MB answers, and a new connection, so a full handshake, for every request |
+| `tls-init-*` | TLS begun by the proxy: wrk speaks plain HTTP to a relay, which connects to the origin's HTTPS listener |
+
+### The mix scenarios
+
+Every other scenario repeats one request, or one stream, on every
+connection. The `mix-*` ones are closer to what a proxy serving many remote
+clients sees, with `bench/mix`, a load generator and an origin in Go:
+
+* `--mix-pool` connections (20000) are opened through the proxy before the
+  measurement starts, as HTTP proxy connections, CONNECT or SOCKSv5 tunnels or
+  through a relay, from sixteen client addresses, and kept open; each goes to
+  one of sixteen ports of the origin and keeps to it, through an HTTP proxy
+  too, as a tunnel has to;
+* each exchange goes to a connection drawn at random from the pool (the next
+  idle one if that one is busy): a request with headers of 200 bytes to 4 KB,
+  one in ten a POST with a body of up to 1 MB (median 4 KB), and an answer
+  drawn from a lognormal distribution with a median of 12 KB, up to 8 MB;
+* both sides write in pieces of random sizes with short random pauses between
+  them, and the client reads in amounts of its own, now and then slowly, so
+  data reaches the proxy in parts and buffers fill up at times;
+* connections end and are opened again: a connection carries 15 exchanges on
+  average (`-per-conn`, a geometric number), and some end the way clients
+  going away end them: 0.5% of exchanges are left with a close before the
+  whole answer is in (`-abort`), 0.2% with a reset (`-reset`), before the
+  answer or during it, and after 0.5% the client shuts down its sending side
+  and reads the answer (`-halfclose`, through tunnels and relays only: an HTTP
+  proxy takes that for a client gone). Those left are counted apart, not as
+  errors; an answer lost after a half-close is an error. A connection which
+  ended is opened again when an exchange next asks for it, and that exchange's
+  time includes it.
+
+`mix-relay` asks nothing of the proxy but to copy: each connection is relayed
+to the origin, one connection there for one here, by every proxy alike. It
+compares how they move data. `mix-http` makes the proxy read and write HTTP
+for every exchange as well, and is not the same job for all of them: 3proxy,
+tinyproxy and squid are forward proxies, keeping a connection to the server a
+client asked for, one for each client connection, while nginx and haproxy
+take the requests on a listener of their own (3129) for one backend, the
+origin's first port, and share a few connections to it between all the
+clients. `mix-connect` and `mix-socks` are relayed like `mix-relay` once the
+tunnel is open, the client naming the destination.
+
+The client has a dispatcher for every CPU it has (`-shards`), each with its
+share of the pool and of the load: one for all of it would be a single
+thread, and the limit of the whole client.
+
+All of it is drawn from `--seed`: what exchange *n* does, the sizes, the
+pieces, the pauses and how it ends, on the client and on the origin, is the
+same in every run, for every proxy and whatever the number of dispatchers;
+only timing differs, and with it which connection an exchange gets when the
+one drawn for it is busy.
+
+`rate` is exchanges per second, `p50_ms` and `p99_ms` how long an exchange
+took, from the moment it was due (with a fixed rate) to the last byte of its
+answer, and `peak_mb` divided by the pool what each open connection costs the
+proxy. The binaries are built with `bench/mix/build.sh`, on any system with
+Go, for both Linux architectures.
 
 nginx is not a forward proxy: it answers absolute URIs by passing them to its
 upstream, which is the origin here. Neither nginx nor haproxy has CONNECT or
@@ -85,12 +153,29 @@ SOCKS, so they take part in the HTTP and `relay-*` scenarios but not in the
 and squid are HTTP proxies, measured in the HTTP and `connect-*` scenarios;
 dante is a SOCKS server, measured in the `socks-*` ones.
 
+### The TLS scenarios
+
+The `tls-*` scenarios compare TLS done in the proxy: 3proxy (`tcppm` under
+`ssl_serv` or `ssl_cli`), nginx (`stream` with `listen ... ssl` and
+`proxy_ssl on`), haproxy (`mode tcp` with `bind ... ssl crt` and `server ...
+ssl`) and stunnel, which takes part in these scenarios only. Every one relays
+TCP: no HTTP is read, so what differs is the TLS and how data is moved around
+it. The certificate is made for every run: an ECDSA P-256 key signed by a CA
+of its own, with the proxy's and the origin's addresses in it; nobody
+verifies it. `none` has wrk speak HTTPS to the origin itself.
+
+wrk does not resume TLS sessions, so in `tls-term-close-1k` every connection
+is a full handshake. Towards the origin a proxy may resume them: nginx
+(`proxy_ssl_session_reuse`) and haproxy do by default, so `tls-init-close-1k`
+compares that too.
+
 ## Running
 
 Root, `iproute2`, `iperf3`, `wrk`, `proxychains4` (proxychains-ng, for the `connect-*` and `socks-*` scenarios), `nginx` (with the stream module:
 `libnginx-mod-stream` on Debian and Ubuntu, `nginx-mod-stream` on
 RHEL-like systems) and, to compare with it,
-`haproxy`.
+`haproxy`; `openssl` for the `tls-*` scenarios, and `stunnel` (`stunnel4` on
+Debian and Ubuntu) to compare with it there.
 
 ```sh
 bench/build.sh 0.9.9.1 1.0.1                      # tags into bench/bin/
@@ -123,7 +208,11 @@ heuristic splice a direction once reads fill the buffer three times in a row;
 always splice the server's data, the client's, or both (`option
 splice-response`, `option splice-request`), as 3proxy's `-s1`, `-s2` and `-s3`
 do. nginx has no splice() support, so it has no such
-variant.
+variant; `nginx::halfclose` turns on `proxy_half_close` in its relays, which
+nginx leaves off: then a client shutting down its sending side still gets the
+answer, as through 3proxy and haproxy.
+
+`--proxy stunnel` measures stunnel in the `tls-*` scenarios.
 
 `--scenario` picks scenarios, `--reps` and `--duration` set the repetitions
 and their length, `--netem "delay 1ms rate 10gbit"` puts a slower, longer link
@@ -140,6 +229,12 @@ between the client and the proxy, `--mtu` changes the links' MTU.
   which copying proxies use most, cannot be split, and on some hosts it,
   rather than the CPU, sets the limit. A CPU waiting for memory counts as
   busy, so such a limit shows as less work per busy second.
+* Memory is shared too, and has no swap to fall back on in most test
+  machines: with the 20000 connections of the `mix-*` scenarios the client
+  and the origin take about 2 GB, and a proxy needing several more (dante
+  needs 6 GB) can get a process killed by the OOM killer. If it is the
+  origin, the run stops at once rather than measuring nothing for the rest
+  of it; check `dmesg` for a proxy killed on the way.
 * Versions are built with the Makefile they shipped with, so compiler flags
   differ between them (0.8 builds with `-O2`, 0.9.9 and later with
   `-O3 -flto`) as they did for their users.

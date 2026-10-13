@@ -11,6 +11,14 @@ the benchmark works is in [README.md](README.md); the measurements are in
 
 ## In short
 
+* **HTTPS (13 October):** with TLS ended or begun in the proxy, devel moves
+  1 MB answers as fast as haproxy and nginx beginning TLS (5.4 Gbit/s), and
+  needs a third of their memory; it answers 59% of nginx's 1 KB requests and
+  does 60-94% of its handshakes. See [HTTPS](#https-tls-in-the-proxy).
+* **20000 connections (13 October):** devel keeps up with nginx and haproxy
+  within 5-25% in throughput and CPU, but needs 65-130 KB per connection
+  against their 8-30 KB. See [the mix scenarios](#many-connections-the-mix-scenarios).
+
 * **Bulk data, copying:** devel moves 19-21 Gbit/s per CPU core through any
   of its services (HTTP, CONNECT, SOCKS, `tcppm`), as 1.0.1 does: 1.4 times
   squid, 1.3 to 2.2 times dante, 1.7 to 2.3 times nginx and haproxy as TCP
@@ -38,7 +46,9 @@ the benchmark works is in [README.md](README.md); the measurements are in
   sleep removed in devel (see the earlier sessions).
 * **16 KB buffers (`-b16384`)** save devel 17-22% of its memory with 2000
   connections and cost 20-40% of the copying throughput; with `-s` they cost
-  nothing. 64 KB stays the default.
+  nothing. Since 13 October 16 KB is the default, and so is `-s`. The whole
+suite run again with those defaults, against 1.0.1, nginx, haproxy, squid,
+tinyproxy and dante, is in [data/](data/) `*-16k-*.csv`.
 * **Memory:** with few connections 3proxy needs the least (8-17 MB against
   30-54 MB for nginx and haproxy); with 2000 connections at once, a thread for
   each costs it 150-200 MB against nginx's 90-115 MB and haproxy's 160-180 MB.
@@ -57,6 +67,7 @@ the benchmark works is in [README.md](README.md); the measurements are in
 | dante | 1.4.3 | 1.4.4 |
 | wrk, iperf3 | 4.1.0, 3.16 | 4.2.0, 3.17.1 |
 | proxychains-ng | 4.17 | 4.17 |
+| stunnel, OpenSSL | 5.72, 3.0.13 | 5.72, 3.5.8 |
 
 ### How the client, the proxy and the origin were kept apart
 
@@ -277,6 +288,91 @@ data, which costs 20-40% of the throughput; with splice() the bulk of the data
 goes through the pipe and the buffer size hardly matters. The memory saved
 with 2000 clients, 17-22%, is far less than the buffers' size would suggest. A smaller buffer also limits what data filters see of a body, and
 `tlspr` needs more than 16 KB.
+
+## HTTPS: TLS in the proxy
+
+Measured on 13 October 2026 with devel as of then: 16 KB buffers, `-s` by
+default, the thread pool ([data/](data/) `*-tls.csv`). Every proxy relays
+TCP, ending TLS (`term`: HTTPS from wrk, plain TCP to the origin) or
+beginning it (`init`: plain HTTP from wrk, HTTPS to the origin): 3proxy
+`tcppm` under `ssl_serv` / `ssl_cli`, nginx `stream` with `ssl` and
+`proxy_ssl`, haproxy `mode tcp` with `ssl crt` and `server ... ssl`, stunnel.
+ECDSA P-256 certificate, TLS 1.3, OpenSSL in every proxy; "no proxy" is wrk
+speaking HTTPS to the origin itself. Every proxy ran at its CPU limit.
+
+| scenario (M4 / Intel / average) | no proxy | ‖ | devel | nginx | haproxy | stunnel |
+|---|---:|:-:|---:|---:|---:|---:|
+| tls-term-ka-1k, k req/s | 140.5 / 107.2 / 123.8 | ‖ | 16.4 / 24.4 / 20.4 | **33.1 / 35.6 / 34.3** | 31.8 / 33.7 / 32.8 | 13.8 / 20.2 / 17.0 |
+| tls-term-ka-1m, Gbit/s | 31.53 / 22.68 / 27.10 | ‖ | 5.95 / 4.92 / 5.44 | **6.84 / 6.05 / 6.44** | 5.00 / 5.90 / 5.45 | 4.48 / 5.13 / 4.80 |
+| tls-term-close-1k, k req/s | 12.4 / 4.2 / 8.3 | ‖ | 2.7 / 1.2 / 2.0 | **3.3 / 1.4 / 2.4** | 2.9 / 1.4 / 2.1 | 2.0 / 1.1 / 1.5 |
+| tls-init-ka-1k, k req/s | 140.4 / 105.9 / 123.1 | ‖ | 16.4 / 24.0 / 20.2 | **34.0 / 36.2 / 35.1** | 32.5 / 33.1 / 32.8 | 14.0 / 20.2 / 17.1 |
+| tls-init-ka-1m, Gbit/s | 31.87 / 20.96 / 26.41 | ‖ | **5.60 / 5.16 / 5.38** | **5.80 / 5.43 / 5.61** | 4.58 / 5.12 / 4.85 | 4.15 / 4.56 / 4.35 |
+| tls-init-close-1k, k req/s | 12.4 / 3.8 / 8.1 | ‖ | 2.0 / 0.9 / 1.4 | **3.4 / 1.3 / 2.3** | 2.5 / 1.0 / 1.7 | 2.0 / 1.0 / 1.5 |
+
+The proxy's CPU per request (per gigabyte for 1 MB answers), its p99
+latency and its peak memory, M4 / Intel:
+
+| scenario | devel | nginx | haproxy | stunnel |
+|---|---:|---:|---:|---:|
+| tls-term-ka-1k, µs | 61 / 41 | **30 / 28** | 31 / 30 | 72 / 50 |
+| tls-term-ka-1m, s/GB | 1.35 / 1.63 | **1.17 / 1.33** | 1.62 / 1.37 | 1.79 / 1.57 |
+| tls-term-close-1k, µs | 370 / 809 | **302 / 699** | 347 / 721 | 503 / 930 |
+| tls-init-ka-1m, s/GB | 1.43 / 1.55 | **1.38 / 1.48** | 1.77 / 1.58 | 1.93 / 1.76 |
+| tls-init-close-1k, µs | 501 / 1159 | **293 / 796** | 401 / 1010 | 495 / 1055 |
+| tls-term-close-1k, p99 ms | 9 / 44 | **2 / 4** | 16 / 41 | 26 / 57 |
+| tls-init-close-1k, p99 ms | 46 / 122 | **20 / 71** | 27 / 89 | 49 / 180 |
+| peak memory, MB | **12-18 / 14-77** | 31-44 / 32-48 | 36-48 / 38-53 | 13-21 / 16-34 |
+
+* **1 MB answers:** devel is level with nginx beginning TLS and with haproxy
+  ending it, 13-25% ahead of stunnel; nginx is fastest ending it. With TLS the
+  cost is the cipher, so the threads matter little.
+* **1 KB requests over kept-alive connections:** devel answers 59% of what
+  nginx does, the same share as without TLS (`relay-ka-1k`); the thread per
+  connection, not TLS, sets it. stunnel, a thread per connection too, is
+  below devel.
+* **A handshake for every request:** ending TLS devel does 82-94% of nginx and
+  haproxy, 30% more than stunnel; beginning it 60-68% of nginx. nginx
+  (`proxy_ssl_session_reuse`) and haproxy resume the session to the server, so
+  most of their handshakes there are short; devel and stunnel make a full one
+  for every connection.
+* Handshakes cost two to three times more on the Skylake host than on the M4,
+  with or without a proxy.
+
+## Many connections: the mix scenarios
+
+Measured on 13 October 2026 with the same devel ([data/](data/) `*-mix.csv`),
+20000 connections open through the proxy, `--mix-active` 2000; `-3k` at a
+fixed 3000 exchanges a second. dante is left out on the Skylake host: with
+20000 connections it needs more memory than the machine has (6.6 GB on the
+M4) and the OOM killer ended the origin. ‡: limited by the client.
+
+| scenario (M4 / Intel), k exchanges/s | devel | devel -s0 | 1.0.1 | nginx | haproxy | haproxy splice-auto | squid | tinyproxy | dante |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| mix-http | 5.0 / 7.0 | 4.9 / 6.5 | 3.9 / 5.4 | **7.5‡ / 7.9** | 6.5‡ / 7.1 | 6.5‡ / **8.6** | 2.7‡ / 2.2 | 1.5 / 1.7 | |
+| mix-connect | 5.7‡ / **9.1‡** | 5.5 / 8.2 | 5.5‡ / 7.3 | | | | **7.3‡** / 7.2 | 2.0 / 2.8 | |
+| mix-socks | **5.7‡ / 9.0** | 5.5 / 8.0 | 5.8‡ / 8.4 | | | | | | 3.5 / - |
+| mix-relay | 5.9‡ / 9.2 | 5.7 / 8.1 | 5.8‡ / 8.6 | **7.5‡ / 9.9‡** | 6.8‡ / 7.9‡ | 7.1‡ / 8.5 | | | |
+
+| at 3000 a second (M4 / Intel) | devel | devel -s0 | 1.0.1 | nginx | haproxy | haproxy splice-auto | squid | tinyproxy | dante |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| CPU per exchange, µs: mix-http-3k, mix-relay-3k | 236 / 201, 209 / 171 | 236 / 217, 215 / 174 | 278 / 238, 212 / 170 | 169 / 187, 178 / 162 | 162 / 168, 179 / 166 | **162 / 160, 178 / 159** | 326 / 489 | 678 / 647 | |
+| peak memory, MB: mix-http-3k | 2627 / 2659 | 2614 / 2644 | 2752 / 2820 | **139 / 154** | 150 / 179 | 154 / 180 | 603 / 868 | 803 / 765 | |
+| peak memory, MB: mix-connect-3k, mix-socks-3k | 2670 / 2660, 1422 / 1410 | 2653 / 2648, 1404 / 1398 | 2831 / 2834, 1559 / 1574 | | | | 1289 / 1371 | **1025 / 1038** | 6747 / - (socks) |
+| peak memory, MB: mix-relay-3k | 1306 / 1376 | 1291 / 1358 | 1456 / 1531 | 574 / 604 | **267 / 314** | **264 / 318** | | | |
+
+* Copying many small exchanges devel does 75-80% of nginx and haproxy on the
+  M4 and 85-95% on the Skylake host, where it is first through CONNECT and
+  SOCKS; at a fixed rate it takes 3-8% more CPU than they do as a relay, 7-25%
+  more as an HTTP proxy, with the same p99.
+* Memory is where a thread per connection shows: about 65 KB a connection for
+  a relay or a SOCKS tunnel (the thread's stack and two 16 KB buffers), about
+  130 KB for an HTTP proxy or CONNECT connection, against 8-30 KB for nginx and
+  haproxy.
+* nginx relays fail exchanges whose client shuts down its sending side first
+  (`proxy_half_close` is off by default), 350-470 a run; with it on
+  (`nginx::halfclose`, [data/](data/) `*-halfclose.csv`) there are none and
+  nothing else changes: 7.47k against 7.44k on the M4, 9.83k against 9.71k on
+  the Skylake host.
 
 ## Earlier sessions
 

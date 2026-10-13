@@ -39,6 +39,31 @@ HTTP_PORT, TCP_PORT, ORIGIN_HTTP, ORIGIN_TCP = 3128, 5201, 8080, 5201
 # proxy has none (nginx, haproxy)
 RELAY_HTTP = 5280
 SOCKS_PORT = 1080
+# the mix origin (bench/mix), and what reaches it where a proxy cannot be told
+# where to go: an HTTP listener and a relay of their own
+ORIGIN_MIX, HTTP_MIX, RELAY_MIX = 8090, 3129, 5281
+# Its connections spread over that many of the origin's ports, from that many
+# addresses of the client: tens of thousands of connections between one pair
+# of addresses leave the kernel looking hard for a free port on every
+# connect, and so does what the previous proxy left in TIME_WAIT.
+MIX_PORTS = 16
+# TLS: the origin's TLS listener, and the proxies' relays which terminate TLS
+# (TLS from the client, plain to ORIGIN_HTTP) and initiate it (plain from the
+# client, TLS to ORIGIN_TLS). TLS holds the certificate files once made.
+ORIGIN_TLS, TLS_TERM, TLS_INIT = 8443, 5443, 5444
+TLS = None
+# Each measurement takes the next of SLOTS sets of addresses: the proxy's to
+# connect from, and the mix client's to connect from. What a run leaves in
+# TIME_WAIT (the side closing first keeps it: the proxy towards the origin,
+# being stopped, and the client towards the proxy, ending first) is then not
+# between the addresses the next runs use, and is gone by the time a set is
+# taken again.
+SLOTS = 8
+PRX_OUTS = [f"10.0.2.{10 + i}" for i in range(SLOTS)]
+
+
+def mix_sources(slot):
+    return [f"10.0.1.{100 + 16 * (slot % SLOTS) + i}" for i in range(16)]
 
 FILES = {"1k": 1024, "50k": 50 * 1024, "100k": 100 * 1024, "1m": 1024 * 1024}
 
@@ -60,17 +85,40 @@ SCENARIOS = {
     "connect-stream16":  ("stream", {"streams": 16, "via": "connect"}),
     "connect-ka-1k":     ("http", {"file": "1k", "conns": 64, "via": "connect"}),
     "connect-ka-50k-2000": ("http", {"file": "50k", "conns": 2000, "via": "connect"}),
+    "connect-ka-2k-50k-2000": ("http", {"file": "50k", "conns": 2000, "body": 2048, "via": "connect"}),
     "connect-close-1k":  ("http", {"file": "1k", "conns": 64, "close": True, "via": "connect"}),
     "socks-stream1-down": ("stream", {"streams": 1, "reverse": True, "via": "socks"}),
     "socks-stream16":  ("stream", {"streams": 16, "via": "socks"}),
     "socks-ka-1k":     ("http", {"file": "1k", "conns": 64, "via": "socks"}),
     "socks-ka-50k-2000": ("http", {"file": "50k", "conns": 2000, "via": "socks"}),
+    "socks-ka-2k-50k-2000": ("http", {"file": "50k", "conns": 2000, "body": 2048, "via": "socks"}),
     "socks-close-1k":  ("http", {"file": "1k", "conns": 64, "close": True, "via": "socks"}),
     "relay-stream1-down": ("stream", {"streams": 1, "reverse": True, "via": "relay"}),
     "relay-stream16":  ("stream", {"streams": 16, "via": "relay"}),
     "relay-ka-1k":     ("http", {"file": "1k", "conns": 64, "via": "relay"}),
     "relay-ka-50k-2000": ("http", {"file": "50k", "conns": 2000, "via": "relay"}),
+    "relay-ka-2k-50k-2000": ("http", {"file": "50k", "conns": 2000, "body": 2048, "via": "relay"}),
     "relay-close-1k":  ("http", {"file": "1k", "conns": 64, "close": True, "via": "relay"}),
+    # TLS ended or begun by the proxy, relaying to or from the origin: one
+    # handshake for each connection, so the close-1k ones measure handshakes
+    "tls-term-ka-1k":    ("http", {"file": "1k", "conns": 64, "via": "tls-term"}),
+    "tls-term-ka-1m":    ("http", {"file": "1m", "conns": 16, "via": "tls-term"}),
+    "tls-term-close-1k": ("http", {"file": "1k", "conns": 64, "close": True, "via": "tls-term"}),
+    "tls-init-ka-1k":    ("http", {"file": "1k", "conns": 64, "via": "tls-init"}),
+    "tls-init-ka-1m":    ("http", {"file": "1m", "conns": 16, "via": "tls-init"}),
+    "tls-init-close-1k": ("http", {"file": "1k", "conns": 64, "close": True, "via": "tls-init"}),
+    # a pool of open connections and exchanges on random ones of them, sizes
+    # and pieces from a web-like profile (bench/mix): -active of them going
+    # at once all the time, or started at a fixed rate whatever the proxy
+    # keeps up with
+    "mix-http":      ("mix", {}),
+    "mix-connect":   ("mix", {"via": "connect"}),
+    "mix-socks":     ("mix", {"via": "socks"}),
+    "mix-relay":     ("mix", {"via": "relay"}),
+    "mix-http-3k":   ("mix", {"rate": 3000}),
+    "mix-connect-3k": ("mix", {"via": "connect", "rate": 3000}),
+    "mix-socks-3k":  ("mix", {"via": "socks", "rate": 3000}),
+    "mix-relay-3k":  ("mix", {"via": "relay", "rate": 3000}),
 }
 
 
@@ -124,6 +172,12 @@ def net_up(args):
                           ("bprx", "bp1", PRX_OUT), ("bsrv", "bs0", SRV_ADDR)):
         sh(f"ip -n {ns} addr add {addr}/24 dev {dev}")
         sh(f"ip -n {ns} link set {dev} mtu {args.mtu} up")
+    for addr in PRX_OUTS:
+        sh(f"ip -n bprx addr add {addr}/24 dev bp1")
+    if args.mix:
+        for slot in range(SLOTS):
+            for addr in mix_sources(slot):
+                sh(f"ip -n bcli addr add {addr}/24 dev bc0")
     # the direct baseline goes through the proxy namespace, routed by the
     # kernel
     sh(f"ip -n bcli route add 10.0.2.0/24 via {PRX_IN}")
@@ -354,6 +408,17 @@ def origin_up(args, work):
             f.write(b"x" * size)
     n = len(cpulist(args.cpus["srv"]))
     conf = os.path.join(work, "origin.conf")
+    origin_tls = ""
+    if TLS:
+        origin_tls = f"""    server {{{{
+        listen {SRV_ADDR}:{ORIGIN_TLS} ssl backlog=65535 reuseport;
+        ssl_certificate {TLS["cert"]};
+        ssl_certificate_key {TLS["key"]};
+        root {www};
+        default_type application/octet-stream;
+        error_page 405 =200 $uri;
+    }}}}
+""".replace("{{", "{").replace("}}", "}")
     with open(conf, "w") as f:
         f.write(f"""daemon off;
 worker_processes {n};
@@ -374,12 +439,17 @@ http {{
         # the files answer a POST too, its body read and thrown away
         error_page 405 =200 $uri;
     }}
-}}
+{origin_tls}}}
 """)
     log = open(os.path.join(work, "origin.out"), "w")
     procs = [spawn("bsrv", "srv", [tool("nginx"), "-c", conf, "-p", work], log),
              spawn("bsrv", "srv", [tool("iperf3"), "-s", "-B", SRV_ADDR, "-p", str(ORIGIN_TCP)], log)]
-    if not (wait_port("bsrv", SRV_ADDR, ORIGIN_HTTP) and wait_port("bsrv", SRV_ADDR, ORIGIN_TCP)):
+    ports = [ORIGIN_HTTP, ORIGIN_TCP] + ([ORIGIN_TLS] if TLS else [])
+    if args.mix:
+        procs.append(spawn("bsrv", "srv", [args.mix, "origin", "-listen", f"{SRV_ADDR}:{ORIGIN_MIX}",
+                                           "-ports", str(MIX_PORTS)], log))
+        ports += [ORIGIN_MIX, ORIGIN_MIX + MIX_PORTS - 1]
+    if not all(wait_port("bsrv", SRV_ADDR, port) for port in ports):
         for p in procs:
             stop(p)
         sys.exit("the origin did not start, see " + work)
@@ -388,19 +458,51 @@ http {{
 
 # --- proxies -----------------------------------------------------------------
 
-def proxy_conf(kind, work, ncpu, label, opts=""):
+def proxy_conf(kind, work, ncpu, label, opts="", out=PRX_OUT):
     """Configuration for one proxy: an HTTP proxy on HTTP_PORT and a TCP relay
     on TCP_PORT, both towards the origin. Returns the argv. opts are added to
-    both 3proxy services, e.g. -s0 to keep a version from using splice()."""
+    both 3proxy services, e.g. -s0 to keep a version from using splice(). out
+    is the address the proxy connects from."""
     if kind == "3proxy":
         conf = os.path.join(work, f"{label}.cfg")
         with open(conf, "w") as f:
             f.write(f"""maxconn 100000
 auth none
-proxy {opts} -i{PRX_IN} -e{PRX_OUT} -p{HTTP_PORT}
-tcppm {opts} -i{PRX_IN} -e{PRX_OUT} {TCP_PORT} {SRV_ADDR} {ORIGIN_TCP}
-tcppm {opts} -i{PRX_IN} -e{PRX_OUT} {RELAY_HTTP} {SRV_ADDR} {ORIGIN_HTTP}
-socks {opts} -i{PRX_IN} -e{PRX_OUT} -p{SOCKS_PORT}
+proxy {opts} -i{PRX_IN} -e{out} -p{HTTP_PORT}
+tcppm {opts} -i{PRX_IN} -e{out} {TCP_PORT} {SRV_ADDR} {ORIGIN_TCP}
+tcppm {opts} -i{PRX_IN} -e{out} {RELAY_HTTP} {SRV_ADDR} {ORIGIN_HTTP}
+tcppm {opts} -i{PRX_IN} -e{out} {RELAY_MIX} {SRV_ADDR} {ORIGIN_MIX}
+socks {opts} -i{PRX_IN} -e{out} -p{SOCKS_PORT}
+""")
+            if TLS:
+                f.write(f"""ssl_server_cert {TLS["cert"]}
+ssl_server_key {TLS["key"]}
+ssl_serv
+tcppm {opts} -i{PRX_IN} -e{out} {TLS_TERM} {SRV_ADDR} {ORIGIN_HTTP}
+ssl_noserv
+ssl_cli
+tcppm {opts} -i{PRX_IN} -e{out} {TLS_INIT} {SRV_ADDR} {ORIGIN_TLS}
+ssl_nocli
+""")
+        return [conf]
+    if kind == "stunnel":
+        conf = os.path.join(work, f"{label}.conf")
+        with open(conf, "w") as f:
+            f.write(f"""foreground = yes
+pid = {work}/{label}.pid
+debug = 3
+output = {work}/{label}.log
+[term]
+accept = {PRX_IN}:{TLS_TERM}
+connect = {SRV_ADDR}:{ORIGIN_HTTP}
+local = {out}
+cert = {TLS["cert"]}
+key = {TLS["key"]}
+[init]
+client = yes
+accept = {PRX_IN}:{TLS_INIT}
+connect = {SRV_ADDR}:{ORIGIN_TLS}
+local = {out}
 """)
         return [conf]
     if kind == "tinyproxy":
@@ -408,7 +510,7 @@ socks {opts} -i{PRX_IN} -e{PRX_OUT} -p{SOCKS_PORT}
         with open(conf, "w") as f:
             f.write(f"""Port {HTTP_PORT}
 Listen {PRX_IN}
-Bind {PRX_OUT}
+Bind {out}
 Timeout 600
 MaxClients 100000
 LogLevel Critical
@@ -421,7 +523,7 @@ DisableViaHeader Yes
         conf = os.path.join(work, f"{label}.conf")
         with open(conf, "w") as f:
             f.write(f"""http_port {PRX_IN}:{HTTP_PORT}
-tcp_outgoing_address {PRX_OUT}
+tcp_outgoing_address {out}
 http_access allow all
 cache deny all
 cache_mem 8 MB
@@ -441,7 +543,7 @@ forwarded_for delete
         with open(conf, "w") as f:
             f.write(f"""logoutput: {work}/{label}.log
 internal: {PRX_IN} port = {SOCKS_PORT}
-external: {PRX_OUT}
+external: {out}
 socksmethod: none
 clientmethod: none
 user.privileged: root
@@ -460,6 +562,15 @@ socks pass {{ from: 0.0.0.0/0 to: 0.0.0.0/0 }}
                 if os.path.exists(stream):
                     load = f"load_module {stream};\n"
                     break
+            halfclose = "    proxy_half_close on;\n" if opts == "halfclose" else ""
+            nginx_tls = ""
+            if TLS:
+                nginx_tls = (f"    server {{\n        listen {PRX_IN}:{TLS_TERM} ssl backlog=65535 reuseport;\n"
+                             f"        ssl_certificate {TLS['cert']};\n        ssl_certificate_key {TLS['key']};\n"
+                             f"        proxy_pass {SRV_ADDR}:{ORIGIN_HTTP};\n        proxy_bind {out};\n    }}\n"
+                             f"    server {{\n        listen {PRX_IN}:{TLS_INIT} backlog=65535 reuseport;\n"
+                             f"        proxy_pass {SRV_ADDR}:{ORIGIN_TLS};\n        proxy_ssl on;\n"
+                             f"        proxy_bind {out};\n    }}\n")
             f.write(f"""{load}daemon off;
 worker_processes {ncpu};
 pid {work}/{label}.pid;
@@ -469,6 +580,7 @@ events {{ worker_connections 65536; }}
 http {{
     access_log off;
     upstream origin {{ server {SRV_ADDR}:{ORIGIN_HTTP}; keepalive 1024; }}
+    upstream mix {{ server {SRV_ADDR}:{ORIGIN_MIX}; keepalive 1024; }}
     server {{
         listen {PRX_IN}:{HTTP_PORT} backlog=65535 reuseport;
         keepalive_requests 1000000;
@@ -476,22 +588,38 @@ http {{
             proxy_pass http://origin;
             proxy_http_version 1.1;
             proxy_set_header Connection "";
-            proxy_bind {PRX_OUT};
+            proxy_bind {out};
+        }}
+    }}
+    server {{
+        listen {PRX_IN}:{HTTP_MIX} backlog=65535 reuseport;
+        keepalive_requests 1000000;
+        client_max_body_size 0;
+        location / {{
+            proxy_pass http://mix;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_bind {out};
         }}
     }}
 }}
 stream {{
-    server {{
+{halfclose}    server {{
         listen {PRX_IN}:{TCP_PORT} backlog=65535 reuseport;
         proxy_pass {SRV_ADDR}:{ORIGIN_TCP};
-        proxy_bind {PRX_OUT};
+        proxy_bind {out};
     }}
     server {{
         listen {PRX_IN}:{RELAY_HTTP} backlog=65535 reuseport;
         proxy_pass {SRV_ADDR}:{ORIGIN_HTTP};
-        proxy_bind {PRX_OUT};
+        proxy_bind {out};
     }}
-}}
+    server {{
+        listen {PRX_IN}:{RELAY_MIX} backlog=65535 reuseport;
+        proxy_pass {SRV_ADDR}:{ORIGIN_MIX};
+        proxy_bind {out};
+    }}
+{nginx_tls}}}
 """)
         return ["-c", conf, "-p", work]
     if kind == "haproxy":
@@ -512,6 +640,7 @@ stream {{
     nbthread {ncpu}
     maxconn 200000
 defaults
+    maxconn 200000
 {splice}    timeout connect 5s
     timeout client 60s
     timeout server 60s
@@ -523,18 +652,45 @@ frontend http
 backend origin
     mode http
     http-reuse always
-    source {PRX_OUT}
+    source {out}
     server origin {SRV_ADDR}:{ORIGIN_HTTP}
 listen tcp
     mode tcp
     bind {PRX_IN}:{TCP_PORT}
-    source {PRX_OUT}
+    source {out}
     server origin {SRV_ADDR}:{ORIGIN_TCP}
 listen tcphttp
     mode tcp
     bind {PRX_IN}:{RELAY_HTTP}
-    source {PRX_OUT}
+    source {out}
     server origin {SRV_ADDR}:{ORIGIN_HTTP}
+frontend httpmix
+    mode http
+    bind {PRX_IN}:{HTTP_MIX}
+    option http-keep-alive
+    default_backend mix
+backend mix
+    mode http
+    http-reuse always
+    source {out}
+    server mix {SRV_ADDR}:{ORIGIN_MIX}
+listen tcpmix
+    mode tcp
+    bind {PRX_IN}:{RELAY_MIX}
+    source {out}
+    server mix {SRV_ADDR}:{ORIGIN_MIX}
+""")
+            if TLS:
+                f.write(f"""listen tlsterm
+    mode tcp
+    bind {PRX_IN}:{TLS_TERM} ssl crt {TLS["pem"]}
+    source {out}
+    server origin {SRV_ADDR}:{ORIGIN_HTTP}
+listen tlsinit
+    mode tcp
+    bind {PRX_IN}:{TLS_INIT}
+    source {out}
+    server origin {SRV_ADDR}:{ORIGIN_TLS} ssl verify none
 """)
         return ["-f", conf]
     raise ValueError(kind)
@@ -553,13 +709,16 @@ class Proxy:
             self.label = os.path.basename(path) + (self.opts.replace(" ", "") if self.opts else "")
         elif kind in ("nginx", "haproxy"):
             path, _, self.opts = path.partition(":")
-            if kind == "nginx" and self.opts:
-                sys.exit("nginx takes no options (it does not use splice() at all)")
+            # nginx has no splice(): its one option is halfclose, for
+            # proxy_half_close on, which its relays leave off by default
+            if kind == "nginx" and self.opts not in ("", "halfclose"):
+                sys.exit("nginx options: halfclose")
             self.binary = path or tool(kind)
             self.label = kind + ("-" + self.opts if self.opts else "")
-        elif kind in ("tinyproxy", "squid", "dante"):
-            # dante's server is sockd, danted on Debian
-            self.binary = path or (tool("sockd", "danted") if kind == "dante" else tool(kind))
+        elif kind in ("tinyproxy", "squid", "dante", "stunnel"):
+            # dante's server is sockd, danted on Debian; stunnel stunnel4 there
+            self.binary = path or (tool("sockd", "danted") if kind == "dante" else
+                                   tool("stunnel", "stunnel4") if kind == "stunnel" else tool(kind))
             self.label = kind
         elif kind == "none":
             self.binary = None
@@ -569,18 +728,30 @@ class Proxy:
 
     # what each proxy listens on, and which scenarios it can take part in:
     # tinyproxy and squid are HTTP proxies, dante a SOCKS server only
-    PORTS = {"3proxy": (HTTP_PORT, TCP_PORT, SOCKS_PORT, RELAY_HTTP),
-             "nginx": (HTTP_PORT, TCP_PORT, RELAY_HTTP),
-             "haproxy": (HTTP_PORT, TCP_PORT, RELAY_HTTP),
-             "tinyproxy": (HTTP_PORT,), "squid": (HTTP_PORT,), "dante": (SOCKS_PORT,)}
+    PORTS = {"3proxy": (HTTP_PORT, TCP_PORT, SOCKS_PORT, RELAY_HTTP, RELAY_MIX),
+             "nginx": (HTTP_PORT, TCP_PORT, RELAY_HTTP, HTTP_MIX, RELAY_MIX),
+             "haproxy": (HTTP_PORT, TCP_PORT, RELAY_HTTP, HTTP_MIX, RELAY_MIX),
+             "tinyproxy": (HTTP_PORT,), "squid": (HTTP_PORT,), "dante": (SOCKS_PORT,),
+             "stunnel": (TLS_TERM, TLS_INIT)}
+
+    def ports(self):
+        """What to wait for: with TLS scenarios the relays for them too."""
+        extra = (TLS_TERM, TLS_INIT) if TLS and self.kind in ("3proxy", "nginx", "haproxy") else ()
+        return self.PORTS[self.kind] + extra
 
     def serves(self, scenario):
         kind, params = SCENARIOS[scenario]
         via = params.get("via")
+        # TLS ended or begun on a relay: what 3proxy, nginx, haproxy and
+        # stunnel do, and only stunnel
+        if via in ("tls-term", "tls-init"):
+            return self.kind in ("3proxy", "nginx", "haproxy", "stunnel", "none")
+        if self.kind == "stunnel":
+            return False
         if self.kind == "dante":
             return via == "socks"
         if self.kind in ("tinyproxy", "squid"):
-            return via == "connect" or (kind == "http" and not via)
+            return via == "connect" or (kind in ("http", "mix") and not via)
         if self.kind in ("nginx", "haproxy"):
             # no CONNECT, no SOCKS
             return via in (None, "relay")
@@ -592,10 +763,10 @@ class Proxy:
         if self.kind == "none":
             return None
         argv = [self.binary] + proxy_conf(self.kind, work, len(cpulist(args.cpus["prx"])),
-                                          self.label, self.opts)
+                                          self.label, self.opts, PRX_OUTS[args.slot % SLOTS])
         log = open(os.path.join(work, self.label + ".out"), "a")
         p = spawn("bprx", "prx", argv, log)
-        if not all(wait_port("bcli", PRX_IN, port, 30) for port in self.PORTS[self.kind]):
+        if not all(wait_port("bcli", PRX_IN, port, 30) for port in self.ports()):
             stop(p)
             sys.exit(f"{self.label} did not start, see {work}")
         return p
@@ -649,8 +820,17 @@ def target(proxy, params, work, direct_port, proxy_port, relay_port):
     return PRX_IN, proxy_port, []
 
 
-def run_http(proxy, params, args, work):
-    host, port, prefix = target(proxy, params, work, ORIGIN_HTTP, HTTP_PORT, RELAY_HTTP)
+def run_http(proxy, params, args, work, mark):
+    via = params.get("via")
+    scheme = "http"
+    if via in ("tls-term", "tls-init"):
+        # with no proxy the client speaks TLS to the origin itself
+        host, prefix = (SRV_ADDR, []) if proxy.kind == "none" else (PRX_IN, [])
+        port = ORIGIN_TLS if proxy.kind == "none" else TLS_TERM if via == "tls-term" else TLS_INIT
+        if proxy.kind == "none" or via == "tls-term":
+            scheme = "https"
+    else:
+        host, port, prefix = target(proxy, params, work, ORIGIN_HTTP, HTTP_PORT, RELAY_HTTP)
     path = "/" + params["file"]
     if host == PRX_IN and port == HTTP_PORT:
         path = f"http://{SRV_ADDR}:{ORIGIN_HTTP}{path}"
@@ -666,7 +846,7 @@ def run_http(proxy, params, args, work):
     conns = max(params["conns"], threads)
     out = run_in("bcli", "cli", prefix + [tool("wrk"), "-t", str(threads), "-c", str(conns),
                                  "-d", f"{args.duration}s", "--latency", "-s", script,
-                                 f"http://{host}:{port}/"], args.duration + 30)
+                                 f"{scheme}://{host}:{port}/"], args.duration + 30)
     res = {"raw": out}
     m = re.search(r"(\d+) requests in", out)
     res["requests"] = int(m.group(1)) if m else 0
@@ -695,7 +875,7 @@ def run_http(proxy, params, args, work):
     return res
 
 
-def run_stream(proxy, params, args, work):
+def run_stream(proxy, params, args, work, mark):
     host, port, prefix = target(proxy, params, work, ORIGIN_TCP, TCP_PORT, TCP_PORT)
     argv = prefix + [tool("iperf3"), "-c", host, "-p", str(port), "-t", str(args.duration),
             "-P", str(params["streams"]), "-J"]
@@ -717,34 +897,109 @@ def run_stream(proxy, params, args, work):
     return res
 
 
+def run_mix(proxy, params, args, work, mark):
+    """bench/mix: a pool of connections through the proxy and exchanges on
+    random ones of them. Opening the pool is not measured: mark() starts
+    the measurement when the client says it is READY."""
+    via = params.get("via") or "http"
+    if proxy.kind == "none":
+        via, addr = "direct", ""
+    elif via == "relay":
+        addr = f"{PRX_IN}:{RELAY_MIX}"
+    elif via == "socks":
+        addr = f"{PRX_IN}:{SOCKS_PORT}"
+    elif via == "http" and proxy.kind in ("nginx", "haproxy"):
+        addr = f"{PRX_IN}:{HTTP_MIX}"
+    else:
+        addr = f"{PRX_IN}:{HTTP_PORT}"
+    argv = [args.mix, "client", "-via", via, "-origin", f"{SRV_ADDR}:{ORIGIN_MIX}",
+            "-origins", str(MIX_PORTS), "-sources", ",".join(mix_sources(args.slot)),
+            "-pool", str(args.mix_pool), "-active", str(args.mix_active),
+            "-rate", str(params.get("rate", 0)), "-seed", str(args.seed),
+            "-duration", f"{args.duration}s"]
+    if addr:
+        argv += ["-proxy", addr]
+    p = spawn("bcli", "cli", argv, subprocess.PIPE)
+    lines = []
+    ready = threading.Event()
+
+    def read():
+        for line in p.stdout:
+            line = line.decode("utf-8", "replace")
+            lines.append(line)
+            if line.strip() == "READY":
+                mark()
+                ready.set()
+    reader = threading.Thread(target=read)
+    reader.start()
+    top, t0 = {}, None
+    deadline = time.time() + args.duration + 300	# opening the pool takes a while
+    while p.poll() is None and time.time() < deadline:
+        if ready.is_set():
+            if t0 is None:
+                t0, base = time.time(), thread_times("cli")
+            # a thread started since then would bring its time from before
+            for tid, t in thread_times("cli").items():
+                if tid in base:
+                    top[tid] = t - base[tid]
+        time.sleep(0.5)
+    stop(p)
+    reader.join(10)
+    wall = time.time() - t0 if t0 else 0
+    LAST_CLIENT_THREAD[0] = max(top.values()) / TICK / wall if top and wall else 0.0
+    res = {"raw": "".join(lines), "retrans": 0}
+    try:
+        j = json.loads(lines[-1])
+    except (ValueError, IndexError):
+        j = {}
+    res["requests"] = j.get("exchanges", 0)
+    res["rate"] = j.get("rate", 0.0)
+    res["gbit"] = j.get("gbit", 0.0)
+    res["bytes"] = j.get("bytes", 0)
+    res["p50_ms"] = j.get("p50_ms", float("nan"))
+    res["p99_ms"] = j.get("p99_ms", float("nan"))
+    res["timeouts"] = j.get("timeouts", 0)
+    # connections of the pool which could not be opened count too
+    res["errors"] = j.get("errors", 0) + max(j.get("pool", 0) - j.get("opened", 0), 0)
+    if not j or not ready.is_set():
+        res["errors"] += 1
+    return res
+
+
 BUSY = 0.9
 
 
 def measure(proxy, scenario, args, work):
     kind, params = SCENARIOS[scenario]
+    args.slot += 1
     p = proxy.start(args, work)
+    base = {}
+
+    def mark():
+        """Where the measurement starts: now, or later for a load which
+        needs setting up first."""
+        base.update(task0=cg_usage("prx"), cpu0=cpu_busy(),
+                    thr0={r: thread_times(r) for r in ("cli", "srv")}, t0=time.time())
     try:
         time.sleep(0.5)
-        task0 = cg_usage("prx")
-        cpu0 = cpu_busy()
-        thr0 = {r: thread_times(r) for r in ("cli", "srv")}
-        t0 = time.time()
-        res = (run_http if kind == "http" else run_stream)(proxy, params, args, work)
+        mark()
+        runner = {"http": run_http, "stream": run_stream, "mix": run_mix}[kind]
+        res = runner(proxy, params, args, work, mark)
         res["cli_thread"] = LAST_CLIENT_THREAD[0]
-        wall = time.time() - t0
+        wall = time.time() - base["t0"]
         cpu1 = cpu_busy()
         # threads of the load generator have ended by now: take what the
         # client's cgroup reports for the run instead
         thr1 = {r: thread_times(r) for r in ("cli", "srv")}
-        res["prx_task_s"] = cg_usage("prx") - task0
+        res["prx_task_s"] = cg_usage("prx") - base["task0"]
         res["peak_mb"] = cg_peak("prx")
     finally:
         stop(p)
     for r in ("cli", "prx", "srv"):
         # the busy time of the role's CPUs, its own processes and the network
         # work done there for it
-        res[f"{r}_cpu_s"], res[f"{r}_util"] = role_busy(cpu0, cpu1, cpulist(args.cpus[r]))
-    res["srv_thread"] = busiest_thread(thr0["srv"], thr1["srv"], wall)
+        res[f"{r}_cpu_s"], res[f"{r}_util"] = role_busy(base["cpu0"], cpu1, cpulist(args.cpus[r]))
+    res["srv_thread"] = busiest_thread(base["thr0"]["srv"], thr1["srv"], wall)
     # Which side set the pace: a role whose CPUs, or a single thread of it,
     # were busy all the time. A run limited by the client or the origin says
     # only that the proxy can do at least this much.
@@ -791,7 +1046,7 @@ def summary(rows):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--proxy", action="append", required=True,
-                    help="3proxy:<binary>[:<service options>], nginx[:<binary>], "
+                    help="3proxy:<binary>[:<service options>], nginx[:<binary>[:halfclose]], "
                          "tinyproxy, squid, dante (sockd), "
                          "haproxy[:<binary>[:splice-auto|splice-response|splice-request|splice]] "
                          "or none (the kernel routing, an upper bound); repeat")
@@ -804,19 +1059,55 @@ def main():
     ap.add_argument("--mtu", type=int, default=1500)
     ap.add_argument("--netem", help='netem on the client link, e.g. "delay 1ms rate 10gbit"')
     ap.add_argument("--out", default="bench/results", help="directory for the CSV and logs")
+    ap.add_argument("--mix", help="the bench/mix binary for the mix-* scenarios "
+                    "(default: bench/mix/mix-linux-<arch>, see bench/mix/build.sh)")
+    ap.add_argument("--mix-pool", type=int, default=20000, help="connections kept open (%(default)s)")
+    ap.add_argument("--mix-active", type=int, default=2000,
+                    help="exchanges going at once at most (%(default)s)")
+    ap.add_argument("--seed", type=int, default=1, help="what the mix-* scenarios draw from (%(default)s)")
     args = ap.parse_args()
     if os.geteuid():
         sys.exit("needs root")
     args.cpus = dict(x.split("=") for x in args.cpus.split(","))
+    args.slot = -1
     proxies = [Proxy(s) for s in args.proxy]
     scenarios = args.scenario or list(SCENARIOS)
     # fail now rather than after the first scenarios
     for name in ("nginx", "iperf3", "wrk"):
         tool(name)
-    if any(SCENARIOS[s][1].get("via") in ("connect", "socks") for s in scenarios):
+    if any(SCENARIOS[s][1].get("via") in ("tls-term", "tls-init") for s in scenarios):
+        tool("openssl")
+    if any(SCENARIOS[s][0] != "mix" and SCENARIOS[s][1].get("via") in ("connect", "socks")
+           for s in scenarios):
         tool("proxychains4")
+    if any(SCENARIOS[s][0] == "mix" for s in scenarios):
+        arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(os.uname().machine, os.uname().machine)
+        args.mix = os.path.abspath(args.mix or os.path.join(os.path.dirname(__file__), "mix",
+                                                            f"mix-linux-{arch}"))
+        if not os.access(args.mix, os.X_OK):
+            sys.exit(f"{args.mix} is missing: build it with bench/mix/build.sh")
+    else:
+        args.mix = None
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    global TLS
+    tls_dir = None
+    if any(SCENARIOS[s][1].get("via") in ("tls-term", "tls-init") for s in scenarios):
+        # a CA and a certificate signed by it for the proxies' and the
+        # origin's addresses: ECDSA P-256, what TLS mostly uses now
+        tls_dir = tempfile.mkdtemp(prefix="3proxy-bench-tls-")
+        o = tool("openssl")
+        sh(f"cd {tls_dir} && {o} ecparam -name prime256v1 -genkey -noout -out ca.key && "
+           f"{o} req -x509 -new -key ca.key -days 30 -subj /CN=bench-ca -out ca.pem && "
+           f"{o} ecparam -name prime256v1 -genkey -noout -out key.pem && "
+           f"{o} req -new -key key.pem -subj /CN=bench -out req.csr && "
+           f"printf 'subjectAltName=IP:{PRX_IN},IP:{SRV_ADDR},DNS:bench\\n' > ext.cnf && "
+           f"{o} x509 -req -in req.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 30 "
+           f"-extfile ext.cnf -out cert.pem && cat cert.pem key.pem > combined.pem")
+        os.chmod(tls_dir, 0o755)
+        for name in os.listdir(tls_dir):
+            os.chmod(os.path.join(tls_dir, name), 0o644)
+        TLS = {"cert": f"{tls_dir}/cert.pem", "key": f"{tls_dir}/key.pem", "pem": f"{tls_dir}/combined.pem"}
     os.makedirs(args.out, exist_ok=True)
     work = tempfile.mkdtemp(prefix="3proxy-bench-")
     # squid writes its log and pid file there after giving up root
@@ -849,6 +1140,12 @@ def main():
                         if not proxy.serves(scenario):
                             continue
                         res = measure(proxy, scenario, args, work)
+                        # an origin killed (by the OOM killer, say) would fail
+                        # every measurement after it: stop there instead
+                        dead = [os.path.basename(p.args[4]) for p in origin if p.poll() is not None]
+                        if dead:
+                            sys.exit(f"origin exited ({', '.join(map(str, dead))}), "
+                                     f"{scenario} rep {rep} on {proxy.label} and later not measured")
                         res.update(proxy=proxy.label, scenario=scenario, rep=rep)
                         rows.append(res)
                         w.writerow(res)
