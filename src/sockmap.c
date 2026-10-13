@@ -49,6 +49,28 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
    before the sockets are closed. */
 #define SESSIONEND (!halfclose && (CLIENTTERMREAD || SERVERTERMREAD))
 
+/* A hang-up on a socket there is data to write to. With poll() it comes
+   once both sides are shut down, and the write tried then fails, which ends
+   it. WSAPoll reports it as soon as the peer has half-closed, a peer still
+   reading, and keeps reporting it whether the socket has room or not: room
+   is waited for with select() then, up to timeo seconds. Returns whether to
+   try the write. */
+static int hupwrite(SOCKET s, short revents, int timeo){
+#ifdef _WIN32
+	if(!(revents & POLLOUT)){
+		fd_set wfd;
+		struct timeval tv;
+
+		FD_ZERO(&wfd);
+		FD_SET(s, &wfd);
+		tv.tv_sec = timeo;
+		tv.tv_usec = 0;
+		if(select(0, NULL, &wfd, NULL, &tv) < 1) return 0;
+	}
+#endif
+	return 1;
+}
+
 int sockmap(struct clientparam * param, int timeo, int usesplice){
  int halfclose = param->srv->halfclose;
  uint64_t fromclient=0x7fffffffffffffff, fromserver =0x7fffffffffffffff;
@@ -606,7 +628,10 @@ log("ready to write to client");
 					}
 					if(fds[fdsc].revents &  (POLLHUP)) {
 						if(fds[fdsc].events & POLLIN) FROMCLIENT = 1;
-						if(fds[fdsc].events & POLLOUT) CLIENTTERMWRITE = 1;
+						if(fds[fdsc].events & POLLOUT){
+							if(hupwrite(param->clisock, fds[fdsc].revents, timeo)) TOCLIENT = 1;
+							else CLIENTTERMWRITE = 1;
+						}
 					}
 				}
 			} else if(fds[fdsc].revents & (POLLERR|POLLNVAL)) {
@@ -678,7 +703,10 @@ log("ready to write to server");
 log("server terminated connection");
 #endif
 						if(fds[fdsc].events & POLLIN) FROMSERVER = 1;
-						if(fds[fdsc].events & POLLOUT) SERVERTERMWRITE = 1;
+						if(fds[fdsc].events & POLLOUT){
+							if(hupwrite(param->remsock, fds[fdsc].revents, timeo)) TOSERVER = 1;
+							else SERVERTERMWRITE = 1;
+						}
 					}
 				}
 			} else if(fds[fdsc].revents & (POLLERR|POLLNVAL)) {
