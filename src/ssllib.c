@@ -261,8 +261,25 @@ int ssl_write(SSL_CONN connection, void * buf, int bufsize)
 int ssl_pending(SSL_CONN connection)
 {
 	ssl_conn *conn = (ssl_conn *) connection;
+#if SSL_READAHEAD
+	char c;
+	int res;
 
+	if(SSL_pending(conn->ssl) > 0) return 1;
+	if(!SSL_has_pending(conn->ssl)) return 0;
+	/* Read ahead and not decrypted: a record, or only a part of one. A
+	   part is no data, and saying so would have poll() return at once,
+	   again and again, without its timeout, until the rest came: it is
+	   pending only once the record is whole (or the connection ended),
+	   the socket polled for the rest otherwise. The sockets are not
+	   blocking, so this does not wait. */
+	res = SSL_peek(conn->ssl, &c, 1);
+	if(res > 0) return 1;
+	res = SSL_get_error(conn->ssl, res);
+	return res != SSL_ERROR_WANT_READ && res != SSL_ERROR_WANT_WRITE;
+#else
 	return SSL_pending(conn->ssl);
+#endif
 }
 
 void ssl_conn_free(SSL_CONN connection)
