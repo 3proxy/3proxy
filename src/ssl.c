@@ -781,7 +781,7 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 }
 
 static FILTER_ACTION ssl_filter_connect(void *fc, struct clientparam * param){
-	if(PCONF->cli && !client_mode) {
+	if(PCONF->cli && !PCONF->client_mode) {
 	    if(docli(param)) {
 		return REJECT;
 	    }
@@ -790,7 +790,7 @@ static FILTER_ACTION ssl_filter_connect(void *fc, struct clientparam * param){
 }
 
 static FILTER_ACTION ssl_filter_afterauth(void *fc, struct clientparam * param){
-	if(PCONF->cli && client_mode == 1) {
+	if(PCONF->cli && PCONF->client_mode == 1) {
 	    if(docli(param)) {
 		return REJECT;
 	    }
@@ -808,7 +808,7 @@ static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 	    if(!param->redirectfunc) param->redirectfunc = proxyfunc;
 	    return CONTINUE;
 	}
-	else if(PCONF->cli && client_mode == 2) {
+	else if(PCONF->cli && PCONF->client_mode == 2) {
 	    if(docli(param)) {
 		return REJECT;
 	    }
@@ -817,7 +817,7 @@ static FILTER_ACTION ssl_filter_predata(void *fc, struct clientparam * param){
 }
 
 static FILTER_ACTION ssl_parent(struct clientparam * param){
-	if(PCONF->cli && client_mode == 3) {
+	if(PCONF->cli && PCONF->client_mode == 3) {
 	    if(docli(param)) {
 		return REJECT;
 	    }
