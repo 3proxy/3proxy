@@ -145,17 +145,17 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	else ip = 0;
  }
- if(!ip && conf->numservers){
-	if((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&conf->nservers[0].addr), conf->nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, conf->nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
+ if(!ip && param->srv->config->numservers){
+	if((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->srv->config->nservers[0].addr), param->srv->config->nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, param->srv->config->nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
 	memset(&param->sinsl, 0, sizeof(param->sinsl));
-	*SAFAMILY(&param->sinsl) = *SAFAMILY(&conf->nservers[0].addr);
+	*SAFAMILY(&param->sinsl) = *SAFAMILY(&param->srv->config->nservers[0].addr);
 	if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) {
 		RETURN(819);
 	}
-	param->sinsr = conf->nservers[0].addr;
-	if(conf->nservers[0].usetcp) {
+	param->sinsr = param->srv->config->nservers[0].addr;
+	if(param->srv->config->nservers[0].usetcp) {
 		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),param->srv->timeouts[CONNECT_TO])) RETURN(830);
 		buf-=2;
 		*(unsigned short*)buf = htons(i);
@@ -180,7 +180,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	param->statssrv64 += len;
 	param->nreads++;
-	if(conf->nservers[0].usetcp) {
+	if(param->srv->config->nservers[0].usetcp) {
 		unsigned short us;
 		us = ntohs(*(unsigned short *)buf);
 		if(us > 4096) RETURN(833);

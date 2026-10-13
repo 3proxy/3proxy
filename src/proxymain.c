@@ -1282,7 +1282,7 @@ static int srvrun(struct srvstart *s){
 		/* A connection is only taken with a slot of maxchild in hand, which
 		   goes to its child; a slot not handed on is kept for the next one.
 		   The wait is timed to notice a reload. */
-		while(!haveslot && conf->paused == srv->paused){
+		while(!haveslot && srv->config->paused == srv->paused){
 			if(!_3proxy_sem_timedlock(srv->childslots, 1000)){
 				haveslot = 1;
 				nfull = 0;
@@ -1294,7 +1294,7 @@ static int srvrun(struct srvstart *s){
 			}
 		}
 		if (connectback) break;
-		if (conf->paused != srv->paused) break;
+		if (srv->config->paused != srv->paused) break;
 		error = srv->so._poll(srv->so.state, &srv->fds, 1, 1000);
 		if (error >= 1) break;
 		if (error == 0) continue;
@@ -1304,7 +1304,7 @@ static int srvrun(struct srvstart *s){
 			break;
 		}
 	}
-	if((conf->paused != srv->paused) || (error < 0)) break;
+	if((srv->config->paused != srv->paused) || (error < 0)) break;
 	error = 0;
 #if defined NOTCPMAIN
 	next = udpnext(s);
@@ -1477,6 +1477,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->maxchild = conf->maxchild;
  srv->backlog = conf->backlog;
  srv->stacksize = conf->stacksize;
+ srv->config = conf;
  memcpy(srv->timeouts, conf->timeouts, sizeof(srv->timeouts));
  srv->filtermaxsize = conf->filtermaxsize;
  srv->parentretries = conf->parentretries;

@@ -17,7 +17,7 @@ int alwaysauth(struct clientparam * param){
 	int countout = 0;
 
 
-	if(conf->connlimiter && !param->connlim  && startconnlims(param)) return 10;
+	if(param->srv->config->connlimiter && !param->connlim  && startconnlims(param)) return 10;
 #ifdef WITH_HTTPSRV
 	/* The http server answers the request itself, so authorization must not
 	   try to reach a destination that does not exist. A request it has handed
@@ -27,15 +27,15 @@ int alwaysauth(struct clientparam * param){
 	res = doconnect(param);
 #endif
 	if(!res){
-		if(conf->bandlimfunc && (conf->bandlimiter||conf->bandlimiterout)){
+		if(param->srv->config->bandlimfunc && (param->srv->config->bandlimiter||param->srv->config->bandlimiterout)){
 			_3proxy_mutex_lock(&bandlim_mutex);
 			initbandlims(param);
 			_3proxy_mutex_unlock(&bandlim_mutex);
 		}
 
-		if(conf->trafcountfunc && conf->trafcounter) {
+		if(param->srv->config->trafcountfunc && param->srv->config->trafcounter) {
 			_3proxy_mutex_lock(&tc_mutex);
-			for(tc = conf->trafcounter; tc; tc = tc->next) {
+			for(tc = param->srv->config->trafcounter; tc; tc = tc->next) {
 				if(tc->disabled) continue;
 				if(ACLmatches(tc->ace, param)){
 					if(tc->ace->action == NOCOUNTIN) {
@@ -51,11 +51,11 @@ int alwaysauth(struct clientparam * param){
 					    _3proxy_mutex_unlock(&tc_mutex);
 					    return 10;
 					}
-					param->trafcountfunc = conf->trafcountfunc;
+					param->trafcountfunc = param->srv->config->trafcountfunc;
 					param->maxtrafin64 = tc->traflim64 - tc->v->traf64;
 				}
 			}
-			if(countout)for(tc = conf->trafcounter; tc; tc = tc->next) {
+			if(countout)for(tc = param->srv->config->trafcounter; tc; tc = tc->next) {
 				if(tc->disabled) continue;
 				if(ACLmatches(tc->ace, param)){
 					if(tc->ace->action == NOCOUNTOUT || tc->ace->action == NOCOUNTALL) break;
@@ -66,7 +66,7 @@ int alwaysauth(struct clientparam * param){
 					    _3proxy_mutex_unlock(&tc_mutex);
 					    return 10;
 					}
-					param->trafcountfunc = conf->trafcountfunc;
+					param->trafcountfunc = param->srv->config->trafcountfunc;
 					param->maxtrafout64 = tc->traflim64 - tc->v->traf64;
 				}
 			}

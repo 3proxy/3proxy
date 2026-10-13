@@ -636,6 +636,7 @@ struct srvparam {
 	int nfilters, nreqfilters, nconnectfilters, nafterauthfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
 	int stacksize;
+	struct extparam *config;	/* the configuration it was started with */
 	int timeouts[12];	/* conf.timeouts as they were when the service started */
 	int filtermaxsize, parentretries, maxseg;	/* and these */
 	char delimchar;
