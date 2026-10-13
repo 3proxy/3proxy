@@ -31,7 +31,7 @@ void transparent_install(void);
 #endif
 
 #ifndef DEFAULTCONFIG
-#define DEFAULTCONFIG conf.stringtable[25]
+#define DEFAULTCONFIG conf->stringtable[25]
 #endif
 
 _3proxy_mutex_t bandlim_mutex;
@@ -63,12 +63,12 @@ struct trafvalue * trafvalue(unsigned number){
 	if(!(tc = malloc(sizeof(*tc)))) return NULL;
 	memset(tc, 0, sizeof(*tc));
 	tc->number = number;
-	if(conf.counterd >= 0) {
-		lseek(conf.counterd,
+	if(conf->counterd >= 0) {
+		lseek(conf->counterd,
 			sizeof(struct counter_header) + (number - 1) * sizeof(struct counter_record),
 			SEEK_SET);
 		memset(&crecord, 0, sizeof(struct counter_record));
-		if(read(conf.counterd, &crecord, sizeof(struct counter_record)) == sizeof(struct counter_record)){
+		if(read(conf->counterd, &crecord, sizeof(struct counter_record)) == sizeof(struct counter_record)){
 			if(crecord.cleared < 0 || crecord.cleared >= MAX_COUNTER_TIME || crecord.updated < 0 || crecord.updated >= MAX_COUNTER_TIME){
 				free(tc);
 				return NULL;
@@ -99,7 +99,7 @@ static pthread_attr_t pa;
 char * curconf = NULL;
 
 FILE * confopen(){
-	curconf = conf.conffile;
+	curconf = conf->conffile;
 #ifndef _WIN32
 	if(chrootp){
 		if(strstr(curconf, chrootp) == curconf)
@@ -206,15 +206,15 @@ int start_proxy_thread(struct child * chp){
 	_3proxy_mutex_unlock(&runningservices_mutex);
 #ifdef _WIN32
 #ifndef _WINCE
-	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, (void *)startsrv, service, (DWORD)0, &thread);
+	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384+conf->stacksize, (void *)startsrv, service, (DWORD)0, &thread);
 #else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384+conf.stacksize, (void *)startsrv, service, (DWORD)0, &thread);
+	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384+conf->stacksize, (void *)startsrv, service, (DWORD)0, &thread);
 #endif
 	if(h)CloseHandle(h);
 	else {
 #else
 	pthread_attr_init(&pa);
-	pthread_attr_setstacksize(&pa,threadstacksize(conf.stacksize));
+	pthread_attr_setstacksize(&pa,threadstacksize(conf->stacksize));
 	pthread_attr_setdetachstate(&pa,PTHREAD_CREATE_DETACHED);
 	res = pthread_create(&thread, &pa, startsrv, service);
 	pthread_attr_destroy(&pa);
@@ -360,11 +360,11 @@ static int h_proxy(int argc, unsigned char ** argv){
 static int h_internal(int argc, unsigned char ** argv){
 #ifdef WITH_UN
 	if(!strncmp((char *)argv[1], "unix:", 5)){
-		make_un(argv[1] +5, (struct sockaddr_un *)&conf.intsa);
+		make_un(argv[1] +5, (struct sockaddr_un *)&conf->intsa);
 	}
 	else
 #endif
-		getip46(46, argv[1], (struct sockaddr *)&conf.intsa);
+		getip46(46, argv[1], (struct sockaddr *)&conf->intsa);
 	return 0;
 }
 
@@ -375,10 +375,10 @@ static int h_external(int argc, unsigned char ** argv){
 	memset(&sa6, 0, sizeof(sa6));
 	res = getip46(46, argv[1], (struct sockaddr *)&sa6);
 	if(!res) return 1;
-	if (*SAFAMILY(&sa6)==AF_INET) conf.extsa = sa6;
-	else conf.extsa6 = sa6;
+	if (*SAFAMILY(&sa6)==AF_INET) conf->extsa = sa6;
+	else conf->extsa6 = sa6;
 #else
-	res = getip46(46, argv[1], (struct sockaddr *)&conf.extsa);
+	res = getip46(46, argv[1], (struct sockaddr *)&conf->extsa);
 	if(!res) return 1;
 #endif
 	return 0;
@@ -397,31 +397,31 @@ static int h_log(int argc, unsigned char ** argv){
 
 
 	havelog = 1;
-	if(argc > 1 && conf.logtarget && !strcmp((char *)conf.logtarget, (char *)argv[1])) {
+	if(argc > 1 && conf->logtarget && !strcmp((char *)conf->logtarget, (char *)argv[1])) {
 		notchanged = 1;
 	}
-	if(!notchanged && conf.logtarget){
-		free(conf.logtarget);
-		conf.logtarget = NULL;
+	if(!notchanged && conf->logtarget){
+		free(conf->logtarget);
+		conf->logtarget = NULL;
 	}
 	if(argc > 1) {
 		if(!strcmp((char *) argv[1], "/dev/null")) {
-			conf.logfunc = lognone;
+			conf->logfunc = lognone;
 			return 0;
 		}
-		if(!notchanged) conf.logtarget = (unsigned char *)strdup((char *)argv[1]);
+		if(!notchanged) conf->logtarget = (unsigned char *)strdup((char *)argv[1]);
 		if(*argv[1]=='@'){
 #ifndef _WIN32
-			conf.logfunc = logsyslog;
+			conf->logfunc = logsyslog;
 			if(notchanged) return 0;
 			/* connected now: after a chroot there is no /dev/log to find */
-			openlog((char *)conf.logtarget+1, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+			openlog((char *)conf->logtarget+1, LOG_PID | LOG_NDELAY, LOG_DAEMON);
 #endif
 		}
 #ifdef WITH_ODBC
 		else if(*argv[1]=='&'){
-			conf.logfunc = logsql;
-			if(conf.stacksize < LOGSTACKSIZE) conf.stacksize = LOGSTACKSIZE;
+			conf->logfunc = logsql;
+			if(conf->stacksize < LOGSTACKSIZE) conf->stacksize = LOGSTACKSIZE;
 			if(notchanged) return 0;
 			_3proxy_mutex_lock(&log_mutex);
 			close_sql();
@@ -431,50 +431,50 @@ static int h_log(int argc, unsigned char ** argv){
 #endif
 #ifndef NORADIUS
 		else if(!strcmp((char *)argv[1],"radius")){
-			conf.logfunc = logradius;
+			conf->logfunc = logradius;
 		}
 #endif
 		else {
 			if(argc > 2) {
-				conf.logtype = getrotate(*argv[2]);
+				conf->logtype = getrotate(*argv[2]);
 			}
-			conf.logfunc = logstdout;
+			conf->logfunc = logstdout;
 			if(notchanged) return 0;
-			conf.logtime = time(0);
-			if(conf.logname)free(conf.logname);
-			conf.logname = (unsigned char *)strdup((char *)argv[1]);
-			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a", conf.stdlog);
-			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.logtime), "a");
-			if(!conf.stdlog){
+			conf->logtime = time(0);
+			if(conf->logname)free(conf->logname);
+			conf->logname = (unsigned char *)strdup((char *)argv[1]);
+			if(conf->stdlog) conf->stdlog = freopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, conf->logtime), "a", conf->stdlog);
+			else conf->stdlog = fopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, conf->logtime), "a");
+			if(!conf->stdlog){
 				perror((char *)tmpbuf);
 				return 1;
 			}
 
 		}
 	}
-	else conf.logfunc = logstdout;
+	else conf->logfunc = logstdout;
 	return 0;
 }
 
 static int h_stacksize(int argc, unsigned char **argv){
-	conf.stacksize = atoi((char *)argv[1]);
+	conf->stacksize = atoi((char *)argv[1]);
 	return 0;
 }
 
 static int h_threadpool(int argc, unsigned char **argv){
-	conf.poolmax = atoi((char *)argv[1]);
-	if(argc > 2) conf.pooltimeout = atoi((char *)argv[2]);
+	conf->poolmax = atoi((char *)argv[1]);
+	if(argc > 2) conf->pooltimeout = atoi((char *)argv[2]);
 	return 0;
 }
 
 
 static int h_force(int argc, unsigned char **argv){
-	conf.noforce = 0;
+	conf->noforce = 0;
 	return 0;
 }
 
 static int h_noforce(int argc, unsigned char **argv){
-	conf.noforce = 1;
+	conf->noforce = 1;
 	return 0;
 }
 
@@ -483,15 +483,15 @@ static int h_service(int argc, unsigned char **argv){
 }
 
 static int h_daemon(int argc, unsigned char **argv){
-	if(!conf.demon)daemonize();
-	conf.demon = 1;
+	if(!conf->demon)daemonize();
+	conf->demon = 1;
 	return 0;
 }
 
 static int h_config(int argc, unsigned char **argv){
-	if(conf.conffile)free(conf.conffile);
-	conf.conffile = strdup((char *)argv[1]);
-	if(!conf.conffile) return 21;
+	if(conf->conffile)free(conf->conffile);
+	conf->conffile = strdup((char *)argv[1]);
+	if(!conf->conffile) return 21;
 	return 0;
 }
 
@@ -512,23 +512,23 @@ static int h_include(int argc, unsigned char **argv){
 static int h_archiver(int argc, unsigned char **argv){
 	int j;
 
-	conf.archiver = malloc(argc * sizeof(char *));
-	if(conf.archiver) {
-		conf.archiverc = argc;
-		for(j = 0; j < conf.archiverc; j++) conf.archiver[j] = (unsigned char *)strdup((char *)argv[j]);
+	conf->archiver = malloc(argc * sizeof(char *));
+	if(conf->archiver) {
+		conf->archiverc = argc;
+		for(j = 0; j < conf->archiverc; j++) conf->archiver[j] = (unsigned char *)strdup((char *)argv[j]);
 	}
 	return 0;
 }
 
 static int h_counter(int argc, unsigned char **argv){
 	struct counter_header ch1;
-	if(conf.counterd >=0)close(conf.counterd);
-	conf.counterd = open((char *)argv[1], O_BINARY|O_RDWR|O_CREAT, 0660);
-	if(conf.counterd<0){
+	if(conf->counterd >=0)close(conf->counterd);
+	conf->counterd = open((char *)argv[1], O_BINARY|O_RDWR|O_CREAT, 0660);
+	if(conf->counterd<0){
 		fprintf(stderr, "Unable to open counter file %s, line %d\n", argv[1], linenum);
 		return 1;
 	}
-	if(read(conf.counterd, &ch1, sizeof(ch1))==sizeof(ch1)){
+	if(read(conf->counterd, &ch1, sizeof(ch1))==sizeof(ch1)){
 		if(memcmp(&ch1, &cheader, 4)){
 			fprintf(stderr, "Not a counter file %s, line %d\n", argv[1], linenum);
 			return 2;
@@ -540,26 +540,26 @@ static int h_counter(int argc, unsigned char **argv){
 		cheader.updated = ch1.updated;
 	}
 	if(argc >=4) {
-		conf.countertype = getrotate(*argv[2]);
-		if(conf.counterfile) free(conf.counterfile);
-		conf.counterfile = strdup((char *)argv[3]);
+		conf->countertype = getrotate(*argv[2]);
+		if(conf->counterfile) free(conf->counterfile);
+		conf->counterfile = strdup((char *)argv[3]);
 	}
 	return 0;
 }
 
 static int h_rotate(int argc, unsigned char **argv){
-	conf.rotate = atoi((char *)argv[1]);
+	conf->rotate = atoi((char *)argv[1]);
 	return 0;
 }
 
 static int h_maxseg(int argc, unsigned char **argv){
-	conf.maxseg = atoi((char *)argv[1]);
+	conf->maxseg = atoi((char *)argv[1]);
 	return 0;
 }
 
 static int h_logformat(int argc, unsigned char **argv){
-	unsigned char * old = conf.logformat;
-	conf.logformat = (unsigned char *)strdup((char *)argv[1]);
+	unsigned char * old = conf->logformat;
+	conf->logformat = (unsigned char *)strdup((char *)argv[1]);
 	if(old) free(old);
 	return 0;
 }
@@ -567,8 +567,8 @@ static int h_logformat(int argc, unsigned char **argv){
 static int h_timeouts(int argc, unsigned char **argv){
 	int j;
 
-	for(j = 0; conf.timeouts[j] && j + 1 < argc; j++) {
-		if((conf.timeouts[j] = atoi((char *)argv[j + 1])) <= 0 || conf.timeouts[j] > 2000000){
+	for(j = 0; conf->timeouts[j] && j + 1 < argc; j++) {
+		if((conf->timeouts[j] = atoi((char *)argv[j + 1])) <= 0 || conf->timeouts[j] > 2000000){
 			fprintf(stderr, "Invalid timeout: %s, line %d\n", argv[j + 1], linenum);
 			return(1);
 		}
@@ -583,9 +583,9 @@ static int h_noop(int argc, unsigned char **argv){
 static int h_auth(int argc, unsigned char **argv){
 	struct auth *au, * newau;
 	
-	freeauth(conf.authfuncs);
-	conf.authfuncs = NULL;
-	if(!conf.bandlimfunc)conf.bandlimfunc = bandlimitfunc;
+	freeauth(conf->authfuncs);
+	conf->authfuncs = NULL;
+	if(!conf->bandlimfunc)conf->bandlimfunc = bandlimitfunc;
 	for(argc--; argc; argc--){
 	  for(au = authfuncs; au; au=au->next){
 		if(!strcmp((char *)argv[argc], au->desc)){
@@ -593,17 +593,17 @@ static int h_auth(int argc, unsigned char **argv){
 			if(!newau) {
 				return 21;
 			}
-			newau->next = conf.authfuncs;
-			conf.authfuncs = newau;
-			conf.authfuncs->desc = au->desc;
-			conf.authfuncs->authenticate = au->authenticate;
-			conf.authfuncs->authorize = au->authorize;
+			newau->next = conf->authfuncs;
+			conf->authfuncs = newau;
+			conf->authfuncs->desc = au->desc;
+			conf->authfuncs->authenticate = au->authenticate;
+			conf->authfuncs->authorize = au->authorize;
 			break;
 		}
 	  }
 	  if(!au) return 1;
 	}
-	conf.authfunc = doauth;
+	conf->authfunc = doauth;
 	return 0;
 }
 
@@ -667,19 +667,19 @@ static int h_users(int argc, unsigned char **argv){
 }
 
 static int h_maxconn(int argc, unsigned char **argv){
-	conf.maxchild = atoi((char *)argv[1]);
-	if(!conf.maxchild) {
+	conf->maxchild = atoi((char *)argv[1]);
+	if(!conf->maxchild) {
 		return(1);
 	}
 #ifndef _WIN32
 	{
 		struct rlimit rl;
 		if(!getrlimit(RLIMIT_NOFILE, &rl)){
-			if((conf.maxchild<<1) > rl.rlim_cur)
+			if((conf->maxchild<<1) > rl.rlim_cur)
 				fprintf(stderr, "[line %d] Warning: current open file ulimits are too low (cur: %d/max: %d),"
 						" maxconn requires at least %d for every running service."
 						" Configure ulimits according to system documentation\n",
-						  linenum, (int)rl.rlim_cur, (int)rl.rlim_max, (conf.maxchild<<1));
+						  linenum, (int)rl.rlim_cur, (int)rl.rlim_max, (conf->maxchild<<1));
 		}
 	}
 #endif
@@ -687,23 +687,23 @@ static int h_maxconn(int argc, unsigned char **argv){
 }
 
 static int h_backlog(int argc, unsigned char **argv){
-	conf.backlog = atoi((char *)argv[1]);
-	if(conf.backlog < 0) {
+	conf->backlog = atoi((char *)argv[1]);
+	if(conf->backlog < 0) {
 		return(1);
 	}
 	return 0;
 }
 
 static int h_flush(int argc, unsigned char **argv){
-	freeacl(conf.acl);
-	conf.acl = NULL;
+	freeacl(conf->acl);
+	conf->acl = NULL;
 	return 0;
 }
 
 /*
 static int h_flushusers(int argc, unsigned char **argv){
-	freepwl(conf.pwl);
-	conf.pwl = NULL;
+	freepwl(conf->pwl);
+	conf->pwl = NULL;
 	return 0;
 }
 */
@@ -711,16 +711,16 @@ static int h_flushusers(int argc, unsigned char **argv){
 static int h_nserver(int argc, unsigned char **argv){
   char *str;
 
-	if(conf.numservers < MAXNSERVERS) {
+	if(conf->numservers < MAXNSERVERS) {
 		if((str = strchr((char *)argv[1], '/')))
 			*str = 0;
-		*SAPORT(&conf.nservers[conf.numservers].addr) = htons(53);
-		if(parsehost(46, argv[1], (struct sockaddr *)&conf.nservers[conf.numservers].addr)) return 1;
+		*SAPORT(&conf->nservers[conf->numservers].addr) = htons(53);
+		if(parsehost(46, argv[1], (struct sockaddr *)&conf->nservers[conf->numservers].addr)) return 1;
 		if(str) {
-			conf.nservers[conf.numservers].usetcp = strstr(str + 1, "tcp")? 1:0;
+			conf->nservers[conf->numservers].usetcp = strstr(str + 1, "tcp")? 1:0;
 			*str = '/';
 		}
-		conf.numservers++;
+		conf->numservers++;
 
 	}
 	resolvfunc = myresolver;
@@ -732,10 +732,10 @@ static int h_authnserver(int argc, unsigned char **argv){
 
 	if((str = strchr((char *)argv[1], '/')))
 		*str = 0;
-	if(parsehost(46, argv[1], (struct sockaddr *)&conf.authnserver.addr)) return 1;
-	*SAPORT(&conf.authnserver.addr) = htons(53);
+	if(parsehost(46, argv[1], (struct sockaddr *)&conf->authnserver.addr)) return 1;
+	*SAPORT(&conf->authnserver.addr) = htons(53);
 	if(str) {
-		conf.authnserver.usetcp = strstr(str + 1, "tcp")? 1:0;
+		conf->authnserver.usetcp = strstr(str + 1, "tcp")? 1:0;
 		*str = '/';
 	}
 	return 0;
@@ -765,7 +765,7 @@ static int h_parentretries(int argc, unsigned char **argv){
   int res;
 
 	res = atoi((char *)argv[1]);
-	if(res > 0) conf.parentretries = res;
+	if(res > 0) conf->parentretries = res;
 	return 0;
 }
 
@@ -833,8 +833,8 @@ static int h_monitor(int argc, unsigned char **argv){
 	else {
 		fm->path = strdup((char *)argv[1]);
 		if(!fm->path) return 21;
-		fm->next = conf.fmon;
-		conf.fmon = fm;
+		fm->next = conf->fmon;
+		conf->fmon = fm;
 	}
 	return 0;
 }
@@ -940,9 +940,9 @@ static int addhttprule(char *op, char *host, char *url, char *params)
 	}
 	if(params) rule->params = (unsigned char *)strdup(params);
 
-	if(!conf.httprules) conf.httprules = rule;
+	if(!conf->httprules) conf->httprules = rule;
 	else {
-		for(tail = conf.httprules; tail->next; tail = tail->next);
+		for(tail = conf->httprules; tail->next; tail = tail->next);
 		tail->next = rule;
 	}
 	return 0;
@@ -1048,7 +1048,7 @@ static int h_parent(int argc, unsigned char **argv){
   char * cidr = NULL;
   int i;
 
-	acl = conf.acl;
+	acl = conf->acl;
 	while(acl && acl->next) acl = acl->next;
 	if(!acl || (acl->action && acl->action != 2)) {
 		fprintf(stderr, "Chaining error: last ACL entry was not \"allow\" or \"redirect\" on line %d\n", linenum);
@@ -1244,9 +1244,9 @@ static int h_http(int argc, unsigned char **argv){
 		return(1);
 	}
 
-	if(!conf.httprules) conf.httprules = rule;
+	if(!conf->httprules) conf->httprules = rule;
 	else {
-		for(tail = conf.httprules; tail->next; tail = tail->next);
+		for(tail = conf->httprules; tail->next; tail = tail->next);
 		tail->next = rule;
 	}
 	return 0;
@@ -1256,7 +1256,7 @@ static int h_http(int argc, unsigned char **argv){
 static int h_nolog(int argc, unsigned char **argv){
   struct ace *acl = NULL;
 
-	acl = conf.acl;
+	acl = conf->acl;
 	if(!acl) {
 		fprintf(stderr, "Chaining error: last ACL entry was not \"allow/deny\" on line %d\n", linenum);
 		return(1);
@@ -1639,13 +1639,13 @@ static int h_ace(int argc, unsigned char **argv){
 		acl->chains->weight = WEIGHTSCALE;
 	case ALLOW:
 	case DENY:
-		if(!conf.acl){
-			conf.acl = acl;
+		if(!conf->acl){
+			conf->acl = acl;
 		}
 		else {
 			struct ace * acei;
 
-			for(acei = conf.acl; acei->next; acei = acei->next);
+			for(acei = conf->acl; acei->next; acei = acei->next);
 			acei->next = acl;
 		}
 		break;
@@ -1663,13 +1663,13 @@ static int h_ace(int argc, unsigned char **argv){
 			sscanf((char *)argv[2], "%u", &ncl->period);
 		}
 		_3proxy_mutex_lock(&connlim_mutex);
-		if(!conf.connlimiter){
-			conf.connlimiter = ncl;
+		if(!conf->connlimiter){
+			conf->connlimiter = ncl;
 		}
 		else {
 			struct connlim * cli;
 
-			for(cli = conf.connlimiter; cli->next; cli = cli->next);
+			for(cli = conf->connlimiter; cli->next; cli = cli->next);
 			cli->next = ncl;
 		}
 		_3proxy_mutex_unlock(&connlim_mutex);			
@@ -1696,28 +1696,28 @@ static int h_ace(int argc, unsigned char **argv){
 		}
 		_3proxy_mutex_lock(&bandlim_mutex);
 		if(!strcmp((char *)argv[0], "bandlimin") || !strcmp((char *)argv[0], "nobandlimin")){
-			if(!conf.bandlimiter){
-				conf.bandlimiter = nbl;
+			if(!conf->bandlimiter){
+				conf->bandlimiter = nbl;
 			}
 			else {
 				struct bandlim * bli;
 
-				for(bli = conf.bandlimiter; bli->next; bli = bli->next);
+				for(bli = conf->bandlimiter; bli->next; bli = bli->next);
 				bli->next = nbl;
 			}
 		}
 		else {
-			if(!conf.bandlimiterout){
-				conf.bandlimiterout = nbl;
+			if(!conf->bandlimiterout){
+				conf->bandlimiterout = nbl;
 			}
 			else {
 				struct bandlim * bli;
 
-				for(bli = conf.bandlimiterout; bli->next; bli = bli->next);
+				for(bli = conf->bandlimiterout; bli->next; bli = bli->next);
 				bli->next = nbl;
 			}
 		}
-		conf.bandlimver++;
+		conf->bandlimver++;
 		_3proxy_mutex_unlock(&bandlim_mutex);			
 		break;
 
@@ -1727,7 +1727,7 @@ static int h_ace(int argc, unsigned char **argv){
 	case NOCOUNTOUT:
 	case COUNTALL:
 	case NOCOUNTALL:
-		if(!conf.trafcountfunc) conf.trafcountfunc = trafcountfunc;
+		if(!conf->trafcountfunc) conf->trafcountfunc = trafcountfunc;
 		tl = malloc(sizeof(struct trafcount));
 		if(!tl) {
 			freeacl(acl);
@@ -1765,13 +1765,13 @@ static int h_ace(int argc, unsigned char **argv){
 		}
 		else tl->v = &tl->own;
 		_3proxy_mutex_lock(&tc_mutex);
-		if(!conf.trafcounter){
-			conf.trafcounter = tl;
+		if(!conf->trafcounter){
+			conf->trafcounter = tl;
 		}
 		else {
 			struct trafcount * ntl;
 
-			for(ntl = conf.trafcounter; ntl->next; ntl = ntl->next);
+			for(ntl = conf->trafcounter; ntl->next; ntl = ntl->next);
 			ntl->next = tl;
 		}
 		_3proxy_mutex_unlock(&tc_mutex);
@@ -1781,19 +1781,19 @@ static int h_ace(int argc, unsigned char **argv){
 }
 
 static int h_logdump(int argc, unsigned char **argv){
-	conf.logdumpsrv = (unsigned) atoi((char *) *(argv + 1));
-	if(argc > 2) conf.logdumpcli = (unsigned) atoi((char *) *(argv + 2));
+	conf->logdumpsrv = (unsigned) atoi((char *) *(argv + 1));
+	if(argc > 2) conf->logdumpcli = (unsigned) atoi((char *) *(argv + 2));
 	return 0;
 }
 
 
 static int h_filtermaxsize(int argc, unsigned char **argv){
-	conf.filtermaxsize = atoi((char *) *(argv + 1));
+	conf->filtermaxsize = atoi((char *) *(argv + 1));
 	return 0;
 }
 
 static int h_delimchar(int argc, unsigned char **argv){
-	conf.delimchar = *argv[1];
+	conf->delimchar = *argv[1];
 	return 0;
 }
 
@@ -1802,21 +1802,21 @@ static int h_delimchar(int argc, unsigned char **argv){
 static int h_radius(int argc, unsigned char **argv){
 	uint16_t port;
 
-	memset(conf.radiuslist, 0, sizeof(conf.radiuslist));
+	memset(conf->radiuslist, 0, sizeof(conf->radiuslist));
 	if(strlen((char *)argv[1]) > 63) argv[1][63] = 0;
-	strcpy(conf.radiussecret, (char *)argv[1]);
-	for( conf.nradservers=0; conf.nradservers < MAXRADIUS && conf.nradservers < argc -2; conf.nradservers++){
+	strcpy(conf->radiussecret, (char *)argv[1]);
+	for( conf->nradservers=0; conf->nradservers < MAXRADIUS && conf->nradservers < argc -2; conf->nradservers++){
 		char *s = 0;
-		if((s=strchr((char *)argv[conf.nradservers + 2], '/'))){
+		if((s=strchr((char *)argv[conf->nradservers + 2], '/'))){
 			*s = 0;
 			s++;
 		}
-		if( !getip46(46, argv[conf.nradservers + 2], (struct sockaddr *)&conf.radiuslist[conf.nradservers].authaddr)) return 1;
-		if( s && !getip46(46, (unsigned char *)s, (struct sockaddr *)&conf.radiuslist[conf.nradservers].localaddr)) return 2;
-		if(!*SAPORT(&conf.radiuslist[conf.nradservers].authaddr))*SAPORT(&conf.radiuslist[conf.nradservers].authaddr) = htons(1812);
-		port = ntohs(*SAPORT(&conf.radiuslist[conf.nradservers].authaddr));
-		conf.radiuslist[conf.nradservers].logaddr = conf.radiuslist[conf.nradservers].authaddr;
- 	        *SAPORT(&conf.radiuslist[conf.nradservers].logaddr) = htons(port+1);
+		if( !getip46(46, argv[conf->nradservers + 2], (struct sockaddr *)&conf->radiuslist[conf->nradservers].authaddr)) return 1;
+		if( s && !getip46(46, (unsigned char *)s, (struct sockaddr *)&conf->radiuslist[conf->nradservers].localaddr)) return 2;
+		if(!*SAPORT(&conf->radiuslist[conf->nradservers].authaddr))*SAPORT(&conf->radiuslist[conf->nradservers].authaddr) = htons(1812);
+		port = ntohs(*SAPORT(&conf->radiuslist[conf->nradservers].authaddr));
+		conf->radiuslist[conf->nradservers].logaddr = conf->radiuslist[conf->nradservers].authaddr;
+ 	        *SAPORT(&conf->radiuslist[conf->nradservers].logaddr) = htons(port+1);
 	}
 	return 0;
 }
@@ -1824,23 +1824,23 @@ static int h_radius(int argc, unsigned char **argv){
 static int h_authcache(int argc, unsigned char **argv){
 	int authcachesize = 0;
 
-	conf.authcachetype = 0;
-	if(strstr((char *) *(argv + 1), "ip")) conf.authcachetype |= 1;
-	if(strstr((char *) *(argv + 1), "user")) conf.authcachetype |= 2;
-	if(strstr((char *) *(argv + 1), "pass")) conf.authcachetype |= 4;
-	if(strstr((char *) *(argv + 1), "limit")) conf.authcachetype |= 8;
-	if(strstr((char *) *(argv + 1), "acl")) conf.authcachetype |= 16;
-	if(strstr((char *) *(argv + 1), "ext")) conf.authcachetype |= 32;
-	if(strstr((char *) *(argv + 1), "dstaddr")) conf.authcachetype |= 64;
-	if(strstr((char *) *(argv + 1), "dstport")) conf.authcachetype |= 128;
-	if(strstr((char *) *(argv + 1), "dsthost")) conf.authcachetype |= 256;
-	if(strstr((char *) *(argv + 1), "dstoper")) conf.authcachetype |= 512;
-	if(strstr((char *) *(argv + 1), "srvaddr")) conf.authcachetype |= 1024;
-	if(strstr((char *) *(argv + 1), "srvport")) conf.authcachetype |= 2048;
-	if(argc > 2) conf.authcachetime = (unsigned) atoi((char *) *(argv + 2));
+	conf->authcachetype = 0;
+	if(strstr((char *) *(argv + 1), "ip")) conf->authcachetype |= 1;
+	if(strstr((char *) *(argv + 1), "user")) conf->authcachetype |= 2;
+	if(strstr((char *) *(argv + 1), "pass")) conf->authcachetype |= 4;
+	if(strstr((char *) *(argv + 1), "limit")) conf->authcachetype |= 8;
+	if(strstr((char *) *(argv + 1), "acl")) conf->authcachetype |= 16;
+	if(strstr((char *) *(argv + 1), "ext")) conf->authcachetype |= 32;
+	if(strstr((char *) *(argv + 1), "dstaddr")) conf->authcachetype |= 64;
+	if(strstr((char *) *(argv + 1), "dstport")) conf->authcachetype |= 128;
+	if(strstr((char *) *(argv + 1), "dsthost")) conf->authcachetype |= 256;
+	if(strstr((char *) *(argv + 1), "dstoper")) conf->authcachetype |= 512;
+	if(strstr((char *) *(argv + 1), "srvaddr")) conf->authcachetype |= 1024;
+	if(strstr((char *) *(argv + 1), "srvport")) conf->authcachetype |= 2048;
+	if(argc > 2) conf->authcachetime = (unsigned) atoi((char *) *(argv + 2));
 	if(argc > 3) authcachesize  = (unsigned) atoi((char *) *(argv + 3));
-	if(!conf.authcachetype) conf.authcachetype = 6;
-	if(!conf.authcachetime) conf.authcachetime = 600;
+	if(!conf->authcachetype) conf->authcachetype = 6;
+	if(!conf->authcachetime) conf->authcachetime = 600;
 	if(!authcachesize) authcachesize = 65536*4;
 	if(auth_table.growlimit != authcachesize && inithashtable(&auth_table, authcachesize < 1024? authcachesize:1024, authcachesize < 1024? authcachesize:1024, authcachesize)){
 		fprintf(stderr, "Failed to initialize auth cache\n");
@@ -2448,7 +2448,7 @@ void freeconf(struct extparam *confp){
  confp->maxchild = DEFAULT_MAXCHILD;
  confp->backlog = 0;
  resolvfunc = NULL;
- conf.numservers = 0;
+ conf->numservers = 0;
  acl = confp->acl;
  confp->acl = NULL;
 
@@ -2500,16 +2500,16 @@ int reload (void){
 #ifdef WITH_TRANSPARENT
 	transparent_install();
 #endif
-	conf.paused++;
-	freeconf(&conf);
-	conf.paused++;
+	conf->paused++;
+	freeconf(conf);
+	conf->paused++;
 
 	fp = confopen();
 	if(fp){
 		error = readconfig(fp);
-		conf.version++;
+		conf->version++;
 		if(error) {
-			 freeconf(&conf);
+			 freeconf(conf);
 		}
 		fclose(fp);
 	}

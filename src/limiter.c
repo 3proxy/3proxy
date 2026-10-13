@@ -16,7 +16,7 @@ int startconnlims (struct clientparam *param){
 
 	param->connlim = 1;
 	_3proxy_mutex_lock(&connlim_mutex);
-	for(ce = conf.connlimiter; ce; ce = ce->next) {
+	for(ce = conf->connlimiter; ce; ce = ce->next) {
 		if(ACLmatches(ce->ace, param)){
 			if(ce->ace->action == NOCONNLIM)break;
 			if(!ce->period){
@@ -44,7 +44,7 @@ int startconnlims (struct clientparam *param){
 	}
 	if(ret) {
 		struct connlim * cee;
-		for(cee = conf.connlimiter; cee != ce; cee = cee->next) {
+		for(cee = conf->connlimiter; cee != ce; cee = cee->next) {
 			if(ACLmatches(cee->ace, param) && !cee->period && cee->rating) {
 				cee->rating--;
 			}
@@ -59,7 +59,7 @@ void stopconnlims (struct clientparam *param){
 	struct connlim * ce;
 
 	_3proxy_mutex_lock(&connlim_mutex);
-	for(ce = conf.connlimiter; ce; ce = ce->next) {
+	for(ce = conf->connlimiter; ce; ce = ce->next) {
 		if(ACLmatches(ce->ace, param)){
 			if(ce->ace->action == NOCONNLIM)break;
 			if(!ce->period && ce->rating){
@@ -78,28 +78,28 @@ void initbandlims (struct clientparam *param){
 	param->bandlimfunc = NULL;
 	param->bandlims[0] = NULL;
 	param->bandlimsout[0] = NULL;
-	if(!conf.bandlimfunc || (!conf.bandlimiter && !conf.bandlimiterout)) return;
-	for(i=0, be = conf.bandlimiter; be && i<MAXBANDLIMS; be = be->next) {
+	if(!conf->bandlimfunc || (!conf->bandlimiter && !conf->bandlimiterout)) return;
+	for(i=0, be = conf->bandlimiter; be && i<MAXBANDLIMS; be = be->next) {
 		if(ACLmatches(be->ace, param)){
 			if(be->ace->action == NOBANDLIM) {
 				break;
 			}
 			param->bandlims[i++] = be;
-			param->bandlimfunc = conf.bandlimfunc;
+			param->bandlimfunc = conf->bandlimfunc;
 		}
 	}
 	if(i<MAXBANDLIMS)param->bandlims[i] = NULL;
-	for(i=0, be = conf.bandlimiterout; be && i<MAXBANDLIMS; be = be->next) {
+	for(i=0, be = conf->bandlimiterout; be && i<MAXBANDLIMS; be = be->next) {
 		if(ACLmatches(be->ace, param)){
 			if(be->ace->action == NOBANDLIM) {
 				break;
 			}
 			param->bandlimsout[i++] = be;
-			param->bandlimfunc = conf.bandlimfunc;
+			param->bandlimfunc = conf->bandlimfunc;
 		}
 	}
 	if(i<MAXBANDLIMS)param->bandlimsout[i] = NULL;
-	param->bandlimver = conf.bandlimver;
+	param->bandlimver = conf->bandlimver;
 }
 
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout){
@@ -125,9 +125,9 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 
 	if(!nbytesin && !nbytesout) return 0;
 	_3proxy_mutex_lock(&bandlim_mutex);
-	if(param->bandlimver != conf.bandlimver){
+	if(param->bandlimver != conf->bandlimver){
 		initbandlims(param);
-		param->bandlimver = conf.bandlimver;
+		param->bandlimver = conf->bandlimver;
 	}
 	for(i=0; nbytesin&& i<MAXBANDLIMS && param->bandlims[i]; i++){
 		if( !param->bandlims[i]->basetime ||
@@ -172,7 +172,7 @@ void trafcountfunc(struct clientparam *param){
 	int countout = 0;
 
 	_3proxy_mutex_lock(&tc_mutex);
-	for(tc = conf.trafcounter; tc; tc = tc->next) {
+	for(tc = conf->trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
 
 			if(tc->ace->action == NOCOUNTIN) {
@@ -188,7 +188,7 @@ void trafcountfunc(struct clientparam *param){
 			tc->v->updated = curtime;
 		}
 	}
-	if(countout) for(tc = conf.trafcounter; tc; tc = tc->next) {
+	if(countout) for(tc = conf->trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
 			if(tc->ace->action == NOCOUNTOUT || tc->ace->action == NOCOUNTALL) break;
 			if(tc->ace->action != COUNTOUT && tc->ace->action != COUNTALL ) {

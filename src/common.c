@@ -204,20 +204,6 @@ char *rotations[] = {
 time_t curtime;
 int timetoexit = 0, needreload = 0;
 
-int timeouts[12] = {
-	1,    /* SINGLEBYTE_S */
-	5,    /* SINGLEBYTE_L */
-	30,   /* STRING_S */
-	60,   /* STRING_L */
-	180,  /* CONNECTION_S */
-	1800, /* CONNECTION_L */
-	15,   /* DNS_TO */
-	60,   /* CHAIN_TO */
-	15,   /* CONNECT_TO */
-	5,    /* CONNBACK_TO */
-	5,    /* LINGER_TO */
-	0
-};
 
 #ifndef _WIN32
 /* PTHREAD_STACK_MIN is 128K on glibc/aarch64 and glibc/powerpc and may be
@@ -234,67 +220,15 @@ size_t threadstacksize(int extra){
 
 struct threadpool tpool;
 
-struct extparam conf = {
-	.timeouts = timeouts,
-	.acl = NULL,
-	.conffile = NULL,
-	.bandlimiter = NULL,
-	.bandlimiterout = NULL,
-	.connlimiter = NULL,
-	.trafcounter = NULL,
-	.services = NULL,
-	.stacksize = 0,
-	.poolmax = -1,
-	.pooltimeout = 60,
-	.counterd = -1,
-	.rotate = 0,
-	.paused = 0,
-	.archiverc = 0,
-	.demon = 0,
-	.maxchild = DEFAULT_MAXCHILD,
-	.backlog = 0,
-	.version = 0,
-	.noforce = 0,
-	.bandlimver = 0,
-	.parentretries = 2,
-	.authcachetype = 6,
-	.authcachetime = 600,
-	.filtermaxsize = 1048576,
-	.gracetraf = 0,
-	.gracenum = 0,
-	.gracedelay = 0,
-	.maxseg = 0,
-	.logname = NULL,
-	.archiver = NULL,
-	.logtype = NONE,
-	.countertype = NONE,
-	.counterfile = NULL,
-#ifndef NOIPV6
-	.intsa = {AF_INET},
-	.extsa6 = {AF_INET6},
-	.extsa = {AF_INET},
-#else
-	.intsa = {AF_INET},
-	.extsa = {AF_INET},
-#endif
-	.pwl = NULL,
-	.authenticate = NULL,
-	.authfunc = doconnect,
-	.logfunc = lognone,
-	.bandlimfunc = NULL,
-	.trafcountfunc = NULL,
-	.logtarget = NULL,
-	.logformat = NULL,
-	.fmon = NULL,
-	.filters = NULL,
-	.authfuncs = NULL,
-	.stdlog = NULL,
-	.stringtable = NULL,
-	.logtime = (time_t)0,
-	.logdumpsrv = 0,
-	.logdumpcli = 0,
-	.delimchar = '@',
+/* A configuration starts as confdefaults; conf is the current one, at first
+   confboot, which exists before main() runs. */
+const struct extparam confdefaults = {
+#include "confinit.h"
 };
+struct extparam confboot = {
+#include "confinit.h"
+};
+struct extparam *conf = &confboot;
 
 
 char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";

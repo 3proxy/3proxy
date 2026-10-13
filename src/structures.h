@@ -859,7 +859,7 @@ struct filemon {
 
 
 struct extparam {
-	int *timeouts;
+	int timeouts[12];
 	struct ace * acl;
 #ifdef WITH_HTTPSRV
 	struct httprule *httprules;

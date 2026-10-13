@@ -29,7 +29,7 @@ void httpsrv_init(void);
 #endif
 
 #ifndef DEFAULTCONFIG
-#define DEFAULTCONFIG conf.stringtable[25]
+#define DEFAULTCONFIG conf->stringtable[25]
 #endif
 
 FILE * confopen();
@@ -73,13 +73,13 @@ void __stdcall CommandHandler( DWORD dwCommand )
     case SERVICE_CONTROL_SHUTDOWN:
         SetStatus( SERVICE_STOP_PENDING, 0, 1 );
 	timetoexit = 1;
-	conf.paused++;
+	conf->paused++;
 	/* ServiceMain() reports the service stopped once cyclestep() has
 	   seen this and the services are done */
         break;
     case SERVICE_CONTROL_PAUSE:
         SetStatus( SERVICE_PAUSE_PENDING, 0, 1 );
-	conf.paused++;
+	conf->paused++;
         SetStatus( SERVICE_PAUSED, 0, 0 );
         break;
     case SERVICE_CONTROL_CONTINUE:
@@ -95,7 +95,7 @@ void __stdcall CommandHandler( DWORD dwCommand )
 void __stdcall ServiceMain(int argc, unsigned char* argv[] )
 {
 
-    hSrv = RegisterServiceCtrlHandler((LPCSTR)conf.stringtable[1], (LPHANDLER_FUNCTION)CommandHandler);
+    hSrv = RegisterServiceCtrlHandler((LPCSTR)conf->stringtable[1], (LPHANDLER_FUNCTION)CommandHandler);
     if( hSrv == 0 ) return;
 
     SetStatus( SERVICE_START_PENDING, 0, 1 );
@@ -122,7 +122,7 @@ int even = 0;
 
 void mysigpause (int sig){
 
-	conf.paused++;
+	conf->paused++;
 	even = !even;
 	if(!even){
 		needreload = 1;
@@ -130,7 +130,7 @@ void mysigpause (int sig){
 }
 
 void mysigterm (int sig){
-	conf.paused++;
+	conf->paused++;
 	timetoexit = 1;
 }
 
@@ -207,13 +207,13 @@ void dumpcounters(struct trafcount *tlin, int counterd){
  if(counterd >= 0 && tlin) {
 
 	curtime = time(0);
-	if(cheader.updated && conf.countertype && timechanged(cheader.updated, curtime, conf.countertype)){
+	if(cheader.updated && conf->countertype && timechanged(cheader.updated, curtime, conf->countertype)){
 		FILE * cfp;
 				
-		cfp = fopen((char *)dologname(tmpbuf, (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
+		cfp = fopen((char *)dologname(tmpbuf, (unsigned char *)conf->counterfile, NULL, conf->countertype, cheader.updated), "w");
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
-				if(tl->type >= conf.countertype)
+				if(tl->type >= conf->countertype)
 					fprintf(cfp, "%05d %020"PRIu64"%s%s\n", tl->number, tl->v->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
 			}
 			fclose(cfp);
@@ -291,12 +291,12 @@ void cyclestep(void){
 		needreload = 0;
 	}
 	doschedule();
-	if(conf.stdlog)fflush(conf.stdlog);
+	if(conf->stdlog)fflush(conf->stdlog);
 	if(timechanged(minutecounter, curtime, MINUTELY)) {
 		struct filemon *fm;
 		struct stat sb;
 
-		for(fm=conf.fmon; fm; fm=fm->next){
+		for(fm=conf->fmon; fm; fm=fm->next){
 			if(!stat(fm->path, &sb)){
 				if(fm->sb.st_mtime != sb.st_mtime || fm->sb.st_size != sb.st_size){
 					stat(fm->path, &fm->sb);
@@ -314,15 +314,15 @@ void cyclestep(void){
 			basetime = mktime(tm);
 		}
 	}
-	if(conf.logname) {
-		if(timechanged(conf.logtime, curtime, conf.logtype)) {
-			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, curtime), "a", conf.stdlog);
-			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, curtime), "a");
-			conf.logtime = curtime;
-			if(conf.logtype != NONE && conf.rotate) {
+	if(conf->logname) {
+		if(timechanged(conf->logtime, curtime, conf->logtype)) {
+			if(conf->stdlog) conf->stdlog = freopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, curtime), "a", conf->stdlog);
+			else conf->stdlog = fopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, curtime), "a");
+			conf->logtime = curtime;
+			if(conf->logtype != NONE && conf->rotate) {
 				int t;
 				t = 1;
-				switch(conf.logtype){
+				switch(conf->logtype){
 					case ANNUALLY:
 						t = t * 12;
 					case MONTHLY:
@@ -338,38 +338,38 @@ void cyclestep(void){
 					default:
 						break;
 				}
-				dologname (tmpbuf, conf.logname, (conf.archiver)?conf.archiver[1]:NULL, conf.logtype, (conf.logtime - (time_t)t * conf.rotate));
+				dologname (tmpbuf, conf->logname, (conf->archiver)?conf->archiver[1]:NULL, conf->logtype, (conf->logtime - (time_t)t * conf->rotate));
 				remove ((char *) tmpbuf);
-				if(conf.archiver) {
+				if(conf->archiver) {
 					int i;
 					*tmpbuf = 0;
-					for(i = 2; i < conf.archiverc && strlen((char *)tmpbuf) < 512; i++){
+					for(i = 2; i < conf->archiverc && strlen((char *)tmpbuf) < 512; i++){
 						strcat((char *)tmpbuf, " ");
-						if(!strcmp((char *)conf.archiver[i], "%A")){
+						if(!strcmp((char *)conf->archiver[i], "%A")){
 							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf + strlen((char *)tmpbuf), conf.logname, conf.archiver[1], conf.logtype, (conf.logtime - t));
+							dologname (tmpbuf + strlen((char *)tmpbuf), conf->logname, conf->archiver[1], conf->logtype, (conf->logtime - t));
 							strcat((char *)tmpbuf, "\"");
 						}
-						else if(!strcmp((char *)conf.archiver[i], "%F")){
+						else if(!strcmp((char *)conf->archiver[i], "%F")){
 							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf+strlen((char *)tmpbuf), conf.logname, NULL, conf.logtype, (conf.logtime-t));
+							dologname (tmpbuf+strlen((char *)tmpbuf), conf->logname, NULL, conf->logtype, (conf->logtime-t));
 							strcat((char *)tmpbuf, "\"");
 						}
 						else
-							strcat((char *)tmpbuf, (char *)conf.archiver[i]);
+							strcat((char *)tmpbuf, (char *)conf->archiver[i]);
 					}
 					if(system((char *)tmpbuf+1)){}
 				}
 			}
 		}
 	}
-	if(conf.counterd >= 0 && conf.trafcounter) {
+	if(conf->counterd >= 0 && conf->trafcounter) {
 		if(timechanged(cheader.updated, curtime, MINUTELY)){
-			dumpcounters(conf.trafcounter, conf.counterd);
+			dumpcounters(conf->trafcounter, conf->counterd);
 		}
 	}
 	if(timetoexit){
-		conf.paused++;
+		conf->paused++;
 		doschedule();
 		waitservices();
 		pooldrain();
@@ -424,7 +424,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	hwnd = CreateWindowEx(0,L"3proxy",L"3proxy",WS_VISIBLE|WS_POPUP,0,0,0,0,0,0,hInstance,0);
 #endif
 
-  conf.stringtable = strings;
+  conf->stringtable = strings;
 #ifdef _WIN32
 #ifndef _WINCE
   if((argc == 2 || argc == 3)&& !strcmp((char *)argv[1], "--install")) {
@@ -432,8 +432,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	sprintf((char *)tmpbuf, "%s will be installed and started.\n"
 			"By clicking Yes you confirm you read and accepted License Agreement.\n"
 			"You can use Administration/Services to control %s service.", 
-			conf.stringtable[1], conf.stringtable[2]);
-	if(MessageBox(NULL, (LPCSTR)tmpbuf, (LPCSTR)conf.stringtable[2], MB_YESNO|MB_ICONASTERISK) != IDYES) return 1;
+			conf->stringtable[1], conf->stringtable[2]);
+	if(MessageBox(NULL, (LPCSTR)tmpbuf, (LPCSTR)conf->stringtable[2], MB_YESNO|MB_ICONASTERISK) != IDYES) return 1;
 
 	
 	*tmpbuf = '\"';
@@ -454,7 +454,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 			perror("Failed to open Service Manager");
 			RETURN(101);
 		}
-		if (!(sch = CreateService(sch, (LPCSTR)conf.stringtable[1], (LPCSTR)conf.stringtable[2], GENERIC_EXECUTE, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_IGNORE, (char *)tmpbuf, NULL, NULL, NULL, NULL, NULL))){
+		if (!(sch = CreateService(sch, (LPCSTR)conf->stringtable[1], (LPCSTR)conf->stringtable[2], GENERIC_EXECUTE, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_IGNORE, (char *)tmpbuf, NULL, NULL, NULL, NULL, NULL))){
 			perror("Failed to create service");
 			RETURN(103);
 		}
@@ -475,7 +475,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 			RETURN(104);
 		}
 		if(RegSetValueEx(  runsrv,
-				(LPCSTR)conf.stringtable[1],
+				(LPCSTR)conf->stringtable[1],
 				0,
 				REG_EXPAND_SZ,
 				(BYTE *)tmpbuf,
@@ -496,7 +496,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 			perror("Failed to open Service Manager\n");
 			RETURN(106);
 		}
-		if (!(sch = OpenService(sch, (LPCSTR)conf.stringtable[1], DELETE))){
+		if (!(sch = OpenService(sch, (LPCSTR)conf->stringtable[1], DELETE))){
 			perror("Failed to open service");
 			RETURN(107);
 		}
@@ -515,7 +515,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 			perror("Failed to open registry");
 			RETURN(109);
 		}
-		if(RegDeleteValue(runsrv, (LPCSTR)conf.stringtable[1]) != ERROR_SUCCESS){
+		if(RegDeleteValue(runsrv, (LPCSTR)conf->stringtable[1]) != ERROR_SUCCESS){
 			perror("Failed to clear registry");
 			RETURN(110);
 		}
@@ -528,8 +528,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   }
 #endif
 #endif
-  conf.conffile = strdup((argc==2)?argv[1]:(char*)DEFAULTCONFIG);
-  if(conf.conffile && *conf.conffile != '-') {
+  conf->conffile = strdup((argc==2)?argv[1]:(char*)DEFAULTCONFIG);
+  if(conf->conffile && *conf->conffile != '-') {
 	fp = confopen();
 #ifndef _WIN32
 	if(!fp) fp = stdin;
@@ -545,7 +545,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	fprintf(stderr,	"\n if conffile is missing, configuration is expected from stdin\n");
 #endif
 	fprintf(stderr, "available socket options:\n\t%s\n", printopts("\n\t"));
-	fprintf(stderr, "\n%s %s\n%s\n", conf.stringtable[2], conf.stringtable[3], copyright);
+	fprintf(stderr, "\n%s %s\n%s\n", conf->stringtable[2], conf->stringtable[3], copyright);
 
 	return 1;
   }
@@ -581,10 +581,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   httpsrv_init();
 #endif
 
-  freeconf(&conf);
+  freeconf(conf);
   initcommands();
   res = readconfig(fp);
-  conf.version++;
+  conf->version++;
 
   /* readconfig() names the failing line, which an exit status would cut
      to 8 bits: a failed configuration exits with 1 */
@@ -597,7 +597,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   if(service){
 	SERVICE_TABLE_ENTRY ste[] = 
 	{
-        	{ (LPSTR)conf.stringtable[1], (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+        	{ (LPSTR)conf->stringtable[1], (LPSERVICE_MAIN_FUNCTION)ServiceMain},
 	        { NULL, NULL }
 	};	
  	if(!StartServiceCtrlDispatcher( ste ))cyclestep();

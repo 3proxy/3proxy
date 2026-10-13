@@ -514,7 +514,7 @@ static void * ef_server_next(struct node * node){
 
 static void * ef_server_type(struct node * node){
 	int service = ((struct srvparam *)node->value) -> service;
-	return (service>=0 && service < MAX_SERVICE)? (void *)conf.stringtable[SERVICES + service] : (void *)"unknown";
+	return (service>=0 && service < MAX_SERVICE)? (void *)conf->stringtable[SERVICES + service] : (void *)"unknown";
 }
 
 static void * ef_server_child(struct node * node){
@@ -543,7 +543,7 @@ static void * ef_pool_limit(struct node * node){
 }
 
 static void * ef_pool_timeout(struct node * node){
-	return &conf.pooltimeout;
+	return &conf->pooltimeout;
 }
 
 static void * ef_pool_created(struct node * node){
@@ -693,7 +693,7 @@ static void * ef_client_next(struct node * node){
 
 static void * ef_client_type(struct node * node){
 	int service = ((struct clientparam *)node->value) -> service;
-	return (service>=0 && service < MAX_SERVICE)? (void *)conf.stringtable[SERVICES + service] : (void *)"unknown";
+	return (service>=0 && service < MAX_SERVICE)? (void *)conf->stringtable[SERVICES + service] : (void *)"unknown";
 }
 
 static void * ef_client_operation(struct node * node){

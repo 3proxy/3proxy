@@ -353,9 +353,9 @@ static char * admin_open(struct printparam *pp, struct clientparam *param)
 	buf = malloc(LINESIZE);
 	if(!buf) return NULL;
 
-	sprintf(buf, ok, conf.stringtable?(char *)conf.stringtable[2]:"3proxy",
-		conf.stringtable?(char *)conf.stringtable[2]:"3[APA3A] tiny proxy",
-		conf.stringtable?(char *)conf.stringtable[3]:"");
+	sprintf(buf, ok, conf->stringtable?(char *)conf->stringtable[2]:"3proxy",
+		conf->stringtable?(char *)conf->stringtable[2]:"3[APA3A] tiny proxy",
+		conf->stringtable?(char *)conf->stringtable[3]:"");
 	printstr(pp, buf);
 	return buf;
 }
@@ -374,7 +374,7 @@ int op_admin(struct httpreq *r, const unsigned char *params)
 
 	buf = admin_open(&pp, r->param);
 	if(!buf) return 1;
-	printstr(&pp, (char *)conf.stringtable[WEBBANNERS]);
+	printstr(&pp, (char *)conf->stringtable[WEBBANNERS]);
 	admin_close(&pp, buf);
 	return 0;
 }
@@ -398,7 +398,7 @@ int op_admin_counters(struct httpreq *r, const unsigned char *params)
 		{
 			struct trafcount *cp; 
 			int num = 0;
-			for(cp = conf.trafcounter; cp; cp = cp->next, num++){
+			for(cp = conf->trafcounter; cp; cp = cp->next, num++){
 			 int inbuf = 0;
 
 			 if(cp->ace && (limited || param->redirected)){
@@ -489,7 +489,7 @@ int op_admin_reload(struct httpreq *r, const unsigned char *params)
 	buf = admin_open(&pp, r->param);
 	if(!buf) return 1;
 
-	if(r->param->srv->s_option) printstr(&pp, (char *)conf.stringtable[WEBBANNERS]);
+	if(r->param->srv->s_option) printstr(&pp, (char *)conf->stringtable[WEBBANNERS]);
 	else {
 		needreload = 1;
 		printstr(&pp, "<h3>Reload scheduled</h3>");
@@ -520,7 +520,7 @@ int op_admin_services(struct httpreq *r, const unsigned char *params)
 		printstr(&pp, "<threadpool>");
 		printval(&tpool, TYPE_THREADPOOL, 0, &pp);
 		printstr(&pp, "</threadpool>\r\n");
-		printval(conf.services, TYPE_SERVER, 0, &pp);
+		printval(conf->services, TYPE_SERVER, 0, &pp);
 		printstr(&pp, postxml);
 	}
 

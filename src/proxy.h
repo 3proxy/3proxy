@@ -225,9 +225,10 @@ extern time_t basetime;
 extern int timetoexit, needreload;
 extern time_t curtime;		/* the clock, kept by the main thread */
 
-extern struct extparam conf;
+extern struct extparam *conf;
+extern const struct extparam confdefaults;
+extern struct extparam confboot;
 
-extern int timeouts[12];
 
 /* directions sockmap() passes with splice(): -s1, -s2, -s3; with
    SPLICE_AUTO (-s alone, -s5 to -s7) only when it pays */

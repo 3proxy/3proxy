@@ -148,7 +148,7 @@ static void freeworker(struct clientparam *param){
 static unsigned poollimit(void){
  unsigned limit;
 
- if(conf.poolmax >= 0) limit = (unsigned)conf.poolmax;
+ if(conf->poolmax >= 0) limit = (unsigned)conf->poolmax;
  else {
 	limit = 32 * tpool.services;
 	if(limit > tpool.maxchild) limit = tpool.maxchild;
@@ -173,7 +173,7 @@ static int poolpark(struct clientparam *param){
  tpool.idle = param;
  tpool.nidle++;
  param->pooled = 1;
- timeout = conf.pooltimeout;
+ timeout = conf->pooltimeout;
  _3proxy_mutex_unlock(&tpool.mutex);
 
  if(timeout <= 0) _3proxy_sem_lock(param->wake);
@@ -400,7 +400,7 @@ static void srvdiscard(struct srvstart *s){
 static void srvunlink(struct srvparam *srv){
  if(srv->next)srv->next->prev = srv->prev;
  if(srv->prev)srv->prev->next = srv->next;
- else conf.services = srv->next;
+ else conf->services = srv->next;
  srv->next = srv->prev = NULL;
 }
 #endif
@@ -519,19 +519,19 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
  /* http lines accumulate until a service claims them, so each httpsrv takes
     the rules written above it and the next one starts empty. */
  if(srv->service == S_HTTPSRV){
-	srv->httprules = conf.httprules;
-	conf.httprules = NULL;
+	srv->httprules = conf->httprules;
+	conf->httprules = NULL;
  }
 #endif
  
 #ifndef STDMAIN
- if(conf.acl){
-	srv->acl = copyacl(conf.acl);
+ if(conf->acl){
+	srv->acl = copyacl(conf->acl);
 	if(!srv->acl) return 2;
  }
 
- if(conf.authfuncs){
-	srv->authfuncs = copyauth(conf.authfuncs);
+ if(conf->authfuncs){
+	srv->authfuncs = copyauth(conf->authfuncs);
 	if(!srv->authfuncs) return 2;
  }
 #else
@@ -543,8 +543,8 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 	if(*argv[i]=='-') {
 		switch(argv[i][1]) {
 		 case 'd': 
-			if(!conf.demon)daemonize();
-			conf.demon = 1;
+			if(!conf->demon)daemonize();
+			conf->demon = 1;
 			break;
 #if defined SO_BINDTODEVICE || defined IP_BOUND_IF
 		 case 'D':
@@ -767,7 +767,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			"\tExample: %s -i127.0.0.1\n\n"
 			"%s", 
 			argv[0], 
-			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			conf->stringtable?(char *)conf->stringtable[3]: VERSION " (" BUILDDATE ")",
 			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
@@ -795,7 +795,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			"\tExample: %s -d -i127.0.0.1 6666 serv.somehost.ru 6666\n\n"
 			"%s", 
 			argv[0],
-			conf.stringtable?(char *)conf.stringtable[3]: VERSION " (" BUILDDATE ")",
+			conf->stringtable?(char *)conf->stringtable[3]: VERSION " (" BUILDDATE ")",
 			argv[0], loghelp, printopts("\n\t"), childdef.helpmessage, argv[0],
 #ifdef STDMAIN
 			copyright
@@ -841,7 +841,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 
 #ifndef STDMAIN
- if((error = copyfilter(conf.filters, srv))) return error;
+ if((error = copyfilter(conf->filters, srv))) return error;
 #endif
  return 0;
 }
@@ -1282,7 +1282,7 @@ static int srvrun(struct srvstart *s){
 		/* A connection is only taken with a slot of maxchild in hand, which
 		   goes to its child; a slot not handed on is kept for the next one.
 		   The wait is timed to notice a reload. */
-		while(!haveslot && conf.paused == srv->paused){
+		while(!haveslot && conf->paused == srv->paused){
 			if(!_3proxy_sem_timedlock(srv->childslots, 1000)){
 				haveslot = 1;
 				nfull = 0;
@@ -1294,7 +1294,7 @@ static int srvrun(struct srvstart *s){
 			}
 		}
 		if (connectback) break;
-		if (conf.paused != srv->paused) break;
+		if (conf->paused != srv->paused) break;
 		error = srv->so._poll(srv->so.state, &srv->fds, 1, 1000);
 		if (error >= 1) break;
 		if (error == 0) continue;
@@ -1304,7 +1304,7 @@ static int srvrun(struct srvstart *s){
 			break;
 		}
 	}
-	if((conf.paused != srv->paused) || (error < 0)) break;
+	if((conf->paused != srv->paused) || (error < 0)) break;
 	error = 0;
 #if defined NOTCPMAIN
 	next = udpnext(s);
@@ -1431,12 +1431,12 @@ int mainprepare(int argc, char** argv, void **service){
  }
  /* listed only once it is sure to run: the thread reading the
     configuration links and unlinks it here, the service unlinks itself */
- if(!conf.services){
-	conf.services = &s->srv;
+ if(!conf->services){
+	conf->services = &s->srv;
  }
  else {
-	s->srv.next = conf.services;
-	conf.services = conf.services->prev = &s->srv;
+	s->srv.next = conf->services;
+	conf->services = conf->services->prev = &s->srv;
  }
  *service = s;
  return 0;
@@ -1468,27 +1468,27 @@ _3proxy_sem_t udpinit;
 void srvinit(struct srvparam * srv, struct clientparam *param){
 
  memset(srv, 0, sizeof(struct srvparam));
- srv->version = conf.version + 1;
- srv->paused = conf.paused;
- srv->logfunc = havelog?conf.logfunc:lognone;
- srv->noforce = conf.noforce;
- srv->logformat = conf.logformat? (unsigned char *)strdup((char *)conf.logformat) : NULL;
- srv->authfunc = conf.authfunc;
- srv->maxchild = conf.maxchild;
- srv->backlog = conf.backlog;
- srv->stacksize = conf.stacksize;
- memcpy(srv->timeouts, conf.timeouts, sizeof(srv->timeouts));
- srv->filtermaxsize = conf.filtermaxsize;
- srv->parentretries = conf.parentretries;
- srv->maxseg = conf.maxseg;
- srv->delimchar = conf.delimchar;
+ srv->version = conf->version + 1;
+ srv->paused = conf->paused;
+ srv->logfunc = havelog?conf->logfunc:lognone;
+ srv->noforce = conf->noforce;
+ srv->logformat = conf->logformat? (unsigned char *)strdup((char *)conf->logformat) : NULL;
+ srv->authfunc = conf->authfunc;
+ srv->maxchild = conf->maxchild;
+ srv->backlog = conf->backlog;
+ srv->stacksize = conf->stacksize;
+ memcpy(srv->timeouts, conf->timeouts, sizeof(srv->timeouts));
+ srv->filtermaxsize = conf->filtermaxsize;
+ srv->parentretries = conf->parentretries;
+ srv->maxseg = conf->maxseg;
+ srv->delimchar = conf->delimchar;
  srv->time_start = time(NULL);
- if(havelog && conf.logtarget){
-	 srv->logtarget = (unsigned char *)strdup((char *)conf.logtarget);
+ if(havelog && conf->logtarget){
+	 srv->logtarget = (unsigned char *)strdup((char *)conf->logtarget);
  }
  srv->srvsock = INVALID_SOCKET;
- srv->logdumpsrv = conf.logdumpsrv;
- srv->logdumpcli = conf.logdumpcli;
+ srv->logdumpsrv = conf->logdumpsrv;
+ srv->logdumpcli = conf->logdumpcli;
  srv->cbsock = INVALID_SOCKET;
  srv->needuser = 1;
 #ifdef __linux__
@@ -1516,14 +1516,14 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  }
  udpinited = 1;
 #endif
- srv->intsa = conf.intsa;
- srv->extsa = conf.extsa;
+ srv->intsa = conf->intsa;
+ srv->extsa = conf->extsa;
 #ifndef NOIPV6
- srv->extsa6 = conf.extsa6;
+ srv->extsa6 = conf->extsa6;
 #endif
  srv->so = so;
- srv->authcachetime = conf.authcachetime;
- srv->authcachetype = conf.authcachetype;
+ srv->authcachetime = conf->authcachetime;
+ srv->authcachetype = conf->authcachetype;
 }
 
 void srvinit2(struct srvparam * srv, struct clientparam *param){

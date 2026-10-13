@@ -25,7 +25,7 @@ extern int linenum;
 extern char *conffile;
 
 struct symbol symbols[] = {
-	{symbols+1, "conf", (void *) &conf},
+	{symbols+1, "conf", (void *) &confboot},
 	{symbols+2, "socksend", (void *) socksend},
 	{symbols+3, "socksendto", (void *) socksendto},
 	{symbols+4, "sockrecvfrom", (void *) sockrecvfrom},
@@ -45,7 +45,7 @@ struct symbol symbols[] = {
 	{symbols+18, "ipauth", (void *) ipauth},
 	{symbols+19, "strongauth", (void *) strongauth},
 	{symbols+20, "checkACL", (void *) checkACL},
-	{symbols+21, "nservers", (void *) conf.nservers},
+	{symbols+21, "nservers", (void *) confboot.nservers},
 	{symbols+22, "udpresolve", (void *) udpresolve},
 	{symbols+23, "bandlim_mutex", (void *) &bandlim_mutex},
 	{symbols+24, "tc_mutex", (void *) &tc_mutex},
@@ -86,8 +86,8 @@ static void * findbyname(const char *name){
 
 struct pluginlink pluginlink = {
 	{symbols, "", NULL},
-	&conf,
-	conf.nservers,
+	&confboot,
+	confboot.nservers,
 	&linenum,
 	authfuncs,
 	commandhandlers,

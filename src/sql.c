@@ -94,9 +94,9 @@ int init_sql(char * s){
 }
 
 void sqlerr (char *buf){
-    if(conf.stdlog){
-	fprintf(conf.stdlog, "%s\n", buf);
-	fflush(conf.stdlog);
+    if(conf->stdlog){
+	fprintf(conf->stdlog, "%s\n", buf);
+	fflush(conf->stdlog);
     }
     _3proxy_mutex_unlock(&log_mutex);
 }

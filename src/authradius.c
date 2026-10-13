@@ -306,7 +306,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	char buf[64];
 
 
-	if(!conf.nradservers) {
+	if(!conf->nradservers) {
 		return 4;
 	}
 
@@ -371,12 +371,12 @@ int radsend(struct clientparam * param, int auth, int stop){
 	total_length += (2+len);
 
 	/* NAS-Identifier */
-	if(conf.stringtable){
+	if(conf->stringtable){
 		*ptr++ = PW_NAS_IDENTIFIER;
-		len = strlen((char *)conf.stringtable[SERVICES+param->service]);
+		len = strlen((char *)conf->stringtable[SERVICES+param->service]);
 		if(len > 253) len = 253;
 		*ptr++ = (2 + len);
-		memcpy(ptr, conf.stringtable[SERVICES+param->service], len);
+		memcpy(ptr, conf->stringtable[SERVICES+param->service], len);
 		ptr += len;
 		total_length+=(len+2);
 	}
@@ -506,7 +506,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	    memcpy(ptr, param->password, len);
 	    rad_pwencode((char *)ptr,
 		     &len,
-		     conf.radiussecret, 
+		     conf->radiussecret, 
 		     (char *)packet.vector);
 	    *(ptr-1) = len + 2;
 	    ptr+=len;
@@ -517,17 +517,17 @@ int radsend(struct clientparam * param, int auth, int stop){
 	packet.length = htons(total_length);
 	
 	if(!auth){
-		len = strlen(conf.radiussecret);
-		memcpy(ptr,conf.radiussecret,len);
+		len = strlen(conf->radiussecret);
+		memcpy(ptr,conf->radiussecret,len);
 		md5_calc(packet.vector, (u_char *)&packet, total_length + len);
 	}
 	memcpy(vector, packet.vector, AUTH_VECTOR_LEN);
 	
-	for (loop = 0; loop < conf.nradservers && loop < MAXRADIUS; loop++) {
+	for (loop = 0; loop < conf->nradservers && loop < MAXRADIUS; loop++) {
 		SOCKET remsock;
 
 
-		saremote = auth?conf.radiuslist[loop].authaddr : conf.radiuslist[loop].logaddr;
+		saremote = auth?conf->radiuslist[loop].authaddr : conf->radiuslist[loop].logaddr;
 #ifdef NOIPV6
 		if(*SAFAMILY(&saremote)!= AF_INET) {
 			continue;
@@ -548,9 +548,9 @@ int radsend(struct clientparam * param, int auth, int stop){
 			remsock = sockfd;
 /*
 		}
-		else remsock = conf.radiuslist[loop].logsock;
+		else remsock = conf->radiuslist[loop].logsock;
 */
-		so._bind(so.state, remsock,(struct sockaddr *)&conf.radiuslist[loop].localaddr,SASIZE(&conf.radiuslist[loop].localaddr));
+		so._bind(so.state, remsock,(struct sockaddr *)&conf->radiuslist[loop].localaddr,SASIZE(&conf->radiuslist[loop].localaddr));
 		len = so._sendto(so.state, remsock, (char *)&packet, total_length, 0,
 		      (struct sockaddr *)&saremote, sizeof(saremote));
 		if(len != ntohs(packet.length)){
@@ -560,7 +560,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = remsock;
 	        fds[0].events = POLLIN;
-		if(so._poll(so.state, fds, 1, conf.timeouts[SINGLEBYTE_L]*1000) <= 0) {
+		if(so._poll(so.state, fds, 1, conf->timeouts[SINGLEBYTE_L]*1000) <= 0) {
 			continue;
 		}
 
@@ -582,7 +582,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 			continue;
 		}
 
-		if (calc_replydigest((char *)&rpacket, (char *)packet.vector, conf.radiussecret,
+		if (calc_replydigest((char *)&rpacket, (char *)packet.vector, conf->radiussecret,
 			data_len) ){
 			continue;
 		}
