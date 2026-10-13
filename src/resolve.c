@@ -183,7 +183,7 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 		memcpy(value, buf + k + 12, af == AF_INET6? 16:4);
 		if(ttl < 0 || ttl > (3600*12)) ttl = 3600*12;
 		if(!ttl) ttl = 1;
-		hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, conf.time+ttl);
+		hashadd(af == AF_INET6?&dns6_table:&dns_table, name, value, curtime+ttl);
 		if(retttl) *retttl = ttl;
 		return 1;
 	    }

@@ -200,6 +200,10 @@ char *rotations[] = {
 };
 
 
+/* State of the process, not configuration. */
+time_t curtime;
+int timetoexit = 0, needreload = 0;
+
 int timeouts[12] = {
 	1,    /* SINGLEBYTE_S */
 	5,    /* SINGLEBYTE_L */
@@ -250,8 +254,6 @@ struct extparam conf = {
 	.demon = 0,
 	.maxchild = DEFAULT_MAXCHILD,
 	.backlog = 0,
-	.needreload = 0,
-	.timetoexit = 0,
 	.version = 0,
 	.noforce = 0,
 	.bandlimver = 0,
@@ -290,7 +292,6 @@ struct extparam conf = {
 	.stdlog = NULL,
 	.stringtable = NULL,
 	.logtime = (time_t)0,
-	.time = (time_t)0,
 	.logdumpsrv = 0,
 	.logdumpcli = 0,
 	.delimchar = '@',

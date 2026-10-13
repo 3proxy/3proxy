@@ -27,9 +27,9 @@ int startconnlims (struct clientparam *param){
 				ce->rating++;
 				continue;
 			}
-			delta = conf.time - ce->basetime;
-			if(ce->period <= delta || ce->basetime > conf.time){
-				ce->basetime = conf.time;
+			delta = curtime - ce->basetime;
+			if(ce->period <= delta || ce->basetime > curtime){
+				ce->basetime = curtime;
 				ce->rating = 0x100000;
 				continue;
 			}
@@ -39,7 +39,7 @@ int startconnlims (struct clientparam *param){
 				break;
 			}
 			ce->rating = rating;
-			ce->basetime = conf.time;
+			ce->basetime = curtime;
 		}
 	}
 	if(ret) {
@@ -185,7 +185,7 @@ void trafcountfunc(struct clientparam *param){
 				continue;
 			}
 			tc->traf64 += param->statssrv64;
-			tc->updated = conf.time;
+			tc->updated = curtime;
 		}
 	}
 	if(countout) for(tc = conf.trafcounter; tc; tc = tc->next) {
@@ -195,7 +195,7 @@ void trafcountfunc(struct clientparam *param){
 				continue;
 			}
 			tc->traf64 += param->statscli64;
-			tc->updated = conf.time;
+			tc->updated = curtime;
 		}
 	}
 

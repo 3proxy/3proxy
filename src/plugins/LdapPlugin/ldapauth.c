@@ -131,7 +131,7 @@ int savecounters(void *v)
 
  
  /*return 1 delete job , return 0 no delete job*/
- if (mypluginlink->conf->needreload !=0 )
+ if ((*mypluginlink->needreload) !=0 )
   {
     return (0); 
   }

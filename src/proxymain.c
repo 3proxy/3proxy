@@ -165,7 +165,7 @@ static int poolpark(struct clientparam *param){
  int timeout;
 
  _3proxy_mutex_lock(&tpool.mutex);
- if(conf.timetoexit || nsbroken() || tpool.nidle >= poollimit()){
+ if(timetoexit || nsbroken() || tpool.nidle >= poollimit()){
 	_3proxy_mutex_unlock(&tpool.mutex);
 	return 0;
  }

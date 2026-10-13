@@ -72,7 +72,7 @@ void __stdcall CommandHandler( DWORD dwCommand )
     case SERVICE_CONTROL_STOP:
     case SERVICE_CONTROL_SHUTDOWN:
         SetStatus( SERVICE_STOP_PENDING, 0, 1 );
-	conf.timetoexit = 1;
+	timetoexit = 1;
 	conf.paused++;
 	/* ServiceMain() reports the service stopped once cyclestep() has
 	   seen this and the services are done */
@@ -84,7 +84,7 @@ void __stdcall CommandHandler( DWORD dwCommand )
         break;
     case SERVICE_CONTROL_CONTINUE:
         SetStatus( SERVICE_CONTINUE_PENDING, 0, 1 );
-	conf.needreload = 1;
+	needreload = 1;
         SetStatus( SERVICE_RUNNING, 0, 0 );
         break;
     default: ;
@@ -115,7 +115,7 @@ void __stdcall ServiceMain(int argc, unsigned char* argv[] )
 
 
 void mysigusr1 (int sig){
-	conf.needreload = 1;
+	needreload = 1;
 }
 
 int even = 0;
@@ -125,13 +125,13 @@ void mysigpause (int sig){
 	conf.paused++;
 	even = !even;
 	if(!even){
-		conf.needreload = 1;
+		needreload = 1;
 	}
 }
 
 void mysigterm (int sig){
 	conf.paused++;
-	conf.timetoexit = 1;
+	timetoexit = 1;
 }
 
 #endif
@@ -183,10 +183,10 @@ void doschedule(void){
 	struct schedule *sched, *prevsched = NULL, *nextsched;
 	int res;
 
-	conf.time = time(0);
+	curtime = time(0);
 	for(sched=schedule; sched; sched=sched->next){
-		if(conf.needreload || conf.timetoexit || (conf.time > sched->start_time && timechanged(sched->start_time, conf.time, sched->type))){
-			sched->start_time = conf.time;
+		if(needreload || timetoexit || (curtime > sched->start_time && timechanged(sched->start_time, curtime, sched->type))){
+			sched->start_time = curtime;
 			nextsched = sched->next;
 			res = (*sched->function)(sched->data);
 			switch(res){
@@ -206,8 +206,8 @@ void dumpcounters(struct trafcount *tlin, int counterd){
  struct trafcount *tl;
  if(counterd >= 0 && tlin) {
 
-	conf.time = time(0);
-	if(cheader.updated && conf.countertype && timechanged(cheader.updated, conf.time, conf.countertype)){
+	curtime = time(0);
+	if(cheader.updated && conf.countertype && timechanged(cheader.updated, curtime, conf.countertype)){
 		FILE * cfp;
 				
 		cfp = fopen((char *)dologname(tmpbuf, (unsigned char *)conf.counterfile, NULL, conf.countertype, cheader.updated), "w");
@@ -221,7 +221,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 	}
 
 
-	cheader.updated = conf.time;
+	cheader.updated = curtime;
 	if(lseek(counterd, 0, SEEK_SET) >= 0 && write(counterd, &cheader, sizeof(struct counter_header))){}
 	for(tl=tlin; tl; tl = tl->next){
 		if(tl->number){
@@ -234,8 +234,8 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 			    if(write(counterd, &crecord, sizeof(struct counter_record))){}
 			}
 		}
-		if(tl->type!=NEVER && timechanged(tl->cleared, conf.time, tl->type)){
-			tl->cleared = conf.time;
+		if(tl->type!=NEVER && timechanged(tl->cleared, curtime, tl->type)){
+			tl->cleared = curtime;
 			tl->traf64 = 0;
 		}
 	}
@@ -284,15 +284,15 @@ void cyclestep(void){
  for(;;){
 	usleep(SLEEPTIME*999);
 	
-	conf.time = time(0);
-	if(conf.needreload) {
+	curtime = time(0);
+	if(needreload) {
 		doschedule();
 		reload();
-		conf.needreload = 0;
+		needreload = 0;
 	}
 	doschedule();
 	if(conf.stdlog)fflush(conf.stdlog);
-	if(timechanged(minutecounter, conf.time, MINUTELY)) {
+	if(timechanged(minutecounter, curtime, MINUTELY)) {
 		struct filemon *fm;
 		struct stat sb;
 
@@ -300,14 +300,14 @@ void cyclestep(void){
 			if(!stat(fm->path, &sb)){
 				if(fm->sb.st_mtime != sb.st_mtime || fm->sb.st_size != sb.st_size){
 					stat(fm->path, &fm->sb);
-					conf.needreload = 1;
+					needreload = 1;
 				}
 			}
 		}
 		
 	}
-	if(timechanged(basetime, conf.time, DAILY)) {
-		tm = localtime(&conf.time);
+	if(timechanged(basetime, curtime, DAILY)) {
+		tm = localtime(&curtime);
 		if(tm){
 			wday = (1 << tm->tm_wday);
 			tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
@@ -315,10 +315,10 @@ void cyclestep(void){
 		}
 	}
 	if(conf.logname) {
-		if(timechanged(conf.logtime, conf.time, conf.logtype)) {
-			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a", conf.stdlog);
-			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, conf.time), "a");
-			conf.logtime = conf.time;
+		if(timechanged(conf.logtime, curtime, conf.logtype)) {
+			if(conf.stdlog) conf.stdlog = freopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, curtime), "a", conf.stdlog);
+			else conf.stdlog = fopen((char *)dologname (tmpbuf, conf.logname, NULL, conf.logtype, curtime), "a");
+			conf.logtime = curtime;
 			if(conf.logtype != NONE && conf.rotate) {
 				int t;
 				t = 1;
@@ -364,11 +364,11 @@ void cyclestep(void){
 		}
 	}
 	if(conf.counterd >= 0 && conf.trafcounter) {
-		if(timechanged(cheader.updated, conf.time, MINUTELY)){
+		if(timechanged(cheader.updated, curtime, MINUTELY)){
 			dumpcounters(conf.trafcounter, conf.counterd);
 		}
 	}
-	if(conf.timetoexit){
+	if(timetoexit){
 		conf.paused++;
 		doschedule();
 		waitservices();

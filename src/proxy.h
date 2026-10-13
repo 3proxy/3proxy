@@ -222,7 +222,8 @@ extern RESOLVFUNC resolvfunc;
 
 extern int wday;
 extern time_t basetime;
-extern int timetoexit;
+extern int timetoexit, needreload;
+extern time_t curtime;		/* the clock, kept by the main thread */
 
 extern struct extparam conf;
 
@@ -315,7 +316,6 @@ int socks5_udp_build_hdr(unsigned char *buf, PROXYSOCKADDRTYPE *addr);
 extern struct auth authfuncs[];
 
 int reload (void);
-extern int paused;
 extern int demon;
 
 unsigned char * mycrypt(const unsigned char *key, const unsigned char *salt, unsigned char *buf);

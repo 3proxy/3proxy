@@ -491,7 +491,7 @@ int op_admin_reload(struct httpreq *r, const unsigned char *params)
 
 	if(r->param->srv->s_option) printstr(&pp, (char *)conf.stringtable[WEBBANNERS]);
 	else {
-		conf.needreload = 1;
+		needreload = 1;
 		printstr(&pp, "<h3>Reload scheduled</h3>");
 	}
 

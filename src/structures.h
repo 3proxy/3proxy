@@ -863,7 +863,7 @@ struct extparam {
 	struct srvparam *services;
 	int stacksize,
 		counterd, haveerror, rotate, paused, archiverc,
-		demon, maxchild, backlog, needreload, timetoexit, version, noforce, bandlimver, parentretries;
+		demon, maxchild, backlog, version, noforce, bandlimver, parentretries;
 	unsigned authcachetype, authcachetime;
 	int filtermaxsize;
 	int poolmax, pooltimeout;	/* threadpool: idle workers kept, -1 automatic */
@@ -889,7 +889,7 @@ struct extparam {
 	struct auth *authfuncs;
 	FILE *stdlog;
 	unsigned char **stringtable;
-	time_t logtime, time;
+	time_t logtime;
 	unsigned logdumpsrv, logdumpcli;
 	char delimchar;
 	struct nserver nservers[MAXNSERVERS], authnserver;
@@ -1025,6 +1025,7 @@ struct pluginlink {
 	int (*parseconnusername)(char *username, struct clientparam *param, int extpasswd, uint16_t port);
 	struct sockfuncs *so;
 	unsigned char * (*dologname) (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
+	int *needreload;	/* state of the process rather than configuration */
 };
 
 struct counter_header {

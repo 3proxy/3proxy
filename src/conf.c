@@ -2397,7 +2397,7 @@ void freeconf(struct extparam *confp){
  confp->logformat = NULL;
  confp->rotate = 0;
  confp->logtype = NONE;
- confp->logtime = confp->time = 0;
+ confp->logtime = curtime = 0;
  confp->poolmax = -1;
  confp->pooltimeout = 60;
 

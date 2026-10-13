@@ -225,8 +225,8 @@ log(logbuf);
 #endif
 
 	if(needaction && param->srv->gracedelay && !sleeptime){
-		if(gracetime != conf.time){
-		    gracetime = conf.time;
+		if(gracetime != curtime){
+		    gracetime = curtime;
 		    graceclinum=gracesrvnum=graceclitraf=gracesrvtraf=0;
 		}
 		else {

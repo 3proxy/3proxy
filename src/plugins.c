@@ -134,6 +134,7 @@ struct pluginlink pluginlink = {
 	parseusername,
 	parseconnusername,
 	&so,
-	dologname
+	dologname,
+	&needreload
 };
 

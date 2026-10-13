@@ -144,7 +144,7 @@ int doauth(struct clientparam * param){
 				ac.sinsl_family = *SAFAMILY(&param->sinsl);
 				memcpy(ac.sinsl_addr, SAADDR(&param->sinsl), SAADDRLEN(&param->sinsl));
 			    }
-			    hashadd(&auth_table, param, &ac, conf.time + param->srv->authcachetime);
+			    hashadd(&auth_table, param, &ac, curtime + param->srv->authcachetime);
 			}
 			break;
 		}

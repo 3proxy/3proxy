@@ -15,7 +15,7 @@ int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bu
  fds.fd = sock;
  fds.events = POLLOUT;
  do {
-	if(conf.timetoexit) return 0;
+	if(timetoexit) return 0;
 	/* try to send first; poll only when the socket would block */
 	res = param?param->srv->so._send(param->sostate, sock, (char *)buf + sent, bufsize - sent, 0) : so._send(so.state, sock, (char *)buf + sent, bufsize - sent, 0);
 	if(res > 0) {
@@ -38,7 +38,7 @@ int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, un
 
  fds.fd = sock;
  do {
-	if(conf.timetoexit) return 0;
+	if(timetoexit) return 0;
 	fds.events = POLLOUT;
 	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
@@ -60,7 +60,7 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 
 	fds.fd = sock;
 	fds.events = POLLIN;
-	if(conf.timetoexit) return EOF;
+	if(timetoexit) return EOF;
 	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
 	if (res<1) return 0;
 	sasize = sizeof(PROXYSOCKADDRTYPE);
