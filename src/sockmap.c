@@ -75,6 +75,8 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 #endif
  int HASERROR=0;
  int CLIENTTERMREAD = 0, CLIENTTERMWRITE = 0, SERVERTERMREAD = 0, SERVERTERMWRITE = 0;
+ /* the side has hung up: closed by the peer after its own was shut down */
+ int CLIENTHUP = 0, SERVERHUP = 0;
  int after = 0;
  struct pollfd fds[8];
  int fdsc = 0;
@@ -629,6 +631,9 @@ log("done read from server to buf");
 #endif
 						))
 					cli_events |= POLLOUT;
+				/* poll() reports a hang-up whatever is asked, and would
+				   return at once every time: wait for the other side then */
+				if(!cli_events && CLIENTHUP) fds[fdsc].fd = INVALID_SOCKET;
 				if(cli_events){
 					fds[fdsc].fd = param->clisock;
 					fds[fdsc].events = cli_events;
@@ -664,9 +669,13 @@ log("ready to write to client");
 						if(fds[fdsc].events & POLLOUT) CLIENTTERMWRITE = 1;
 					}
 				}
-			} else if(fds[fdsc].revents & (POLLERR|POLLNVAL|POLLHUP)) {
+			} else if(fds[fdsc].revents & (POLLERR|POLLNVAL)) {
 				CLIENTTERMREAD = 1;
 				CLIENTTERMWRITE = 1;
+			} else if(fds[fdsc].revents & POLLHUP) {
+				/* what the client sent before it closed is still to be
+				   read, once the buffer has room for it */
+				CLIENTHUP = 1;
 			}
 			fdsc++;
 
@@ -682,6 +691,7 @@ log("ready to write to client");
 #endif
 						))
 					srv_events |= POLLOUT;
+				if(!srv_events && SERVERHUP) fds[fdsc].fd = INVALID_SOCKET;
 				if(srv_events){
 					fds[fdsc].fd = param->remsock;
 					fds[fdsc].events = srv_events;
@@ -724,9 +734,12 @@ log("server terminated connection");
 						if(fds[fdsc].events & POLLOUT) SERVERTERMWRITE = 1;
 					}
 				}
-			} else if(fds[fdsc].revents & (POLLERR|POLLNVAL|POLLHUP)) {
+			} else if(fds[fdsc].revents & (POLLERR|POLLNVAL)) {
 				SERVERTERMREAD = 1;
 				SERVERTERMWRITE = 1;
+			} else if(fds[fdsc].revents & POLLHUP) {
+				/* the rest of the answer may still be waiting to be read */
+				SERVERHUP = 1;
 			}
 			fdsc++;
 //		}
