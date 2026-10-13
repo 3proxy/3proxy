@@ -89,6 +89,7 @@ host) falls on all of them alike; the summary gives medians.
 | `mix-*-3k` | the same, exchanges started at 3000 a second whether the proxy keeps up or not: latencies compared at equal load |
 | `tls-term-ka-1k`, `tls-term-ka-1m`, `tls-term-close-1k` | TLS ended by the proxy: wrk speaks HTTPS to a relay of the proxy, which passes plain TCP to the origin; kept-alive connections with 1 KB and 1 MB answers, and a new connection, so a full handshake, for every request |
 | `tls-init-*` | TLS begun by the proxy: wrk speaks plain HTTP to a relay, which connects to the origin's HTTPS listener |
+| `tls-term-stream1-down`, `tls-term-stream16`, `tls-init-stream1-down`, `tls-init-stream16` | the same with iperf3 streams, one downloading or sixteen uploading |
 
 ### The mix scenarios
 
@@ -146,10 +147,11 @@ answer, and `peak_mb` divided by the pool what each open connection costs the
 proxy. The binaries are built with `bench/mix/build.sh`, on any system with
 Go, for both Linux architectures.
 
-nginx is not a forward proxy: it answers absolute URIs by passing them to its
-upstream, which is the origin here. Neither nginx nor haproxy has CONNECT or
-SOCKS, so they take part in the HTTP and `relay-*` scenarios but not in the
-`connect-*` and `socks-*` ones. tinyproxy
+nginx and envoy are not forward proxies: they answer absolute URIs by passing
+them to their upstream, which is the origin here. nginx and haproxy have
+neither CONNECT nor SOCKS, and envoy is measured as they are, so they take
+part in the HTTP and `relay-*` scenarios but not in the `connect-*` and
+`socks-*` ones. tinyproxy
 and squid are HTTP proxies, measured in the HTTP and `connect-*` scenarios;
 dante is a SOCKS server, measured in the `socks-*` ones.
 
@@ -160,9 +162,17 @@ The `tls-*` scenarios compare TLS done in the proxy: 3proxy (`tcppm` under
 `proxy_ssl on`), haproxy (`mode tcp` with `bind ... ssl crt` and `server ...
 ssl`) and stunnel, which takes part in these scenarios only. Every one relays
 TCP: no HTTP is read, so what differs is the TLS and how data is moved around
-it. The certificate is made for every run: an ECDSA P-256 key signed by a CA
+it. envoy takes part too, with BoringSSL where the others use OpenSSL. The certificate is made for every run: an ECDSA P-256 key signed by a CA
 of its own, with the proxy's and the origin's addresses in it; nobody
 verifies it. `none` has wrk speak HTTPS to the origin itself.
+
+iperf3 has no TLS of its own, so for the TLS streams `bench/mix tls` wraps
+its connections: on the client it begins TLS towards the proxy ending it (or
+towards the origin with no proxy), at the origin it ends the TLS a proxy
+begins and passes the stream to iperf3. The wrapper is in Go, a goroutine
+for each direction of each connection: on one stream it, rather than the
+proxy, can be the limit (about 10 Gbit/s a core), which the run's `bound`
+shows.
 
 wrk does not resume TLS sessions, so in `tls-term-close-1k` every connection
 is a full handshake. Towards the origin a proxy may resume them: nginx
@@ -194,7 +204,9 @@ sudo bench/bench.py \
 `bench/report.py <csv>` turns a run into Markdown tables: throughput, the
 proxy's CPU per gigabyte or per request, and its peak memory. With
 `--machine NAME=a.csv,b.csv` once per machine it makes a single throughput
-table of all of them, each cell their medians and their average.
+table of all of them, each cell their medians and their average; `--overall`
+then marks only the best of each row, for tables where one group has a
+single proxy.
 
 After the binary, a 3proxy entry can carry options for both its services:
 `-s1`, `-s2` and `-s3` splice downloads, uploads or both (`-s0` keeps 0.9.0 to
@@ -212,7 +224,12 @@ variant; `nginx::halfclose` turns on `proxy_half_close` in its relays, which
 nginx leaves off: then a client shutting down its sending side still gets the
 answer, as through 3proxy and haproxy.
 
-`--proxy stunnel` measures stunnel in the `tls-*` scenarios.
+`--proxy stunnel` measures stunnel in the `tls-*` scenarios. `--proxy envoy`
+measures envoy where nginx and haproxy are measured: as an HTTP proxy for the
+origin (its connections there pooled), as a TCP relay (`tcp_proxy`) and in
+the TLS scenarios; its circuit breakers, which allow 1024 connections to a
+cluster by default, are lifted for the scenarios that open more. The
+official release binaries run as they are (`envoy` on the PATH).
 
 `--scenario` picks scenarios, `--reps` and `--duration` set the repetitions
 and their length, `--netem "delay 1ms rate 10gbit"` puts a slower, longer link

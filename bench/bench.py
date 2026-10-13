@@ -51,6 +51,10 @@ MIX_PORTS = 16
 # (TLS from the client, plain to ORIGIN_HTTP) and initiate it (plain from the
 # client, TLS to ORIGIN_TLS). TLS holds the certificate files once made.
 ORIGIN_TLS, TLS_TERM, TLS_INIT = 8443, 5443, 5444
+# the same for TLS streams: iperf3 has no TLS, so bench/mix wraps its
+# connections, on the client (CLI_TLS, for TLS ended by the proxy) and at the
+# origin (ORIGIN_TLS_TCP, taking the TLS begun by the proxy)
+ORIGIN_TLS_TCP, TLS_TERM_TCP, TLS_INIT_TCP, CLI_TLS = 8444, 5445, 5446, 5202
 TLS = None
 # Each measurement takes the next of SLOTS sets of addresses: the proxy's to
 # connect from, and the mix client's to connect from. What a run leaves in
@@ -107,6 +111,10 @@ SCENARIOS = {
     "tls-init-ka-1k":    ("http", {"file": "1k", "conns": 64, "via": "tls-init"}),
     "tls-init-ka-1m":    ("http", {"file": "1m", "conns": 16, "via": "tls-init"}),
     "tls-init-close-1k": ("http", {"file": "1k", "conns": 64, "close": True, "via": "tls-init"}),
+    "tls-term-stream1-down": ("stream", {"streams": 1, "reverse": True, "via": "tls-term"}),
+    "tls-term-stream16": ("stream", {"streams": 16, "via": "tls-term"}),
+    "tls-init-stream1-down": ("stream", {"streams": 1, "reverse": True, "via": "tls-init"}),
+    "tls-init-stream16": ("stream", {"streams": 16, "via": "tls-init"}),
     # a pool of open connections and exchanges on random ones of them, sizes
     # and pieces from a web-like profile (bench/mix): -active of them going
     # at once all the time, or started at a fixed rate whatever the proxy
@@ -445,6 +453,11 @@ http {{
     procs = [spawn("bsrv", "srv", [tool("nginx"), "-c", conf, "-p", work], log),
              spawn("bsrv", "srv", [tool("iperf3"), "-s", "-B", SRV_ADDR, "-p", str(ORIGIN_TCP)], log)]
     ports = [ORIGIN_HTTP, ORIGIN_TCP] + ([ORIGIN_TLS] if TLS else [])
+    if args.wrap:
+        procs.append(spawn("bsrv", "srv", [args.wrap, "tls", "-listen", f"{SRV_ADDR}:{ORIGIN_TLS_TCP}",
+                                           "-connect", f"{SRV_ADDR}:{ORIGIN_TCP}",
+                                           "-cert", TLS["cert"], "-key", TLS["key"]], log))
+        ports.append(ORIGIN_TLS_TCP)
     if args.mix:
         procs.append(spawn("bsrv", "srv", [args.mix, "origin", "-listen", f"{SRV_ADDR}:{ORIGIN_MIX}",
                                            "-ports", str(MIX_PORTS)], log))
@@ -457,6 +470,64 @@ http {{
 
 
 # --- proxies -----------------------------------------------------------------
+
+def envoy_conf(work, label, out):
+    """envoy as nginx and haproxy are measured: an HTTP proxy for the origin
+    (absolute URIs taken, the origin's connections pooled), TCP relays, and
+    the TLS ones. Its default circuit breakers allow 1024 connections to a
+    cluster, far fewer than the scenarios open: they are lifted."""
+    def addr(host, port):
+        return {"socket_address": {"address": host, "port_value": port}}
+
+    def cluster(name, port, tls=False):
+        c = {"name": name, "type": "STATIC", "connect_timeout": "5s",
+             "upstream_bind_config": {"source_address": {"address": out, "port_value": 0}},
+             "circuit_breakers": {"thresholds": [{"max_connections": 1000000,
+                                                  "max_pending_requests": 1000000,
+                                                  "max_requests": 1000000}]},
+             "load_assignment": {"cluster_name": name, "endpoints": [{"lb_endpoints": [
+                 {"endpoint": {"address": addr(SRV_ADDR, port)}}]}]}}
+        if tls:
+            c["transport_socket"] = {"name": "envoy.transport_sockets.tls", "typed_config": {
+                "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext"}}
+        return c
+
+    def http(name, port, dest):
+        return {"name": name, "address": addr(PRX_IN, port), "filter_chains": [{"filters": [{
+            "name": "envoy.filters.network.http_connection_manager", "typed_config": {
+                "@type": "type.googleapis.com/envoy.extensions.filters.network."
+                         "http_connection_manager.v3.HttpConnectionManager",
+                "stat_prefix": name, "codec_type": "HTTP1",
+                "route_config": {"virtual_hosts": [{"name": "all", "domains": ["*"], "routes": [
+                    {"match": {"prefix": "/"}, "route": {"cluster": dest, "timeout": "0s"}}]}]},
+                "http_filters": [{"name": "envoy.filters.http.router", "typed_config": {
+                    "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"}}]}}]}]}
+
+    def tcp(name, port, dest, tls=False):
+        chain = {"filters": [{"name": "envoy.filters.network.tcp_proxy", "typed_config": {
+            "@type": "type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy",
+            "stat_prefix": name, "cluster": dest}}]}
+        if tls:
+            chain["transport_socket"] = {"name": "envoy.transport_sockets.tls", "typed_config": {
+                "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext",
+                "common_tls_context": {"tls_certificates": [{
+                    "certificate_chain": {"filename": TLS["cert"]},
+                    "private_key": {"filename": TLS["key"]}}]}}}
+        return {"name": name, "address": addr(PRX_IN, port), "filter_chains": [chain]}
+
+    listeners = [http("http", HTTP_PORT, "origin"), http("httpmix", HTTP_MIX, "mix"),
+                 tcp("tcp", TCP_PORT, "tcp"), tcp("tcphttp", RELAY_HTTP, "origin"),
+                 tcp("tcpmix", RELAY_MIX, "mix")]
+    clusters = [cluster("origin", ORIGIN_HTTP), cluster("mix", ORIGIN_MIX), cluster("tcp", ORIGIN_TCP)]
+    if TLS:
+        listeners += [tcp("tlsterm", TLS_TERM, "origin", True), tcp("tlstermtcp", TLS_TERM_TCP, "tcp", True),
+                      tcp("tlsinit", TLS_INIT, "origintls"), tcp("tlsinittcp", TLS_INIT_TCP, "tcptls")]
+        clusters += [cluster("origintls", ORIGIN_TLS, True), cluster("tcptls", ORIGIN_TLS_TCP, True)]
+    conf = os.path.join(work, f"{label}.json")
+    with open(conf, "w") as f:
+        json.dump({"static_resources": {"listeners": listeners, "clusters": clusters}}, f, indent=1)
+    return conf
+
 
 def proxy_conf(kind, work, ncpu, label, opts="", out=PRX_OUT):
     """Configuration for one proxy: an HTTP proxy on HTTP_PORT and a TCP relay
@@ -479,12 +550,17 @@ socks {opts} -i{PRX_IN} -e{out} -p{SOCKS_PORT}
 ssl_server_key {TLS["key"]}
 ssl_serv
 tcppm {opts} -i{PRX_IN} -e{out} {TLS_TERM} {SRV_ADDR} {ORIGIN_HTTP}
+tcppm {opts} -i{PRX_IN} -e{out} {TLS_TERM_TCP} {SRV_ADDR} {ORIGIN_TCP}
 ssl_noserv
 ssl_cli
 tcppm {opts} -i{PRX_IN} -e{out} {TLS_INIT} {SRV_ADDR} {ORIGIN_TLS}
+tcppm {opts} -i{PRX_IN} -e{out} {TLS_INIT_TCP} {SRV_ADDR} {ORIGIN_TLS_TCP}
 ssl_nocli
 """)
         return [conf]
+    if kind == "envoy":
+        return ["-c", envoy_conf(work, label, out), "--concurrency", str(ncpu),
+                "--log-level", "error", "--disable-hot-restart"]
     if kind == "stunnel":
         conf = os.path.join(work, f"{label}.conf")
         with open(conf, "w") as f:
@@ -502,6 +578,17 @@ key = {TLS["key"]}
 client = yes
 accept = {PRX_IN}:{TLS_INIT}
 connect = {SRV_ADDR}:{ORIGIN_TLS}
+local = {out}
+[termtcp]
+accept = {PRX_IN}:{TLS_TERM_TCP}
+connect = {SRV_ADDR}:{ORIGIN_TCP}
+local = {out}
+cert = {TLS["cert"]}
+key = {TLS["key"]}
+[inittcp]
+client = yes
+accept = {PRX_IN}:{TLS_INIT_TCP}
+connect = {SRV_ADDR}:{ORIGIN_TLS_TCP}
 local = {out}
 """)
         return [conf]
@@ -565,12 +652,15 @@ socks pass {{ from: 0.0.0.0/0 to: 0.0.0.0/0 }}
             halfclose = "    proxy_half_close on;\n" if opts == "halfclose" else ""
             nginx_tls = ""
             if TLS:
-                nginx_tls = (f"    server {{\n        listen {PRX_IN}:{TLS_TERM} ssl backlog=65535 reuseport;\n"
-                             f"        ssl_certificate {TLS['cert']};\n        ssl_certificate_key {TLS['key']};\n"
-                             f"        proxy_pass {SRV_ADDR}:{ORIGIN_HTTP};\n        proxy_bind {out};\n    }}\n"
-                             f"    server {{\n        listen {PRX_IN}:{TLS_INIT} backlog=65535 reuseport;\n"
-                             f"        proxy_pass {SRV_ADDR}:{ORIGIN_TLS};\n        proxy_ssl on;\n"
-                             f"        proxy_bind {out};\n    }}\n")
+                nginx_tls = ""
+                for port, dest in ((TLS_TERM, ORIGIN_HTTP), (TLS_TERM_TCP, ORIGIN_TCP)):
+                    nginx_tls += (f"    server {{\n        listen {PRX_IN}:{port} ssl backlog=65535 reuseport;\n"
+                                  f"        ssl_certificate {TLS['cert']};\n        ssl_certificate_key {TLS['key']};\n"
+                                  f"        proxy_pass {SRV_ADDR}:{dest};\n        proxy_bind {out};\n    }}\n")
+                for port, dest in ((TLS_INIT, ORIGIN_TLS), (TLS_INIT_TCP, ORIGIN_TLS_TCP)):
+                    nginx_tls += (f"    server {{\n        listen {PRX_IN}:{port} backlog=65535 reuseport;\n"
+                                  f"        proxy_pass {SRV_ADDR}:{dest};\n        proxy_ssl on;\n"
+                                  f"        proxy_bind {out};\n    }}\n")
             f.write(f"""{load}daemon off;
 worker_processes {ncpu};
 pid {work}/{label}.pid;
@@ -691,6 +781,16 @@ listen tlsinit
     bind {PRX_IN}:{TLS_INIT}
     source {out}
     server origin {SRV_ADDR}:{ORIGIN_TLS} ssl verify none
+listen tlstermtcp
+    mode tcp
+    bind {PRX_IN}:{TLS_TERM_TCP} ssl crt {TLS["pem"]}
+    source {out}
+    server origin {SRV_ADDR}:{ORIGIN_TCP}
+listen tlsinittcp
+    mode tcp
+    bind {PRX_IN}:{TLS_INIT_TCP}
+    source {out}
+    server origin {SRV_ADDR}:{ORIGIN_TLS_TCP} ssl verify none
 """)
         return ["-f", conf]
     raise ValueError(kind)
@@ -715,6 +815,9 @@ class Proxy:
                 sys.exit("nginx options: halfclose")
             self.binary = path or tool(kind)
             self.label = kind + ("-" + self.opts if self.opts else "")
+        elif kind == "envoy":
+            self.binary = path or tool("envoy")
+            self.label = kind
         elif kind in ("tinyproxy", "squid", "dante", "stunnel"):
             # dante's server is sockd, danted on Debian; stunnel stunnel4 there
             self.binary = path or (tool("sockd", "danted") if kind == "dante" else
@@ -731,12 +834,14 @@ class Proxy:
     PORTS = {"3proxy": (HTTP_PORT, TCP_PORT, SOCKS_PORT, RELAY_HTTP, RELAY_MIX),
              "nginx": (HTTP_PORT, TCP_PORT, RELAY_HTTP, HTTP_MIX, RELAY_MIX),
              "haproxy": (HTTP_PORT, TCP_PORT, RELAY_HTTP, HTTP_MIX, RELAY_MIX),
+             "envoy": (HTTP_PORT, TCP_PORT, RELAY_HTTP, HTTP_MIX, RELAY_MIX),
              "tinyproxy": (HTTP_PORT,), "squid": (HTTP_PORT,), "dante": (SOCKS_PORT,),
-             "stunnel": (TLS_TERM, TLS_INIT)}
+             "stunnel": (TLS_TERM, TLS_INIT, TLS_TERM_TCP, TLS_INIT_TCP)}
 
     def ports(self):
         """What to wait for: with TLS scenarios the relays for them too."""
-        extra = (TLS_TERM, TLS_INIT) if TLS and self.kind in ("3proxy", "nginx", "haproxy") else ()
+        extra = (TLS_TERM, TLS_INIT, TLS_TERM_TCP, TLS_INIT_TCP) \
+            if TLS and self.kind in ("3proxy", "nginx", "haproxy", "envoy") else ()
         return self.PORTS[self.kind] + extra
 
     def serves(self, scenario):
@@ -745,14 +850,14 @@ class Proxy:
         # TLS ended or begun on a relay: what 3proxy, nginx, haproxy and
         # stunnel do, and only stunnel
         if via in ("tls-term", "tls-init"):
-            return self.kind in ("3proxy", "nginx", "haproxy", "stunnel", "none")
+            return self.kind in ("3proxy", "nginx", "haproxy", "envoy", "stunnel", "none")
         if self.kind == "stunnel":
             return False
         if self.kind == "dante":
             return via == "socks"
         if self.kind in ("tinyproxy", "squid"):
             return via == "connect" or (kind in ("http", "mix") and not via)
-        if self.kind in ("nginx", "haproxy"):
+        if self.kind in ("nginx", "haproxy", "envoy"):
             # no CONNECT, no SOCKS
             return via in (None, "relay")
         return True
@@ -876,12 +981,38 @@ def run_http(proxy, params, args, work, mark):
 
 
 def run_stream(proxy, params, args, work, mark):
-    host, port, prefix = target(proxy, params, work, ORIGIN_TCP, TCP_PORT, TCP_PORT)
+    via = params.get("via")
+    wrapper = None
+    if via in ("tls-term", "tls-init"):
+        # iperf3 talks to a wrapper on the client; with TLS ended by the
+        # proxy, or with no proxy, it begins TLS there, and the origin's
+        # wrapper ends it; with TLS begun by the proxy it passes plain TCP
+        if proxy.kind == "none":
+            dest, tls = f"{SRV_ADDR}:{ORIGIN_TLS_TCP}", True
+        elif via == "tls-term":
+            dest, tls = f"{PRX_IN}:{TLS_TERM_TCP}", True
+        else:
+            dest, tls = f"{PRX_IN}:{TLS_INIT_TCP}", False
+        if tls:
+            log = open(os.path.join(work, "wrap.out"), "a")
+            wrapper = spawn("bcli", "cli", [args.wrap, "tls", "-listen", f"{CLI_ADDR}:{CLI_TLS}",
+                                            "-connect", dest], log)
+            wait_port("bcli", CLI_ADDR, CLI_TLS, 10)
+            host, port = CLI_ADDR, CLI_TLS
+        else:
+            host, port = PRX_IN, TLS_INIT_TCP
+        prefix = []
+    else:
+        host, port, prefix = target(proxy, params, work, ORIGIN_TCP, TCP_PORT, TCP_PORT)
     argv = prefix + [tool("iperf3"), "-c", host, "-p", str(port), "-t", str(args.duration),
             "-P", str(params["streams"]), "-J"]
     if params.get("reverse"):
         argv.append("-R")
-    out = run_in("bcli", "cli", argv, args.duration + 30)
+    try:
+        out = run_in("bcli", "cli", argv, args.duration + 30)
+    finally:
+        if wrapper:
+            stop(wrapper)
     res = {"raw": out, "rate": float("nan"), "p50_ms": float("nan"),
            "p99_ms": float("nan"), "requests": 0, "errors": 0, "retrans": 0, "timeouts": 0}
     try:
@@ -908,7 +1039,7 @@ def run_mix(proxy, params, args, work, mark):
         addr = f"{PRX_IN}:{RELAY_MIX}"
     elif via == "socks":
         addr = f"{PRX_IN}:{SOCKS_PORT}"
-    elif via == "http" and proxy.kind in ("nginx", "haproxy"):
+    elif via == "http" and proxy.kind in ("nginx", "haproxy", "envoy"):
         addr = f"{PRX_IN}:{HTTP_MIX}"
     else:
         addr = f"{PRX_IN}:{HTTP_PORT}"
@@ -1088,6 +1219,14 @@ def main():
             sys.exit(f"{args.mix} is missing: build it with bench/mix/build.sh")
     else:
         args.mix = None
+    # the TLS streams need its TLS wrapper
+    args.wrap = None
+    if any(SCENARIOS[s][0] == "stream" and SCENARIOS[s][1].get("via") in ("tls-term", "tls-init")
+           for s in scenarios):
+        arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(os.uname().machine, os.uname().machine)
+        args.wrap = os.path.abspath(os.path.join(os.path.dirname(__file__), "mix", f"mix-linux-{arch}"))
+        if not os.access(args.wrap, os.X_OK):
+            sys.exit(f"{args.wrap} is missing: build it with bench/mix/build.sh")
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     global TLS

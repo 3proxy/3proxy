@@ -27,7 +27,8 @@ of the group whose range (the average of its slowest runs to that of its
 fastest) reaches the best one's; * marks the best of the row, both groups
 together, in the same way. --split puts the splice group in a table of its own
 (* still compares across both), --prefix connect- takes only the scenarios so
-named.
+named. --overall marks the best of the row only, in bold and with *: for
+tables where one group has a single proxy, its group's best says nothing.
 """
 
 import argparse
@@ -119,7 +120,7 @@ def load(paths):
 BULK = STREAM + ("http-ka-1m",)
 
 
-def combined(machines, labels, splice, prefix=None, split=False):
+def combined(machines, labels, splice, prefix=None, split=False, overall_only=False):
     """One throughput table for several machines: each cell their medians
     and their average. Bold: the best of its group; *: the best of the row.
     split puts the proxies using splice() in a table of their own, * still
@@ -175,7 +176,17 @@ def combined(machines, labels, splice, prefix=None, split=False):
     plain = [p for p in proxies if p != "direct" and p not in splice]
     spliced = [p for p in proxies if p in splice]
     direct = [p for p in proxies if p == "direct"]
-    names = " / ".join(n for n, _ in machines) + " / average"
+    # one machine: its medians alone, with ‡ where most runs were limited by
+    # the client or the origin; several: their medians and their average
+    single = len(machines) == 1
+    names = machines[0][0] if single else " / ".join(n for n, _ in machines) + " / average"
+
+    def limited(s, p):
+        if not single:
+            return ""
+        bounds = [r.get("bound", "") for r in data[machines[0][0]].get((s, p), [])]
+        other = sum(b in ("client", "origin") for b in bounds)
+        return " ‡" if bounds and other * 2 > len(bounds) else ""
 
     def render(tables):
         """tables: lists of groups, each table printed on its own; bold for
@@ -198,13 +209,15 @@ def combined(machines, labels, splice, prefix=None, split=False):
                 for i, g in enumerate(t):
                     if i:
                         cells.append("‖")
-                    best = leaders(s, g)
+                    best = overall if overall_only else leaders(s, g)
                     for p in g:
-                        vals = [value(n, s, p) for n, _ in machines] + [average(s, p)]
+                        vals = [value(n, s, p) for n, _ in machines]
+                        if not single:
+                            vals.append(average(s, p))
                         if all(v is None for v in vals):
                             cells.append("–")
                             continue
-                        text = " / ".join(fmt(v, 1) for v in vals)
+                        text = " / ".join(fmt(v, 1) for v in vals) + limited(s, p)
                         if p in best:
                             text = f"**{text}**"
                         if p in overall:
@@ -231,6 +244,8 @@ def main():
     ap.add_argument("--machine", action="append", default=[],
                     help="NAME=a.csv[,b.csv]: one throughput table for all the "
                          "machines given, instead of the tables for one")
+    ap.add_argument("--overall", action="store_true",
+                    help="with --machine: only the best of the row, bold and *")
     ap.add_argument("--label", action="append", default=[], help="old=new")
     ap.add_argument("--title", default="")
     ap.add_argument("--splice", action="append", default=[],
@@ -240,7 +255,8 @@ def main():
 
     if args.machine:
         combined([(m.split("=", 1)[0], m.split("=", 1)[1].split(","))
-                  for m in args.machine], labels, args.splice, args.prefix, args.split)
+                  for m in args.machine], labels, args.splice, args.prefix, args.split,
+                 args.overall)
         return
     rows = load(args.csv)
     proxies, scenarios = [], []

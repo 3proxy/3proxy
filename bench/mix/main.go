@@ -26,6 +26,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -44,6 +45,62 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+// --- a TLS wrapper ---------------------------------------------------------------
+
+// wrap relays connections to listen to target, with TLS on one side: given a
+// certificate it takes TLS and passes plain TCP on (the end of a TLS stream
+// at the origin), without one it takes plain TCP and begins TLS (for a client
+// with no TLS of its own, iperf3). A side shut down for writing is shut down
+// on the other side too, so half-closed connections work.
+func wrap(listen, target, cert, key string) error {
+	var server *tls.Config
+	if cert != "" {
+		pair, err := tls.LoadX509KeyPair(cert, key)
+		if err != nil {
+			return err
+		}
+		server = &tls.Config{Certificates: []tls.Certificate{pair}}
+	}
+	ln, err := net.Listen("tcp", listen)
+	if err != nil {
+		return err
+	}
+	for {
+		c, err := ln.Accept()
+		if err != nil {
+			return err
+		}
+		go func() {
+			var in, out net.Conn = c, nil
+			var err error
+			if server != nil {
+				in = tls.Server(c, server)
+				out, err = net.Dial("tcp", target)
+			} else {
+				out, err = tls.Dial("tcp", target, &tls.Config{InsecureSkipVerify: true})
+			}
+			if err != nil {
+				c.Close()
+				return
+			}
+			done := make(chan struct{}, 2)
+			pass := func(dst, src net.Conn) {
+				io.Copy(dst, src)
+				if cw, ok := dst.(interface{ CloseWrite() error }); ok {
+					cw.CloseWrite()
+				}
+				done <- struct{}{}
+			}
+			go pass(out, in)
+			go pass(in, out)
+			<-done
+			<-done
+			in.Close()
+			out.Close()
+		}()
+	}
+}
 
 // --- the profile -------------------------------------------------------------
 
@@ -332,6 +389,7 @@ type client struct {
 	aborts, resets, halfcloses              atomic.Uint64
 	complete, first                         histogram
 	dialErr, exchErr                        atomic.Value // the first of each, as text
+	errlog                                  bool         // every failed exchange to stderr
 }
 
 // shard is a share of the pool with a dispatcher of its own: one dispatcher
@@ -470,8 +528,10 @@ func (cl *client) release(c int) {
 func (cl *client) worker(id int, c net.Conn) {
 	scratch := make([]byte, 64<<10)
 	head := make([]byte, 0, 4096)
+	nth := 0 // exchanges on this connection so far
 	for j := range cl.jobs[id] {
 		if c == nil {
+			nth = 0
 			var err error
 			if c, err = cl.dial(id); err != nil {
 				cl.dialErr.CompareAndSwap(nil, err.Error())
@@ -488,6 +548,7 @@ func (cl *client) worker(id int, c net.Conn) {
 			}
 		}
 		n, err := cl.exchange(c, id, j, head, scratch)
+		nth++
 		j.slot <- struct{}{}
 		if err == errGone {
 			// closed as drawn, with a reset or not
@@ -509,6 +570,9 @@ func (cl *client) worker(id int, c net.Conn) {
 		if err != nil || j.e.close || halfclosed {
 			c.Close()
 			c = nil
+			if err != nil && cl.errlog {
+				fmt.Fprintf(os.Stderr, "error: connection %d, exchange %d on it: %v\n", id, nth, err)
+			}
 			if err != nil && cl.measuring.Load() {
 				cl.exchErr.CompareAndSwap(nil, err.Error())
 				var ne net.Error
@@ -567,7 +631,7 @@ func (cl *client) exchange(c net.Conn, id int, j job, head, scratch []byte) (int
 	}
 	head = append(head, "\r\n"...)
 	if err := send(c, r, clientWrites, head, e.upload); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("sending (end %d, upload %d): %w", e.end, e.upload, err)
 	}
 	if halfclose {
 		if cw, ok := c.(interface{ CloseWrite() error }); ok {
@@ -624,7 +688,8 @@ func (cl *client) exchange(c net.Conn, id int, j job, head, scratch []byte) (int
 			if want >= 0 && body >= want {
 				break
 			}
-			return 0, err
+			return 0, fmt.Errorf("reading (end %d, close %v, upload %d, answer %d, got %d, body %d of %d): %w",
+				e.end, e.close, e.upload, e.answer, got, body, want, err)
 		}
 		if d := readPause(r); d > 0 {
 			time.Sleep(d)
@@ -794,7 +859,7 @@ func runClient(cl *client, active int, rate float64, warmup, duration time.Durat
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: mix origin|client [flags]")
+		fmt.Fprintln(os.Stderr, "usage: mix origin|client|tls [flags]")
 		os.Exit(2)
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
@@ -807,6 +872,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "tls":
+		listen := fs.String("listen", "127.0.0.1:5443", "address to take connections on")
+		target := fs.String("connect", "127.0.0.1:5201", "address to pass them to")
+		cert := fs.String("cert", "", "certificate: take TLS and pass plain TCP on; none: the other way round")
+		key := fs.String("key", "", "the certificate's key")
+		fs.Parse(os.Args[2:])
+		if err := wrap(*listen, *target, *cert, *key); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case "client":
 		cl := &client{}
 		fs.StringVar(&cl.via, "via", "http", "http (an HTTP proxy), connect, socks, relay or direct")
@@ -815,6 +890,7 @@ func main() {
 		fs.IntVar(&cl.origins, "origins", 1, "the origin's ports to spread over (origin -ports)")
 		sources := fs.String("sources", "", "client addresses to open connections from, comma separated")
 		fs.IntVar(&cl.pool, "pool", 20000, "connections kept open")
+		fs.BoolVar(&cl.errlog, "errlog", false, "print every failed exchange to stderr")
 		active := fs.Int("active", 2000, "exchanges in progress at most")
 		rate := fs.Float64("rate", 0, "exchanges started per second, 0 to keep -active going all the time")
 		duration := fs.Duration("duration", 10*time.Second, "how long to measure")
@@ -848,7 +924,7 @@ func main() {
 		}
 		runClient(cl, *active, *rate, *warmup, *duration, *dialers, *shards)
 	default:
-		fmt.Fprintln(os.Stderr, "usage: mix origin|client [flags]")
+		fmt.Fprintln(os.Stderr, "usage: mix origin|client|tls [flags]")
 		os.Exit(2)
 	}
 }
