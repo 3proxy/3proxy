@@ -342,7 +342,7 @@ int getopts(const char *s, struct sockoptset *opts){
 	return 0;
 }
 
-void setopts(SOCKET s, const struct sockoptset *opts){
+void setopts(SOCKET s, const struct sockoptset *opts, int maxseg){
 	int i, value;
 
 	for(i = 0; sockopts[i].optname && i < MAXSOCKOPTS; i++){
@@ -350,7 +350,7 @@ void setopts(SOCKET s, const struct sockoptset *opts){
 		value = opts->value[i];
 #ifdef TCP_MAXSEG
 		if(sockopts[i].opt == TCP_MAXSEG && *sockopts[i].optname == 'T'){
-		    if(!value) value = conf.maxseg;
+		    if(!value) value = maxseg;
 		    if(!value) continue;
 		}
 #endif
@@ -880,7 +880,7 @@ static int srvlisten(struct srvstart *s){
 	perror("socket()");
 	return -2;
  }
- setopts(sock, &srv->lissockopts);
+ setopts(sock, &srv->lissockopts, srv->maxseg);
 #ifdef _WIN32
  ioctlsocket(sock, FIONBIO, &ul);
 #else
@@ -940,7 +940,7 @@ static int cblisten(struct srvstart *s){
 	dolog(defparam, (unsigned char *)"Failed to allocate connect back socket");
 	return -6;
  }
- setopts(srv->cbsock, &srv->cbssockopts);
+ setopts(srv->cbsock, &srv->cbssockopts, srv->maxseg);
 
  if(srv->so._bind(srv->so.state, srv->cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 	dolog(defparam, (unsigned char *)"Failed to bind connect back socket");
@@ -981,7 +981,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 		usleep(SLEEPTIME);
 		return NEXT_RETRY;
 	}
-	setopts(new_sock, &srv->cbcsockopts);
+	setopts(new_sock, &srv->cbcsockopts, srv->maxseg);
 
 	parsehost(srv->family, s->cbc_string, (struct sockaddr *)&defparam->sincr);
 #if defined SO_BINDTODEVICE || defined IP_BOUND_IF
@@ -1051,7 +1051,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 		}
 		return NEXT_RETRY;
 	}
-	setopts(new_sock, &srv->clisockopts);
+	setopts(new_sock, &srv->clisockopts, srv->maxseg);
  }
  size = sizeof(defparam->sincl);
  if(srv->so._getsockname(srv->so.state, new_sock, (struct sockaddr *)&defparam->sincl, &size)){
@@ -1478,6 +1478,10 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->backlog = conf.backlog;
  srv->stacksize = conf.stacksize;
  memcpy(srv->timeouts, conf.timeouts, sizeof(srv->timeouts));
+ srv->filtermaxsize = conf.filtermaxsize;
+ srv->parentretries = conf.parentretries;
+ srv->maxseg = conf.maxseg;
+ srv->delimchar = conf.delimchar;
  srv->time_start = time(NULL);
  if(havelog && conf.logtarget){
 	 srv->logtarget = (unsigned char *)strdup((char *)conf.logtarget);

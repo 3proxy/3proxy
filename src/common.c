@@ -670,15 +670,15 @@ int parseusername(char *username, struct clientparam *param, int extpasswd){
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, uint16_t port){
 	char *sb, *se;
 	if(!username || !*username) return 1;
-        if ((sb=strchr(username, conf.delimchar)) == NULL){
+        if ((sb=strchr(username, param->srv->delimchar)) == NULL){
 		if(!*param->hostname && param->remsock == INVALID_SOCKET) return 2;
 		if(*param->hostname)parsehostname((char *)param->hostname, param, *SAPORT(&param->req)? ntohs(*SAPORT(&param->req)) : port);
 		return parseusername(username, param, extpasswd);
 	}
-	while ((se=strchr(sb+1, conf.delimchar)))sb=se;
+	while ((se=strchr(sb+1, param->srv->delimchar)))sb=se;
 	*(sb) = 0;
 	if(parseusername(username, param, extpasswd)) return 3;
-	*(sb) = conf.delimchar;
+	*(sb) = param->srv->delimchar;
 	if(parsehostname(sb+1, param, *SAPORT(&param->req)? ntohs(*SAPORT(&param->req)) : port)) return 4;
 	return 0;
 }
@@ -803,7 +803,7 @@ int doconnect(struct clientparam * param){
 			param->sinsl = param->srv->extsa;
 	}
 	*SAPORT(&param->sinsl) = 0;
-	setopts(param->remsock, &param->srv->srvsockopts);
+	setopts(param->remsock, &param->srv->srvsockopts, param->srv->maxseg);
 
 #ifndef _WIN32
 	/* not on Windows, see the accepting side in proxymain.c */

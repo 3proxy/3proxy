@@ -622,6 +622,8 @@ struct srvparam {
 	int family;
 	int stacksize;
 	int timeouts[12];	/* conf.timeouts as they were when the service started */
+	int filtermaxsize, parentretries, maxseg;	/* and these */
+	char delimchar;
 	int noforce;
 	int anonymous;
 	struct sockoptset clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;

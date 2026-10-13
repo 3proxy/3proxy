@@ -52,6 +52,7 @@ struct ssl_config {
     int client_verify;
     int server_verify;
     int client_mode;
+    int timeout;	/* seconds a handshake step may wait: the service's CONNECT_TO */
 };
 
 typedef struct ssl_config SSL_CONFIG;

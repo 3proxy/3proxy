@@ -383,7 +383,7 @@ int checkACL(struct clientparam * param){
 				if((param->operation == UDPASSOC)? (param->ctrlsocksrv != INVALID_SOCKET) : (param->remsock != INVALID_SOCKET)) {
 					return 0;
 				}
-				for(; i < conf.parentretries; i++){
+				for(; i < param->srv->parentretries; i++){
 					dup = *acentry;
 					res = handleredirect(param, &dup);
 					if(!res) break;

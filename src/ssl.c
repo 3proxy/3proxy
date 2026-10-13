@@ -297,7 +297,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 	    fds[0].events = POLLOUT;
 	}
 	else break;
-	if(sso._poll(sso.state, fds, 1, pl->conf->timeouts[CONNECT_TO]*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+	if(sso._poll(sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
     } while (err == -1);
 
     if ( err != 1 ) {
@@ -372,7 +372,7 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	    fds[0].events = POLLOUT;
 	}
 	else break;
-	if(sso._poll(sso.state, fds, 1, pl->conf->timeouts[CONNECT_TO]*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+	if(sso._poll(sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
     } while (err == -1);
 
 
@@ -589,6 +589,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	sc->server_min_proto_version = server_min_proto_version;
 	sc->server_max_proto_version = server_max_proto_version;
 	sc->client_mode = client_mode;
+	sc->timeout = srv->timeouts[CONNECT_TO];
 	sc->client_verify = client_verify;
 	sc->server_verify = server_verify;
 	if(client_ciphersuites) sc->client_ciphersuites = strdup(client_ciphersuites);

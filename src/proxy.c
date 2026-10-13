@@ -180,7 +180,7 @@ static int growbuf(unsigned char **buf, int *bufsize, int need){
    with no limit set a body is only read whole if it fits the buffer.
    Returns how much is there, less than len if the body did not all come. */
 static uint64_t fillwhole(struct clientparam *param, DIRECTION which, uint64_t len){
-	if(conf.filtermaxsize && bufroom(param, which, (unsigned long)len)) return 0;
+	if(param->srv->filtermaxsize && bufroom(param, which, (unsigned long)len)) return 0;
 	return sockfillbuf(param, which, (unsigned long)len, CONNECTION_S);
 }
 #endif
@@ -727,7 +727,7 @@ for(;;){
 	if(action != PASS) RETURN(19);
  }
  
- if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
+ if (param->srv->filtermaxsize && contentlength64 > (uint64_t)param->srv->filtermaxsize) {
 	param->nolongdatfilter = 1;
  }
  else if(param->ndatfilterscli > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64){
@@ -1228,7 +1228,7 @@ for(;;){
  param->nolongdatfilter = 0;
 
  
- if (conf.filtermaxsize && contentlength64 > (uint64_t)conf.filtermaxsize) {
+ if (param->srv->filtermaxsize && contentlength64 > (uint64_t)param->srv->filtermaxsize) {
 	param->nolongdatfilter = 1;
  }
  else if(param->ndatfilterssrv > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64 && param->operation != HTTP_HEAD && res != 204 && res != 304){

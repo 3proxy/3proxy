@@ -513,7 +513,7 @@ extern struct socketoptions {
 	char * optname;
 } sockopts[];
 int getopts(const char *s, struct sockoptset *opts);
-void setopts(SOCKET s, const struct sockoptset *opts);
+void setopts(SOCKET s, const struct sockoptset *opts, int maxseg);
 char * printopts(char *sep);
 
 #ifdef _WINCE

@@ -448,6 +448,7 @@ shutdown.
  Sets the delimiter character used to separate username from hostname in proxy
 authentication strings (e.g. for FTP, POP3 proxies). Default is \'@\'. For example,
 to use \'#\' instead: delimchar #. This allows usernames to contain the \'@\' character.
+Applies to the services started after it.
 
 .br
 .BR archiver
@@ -506,7 +507,7 @@ RADIUS authentication, which serve all the services, use the values given last.
 .br
  Sets TCP maximum segment size (MSS) for outgoing connections. This can be used
 to work around path MTU discovery issues or to optimize traffic for specific
-network conditions.
+network conditions. Applies to the services started after it.
 
 .br
 .BR radius
@@ -1101,6 +1102,7 @@ than being sent without a parent.
  Number of attempts to reach a parent proxy. Default is 2. Each attempt
 picks a parent again, leaving out the ones which already failed, so this is
 also the number of different parents a request may be tried through.
+Applies to the services started after it.
 
 
 .br
@@ -1473,7 +1475,7 @@ data filtering will be performed through filtering plugins to avoid data
 corruption and/or Content-Length changing. A body up to this size is read
 whole into memory and filtered at once. 0 removes the limit, but then a body
 is only filtered whole if it fits in the connection's 16K buffer.
-Default is 1MB (1048576).
+Default is 1MB (1048576). Applies to the services started after it.
 
 .SH SSL/TLS SUPPORT
 SSL/TLS support is built into 3proxy (since 0.9.7) when compiled with OpenSSL
