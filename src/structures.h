@@ -621,6 +621,7 @@ struct srvparam {
 	int nfilters, nreqfilters, nconnectfilters, nafterauthfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
 	int stacksize;
+	int timeouts[12];	/* conf.timeouts as they were when the service started */
 	int noforce;
 	int anonymous;
 	struct sockoptset clisockopts, srvsockopts, lissockopts, cbcsockopts, cbssockopts;

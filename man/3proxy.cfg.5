@@ -485,6 +485,20 @@ value may cause the tail of the data to be lost on slow connections, too large o
 delays release of the sockets.
 .br
  default timeouts 1 5 30 60 180 1800 15 60 15 5 5
+.br
+ Like other service settings, timeouts apply to the services started after
+the command, so services can have timeouts of their own:
+.br
+ timeouts 1 5 30 60 180 1800 15 60
+.br
+ proxy -p3128
+.br
+ timeouts 1 5 30 60 180 7200 15 60
+.br
+ socks
+.br
+gives SOCKS a longer inactivity timeout than the HTTP proxy. The resolver and
+RADIUS authentication, which serve all the services, use the values given last.
 
 .br
 .BR maxseg

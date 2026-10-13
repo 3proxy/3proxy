@@ -17,7 +17,7 @@
 static int ftpreadresponse(struct clientparam *param, char *buf, int buflen) {
 	int i;
 	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, buflen - 1, '\n',
-			conf.timeouts[STRING_L])) > 0
+			param->srv->timeouts[STRING_L])) > 0
 	      && (i < 3 || !isnumber(*buf) || buf[3] == '-')) {}
 	return i;
 }
@@ -42,7 +42,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 		return 702;
 	}
 	sprintf(buf, "USER %.128s\r\n", *param->extusername?param->extusername:(unsigned char *)"anonymous");
-	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), param->srv->timeouts[STRING_S]) != (int)strlen(buf)){
 		return 703;
 	}
 	param->statscli64 += (int)strlen(buf);
@@ -55,12 +55,12 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 		sprintf(buf, "PASS %.128s\r\n", 
 			*param->extusername? param->extpassword : (unsigned char *)"3proxy@");
 		res = (int)strlen(buf);
-		if((int)socksend(param, param->remsock, (unsigned char *)buf, res, conf.timeouts[STRING_S]) != (int)strlen(buf)){
+		if((int)socksend(param, param->remsock, (unsigned char *)buf, res, param->srv->timeouts[STRING_S]) != (int)strlen(buf)){
 			return 705;
 		}
 	param->statscli64 += res;
 		param->nwrites++;
-		while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', conf.timeouts[STRING_L])) > 0){
+		while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, len - 1, '\n', param->srv->timeouts[STRING_L])) > 0){
 			buf[i] = 0;
 			res = (i>3 && buf[3] != '-')? atoi(buf)/100 : 0;
 			if(res || (nbuf && (len-i) > 256 && i > 3)) {
@@ -86,12 +86,12 @@ int ftpcd(struct clientparam *param, unsigned char* path, char *nbuf, int *innbu
 	int inbuf = 0;
 
 	sprintf(buf, "CWD %.512s\r\n", path);
-	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), param->srv->timeouts[STRING_S]) != (int)strlen(buf)){
 		return 711;
 	}
 	param->statscli64 += (int)strlen(buf);
 	param->nwrites++;
-	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', conf.timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
+	while((i = sockgetlinebuf(param, SERVER, (unsigned char *)buf, sizeof(buf) - 1, '\n', param->srv->timeouts[STRING_L])) > 0 && (i < 3 || !isnumber(*buf) || buf[3] == '-')){
 		if(nbuf && innbuf && inbuf + i < *innbuf && i > 6) {
 			memcpy(nbuf + inbuf, buf, i);
 			inbuf += i;
@@ -118,7 +118,7 @@ int ftpres(struct clientparam *param, unsigned char * buf, int l){
 int ftpsyst(struct clientparam *param, unsigned char *buf, unsigned len){
 	int i;
 
-	if(socksend(param, param->remsock, (unsigned char *)"SYST\r\n", 6, conf.timeouts[STRING_S]) != 6){
+	if(socksend(param, param->remsock, (unsigned char *)"SYST\r\n", 6, param->srv->timeouts[STRING_S]) != 6){
 		return 721;
 	}
 	param->statscli64 += 6;
@@ -136,7 +136,7 @@ int ftppwd(struct clientparam *param, unsigned char *buf, unsigned len){
 	int i;
 	char *b, *e;
 
-	if(socksend(param, param->remsock, (unsigned char *)"PWD\r\n", 5, conf.timeouts[STRING_S]) != 5){
+	if(socksend(param, param->remsock, (unsigned char *)"PWD\r\n", 5, param->srv->timeouts[STRING_S]) != 5){
 		return 731;
 	}
 	param->statscli64 += 5;
@@ -160,7 +160,7 @@ int ftptype(struct clientparam *param, unsigned char* f_type){
 	int i;
 
 	sprintf(buf, "TYPE %.512s\r\n", f_type);
-	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), param->srv->timeouts[STRING_S]) != (int)strlen(buf)){
 		return 741;
 	}
 	param->statscli64 += (int)strlen(buf);
@@ -181,7 +181,7 @@ SOCKET ftpdata(struct clientparam *param){
 	unsigned short b5, b6;
 	SASIZETYPE sasize;
 
-	if(socksend(param, param->remsock, (unsigned char *)"PASV\r\n", 6, conf.timeouts[STRING_S]) != 6){
+	if(socksend(param, param->remsock, (unsigned char *)"PASV\r\n", 6, param->srv->timeouts[STRING_S]) != 6){
 		return INVALID_SOCKET;
 	}
 	param->statscli64 += 6;
@@ -231,7 +231,7 @@ SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned c
 	sprintf(buf, "%.15s%s%.512s\r\n", command, arg?
 		(unsigned char *)" ":(unsigned char *)"", 
 		arg?arg:(unsigned char *)"");
-	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), conf.timeouts[STRING_S]) != (int)strlen(buf)){
+	if((int)socksend(param, param->remsock, (unsigned char *)buf, (int)strlen(buf), param->srv->timeouts[STRING_S]) != (int)strlen(buf)){
 		param->srv->so._closesocket(param->sostate, s);
 		return INVALID_SOCKET;
 	}

@@ -286,7 +286,7 @@ void processcallbacks(struct fp_stream *fps, int what, char *msg, int size){
 			case  GOT_SMTP_REQ:
 			case  GOT_SMTP_DATA:
 				fps->state = FLUSH_DATA;
-				pl->socksend(fps->fpd.cp->sostate,fps->fpd.cp->clisock, (unsigned char *)fp_stringtable[1], (int)strlen((char *)fp_stringtable[1]), pl->conf->timeouts[STRING_S]);
+				pl->socksend(fps->fpd.cp->sostate,fps->fpd.cp->clisock, (unsigned char *)fp_stringtable[1], (int)strlen((char *)fp_stringtable[1]), fps->fpd.cp->srv->timeouts[STRING_S]);
 				fps->state = state;
 				break;
 			case GOT_HTTP_REQUEST:
@@ -298,7 +298,7 @@ void processcallbacks(struct fp_stream *fps, int what, char *msg, int size){
 			case GOT_HTTP_SRVDATA:
 				if(!fps->serversent){
 					fps->state = FLUSH_DATA;
-					pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, (unsigned char *)fp_stringtable[0], (int)strlen((char *)fp_stringtable[0]), pl->conf->timeouts[STRING_S]);
+					pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, (unsigned char *)fp_stringtable[0], (int)strlen((char *)fp_stringtable[0]), fps->fpd.cp->srv->timeouts[STRING_S]);
 					fps->state = state;
 				}
 				break;
@@ -306,7 +306,7 @@ void processcallbacks(struct fp_stream *fps, int what, char *msg, int size){
 			case GOT_FTP_REQ:
 			case GOT_FTP_SRVDATA:
 				fps->state = FLUSH_DATA;
-				pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->ctrlsock, (unsigned char *)fp_stringtable[1], (int)strlen((char *)fp_stringtable[1]), pl->conf->timeouts[STRING_S]);
+				pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->ctrlsock, (unsigned char *)fp_stringtable[1], (int)strlen((char *)fp_stringtable[1]), fps->fpd.cp->srv->timeouts[STRING_S]);
 				fps->state = state;
 				break;
 			default:
@@ -358,7 +358,7 @@ static int copyfdtosock(struct fp_stream * fps, DIRECTION which, long len){
 			if(fps->serversent >= fps->srvhdrwritten){
 				sprintf(fps->buf, "%lx\r\n", len);
 				sendchunk = (int)strlen(fps->buf);
-				if(pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, (unsigned char *)fps->buf, sendchunk, pl->conf->timeouts[STRING_S]) != sendchunk){
+				if(pl->socksend(fps->fpd.cp->sostate, fps->fpd.cp->clisock, (unsigned char *)fps->buf, sendchunk, fps->fpd.cp->srv->timeouts[STRING_S]) != sendchunk){
 					return -4;
 				}
 			} 
@@ -397,13 +397,13 @@ static int copyfdtosock(struct fp_stream * fps, DIRECTION which, long len){
 #endif
 			return -3;
 		}
-		if(pl->socksend(fps->fpd.cp->sostate, sock, (unsigned char *)fps->buf, res, pl->conf->timeouts[STRING_S]) != res) {
+		if(pl->socksend(fps->fpd.cp->sostate, sock, (unsigned char *)fps->buf, res, fps->fpd.cp->srv->timeouts[STRING_S]) != res) {
 			return -4;
 		}
 		len -= res;
 	}
 	if(sendchunk){
-		if(pl->socksend(fps->fpd.cp->sostate, sock, (unsigned char *)"\r\n", 2, pl->conf->timeouts[STRING_S]) != 2)
+		if(pl->socksend(fps->fpd.cp->sostate, sock, (unsigned char *)"\r\n", 2, fps->fpd.cp->srv->timeouts[STRING_S]) != 2)
 			return -4;
 	}
 	fps->state = state;

@@ -104,7 +104,7 @@ static void serveparam(struct clientparam *param){
 	if(param->srv->haproxy){
 	    char buf[128];
 	    int i;
-	    i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf)-1, '\n', conf.timeouts[STRING_S]);
+	    i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf)-1, '\n', param->srv->timeouts[STRING_S]);
 	    if(i > 12 && !strncasecmp(buf, "PROXY TCP", 9)){
 		char *token, *token2=NULL;
 		unsigned short u1=0, u2=0;
@@ -1073,7 +1073,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
     timeout fails with WSAEWOULDBLOCK while data is queued, leaving the socket
     open. Without it the close completes in the background, data first. */
  lg.l_onoff = 1;
- lg.l_linger = conf.timeouts[STRING_L];
+ lg.l_linger = srv->timeouts[STRING_L];
  srv->so._setsockopt(srv->so.state, new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #endif
  srv->so._setsockopt(srv->so.state, new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
@@ -1393,7 +1393,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	fcntl(0,F_SETFL,O_NONBLOCK | fcntl(0,F_GETFL));
 	if(!s.isudp){
 		lg.l_onoff = 1;
-		lg.l_linger = conf.timeouts[STRING_L];
+		lg.l_linger = s.srv.timeouts[STRING_L];
 		s.srv.so._setsockopt(s.srv.so.state, 0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
 		s.srv.so._setsockopt(s.srv.so.state, 0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
 	}
@@ -1477,6 +1477,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->maxchild = conf.maxchild;
  srv->backlog = conf.backlog;
  srv->stacksize = conf.stacksize;
+ memcpy(srv->timeouts, conf.timeouts, sizeof(srv->timeouts));
  srv->time_start = time(NULL);
  if(havelog && conf.logtarget){
 	 srv->logtarget = (unsigned char *)strdup((char *)conf.logtarget);

@@ -53,55 +53,55 @@ void * sockschild(struct clientparam* param) {
  param->service = S_SOCKS;
 
  memset(buf, 0, BUFSIZE);
- if ((ver = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_L], 0)) != 5 && ver != 4) {
+ if ((ver = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_L], 0)) != 5 && ver != 4) {
 	RETURN(401);
  } /* version */
  param->service = ver;
  if(ver == 5){
-	 if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);} /* nmethods */
+	 if ((i = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);} /* nmethods */
 	 for (; i; i--) {
-		if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
+		if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 		if (res == 2 && param->srv->needuser) {
 			havepass = res;
 		}
 	 }
 	 buf[0] = 5;
 	 buf[1] = (param->srv->needuser > 1 && !havepass)? 255 : havepass;
-	 if(socksend(param, param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(401);}
+	 if(socksend(param, param->clisock, buf, 2, param->srv->timeouts[STRING_S])!=2){RETURN(401);}
 	 if (param->srv->needuser > 1 && !havepass) RETURN(4);
 	 if (havepass) {
-		if (((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_L], 0))) != 1) {
+		if (((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_L], 0))) != 1) {
 			RETURN(412);
 		}
-		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
-		if (i && (res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != (int)i) {RETURN(441);}
+		if ((i = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
+		if (i && (res = sockgetlinebuf(param, CLIENT, buf, i, 0, param->srv->timeouts[STRING_S])) != (int)i) {RETURN(441);}
 		buf[i] = 0;
 		if(!*param->username) {
 			if(PARAMSTR(param, username, buf)){RETURN(21);}
 		}
-		if ((i = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(445);}
-		if (i && (res = sockgetlinebuf(param, CLIENT, buf, i, 0, conf.timeouts[STRING_S])) != (int)i) {RETURN(441);}
+		if ((i = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(445);}
+		if (i && (res = sockgetlinebuf(param, CLIENT, buf, i, 0, param->srv->timeouts[STRING_S])) != (int)i) {RETURN(441);}
 		buf[i] = 0;
 		if(!*param->password) {
 			if(PARAMSTR(param, password, buf)){RETURN(21);}
 		}
 		buf[0] = 1;
 		buf[1] = 0;
-		if(socksend(param, param->clisock, buf, 2, conf.timeouts[STRING_S])!=2){RETURN(481);}
+		if(socksend(param, param->clisock, buf, 2, param->srv->timeouts[STRING_S])!=2){RETURN(481);}
 	 }
-	 if ((c = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_L], 0)) != 5) {
+	 if ((c = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_L], 0)) != 5) {
 		RETURN(421);
          }
  }
- if( (command = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) < 1 || command > 3){command = 0; RETURN(407);} /* command */
+ if( (command = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) < 1 || command > 3){command = 0; RETURN(407);} /* command */
  if(ver == 5){
-	 if (sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0) == EOF) {RETURN(447);} /* reserved */
-	 c = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0); /* atype */
+	 if (sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0) == EOF) {RETURN(447);} /* reserved */
+	 c = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0); /* atype */
  }
  else {
-	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
+	if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	buf[0] = (unsigned char) res;
-	if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
+	if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	buf[1] = (unsigned char) res;
 	memcpy(&port, buf, 2);
 	c = 1;
@@ -115,7 +115,7 @@ void * sockschild(struct clientparam* param) {
 #endif
 	case 1:
 		for (i = 0; i<size; i++){
-			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
+			if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 			buf[i] = (unsigned char)res;
 		}
 		res = socks5_setaddr(param->srv->family, c, buf, &param->req);
@@ -125,9 +125,9 @@ void * sockschild(struct clientparam* param) {
 		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);
 		break;
 	case 3:
-		if ((size = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
+		if ((size = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);} /* nmethods */
 		for (i=0; i<size; i++){ /* size < 256 */
-			if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
+			if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(451);}
 			buf[i] = (unsigned char)res;
 		}
 		buf[i] = 0;
@@ -140,22 +140,22 @@ void * sockschild(struct clientparam* param) {
  }
  if(PARAMSTR(param, hostname, buf)){RETURN(21);}
  if (ver == 5) {
-	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
+	 if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	 buf[0] = (unsigned char) res;
-	 if ((res = sockgetcharcli(param, conf.timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
+	 if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
 	 buf[1] = (unsigned char) res;
 	 memcpy(&port, buf, 2);
 
  }
  else {
-	if(sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]) < 0) {RETURN(441);}
+	if(sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, param->srv->timeouts[STRING_S]) < 0) {RETURN(441);}
 	buf[127] = 0;
 	if(param->srv->needuser && *buf && !*param->username) {
 		if(PARAMSTR(param, username, buf)){RETURN(21);}
 	}
 	if(!memcmp(SAADDR(&param->req), "\0\0\0", 3)){
 		param->service = S_SOCKS45;
-		if(sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]) < 0) {RETURN(441);}
+		if(sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, param->srv->timeouts[STRING_S]) < 0) {RETURN(441);}
 		buf[127] = 0;
 		if(PARAMSTR(param, hostname, buf)){RETURN(21);}
 		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
@@ -312,7 +312,7 @@ fflush(stderr);
 		buf[3] = (*SAFAMILY(&sin) == AF_INET)?1:4;
 		memcpy(buf+4, SAADDR(&sin), SAADDRLEN(&sin));
 		memcpy(buf+4+SAADDRLEN(&sin), SAPORT(&sin), 2);
-		socksend(param, (command == 3)?param->ctrlsock:param->clisock, buf, 6+SAADDRLEN(&sin), conf.timeouts[STRING_S]);
+		socksend(param, (command == 3)?param->ctrlsock:param->clisock, buf, 6+SAADDRLEN(&sin), param->srv->timeouts[STRING_S]);
 	}
 	else{
 		buf[0] = 0;
@@ -324,7 +324,7 @@ fflush(stderr);
 			memset(buf+2, 0, 6);
 			param->res = 997;
 		}
-		socksend(param, param->clisock, buf, 8, conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, buf, 8, param->srv->timeouts[STRING_S]);
 	}
 
 
@@ -347,7 +347,7 @@ fflush(stderr);
 					if(buf != param->tmpbuf) free(buf);
 					return (void *)param->redirectfunc;
 				}
-				param->res = mapsocket(param, conf.timeouts[CONNECTION_L]);
+				param->res = mapsocket(param, param->srv->timeouts[CONNECTION_L]);
 				break;
 			case 2:
 				param->srv->so._listen (param->sostate, param->remsock, 1);
@@ -355,7 +355,7 @@ fflush(stderr);
 				fds[0].fd = param->remsock;
 				fds[1].fd = param->clisock;
 				fds[0].events = fds[1].events = POLLIN;
-				res = param->srv->so._poll(param->sostate, fds, 2, conf.timeouts[CONNECTION_L] * 1000);
+				res = param->srv->so._poll(param->sostate, fds, 2, param->srv->timeouts[CONNECTION_L] * 1000);
 				if (res < 1 || fds[1].revents) {
 					res = 460;
 					break;
@@ -397,19 +397,19 @@ fflush(stderr);
 					buf[3] = (*SAFAMILY(&param->sinsr) == AF_INET)?1:4;
 					memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));
 					memcpy(buf+4+SAADDRLEN(&param->sinsr), SAPORT(&param->sinsr), 2);
-					socksend(param, param->clisock, buf, 6+SAADDRLEN(&param->sinsr), conf.timeouts[STRING_S]);
+					socksend(param, param->clisock, buf, 6+SAADDRLEN(&param->sinsr), param->srv->timeouts[STRING_S]);
 				}
 				else {
 					memcpy (buf+2, SAPORT(&param->sinsr), 2);
 					memcpy (buf+4, SAADDR(&param->sinsr), 4);
-					socksend(param, param->clisock, buf, 8, conf.timeouts[STRING_S]);
+					socksend(param, param->clisock, buf, 8, param->srv->timeouts[STRING_S]);
 				}
 
-				param->res = mapsocket(param, conf.timeouts[CONNECTION_S]);
+				param->res = mapsocket(param, param->srv->timeouts[CONNECTION_S]);
 				break;
 			case 3:
 				param->sinsr = param->req;
-				param->res = udpsockmap(param, conf.timeouts[CONNECTION_L]);
+				param->res = udpsockmap(param, param->srv->timeouts[CONNECTION_L]);
 				break;
 			default:
 				param->res = 417;

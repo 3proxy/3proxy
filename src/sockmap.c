@@ -900,7 +900,7 @@ log("entering poll");
 #endif
 			res = param->srv->so._poll(param->sostate, fds, fdsc,
 				((CLIENTTERMREAD || SERVERTERMREAD)?
-					MIN(timeo, conf.timeouts[LINGER_TO]) : timeo) * 1000);
+					MIN(timeo, param->srv->timeouts[LINGER_TO]) : timeo) * 1000);
 #ifdef WITHLOG
 log("leaving poll");
 #endif

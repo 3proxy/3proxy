@@ -37,9 +37,9 @@ void * imappchild(struct clientparam* param) {
 
  *tag = 0;
  i = sprintf((char *)buf, "* OK [CAPABILITY IMAP4rev1%s AUTH=PLAIN AUTH=LOGIN] IMAP4rev1 Proxy Ready\r\n", NOSTARTTLS?"":" STARTTLS");
- if(socksend(param, param->clisock, buf, i, conf.timeouts[STRING_S])!=i) {RETURN (691);}
+ if(socksend(param, param->clisock, buf, i, param->srv->timeouts[STRING_S])!=i) {RETURN (691);}
  for(;;){
-	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
+	i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', param->srv->timeouts[STRING_S]);
 	if(i < 4) {RETURN(692);}
 	buf[i] = 0;
 	if ((se=(unsigned char *)strchr((char *)buf, '\r'))) *se = 0;
@@ -48,22 +48,22 @@ void * imappchild(struct clientparam* param) {
 	tag[se - buf] = 0;
 	cmd = se + 1;
 	if(!strncasecmp((char *)cmd, "LOGOUT", 6)){
-		socksend(param, param->clisock, (unsigned char *)"* BYE\r\n", 7, conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, (unsigned char *)"* BYE\r\n", 7, param->srv->timeouts[STRING_S]);
 		sprintf((char *)buf, "%.60s OK LOGOUT completed\r\n", (char *)tag);
-		socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, buf, (int)strlen((char *)buf), param->srv->timeouts[STRING_S]);
 		RETURN(0);
 	}
 	if(!strncasecmp((char *)cmd, "CAPABILITY", 10)){
 		i = sprintf((char *)buf, "* CAPABILITY IMAP4rev1%s AUTH=PLAIN AUTH=LOGIN\r\n", NOSTARTTLS?"":" STARTTLS");
-		socksend(param, param->clisock, buf, i, conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, buf, i, param->srv->timeouts[STRING_S]);
 		sprintf((char *)buf, "%.60s OK CAPABILITY completed\r\n", (char *)tag);
-		socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, buf, (int)strlen((char *)buf), param->srv->timeouts[STRING_S]);
 		continue;
 	}
 #ifndef WITHMAIN
 	if(!strncasecmp((char *)cmd, "STARTTLS", 8) && !param->srv->nostarttls){
 		sprintf((char *)buf, "%.60s OK Begin TLS negotiation\r\n", (char *)tag);
-		if(socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]) <= 0) {RETURN(698);}
+		if(socksend(param, param->clisock, buf, (int)strlen((char *)buf), param->srv->timeouts[STRING_S]) <= 0) {RETURN(698);}
 		param->clientstarttls = S_IMAPP;
 		if(!param->srv->targetport) param->srv->targetport = htons(143);
 		return (void *)tlsprchild;
@@ -93,8 +93,8 @@ void * imappchild(struct clientparam* param) {
 		se = cmd + 18;
 		if(*se == ' ') se++; else se = NULL;
 		if(!se || !*se){
-			if(socksend(param, param->clisock, (unsigned char *)"+ \r\n", 4, conf.timeouts[STRING_S])!=4) {RETURN(698);}
-			i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
+			if(socksend(param, param->clisock, (unsigned char *)"+ \r\n", 4, param->srv->timeouts[STRING_S])!=4) {RETURN(698);}
+			i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', param->srv->timeouts[STRING_S]);
 			if(i < 1) {RETURN(698);}
 			buf[i] = 0;
 			if ((se=(unsigned char *)strchr((char *)buf, '\r'))) *se = 0;
@@ -129,8 +129,8 @@ void * imappchild(struct clientparam* param) {
 			ub[i] = 0;
 		}
 		else {
-			if(socksend(param, param->clisock, (unsigned char *)"+ VXNlcm5hbWU6\r\n", 16, conf.timeouts[STRING_S])!=16) {RETURN(698);}
-			i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
+			if(socksend(param, param->clisock, (unsigned char *)"+ VXNlcm5hbWU6\r\n", 16, param->srv->timeouts[STRING_S])!=16) {RETURN(698);}
+			i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', param->srv->timeouts[STRING_S]);
 			if(i < 1) {RETURN(698);}
 			buf[i] = 0;
 			if ((se=(unsigned char *)strchr((char *)buf, '\r'))) *se = 0;
@@ -138,8 +138,8 @@ void * imappchild(struct clientparam* param) {
 			if(i < 0) {RETURN(693);}
 			ub[i] = 0;
 		}
-		if(socksend(param, param->clisock, (unsigned char *)"+ UGFzc3dvcmQ6\r\n", 16, conf.timeouts[STRING_S])!=16) {RETURN(698);}
-		i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', conf.timeouts[STRING_S]);
+		if(socksend(param, param->clisock, (unsigned char *)"+ UGFzc3dvcmQ6\r\n", 16, param->srv->timeouts[STRING_S])!=16) {RETURN(698);}
+		i = sockgetlinebuf(param, CLIENT, buf, sizeof(buf) - 10, '\n', param->srv->timeouts[STRING_S]);
 		if(i < 1) {RETURN(698);}
 		buf[i] = 0;
 		if ((se=(unsigned char *)strchr((char *)buf, '\r'))) *se = 0;
@@ -149,14 +149,14 @@ void * imappchild(struct clientparam* param) {
 		break;
 	}
 	sprintf((char *)buf, "%.60s BAD need LOGIN first\r\n", (char *)tag);
-	socksend(param, param->clisock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S]);
+	socksend(param, param->clisock, buf, (int)strlen((char *)buf), param->srv->timeouts[STRING_S]);
  }
  if(parseconnusername((char *)ub, param, 0, 143)){RETURN(694);}
  if(*pb && !*param->password && PARAMSTR(param, password, pb)){RETURN(694);}
  param->operation = CONNECT;
  res = (*param->srv->authfunc)(param);
  if(res) {RETURN(res);}
- i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', conf.timeouts[STRING_L]);
+ i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', param->srv->timeouts[STRING_L]);
  if( i < 4 ) {RETURN(695);}
  srvbuf[i] = 0;
  if(strncasecmp((char *)srvbuf, "* OK", 4)){RETURN(696);}
@@ -165,9 +165,9 @@ void * imappchild(struct clientparam* param) {
 	if(hascap(se, "AUTH=LOGIN")) caps |= CAP_LOGIN;
  }
  else {
-	if(socksend(param, param->remsock, (unsigned char *)"zz CAPABILITY\r\n", 15, conf.timeouts[STRING_S])!=15) {RETURN(697);}
+	if(socksend(param, param->remsock, (unsigned char *)"zz CAPABILITY\r\n", 15, param->srv->timeouts[STRING_S])!=15) {RETURN(697);}
 	for(;;){
-		i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', conf.timeouts[STRING_L]);
+		i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', param->srv->timeouts[STRING_L]);
 		if(i < 3) {RETURN(697);}
 		srvbuf[i] = 0;
 		if(!strncasecmp((char *)srvbuf, "* CAPABILITY", 12)){
@@ -190,36 +190,36 @@ void * imappchild(struct clientparam* param) {
 	ibuf[i + 1] = 0;
 	memcpy(ibuf + i + 2, pb, res);
 	if(!en64(ibuf, srvbuf, i + res + 2, (int)sizeof(srvbuf))) {RETURN(693);}
-	if( socksend(param, param->remsock, tag, (int)strlen((char *)tag), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)" AUTHENTICATE PLAIN ", 20, conf.timeouts[STRING_S])!= 20 ||
-		socksend(param, param->remsock, srvbuf, (int)strlen((char *)srvbuf), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
+	if( socksend(param, param->remsock, tag, (int)strlen((char *)tag), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)" AUTHENTICATE PLAIN ", 20, param->srv->timeouts[STRING_S])!= 20 ||
+		socksend(param, param->remsock, srvbuf, (int)strlen((char *)srvbuf), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, param->srv->timeouts[STRING_S])!=2)
 		{RETURN(699);}
  }
  else if(method == CL_LOGIN){
-	if( socksend(param, param->remsock, tag, (int)strlen((char *)tag), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)" AUTHENTICATE LOGIN\r\n", 21, conf.timeouts[STRING_S])!= 21)
+	if( socksend(param, param->remsock, tag, (int)strlen((char *)tag), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)" AUTHENTICATE LOGIN\r\n", 21, param->srv->timeouts[STRING_S])!= 21)
 		{RETURN(699);}
-	i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', conf.timeouts[STRING_L]);
+	i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', param->srv->timeouts[STRING_L]);
 	if(i < 1 || *srvbuf != '+') {RETURN(699);}
 	if(!en64(param->extusername, ibuf, (int)strlen((char *)param->extusername), (int)sizeof(ibuf))) {RETURN(693);}
-	if( socksend(param, param->remsock, ibuf, (int)strlen((char *)ibuf), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
+	if( socksend(param, param->remsock, ibuf, (int)strlen((char *)ibuf), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, param->srv->timeouts[STRING_S])!=2)
 		{RETURN(699);}
-	i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', conf.timeouts[STRING_L]);
+	i = sockgetlinebuf(param, SERVER, srvbuf, sizeof(srvbuf) - 1, '\n', param->srv->timeouts[STRING_L]);
 	if(i < 1 || *srvbuf != '+') {RETURN(699);}
 	if(!en64(pb, ibuf, (int)strlen((char *)pb), (int)sizeof(ibuf))) {RETURN(693);}
-	if( socksend(param, param->remsock, ibuf, (int)strlen((char *)ibuf), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
+	if( socksend(param, param->remsock, ibuf, (int)strlen((char *)ibuf), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, param->srv->timeouts[STRING_S])!=2)
 		{RETURN(699);}
  }
  else {
-	if( socksend(param, param->remsock, tag, (int)strlen((char *)tag), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)" LOGIN ", 7, conf.timeouts[STRING_S])!= 7 ||
-		socksend(param, param->remsock, param->extusername, (int)strlen((char *)param->extusername), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)" ", 1, conf.timeouts[STRING_S])!= 1 ||
-		socksend(param, param->remsock, pb, (int)strlen((char *)pb), conf.timeouts[STRING_S]) <= 0 ||
-		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, conf.timeouts[STRING_S])!=2)
+	if( socksend(param, param->remsock, tag, (int)strlen((char *)tag), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)" LOGIN ", 7, param->srv->timeouts[STRING_S])!= 7 ||
+		socksend(param, param->remsock, param->extusername, (int)strlen((char *)param->extusername), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)" ", 1, param->srv->timeouts[STRING_S])!= 1 ||
+		socksend(param, param->remsock, pb, (int)strlen((char *)pb), param->srv->timeouts[STRING_S]) <= 0 ||
+		socksend(param, param->remsock, (unsigned char *)"\r\n", 2, param->srv->timeouts[STRING_S])!=2)
 		{RETURN(699);}
  }
  param->statscli64 += (uint64_t)(strlen((char *)tag) + strlen((char *)param->extusername) + strlen((char *)pb) + 11);
@@ -235,7 +235,7 @@ CLEANRET:
  if(param->clisock != INVALID_SOCKET) {
 	if ((param->res > 0 && param->res < 100) || (param->res > 691 && param->res <700)) {
 		sprintf((char *)buf, "%.60s NO proxy error\r\n", *tag? (char *)tag : "*");
-		socksend(param, param->clisock, buf, (int)strlen((char *)buf),conf.timeouts[STRING_S]);
+		socksend(param, param->clisock, buf, (int)strlen((char *)buf),param->srv->timeouts[STRING_S]);
 	}
  }
  return (NULL);

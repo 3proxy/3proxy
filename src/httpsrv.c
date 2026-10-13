@@ -150,7 +150,7 @@ static int64_t qparam(const char *query, const char *name, int64_t def)
 static int httpsrv_send(struct httpreq *r, const char *buf, int len)
 {
 	return socksend(r->param, r->param->clisock, (unsigned char *)buf, len,
-		conf.timeouts[STRING_S]) != len;
+		r->param->srv->timeouts[STRING_S]) != len;
 }
 
 static int httpsrv_printf(struct httpreq *r, const char *fmt, ...)
@@ -339,17 +339,17 @@ int httpchunk(struct clientparam *param, const char *buf, int len)
 
 	if(len <= 0){
 		return socksend(param, param->clisock, (unsigned char *)"0\r\n\r\n", 5,
-			conf.timeouts[STRING_S]) != 5;
+			param->srv->timeouts[STRING_S]) != 5;
 	}
 
 	hlen = sprintf(hdr, "%x\r\n", len);
 	if(socksend(param, param->clisock, (unsigned char *)hdr, hlen,
-		conf.timeouts[STRING_S]) != hlen) return 1;
+		param->srv->timeouts[STRING_S]) != hlen) return 1;
 	if(socksend(param, param->clisock, (unsigned char *)buf, len,
-		conf.timeouts[STRING_S]) != len) return 1;
+		param->srv->timeouts[STRING_S]) != len) return 1;
 
 	return socksend(param, param->clisock, (unsigned char *)"\r\n", 2,
-		conf.timeouts[STRING_S]) != 2;
+		param->srv->timeouts[STRING_S]) != 2;
 }
 
 /* Fills buf with a repeating pattern carrying its own offset, so a truncated or
@@ -1146,7 +1146,7 @@ static void httpsrv_drain(struct clientparam *param, uint64_t len)
 	while(len){
 		int want = (len > (uint64_t)HTTPSRV_BLOCK)? (int)HTTPSRV_BLOCK : (int)len;
 		int got = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, want, EOF,
-			conf.timeouts[STRING_S]);
+			param->srv->timeouts[STRING_S]);
 
 		if(got <= 0) break;
 		len -= (uint64_t)got;
@@ -1164,7 +1164,7 @@ static void httpsrv_linger(struct clientparam *param)
 	char *buf = (char *)param->tmpbuf;
 	struct pollfd fd;
 	uint64_t left = HTTPSRV_MAXBODY;
-	time_t deadline = time(NULL) + conf.timeouts[LINGER_TO];
+	time_t deadline = time(NULL) + param->srv->timeouts[LINGER_TO];
 
 	if(param->clisock == INVALID_SOCKET) return;
 	if(param->srv->so._shutdown(param->sostate, param->clisock, SHUT_WR)) return;
@@ -1268,7 +1268,7 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 	   does not fit in the buffer is not answered. */
 	param->climark = (int)param->clioffset;
 	i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf) - 1, '\n',
-		conf.timeouts[STRING_S]);
+		param->srv->timeouts[STRING_S]);
 	if(i <= 0 && !r->first) return 0;	/* the client is done with us */
 	if(param->climark == -2) RETURN(710);
 	if(i < 5) RETURN(701);
@@ -1350,7 +1350,7 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 	   bounds what is read and not what a client may send in one header. */
 	while(hdrs < HTTPSRV_MAXHDR &&
 	      (i = sockgetlinebuf(param, CLIENT, (unsigned char *)buf, sizeof(buf) - 1,
-			'\n', conf.timeouts[STRING_S])) > 2){
+			'\n', param->srv->timeouts[STRING_S])) > 2){
 		hdrs++;
 		buf[i] = 0;
 		if(!strncasecmp(buf, "host:", 5) && !r->proxy){

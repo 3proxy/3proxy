@@ -33,11 +33,11 @@ void * ftpprchild(struct clientparam* param) {
  param->operation = CONNECT;
 #ifndef _WIN32
  lg.l_onoff = 1;
- lg.l_linger = conf.timeouts[STRING_L];
+ lg.l_linger = param->srv->timeouts[STRING_L];
 #endif
- if(socksend(param, param->ctrlsock, (unsigned char *)"220 Ready\r\n", 11, conf.timeouts[STRING_S])!=11) {RETURN (801);}
+ if(socksend(param, param->ctrlsock, (unsigned char *)"220 Ready\r\n", 11, param->srv->timeouts[STRING_S])!=11) {RETURN (801);}
  for(;;){
-	i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 10, '\n', conf.timeouts[CONNECTION_S]);
+	i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 10, '\n', param->srv->timeouts[CONNECTION_S]);
 	if(!i) {
 		RETURN(0);
 	}
@@ -56,7 +56,7 @@ void * ftpprchild(struct clientparam* param) {
 		}
 		if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
 		param->ctrlsocksrv = param->remsock;
-		if(socksend(param, param->ctrlsock, (unsigned char *)"220 Ready\r\n", 11, conf.timeouts[STRING_S])!=11) {RETURN (801);}
+		if(socksend(param, param->ctrlsock, (unsigned char *)"220 Ready\r\n", 11, param->srv->timeouts[STRING_S])!=11) {RETURN (801);}
 		status = 1;
 	}
 	else if (!strncasecmp((char *)buf, "USER ", 5)){
@@ -65,7 +65,7 @@ void * ftpprchild(struct clientparam* param) {
 			if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
 			param->ctrlsocksrv = param->remsock;
 		}
-		if(socksend(param, param->ctrlsock, (unsigned char *)"331 ok\r\n", 8, conf.timeouts[STRING_S])!=8) {RETURN (807);}
+		if(socksend(param, param->ctrlsock, (unsigned char *)"331 ok\r\n", 8, param->srv->timeouts[STRING_S])!=8) {RETURN (807);}
 		status = 2;
 
 	}
@@ -74,14 +74,14 @@ void * ftpprchild(struct clientparam* param) {
 		   with USER. Without it there is nothing to log in to, and what
 		   follows would read the name and the host as if there were. */
 		if(!*param->hostname || !*param->extusername){
-			socksend(param, param->ctrlsock, (unsigned char *)"503 Login with USER first\r\n", 27, conf.timeouts[STRING_S]);
+			socksend(param, param->ctrlsock, (unsigned char *)"503 Login with USER first\r\n", 27, param->srv->timeouts[STRING_S]);
 			RETURN(805);
 		}
 		if(PARAMSTR(param, extpassword, buf+5)){RETURN(806);}
 		inbuf = BUFSIZE;
 		res = ftplogin(param, (char *)buf, &inbuf);
 		param->res = res;
-		if(inbuf && inbuf != BUFSIZE && socksend(param, param->ctrlsock, buf, inbuf, conf.timeouts[STRING_S])!=inbuf) {RETURN (807);}
+		if(inbuf && inbuf != BUFSIZE && socksend(param, param->ctrlsock, buf, inbuf, param->srv->timeouts[STRING_S])!=inbuf) {RETURN (807);}
 		if(!res) status = 3;
 		sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, (ntohs(*SAPORT(&param->sinsr))==21)?0:':', ntohs(*SAPORT(&param->sinsr)));
 		req = strdup((char *)buf);
@@ -167,7 +167,7 @@ void * ftpprchild(struct clientparam* param) {
 
 			if(sscanf((char *)buf+5, "%lu,%lu,%lu,%lu,%hu,%hu", &b1, &b2, &b3, &b4, &b5, &b6)!=6) {RETURN(828);}
 			*SAPORT(&param->sincr) = htons((uint16_t)((b5<<8)^b6));
-			if(connectwithpoll(param, clidatasock, (struct sockaddr *)&param->sincr, SASIZE(&param->sincr),conf.timeouts[CONNECT_TO])) {
+			if(connectwithpoll(param, clidatasock, (struct sockaddr *)&param->sincr, SASIZE(&param->sincr),param->srv->timeouts[CONNECT_TO])) {
 				param->srv->so._closesocket(param->sostate, clidatasock);
 				clidatasock = INVALID_SOCKET;
 				RETURN(826);
@@ -187,7 +187,7 @@ void * ftpprchild(struct clientparam* param) {
 			if(action != PASS) RETURN(879);
 		}
 #endif
-		if(socksend(param, param->ctrlsock, buf, (int)strlen((char *)buf), conf.timeouts[STRING_S])!=(int)strlen((char *)buf)) {RETURN (825);}
+		if(socksend(param, param->ctrlsock, buf, (int)strlen((char *)buf), param->srv->timeouts[STRING_S])!=(int)strlen((char *)buf)) {RETURN (825);}
 		status = 4;
 	}
 	else if (status == 4 && (
@@ -222,7 +222,7 @@ void * ftpprchild(struct clientparam* param) {
 			fds.fd = clidatasock;
 			fds.events = POLLIN;
 
-			res = param->srv->so._poll (param->sostate, &fds, 1, conf.timeouts[STRING_L]*1000);
+			res = param->srv->so._poll (param->sostate, &fds, 1, param->srv->timeouts[STRING_L]*1000);
 			if(res != 1) {
 				RETURN(857);
 			}
@@ -249,16 +249,16 @@ void * ftpprchild(struct clientparam* param) {
 			param->srv->so._closesocket(param->sostate, clidatasock);
 			clidatasock = INVALID_SOCKET;
 			
-			if(socksend(param, param->ctrlsock, (unsigned char *)"550 err\r\n", 9, conf.timeouts[STRING_S])!=9) {RETURN (831);}
+			if(socksend(param, param->ctrlsock, (unsigned char *)"550 err\r\n", 9, param->srv->timeouts[STRING_S])!=9) {RETURN (831);}
 			continue;
 		}
 
-		if(socksend(param, param->ctrlsock, (unsigned char *)"125 data\r\n", 10, conf.timeouts[STRING_S]) != 10) {
+		if(socksend(param, param->ctrlsock, (unsigned char *)"125 data\r\n", 10, param->srv->timeouts[STRING_S]) != 10) {
 			param->remsock = INVALID_SOCKET;
 			RETURN (832);
 		}
 		if(param->srvoffset < param->srvinbuf)while((i = sockgetlinebuf(param, SERVER, buf, BUFSIZE, '\n', 0)) > 3){
-			if(socksend(param, param->ctrlsock, buf, i, conf.timeouts[STRING_S])!=i) {RETURN(833);}
+			if(socksend(param, param->ctrlsock, buf, i, param->srv->timeouts[STRING_S])!=i) {RETURN(833);}
 			if(isnumber(*buf) && buf[3] != '-') {
 				ressent = 1;
 				break;
@@ -272,7 +272,7 @@ void * ftpprchild(struct clientparam* param) {
 		param->srv->so._setsockopt(param->sostate, clidatasock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #endif
 		param->clisock = clidatasock;
-		res = mapsocket(param, conf.timeouts[CONNECTION_S]);
+		res = mapsocket(param, param->srv->timeouts[CONNECTION_S]);
 		if(param->remsock != INVALID_SOCKET) {
 			param->srv->so._shutdown (param->sostate, param->remsock, SHUT_RDWR);
 			param->srv->so._closesocket(param->sostate, param->remsock);
@@ -287,8 +287,8 @@ void * ftpprchild(struct clientparam* param) {
 		ss = INVALID_SOCKET;
 		clidatasock = INVALID_SOCKET;
 		if(!ressent){
-			while((i = sockgetlinebuf(param, SERVER, buf, BUFSIZE, '\n', conf.timeouts[STRING_L])) > 3){
-				if(socksend(param, param->ctrlsock, buf, i, conf.timeouts[STRING_S])!=i) {RETURN(833);}
+			while((i = sockgetlinebuf(param, SERVER, buf, BUFSIZE, '\n', param->srv->timeouts[STRING_L])) > 3){
+				if(socksend(param, param->ctrlsock, buf, i, param->srv->timeouts[STRING_S])!=i) {RETURN(833);}
 				if(isnumber(*buf) && buf[3] != '-') break;
 			}
 			if(i < 3) {RETURN(834);}
@@ -296,7 +296,7 @@ void * ftpprchild(struct clientparam* param) {
 	}
 	else {
 		if(status < 3) {
-			if(socksend(param, param->remsock, (unsigned char *)"530 login\r\n", 11, conf.timeouts[STRING_S])!=1) {RETURN (810);}
+			if(socksend(param, param->remsock, (unsigned char *)"530 login\r\n", 11, param->srv->timeouts[STRING_S])!=1) {RETURN (810);}
 			continue;
 		}
 		if(!strncasecmp((char *)buf, "QUIT", 4)) status = 5;
@@ -304,11 +304,11 @@ void * ftpprchild(struct clientparam* param) {
 		i = (int)strlen((char *)buf);
 		buf[i++] = '\r';
 		buf[i++] = '\n';
-		if(socksend(param, param->remsock, buf, i, conf.timeouts[STRING_S])!=i) {RETURN (811);}
+		if(socksend(param, param->remsock, buf, i, param->srv->timeouts[STRING_S])!=i) {RETURN (811);}
  param->statscli64+=(i);
 		param->nwrites++;
-		while((i = sockgetlinebuf(param, SERVER, buf, BUFSIZE, '\n', conf.timeouts[STRING_L])) > 0){
-			if(socksend(param, param->ctrlsock, buf, i, conf.timeouts[STRING_S])!=i) {RETURN (812);}
+		while((i = sockgetlinebuf(param, SERVER, buf, BUFSIZE, '\n', param->srv->timeouts[STRING_L])) > 0){
+			if(socksend(param, param->ctrlsock, buf, i, param->srv->timeouts[STRING_S])!=i) {RETURN (812);}
 			if(i > 4 && isnumber(*buf) && buf[3] != '-') break;
 		}
 		if(status == 5) {RETURN (0);}

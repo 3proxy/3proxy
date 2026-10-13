@@ -27,12 +27,12 @@ struct printparam {
 
 static void stdpr(struct printparam* pp, char *buf, int inbuf){
 	if((pp->inbuf + inbuf > 1024) || !buf) {
-		socksend(pp->cp, pp->cp->clisock, (unsigned char *)pp->buf, pp->inbuf, conf.timeouts[STRING_S]);
+		socksend(pp->cp, pp->cp->clisock, (unsigned char *)pp->buf, pp->inbuf, pp->cp->srv->timeouts[STRING_S]);
 		pp->inbuf = 0;
 		if(!buf) return;
 	}
 	if(inbuf >= 1000){
-		socksend(pp->cp, pp->cp->clisock, (unsigned char *)buf, inbuf, conf.timeouts[STRING_S]);		
+		socksend(pp->cp, pp->cp->clisock, (unsigned char *)buf, inbuf, pp->cp->srv->timeouts[STRING_S]);		
 	}
 	else {
 		memcpy(pp->buf + pp->inbuf, buf, inbuf);

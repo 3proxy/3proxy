@@ -772,7 +772,7 @@ int doconnect(struct clientparam * param){
  }
  else {
 #ifndef _WIN32
-	struct linger lg = {1,conf.timeouts[LINGER_TO]};
+	struct linger lg = {1,param->srv->timeouts[LINGER_TO]};
 #endif
 	int tries = RANGETRIES;
 
@@ -818,7 +818,7 @@ int doconnect(struct clientparam * param){
 	}
 	
 	if(!(param->operation >= 256 || (param->operation & CONNECT) || param->redirected)) break;
-	if(!connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),conf.timeouts[CONNECT_TO])) break;
+	if(!connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),param->srv->timeouts[CONNECT_TO])) break;
 	/* The port was free to bind, but the pair it makes with the destination
 	   is still closing from an earlier connection through the same range,
 	   which Windows refuses. Another port out of the range may do. Anything
@@ -1087,7 +1087,7 @@ int hascap(const unsigned char *line, const char *cap){
 int getmultiline(struct clientparam *param, DIRECTION which, unsigned char *buf, int bufsize, const char *cap, int *found){
  int i;
  do {
-	i = sockgetlinebuf(param, which, buf, bufsize, '\n', conf.timeouts[STRING_L]);
+	i = sockgetlinebuf(param, which, buf, bufsize, '\n', param->srv->timeouts[STRING_L]);
 	if(i > 0 && cap && found && !*found){
 		buf[i] = 0;
 		if(hascap(buf, cap)) *found = 1;

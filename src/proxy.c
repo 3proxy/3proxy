@@ -156,7 +156,7 @@ static int pst_len(int idx){
 }
 
 static int send_st(struct clientparam *param, int idx){
-	return socksend(param, param->clisock, (unsigned char *)proxy_stringtable[idx], pst_len(idx), conf.timeouts[STRING_S]);
+	return socksend(param, param->clisock, (unsigned char *)proxy_stringtable[idx], pst_len(idx), param->srv->timeouts[STRING_S]);
 }
 
 #ifndef WITHMAIN
@@ -368,7 +368,7 @@ for(;;){
 	fds[0].events = POLLIN;
 	fds[1].fd = param->remsock;
 	fds[1].events = POLLIN;
-	res = param->srv->so._poll(param->sostate, fds, 2, conf.timeouts[STRING_S]*1000);
+	res = param->srv->so._poll(param->sostate, fds, 2, param->srv->timeouts[STRING_S]*1000);
 	if(res<=0) {
 		RETURN(555);
 	}
@@ -387,13 +387,13 @@ for(;;){
  }
 
  if(!buf){
-	if(sockgetcharcli(param, conf.timeouts[STRING_L], 0) == EOF) RETURN((keepalive)?555:508);
+	if(sockgetcharcli(param, param->srv->timeouts[STRING_L], 0) == EOF) RETURN((keepalive)?555:508);
 	param->clioffset--;
 	if(!(buf = malloc(BUFSIZE))) {RETURN(21);}
 	bufsize = BUFSIZE;
 	memset(buf, 0, bufsize);
  }
- i = sockgetlinebuf(param, CLIENT, buf, LINESIZE - 1, '\n', conf.timeouts[STRING_L]);
+ i = sockgetlinebuf(param, CLIENT, buf, LINESIZE - 1, '\n', param->srv->timeouts[STRING_L]);
  if(i<=0) {
 	RETURN((keepalive)?555:(i)?507:508);
  }
@@ -629,7 +629,7 @@ for(;;){
 		buf = newbuf;
 		bufsize += BUFSIZE;
 	}
- } while( (i = sockgetlinebuf(param, CLIENT, buf + inbuf, LINESIZE - 2, '\n', conf.timeouts[STRING_S])) > 2);
+ } while( (i = sockgetlinebuf(param, CLIENT, buf + inbuf, LINESIZE - 2, '\n', param->srv->timeouts[STRING_S])) > 2);
 
 
  buf[inbuf] = 0;
@@ -812,7 +812,7 @@ for(;;){
 		s = param->remsock;
 		param->remsock = ftps;
 		if((param->operation == FTP_PUT) && (contentlength64 > 0)) param->waitclient64 = contentlength64;
-		res = mapsocket(param, conf.timeouts[CONNECTION_L]);
+		res = mapsocket(param, param->srv->timeouts[CONNECTION_L]);
 		if (res == 99) res = 0;
 		param->srv->so._closesocket(param->sostate, ftps);
 		ftps = INVALID_SOCKET;
@@ -829,7 +829,7 @@ for(;;){
 		}
 			
 		param->remsock = ftps;
-		if(gotres <= 0) for(; (res = sockgetlinebuf(param, SERVER, (unsigned char *)ftpbuf, FTPBUFSIZE - 20, '\n', conf.timeouts[STRING_S])) > 0; i++){
+		if(gotres <= 0) for(; (res = sockgetlinebuf(param, SERVER, (unsigned char *)ftpbuf, FTPBUFSIZE - 20, '\n', param->srv->timeouts[STRING_S])) > 0; i++){
 			int isdir = 0;
 			int islink = 0;
 			int filetoken =-1;
@@ -954,7 +954,7 @@ for(;;){
 					if(!headsent++){
 						send_st(param, 9);
 					}
-					if((unsigned)socksend(param, param->clisock, buf, inbuf, conf.timeouts[STRING_S]) != inbuf){
+					if((unsigned)socksend(param, param->clisock, buf, inbuf, param->srv->timeouts[STRING_S]) != inbuf){
 						param->srv->so._closesocket(param->sostate, ftps);
 						ftps = INVALID_SOCKET;
 						param->remsock = s;
@@ -991,9 +991,9 @@ for(;;){
 					"Connection: keep-alive\r\n"
 					"Content-Length: %d\r\n\r\n",
 					inbuf);
-				socksend(param, param->clisock, (unsigned char *)ftpbuf, (int)strlen(ftpbuf), conf.timeouts[STRING_S]);
+				socksend(param, param->clisock, (unsigned char *)ftpbuf, (int)strlen(ftpbuf), param->srv->timeouts[STRING_S]);
 			}
-			socksend(param, param->clisock, buf, inbuf, conf.timeouts[STRING_S]);
+			socksend(param, param->clisock, buf, inbuf, param->srv->timeouts[STRING_S]);
 			if(res){RETURN(res);}
 			if(!headsent)goto REQUESTEND;
 		}
@@ -1009,7 +1009,7 @@ for(;;){
 		return (void *)param->redirectfunc;
 	}
 	freeptr(&buf);
-	param->res =  mapsocket(param, conf.timeouts[CONNECTION_L]);
+	param->res =  mapsocket(param, param->srv->timeouts[CONNECTION_L]);
 	RETURN(param->res);
  }
 
@@ -1024,7 +1024,7 @@ for(;;){
 #endif
 	 redirect = 1;
 	 res = (int)strlen((char *)req);
-	 if(socksend(param, param->remsock, req , res, conf.timeouts[STRING_L]) != res) {
+	 if(socksend(param, param->remsock, req , res, param->srv->timeouts[STRING_L]) != res) {
 		RETURN(518);
 	 }
 	 param->statscli64 += res;
@@ -1068,7 +1068,7 @@ for(;;){
 	hlen += sprintf((char*)buf + hlen, "\r\n");
  }
  hlen += sprintf((char*)buf + hlen, "\r\n");
- if ((res = socksend(param, param->remsock, buf+reqlen, hlen - reqlen, conf.timeouts[STRING_S])) != hlen - reqlen) {
+ if ((res = socksend(param, param->remsock, buf+reqlen, hlen - reqlen, param->srv->timeouts[STRING_S])) != hlen - reqlen) {
 	RETURN(518);
  }
  }
@@ -1087,15 +1087,15 @@ for(;;){
 	if(chunkedcli){
 		do {
 			unsigned char smallbuf[32];
-			while ((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', conf.timeouts[STRING_S])) == 2) {
-				if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+			while ((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', param->srv->timeouts[STRING_S])) == 2) {
+				if (socksend(param, param->remsock, smallbuf, i, param->srv->timeouts[STRING_S]) != i) RETURN(536);
 				if(chunkedcli == 2) break;
 			}
 			if(i<3) break;
-			if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+			if (socksend(param, param->remsock, smallbuf, i, param->srv->timeouts[STRING_S]) != i) RETURN(536);
 			if(chunkedcli == 2) {
-				if((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', conf.timeouts[STRING_S])) != 2) RETURN(537);
-				if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+				if((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', param->srv->timeouts[STRING_S])) != 2) RETURN(537);
+				if (socksend(param, param->remsock, smallbuf, i, param->srv->timeouts[STRING_S]) != i) RETURN(536);
 				break;
 			}
 			smallbuf[i] = 0;
@@ -1104,13 +1104,13 @@ for(;;){
 			/* chunk-size line may be longer than smallbuf: drain and relay the
 			   remainder up to LF so client/backend framing stays in sync */
 			while(i > 0 && smallbuf[i-1] != '\n'){
-				if((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', conf.timeouts[STRING_S])) <= 0) RETURN(537);
-				if (socksend(param, param->remsock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(536);
+				if((i = sockgetlinebuf(param, CLIENT, smallbuf, 30, '\n', param->srv->timeouts[STRING_S])) <= 0) RETURN(537);
+				if (socksend(param, param->remsock, smallbuf, i, param->srv->timeouts[STRING_S]) != i) RETURN(536);
 			}
 			if(contentlength64 == 0) chunkedcli = 2;
 			else {
 				param->waitclient64 = contentlength64;
-				res = mapsocket(param, conf.timeouts[CONNECTION_S]);
+				res = mapsocket(param, param->srv->timeouts[CONNECTION_S]);
 				param->waitclient64 = 0;
 				if(res != 99) RETURN(res);
 			}
@@ -1119,7 +1119,7 @@ for(;;){
 	}
 	else {
 	 param->waitclient64 = contentlength64;
-	 res = mapsocket(param, conf.timeouts[CONNECTION_S]);
+	 res = mapsocket(param, param->srv->timeouts[CONNECTION_S]);
 	 param->waitclient64 = 0;
 	 if(res != 99) {
 		RETURN(res);
@@ -1135,7 +1135,7 @@ for(;;){
  hascontent = 0;
  clhdrofs = -1;
  
- while( (i = sockgetlinebuf(param, SERVER, buf + inbuf, LINESIZE - 1, '\n', conf.timeouts[(res)?STRING_S:STRING_L])) > 2) {
+ while( (i = sockgetlinebuf(param, SERVER, buf + inbuf, LINESIZE - 1, '\n', param->srv->timeouts[(res)?STRING_S:STRING_L])) > 2) {
 	if(!res && i>9)param->status = res = atoi((char *)buf + inbuf + 9);
 	if(((i >= 25 && !strncasecmp((char *)(buf+inbuf), "proxy-connection:", 17))
 	   ||
@@ -1266,7 +1266,7 @@ for(;;){
 		(hascontent && ckeepalive)?"keep-alive":"close");
 	 }
 	 hlen += sprintf((char*)buf + hlen, "\r\n");
-	 if(socksend(param, param->clisock, buf, hlen, conf.timeouts[STRING_S]) != hlen) {
+	 if(socksend(param, param->clisock, buf, hlen, param->srv->timeouts[STRING_S]) != hlen) {
 		RETURN(521);
 	 }
  }
@@ -1274,8 +1274,8 @@ for(;;){
  	do {
 		if(param->chunked){
 			unsigned char smallbuf[32];
-			while ((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) == 2) {
-				if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
+			while ((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', param->srv->timeouts[STRING_S])) == 2) {
+				if (socksend(param, param->clisock, smallbuf, i, param->srv->timeouts[STRING_S]) != i){
 					RETURN(533);
 				}
 				if(param->chunked == 2) break;
@@ -1284,12 +1284,12 @@ for(;;){
 				keepalive = 0;
 				break;
 			}
-			if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
+			if (socksend(param, param->clisock, smallbuf, i, param->srv->timeouts[STRING_S]) != i){
 					RETURN(535);
 			}
 			if(param->chunked == 2) {
-				if((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) != 2) RETURN(534);
-				if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i){
+				if((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', param->srv->timeouts[STRING_S])) != 2) RETURN(534);
+				if (socksend(param, param->clisock, smallbuf, i, param->srv->timeouts[STRING_S]) != i){
 					RETURN(533);
 				}
 				break;
@@ -1303,8 +1303,8 @@ for(;;){
 			/* chunk-size line may be longer than smallbuf: drain and relay the
 			   remainder up to LF so client/backend framing stays in sync */
 			while(i > 0 && smallbuf[i-1] != '\n'){
-				if((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', conf.timeouts[STRING_S])) <= 0) RETURN(534);
-				if (socksend(param, param->clisock, smallbuf, i, conf.timeouts[STRING_S]) != i) RETURN(535);
+				if((i = sockgetlinebuf(param, SERVER, smallbuf, 30, '\n', param->srv->timeouts[STRING_S])) <= 0) RETURN(534);
+				if (socksend(param, param->clisock, smallbuf, i, param->srv->timeouts[STRING_S]) != i) RETURN(535);
 			}
 			if(contentlength64 == 0) {
 				param->chunked = 2;
@@ -1312,7 +1312,7 @@ for(;;){
 		}
 		if(param->chunked != 2){
 			param->waitserver64 = contentlength64;
-		 	if((res = mapsocket(param, conf.timeouts[CONNECTION_S])) != 98){
+		 	if((res = mapsocket(param, param->srv->timeouts[CONNECTION_S])) != 98){
 				RETURN(res);
 			}
 	 		param->waitserver64 = 0;
@@ -1321,13 +1321,13 @@ for(;;){
  }
  if(isconnect && res == 200 && param->operation){
 	freeptr(&buf);
-	RETURN (mapsocket(param, conf.timeouts[CONNECTION_S]));
+	RETURN (mapsocket(param, param->srv->timeouts[CONNECTION_S]));
  }
  else if(isconnect){
 	ckeepalive = keepalive = 1;
  }
  else if(!hascontent && !param->chunked) {
-	RETURN(mapsocket(param, conf.timeouts[CONNECTION_S]));
+	RETURN(mapsocket(param, param->srv->timeouts[CONNECTION_S]));
  }
  contentlength64 = 0;
 REQUESTEND:
@@ -1361,7 +1361,7 @@ CLEANRET:
 	int r = param->res;
 
 	if((r >= 509 && r < 517) || r > 900) {
-		if(buf) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', conf.timeouts[STRING_S])) > 2);
+		if(buf) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', param->srv->timeouts[STRING_S])) > 2);
 	}
 	if(r == 10) stidx = 2;
 	else if(r == 700 || r == 701) stidx = 16;
@@ -1378,7 +1378,7 @@ CLEANRET:
 
 	if(stidx >= 0) {
 		send_st(param, stidx);
-		if(r == 700 || r == 701) socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, conf.timeouts[STRING_S]);
+		if(r == 700 || r == 701) socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, param->srv->timeouts[STRING_S]);
 	}
  }
  logurl(param, (char *)buf, (char *)req, ftp);

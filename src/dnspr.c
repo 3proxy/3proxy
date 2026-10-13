@@ -156,7 +156,7 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	param->sinsr = nservers[0].addr;
 	if(nservers[0].usetcp) {
-		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),conf.timeouts[CONNECT_TO])) RETURN(830);
+		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),param->srv->timeouts[CONNECT_TO])) RETURN(830);
 		buf-=2;
 		*(unsigned short*)buf = htons(i);
 		i+=2;
@@ -169,12 +169,12 @@ void * dnsprchild(struct clientparam* param) {
 #endif
 	}
 
-	if(socksendto(param, param->remsock, (struct sockaddr *)&param->sinsr, buf, i, conf.timeouts[SINGLEBYTE_L]*1000) != i){
+	if(socksendto(param, param->remsock, (struct sockaddr *)&param->sinsr, buf, i, param->srv->timeouts[SINGLEBYTE_L]*1000) != i){
 		RETURN(820);
 	}
 	param->statscli64 += i;
 	param->nwrites++;
-	len = sockrecvfrom(param, param->remsock, (struct sockaddr *)&param->sinsr, buf, BUFSIZE, conf.timeouts[DNS_TO]*1000);
+	len = sockrecvfrom(param, param->remsock, (struct sockaddr *)&param->sinsr, buf, BUFSIZE, param->srv->timeouts[DNS_TO]*1000);
 	if(len <= 13) {
 		RETURN(821);
 	}
@@ -186,11 +186,11 @@ void * dnsprchild(struct clientparam* param) {
 		if(us > 4096) RETURN(833);
 		buf += 2;
 		len -= 2;
-		if(len < us) len += sockgetlinebuf(param, SERVER, buf+len, us - len, 0, conf.timeouts[SINGLEBYTE_L]);
+		if(len < us) len += sockgetlinebuf(param, SERVER, buf+len, us - len, 0, param->srv->timeouts[SINGLEBYTE_L]);
 		if(len != us) RETURN(832);
 	}
 	if(buf[6] || buf[7]){
-		if(socksendto(param, param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		if(socksendto(param, param->clisock, (struct sockaddr *)&param->sincr, buf, len, param->srv->timeouts[SINGLEBYTE_L]*1000) != len){
 			RETURN(822);
 		}
 		RETURN(0);
@@ -201,7 +201,7 @@ void * dnsprchild(struct clientparam* param) {
 	buf[2] = 0x85;
 	buf[3] = 0x83;
  }
- res = socksendto(param, param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000); 
+ res = socksendto(param, param->clisock, (struct sockaddr *)&param->sincr, buf, len, param->srv->timeouts[SINGLEBYTE_L]*1000); 
  if(res != len){RETURN(819);}
  if(!ip) {RETURN(888);}
 

@@ -70,14 +70,14 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				len += sprintf((char *)buf + len, "\r\n");
 			}
 			len += sprintf((char *)buf + len, "\r\n");
-			if(socksend(param, param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != (int)strlen((char *)buf))
+			if(socksend(param, param->remsock, buf, len, param->srv->timeouts[CHAIN_TO]) != (int)strlen((char *)buf))
 				return 31;
 			param->statssrv64+=len;
 			param->nwrites++;
-			if((res = sockgetlinebuf(param, SERVER,buf,13,'\n',conf.timeouts[CHAIN_TO])) < 13)
+			if((res = sockgetlinebuf(param, SERVER,buf,13,'\n',param->srv->timeouts[CHAIN_TO])) < 13)
 				return 32;
 			if(buf[9] != '2') return 33;
-			while((res = sockgetlinebuf(param, SERVER,buf,1023,'\n', conf.timeouts[CHAIN_TO])) > 2);
+			while((res = sockgetlinebuf(param, SERVER,buf,1023,'\n', param->srv->timeouts[CHAIN_TO])) > 2);
 			if(res <= 0) return 34;
 			return 0;
 		}
@@ -107,12 +107,12 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				memcpy(buf+len, hostname, hostnamelen);
 				len += hostnamelen;
 			}
-			if(socksend(param, param->remsock, buf, len, conf.timeouts[CHAIN_TO]) < len){
+			if(socksend(param, param->remsock, buf, len, param->srv->timeouts[CHAIN_TO]) < len){
 				return 41;
 			}
 			param->statssrv64+=len;
 			param->nwrites++;
-			if((len = sockgetlinebuf(param, SERVER, buf, (redir->type == R_SOCKS4B)? 3:8, EOF, conf.timeouts[CHAIN_TO])) != ((redir->type == R_SOCKS4B)? 3:8)){
+			if((len = sockgetlinebuf(param, SERVER, buf, (redir->type == R_SOCKS4B)? 3:8, EOF, param->srv->timeouts[CHAIN_TO])) != ((redir->type == R_SOCKS4B)? 3:8)){
 				return 42;
 			}
 			if(buf[1] != 90) {
@@ -133,12 +133,12 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			buf[1] = user? 2 : 1;
 			buf[2] = 0;
 			buf[3] = 2;
-			if(socksend(param, param->remsock, buf, user?4:3, conf.timeouts[CHAIN_TO]) < 2){
+			if(socksend(param, param->remsock, buf, user?4:3, param->srv->timeouts[CHAIN_TO]) < 2){
 				return 51;
 			}
 			param->statssrv64+=user?4:3;
 			param->nwrites++;
-			if(sockgetlinebuf(param, SERVER, buf, 2, EOF, conf.timeouts[CHAIN_TO]) != 2){
+			if(sockgetlinebuf(param, SERVER, buf, 2, EOF, param->srv->timeouts[CHAIN_TO]) != 2){
 				return 52;
 			}
 			if(buf[0] != 5) {
@@ -155,7 +155,7 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				buf[inbuf] = pass?(unsigned char)strlen((char *)pass):0;
 				if(pass)memcpy(buf+inbuf+1, pass, buf[inbuf]);
 				inbuf += buf[inbuf] + 1;
-				if(socksend(param, param->remsock, buf, inbuf, conf.timeouts[CHAIN_TO]) != inbuf){
+				if(socksend(param, param->remsock, buf, inbuf, param->srv->timeouts[CHAIN_TO]) != inbuf){
 					return 51;
 				}
 				param->statssrv64+=inbuf;
@@ -193,12 +193,12 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 				memcpy(buf+len, SAPORT(addr), 2);
 				len += 2;
 			}
-			if(socksend(param, param->remsock, buf, len, conf.timeouts[CHAIN_TO]) != len){
+			if(socksend(param, param->remsock, buf, len, param->srv->timeouts[CHAIN_TO]) != len){
 				return 51;
 			}
 			param->statssrv64+=len;
 			param->nwrites++;
-			if(sockgetlinebuf(param, SERVER, buf, 4, EOF, conf.timeouts[CHAIN_TO]) != 4){
+			if(sockgetlinebuf(param, SERVER, buf, 4, EOF, param->srv->timeouts[CHAIN_TO]) != 4){
 				return 57;
 			}
 			if(buf[0] != 5) {
@@ -210,16 +210,16 @@ int clientnegotiate(struct chain * redir, struct clientparam * param, struct soc
 			atyp = buf[3];
 			switch (buf[3]) {
 			case 1:
-			    if (redir->type == R_SOCKS5B ||  sockgetlinebuf(param, SERVER, buf, 6, EOF, conf.timeouts[CHAIN_TO]) == 6)
+			    if (redir->type == R_SOCKS5B ||  sockgetlinebuf(param, SERVER, buf, 6, EOF, param->srv->timeouts[CHAIN_TO]) == 6)
 				    break;
 			    return 59;
 			case 3:
-			    if (sockgetlinebuf(param, SERVER, buf, 1, EOF, conf.timeouts[CHAIN_TO]) != 1) return 59;
+			    if (sockgetlinebuf(param, SERVER, buf, 1, EOF, param->srv->timeouts[CHAIN_TO]) != 1) return 59;
 			    len = (unsigned char)buf[4];
-			    if (sockgetlinebuf(param, SERVER, buf, len + 2, EOF, conf.timeouts[CHAIN_TO]) != len + 2) return 59;
+			    if (sockgetlinebuf(param, SERVER, buf, len + 2, EOF, param->srv->timeouts[CHAIN_TO]) != len + 2) return 59;
 			    break;
 			case 4:
-			    if (sockgetlinebuf(param, SERVER, buf, 18, EOF, conf.timeouts[CHAIN_TO]) == 18)
+			    if (sockgetlinebuf(param, SERVER, buf, 18, EOF, param->srv->timeouts[CHAIN_TO]) == 18)
 				    break;
 			    return 59;
 			default:
@@ -461,7 +461,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 				ntohs(*SAPORT(&param->sincr)),
 				ntohs(*SAPORT(&param->sincl))
 			    );
-			    if(socksend(param, param->remsock, (unsigned char *)buf, len, conf.timeouts[CHAIN_TO])!=len) return 39;
+			    if(socksend(param, param->remsock, (unsigned char *)buf, len, param->srv->timeouts[CHAIN_TO])!=len) return 39;
 			    if(cur->type == R_HA) return 0;
 			}
 		}
