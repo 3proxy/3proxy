@@ -1,45 +1,49 @@
 # Benchmark results
 
-3proxy against nginx, haproxy, squid, tinyproxy, dante and stunnel on two
+3proxy against nginx, haproxy, envoy, squid, tinyproxy, dante and stunnel on two
 machines, as an HTTP proxy, through CONNECT and SOCKSv5 tunnels, as a TCP
 relay, ending or beginning TLS, and with 20000 connections open at once; and
-devel against 1.0.1. The current figures are from 13 October 2026, for devel
-with 16 KB buffers, the automatic splice() mode by default and the thread
-pool; the sessions before them are at the end. How the benchmark works is in
-[README.md](README.md); the measurements are in [data/](data/), and
-`bench/report.py` turns them into the tables below.
+devel against 1.0.1. The current figures are from the evening of 13 October
+2026, for devel with 16 KB buffers, the automatic splice() mode by default,
+the thread pool and the half-close fix; the sessions before them are at the
+end. How the benchmark works is in [README.md](README.md); the measurements
+are in [data/](data/), and `bench/report.py` turns them into the tables
+below.
 
 ## In short
 
 Ranges are over the two machines, ARM and Intel; the tables give each.
 
-* **Bulk data:** devel splices 29-42 Gbit/s through every service (HTTP,
-  CONNECT, SOCKS, `tcppm`), the fastest everywhere: 2-2.9 times squid, 2-4.2
-  times dante, and 2.6-5.6 times nginx and haproxy copying 1 MB HTTP answers.
-  haproxy `splice-auto` is level with it as a relay on Intel and behind on
-  ARM. Copying with its 16 KB buffers (`-s0`) devel does 9.4-13.4 Gbit/s,
-  level with nginx and haproxy; the automatic mode, the default, is what
-  makes 16 KB enough.
-* **Small requests:** nginx and haproxy answer 1.5-2.2 times more 1 KB
-  requests as relays and 1.9-2.8 times as HTTP proxies; squid 1.2-2 times
+* **Bulk data:** devel splices 32-48 Gbit/s through CONNECT, SOCKS and
+  `tcppm` and 25-35 in 1 MB HTTP answers, the fastest everywhere: 2.2-3.1
+  times squid, 2-4.3 times dante, 2.7-6.1 times nginx and haproxy copying 1 MB
+  answers and 1.5-2.2 times envoy, the fastest copying proxy. haproxy
+  `splice-auto` is level with it as a relay on Intel and behind on ARM.
+  Copying with its 16 KB buffers (`-s0`) devel does 9.4-14.4 Gbit/s, level
+  with nginx and haproxy; the automatic mode, the default, is what makes 16
+  KB enough.
+* **Small requests:** nginx and haproxy answer 1.5-2.3 times more 1 KB
+  requests as relays and 1.8-2.9 times as HTTP proxies; squid 1.2-1.85 times
   more through CONNECT; through SOCKS dante leads on ARM, devel on Intel.
   3proxy runs a thread per connection; splice() cannot change that.
-* **A new connection per request:** nginx and haproxy do 1.2-1.5 times more
-  as relays, 2.2-2.9 times as HTTP proxies, where they keep their connections
+* **A new connection per request:** nginx and haproxy do 1.35-1.5 times more
+  as relays, 2.3-2.8 times as HTTP proxies, where they keep their connections
   to the origin and a forward proxy cannot.
 * **2000 clients, 50 KB answers:** on Intel devel leads as an HTTP proxy,
-  through CONNECT and through SOCKS; on ARM nginx, squid and dante are 13-47%
-  ahead of it. As a relay haproxy `splice-auto` leads on both.
+  through CONNECT and through SOCKS; on ARM nginx and envoy are 12% ahead of
+  it as HTTP proxies, squid 41% through CONNECT, dante 29% through SOCKS. As
+  a relay haproxy `splice-auto` leads on both.
 * **HTTPS:** with TLS ended or begun in the proxy devel moves bulk data as
   fast as nginx, ahead of haproxy and stunnel, with the least memory; envoy
   (BoringSSL) leads, by 30-50% on ARM. devel answers half to two thirds of
   nginx's 1 KB requests and does 60-95% of its handshakes. See
   [HTTPS](#https-tls-in-the-proxy).
-* **20000 connections:** devel keeps up with nginx and haproxy within 5-25% in
-  throughput and CPU, but needs 65-130 KB per connection against their 8-30
-  KB. See [the mix scenarios](#many-connections-the-mix-scenarios).
-* **Memory with few connections:** 3proxy needs the least, 5-20 MB against
-  30-50 MB for nginx and haproxy.
+* **20000 connections:** devel does 63-95% of the best as an HTTP proxy and
+  a relay and leads through CONNECT and SOCKS on Intel, with no failed
+  exchange; it needs 65-90 KB per connection against 8-36 KB for nginx,
+  haproxy and envoy. See [the mix scenarios](#many-connections-the-mix-scenarios).
+* **Memory with few connections:** 3proxy needs 4-23 MB, envoy 16-31 MB,
+  nginx and haproxy 28-44 MB.
 
 ## Setup
 
@@ -55,6 +59,7 @@ Ranges are over the two machines, ARM and Intel; the tables give each.
 | dante | 1.4.3 | 1.4.4 |
 | wrk, iperf3 | 4.1.0, 3.16 | 4.2.0, 3.17.1 |
 | proxychains-ng | 4.17 | 4.17 |
+| envoy | 1.34.1 (BoringSSL) | 1.34.1 (BoringSSL) |
 | stunnel, OpenSSL | 5.72, 3.0.13 | 5.72, 3.5.8 |
 
 ### How the client, the proxy and the origin were kept apart
@@ -88,19 +93,20 @@ Ranges are over the two machines, ARM and Intel; the tables give each.
 
 | column | configuration |
 |---|---|
-| devel | devel as of 13 October: 16 KB buffers, the thread pool, splice() in its automatic mode, the default: each direction switched to splice() once two reads in a row fill 16 KB and back to copying after three small ones; an HTTP body of known length is spliced when 16 KB or more of it remain |
+| devel | devel as of the evening of 13 October (98fd0f3): 16 KB buffers, the thread pool, splice() in its automatic mode, the default: each direction switched to splice() once two reads in a row fill 16 KB and back to copying after three small ones; an HTTP body of known length is spliced when 16 KB or more of it remain; a half-closed connection relays the rest of the answer; an idle kept-alive connection gives up its request buffer |
 | devel -s0 | devel, no splice (TCP_NODELAY is on by default) |
-| 1.0.1 | 1.0.1 as it starts by default: built without splice, 64 KB buffers, Nagle's algorithm on (no TCP_NODELAY, which devel sets by default) |
-| nginx | `proxy_pass` to an upstream with `keepalive 1024`, `stream` for the TCP relay, `reuseport` |
+| 1.0.1 | 1.0.1 built without splice, 64 KB buffers, with TCP_NODELAY on both sides (`-ocTCP_NODELAY -osTCP_NODELAY`) as devel sets it by default |
+| nginx | `proxy_pass` to an upstream with `keepalive 1024`, `stream` with `proxy_half_close on` for the TCP relay, `reuseport` |
 | haproxy | `mode http` with `http-reuse always`, `mode tcp` for the TCP relay |
 | haproxy splice-auto | `option splice-auto`: splices a direction once reads fill the buffer three times in a row |
+| envoy | one worker (`--concurrency 1`), `http_connection_manager` with the router filter as an HTTP proxy for the origin, `tcp_proxy` for the TCP relay |
 | squid | no cache, no logs, `via off` |
 | tinyproxy | `DisableViaHeader Yes`, critical messages only |
 | dante | no authentication, one `sockd` process tree (`-N 1`) |
 | stunnel | TLS scenarios only |
 
-nginx has no splice() support. Neither nginx nor haproxy has CONNECT or SOCKS,
-so they are measured as HTTP proxies and TCP relays only; squid and tinyproxy
+nginx and envoy have no splice() support. None of nginx, haproxy and envoy has
+CONNECT or SOCKS, so they are measured as HTTP proxies and TCP relays only; squid and tinyproxy
 only as HTTP proxies and through CONNECT, dante only through SOCKS. 3proxy
 versions are built with the Makefile they shipped with (`-O3 -flto`). Logging
 is off everywhere.
@@ -146,46 +152,50 @@ a TCP relay to the origin (3proxy `tcppm`, nginx `stream`, haproxy
 
 ## HTTP proxy
 
-Measured on 13 October 2026, as were the CONNECT, SOCKS and relay tables
-([data/](data/) `*-16k-*.csv`).
+Measured on the evening of 13 October 2026, as were the CONNECT, SOCKS and
+relay tables ([data/](data/) `*-full-*.csv`).
 
 **ARM (M4)**
 
-| scenario (ARM) | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| ka-1k, k req/s | 14.5 | 1.5 | **40.3** * | 33.1 | 3.9 | 19.4 | ‖ | 14.5 | **40.1** * |
-| ka-1m, Gbit/s | **12.4** | 8.1 | 5.4 ‡ | 11.8 | 1.0 | 3.0 ‡ | ‖ | **30.2 ‡** * | 5.4 ‡ |
-| ka-50k-2000, k req/s | 8.6 | 8.1 | 8.6 | **10.9** * | 1.6 | 4.1 | ‖ | **9.6** | 8.5 |
-| ka-2k-50k-2000, k req/s | 7.8 | 6.7 | 7.9 | **9.6** * | 1.5 | 3.1 | ‖ | **8.7** | 8.1 |
-| close-1k, k req/s | 5.4 | 4.1 | **15.6** * | 12.2 | 3.9 | 6.8 | ‖ | 5.4 | **15.7** * |
+| scenario (ARM) | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| ka-1k, k req/s | 15.3 | 5.9 | **45.1** * | 37.3 | 24.1 | 4.1 | 21.3 | ‖ | 15.4 | **44.8** * |
+| ka-1m, Gbit/s | 13.5 | 12.3 | 5.7 ‡ | 12.8 | **23.9 ‡** | 1.1 | 3.2 ‡ | ‖ | **35.0 ‡** * | 5.9 ‡ |
+| ka-50k-2000, k req/s | 8.9 | 9.2 | 9.6 | **11.3** * | **11.2** * | 1.7 | 4.6 | ‖ | **10.0** | 9.8 |
+| ka-2k-50k-2000, k req/s | 8.1 | 7.8 | 8.8 | 10.3 | **11.3** * | 1.6 | 3.5 | ‖ | **9.0** | 8.8 |
+| close-1k, k req/s | 5.9 | 4.5 | **16.8** * | 13.4 | 15.3 | 4.0 | 7.2 | ‖ | 5.9 | **16.7** * |
 
 **Intel (Skylake)**
 
-| scenario (Intel) | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| ka-1k, k req/s | 18.9 | 1.6 | **36.2** * | **35.6** * | 3.9 | 9.3 | ‖ | 18.6 | **35.8** * |
-| ka-1m, Gbit/s | **9.4** | 7.8 | 7.9 | 5.9 | 1.1 | 2.2 | ‖ | **26.3 ‡** * | 24.8 ‡ |
-| ka-50k-2000, k req/s | 8.6 | **9.6** | 7.6 | 9.1 | 1.6 | 2.1 | ‖ | **10.4** * | 7.4 |
-| ka-2k-50k-2000, k req/s | 7.8 | **8.0** | 7.3 | **8.1** | 1.5 | 1.8 | ‖ | **9.5** * | 6.9 |
-| close-1k, k req/s | 6.0 | 3.9 | **15.8** * | 13.3 | 3.7 | 4.0 | ‖ | 6.1 | **15.5** * |
+| scenario (Intel) | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| ka-1k, k req/s | 17.2 | 6.1 | **32.7** * | **31.6** * | 9.9 | 3.8 | 8.8 | ‖ | 17.9 | **33.9** * |
+| ka-1m, Gbit/s | 9.4 | **12.4** | 7.3 | 5.8 | **11.8** | 1.1 | 2.1 | ‖ | **25.3 ‡** * | **22.5 ‡** * |
+| ka-50k-2000, k req/s | 8.1 | **9.4** * | 7.1 | **8.9** * | 6.1 | 1.6 | 2.1 | ‖ | **9.6** * | 7.1 |
+| ka-2k-50k-2000, k req/s | **7.5** | **8.8** * | 7.3 | **8.3** | 4.9 | 1.6 | 1.8 | ‖ | **9.4** * | 7.1 |
+| close-1k, k req/s | 5.8 | 3.9 | **14.8** * | 12.9 | 5.8 | 3.6 | 3.9 | ‖ | 5.5 | **15.0** * |
 
-* 1 MB answers: devel splices them at 30 Gbit/s on ARM and 26 on Intel, 2.6
-  to 5.6 times nginx and haproxy copying. haproxy `splice-auto` keeps up on
-  Intel (25) but hardly splices on ARM (5.4). Copying (`-s0`), devel is ahead
-  of the other copying proxies too (12.4 and 9.4 Gbit/s).
-* 2000 clients with 50 KB answers: nginx leads on ARM (10.9k requests a
-  second against devel's 9.6k), devel on Intel (10.4k against 9.1k); haproxy
-  is behind both on both. With a 2 KB POST each, the same order.
-* nginx and haproxy answer 2.3-2.8 times more 1 KB requests over kept-alive
-  connections on ARM, 1.9 times on Intel, and 2.2-2.9 times more with a new
-  connection for each. That last gap is not the thread pool's: nginx
+* 1 MB answers: devel splices them at 35 Gbit/s on ARM and 25 on Intel, 2.7
+  to 6.1 times nginx and haproxy copying and 1.5-2.1 times envoy, the fastest
+  of the copying proxies here. haproxy `splice-auto` keeps up on Intel (22.5)
+  but hardly splices on ARM (5.9).
+* 2000 clients with 50 KB answers: nginx and envoy lead on ARM (11.3k
+  requests a second against devel's 10.0k), devel on Intel (9.6k against
+  nginx's 8.9k); haproxy is behind both on both. With a 2 KB POST each, the
+  same order, envoy first on ARM.
+* nginx and haproxy answer 2.4-2.9 times more 1 KB requests over kept-alive
+  connections on ARM, 1.8-1.9 times on Intel, and 2.3-2.8 times more with a
+  new connection for each. That last gap is not the thread pool's: nginx
   (`keepalive 1024`) and haproxy (`http-reuse always`) keep their connections
   to the origin and only accept and close the client's, while a forward proxy
   such as 3proxy also opens and closes one to the server for every client
-  connection. As a TCP relay, where every proxy does, the gap is 1.35-1.5
-  times on ARM and 1.2-1.3 on Intel.
-* 1.0.1 answers 1.5k 1 KB requests a second over kept-alive connections, held
-  by a 10 ms sleep removed in devel.
+  connection. As a TCP relay, where every proxy does, the gap is 1.5 times on
+  ARM and 1.35 on Intel.
+* envoy is close to nginx on ARM and well behind it on Intel (9.9k 1 KB
+  requests against 31.6k, 5.8k new connections a second against 12.9k).
+* 1.0.1, with TCP_NODELAY set this time, answers 6k 1 KB requests a second
+  over kept-alive connections (1.5k without it): one every 10.6 ms on each of
+  the 64 connections, held by a 10 ms sleep removed in devel.
 
 ## CONNECT tunnel
 
@@ -193,32 +203,32 @@ Measured on 13 October 2026, as were the CONNECT, SOCKS and relay tables
 
 | scenario (ARM) | devel -s0 | 1.0.1 | tinyproxy | squid | ‖ | devel |
 |---|---:|---:|---:|---:|:-:|---:|
-| stream1-down, Gbit/s | 13.3 | 20.5 | 1.2 | 14.3 | ‖ | **41.7 ‡** * |
-| stream16, Gbit/s | 12.6 | 19.0 | 1.2 | 16.9 | ‖ | **33.6 ‡** * |
-| ka-1k, k req/s | 17.4 | 17.5 | 15.4 | **35.0 ‡** * | ‖ | 17.5 |
-| ka-50k-2000, k req/s | 8.4 | 10.0 | 2.1 | **15.0** * | ‖ | 10.2 |
-| ka-2k-50k-2000, k req/s | 7.9 | 9.4 | 2.0 | **14.0** * | ‖ | 9.5 |
-| close-1k, k req/s | 4.2 ‡ | 3.5 ‡ | 3.7 ‡ | **4.9 ‡** * | ‖ | 4.2 ‡ |
+| stream1-down, Gbit/s | 14.4 | 22.7 | 1.3 | 15.2 | ‖ | **47.3 ‡** * |
+| stream16, Gbit/s | 13.7 | 21.1 | 1.3 | 17.7 | ‖ | **38.5 ‡** * |
+| ka-1k, k req/s | 19.7 | 19.7 | 17.1 | **36.4 ‡** * | ‖ | 19.7 |
+| ka-50k-2000, k req/s | 9.5 | 11.2 | 2.2 | **16.1** * | ‖ | 11.4 |
+| ka-2k-50k-2000, k req/s | 8.7 | 10.4 | 2.2 | **15.1** * | ‖ | 10.6 |
+| close-1k, k req/s | 4.6 ‡ | 3.7 ‡ | 4.1 ‡ | **5.3 ‡** * | ‖ | 4.6 ‡ |
 
 **Intel (Skylake)**
 
 | scenario (Intel) | devel -s0 | 1.0.1 | tinyproxy | squid | ‖ | devel |
 |---|---:|---:|---:|---:|:-:|---:|
-| stream1-down, Gbit/s | 9.6 | 19.1 | 1.2 | 13.4 | ‖ | **31.0** * |
-| stream16, Gbit/s | 9.7 | 18.7 | 1.3 | 13.1 | ‖ | **29.5** * |
-| ka-1k, k req/s | 30.7 | 30.3 | 29.0 | **36.3** * | ‖ | 30.4 |
-| ka-50k-2000, k req/s | 10.0 | 13.1 | 2.5 | 11.3 | ‖ | **15.4** * |
-| ka-2k-50k-2000, k req/s | 9.7 | 12.3 | 2.5 | 11.0 | ‖ | **14.1** * |
-| close-1k, k req/s | **5.2 ‡** * | 3.7 | 4.9 ‡ | 3.6 | ‖ | **5.2 ‡** * |
+| stream1-down, Gbit/s | 10.0 | 20.3 | 1.2 | 13.9 | ‖ | **33.9** * |
+| stream16, Gbit/s | 10.1 | 19.6 | 1.3 | 13.2 | ‖ | **32.4** * |
+| ka-1k, k req/s | 31.6 | 31.8 | 30.2 | **37.0** * | ‖ | 30.8 |
+| ka-50k-2000, k req/s | 10.5 | 13.3 | 2.5 | 11.7 | ‖ | **15.8** * |
+| ka-2k-50k-2000, k req/s | 9.8 | 12.8 | 2.4 | 11.4 | ‖ | **14.6** * |
+| close-1k, k req/s | 5.3 ‡ | 3.7 | 5.1 ‡ | 3.7 | ‖ | **5.3 ‡** * |
 
-* With splice() devel moves 31-42 Gbit/s through a tunnel, 2-2.9 times squid;
-  copying with 16 KB buffers (`-s0`) it does 10-13, below 1.0.1's 19-20 with
-  its 64 KB buffers, which is what the automatic mode is for.
-* squid answers 1 KB requests twice as fast as devel on ARM, 19% faster on
-  Intel; with 2000 clients squid leads on ARM (15.0k against 10.2k), devel on
-  Intel (15.4k against 11.3k).
+* With splice() devel moves 32-47 Gbit/s through a tunnel, 2.2-3.1 times
+  squid; copying with 16 KB buffers (`-s0`) it does 10-14, below 1.0.1's
+  20-23 with its 64 KB buffers, which is what the automatic mode is for.
+* squid answers 1 KB requests 1.85 times as fast as devel on ARM, 20% faster
+  on Intel; with 2000 clients squid leads on ARM (16.1k against 11.4k), devel
+  on Intel (15.8k against 11.7k).
 * With a new tunnel per request proxychains on the client sets the pace on
-  ARM; on Intel devel does 5.2k a second, squid 3.6k.
+  ARM; on Intel devel does 5.3k a second, squid 3.7k.
 
 ## SOCKSv5 tunnel
 
@@ -226,61 +236,65 @@ Measured on 13 October 2026, as were the CONNECT, SOCKS and relay tables
 
 | scenario (ARM) | devel -s0 | 1.0.1 | dante | ‖ | devel |
 |---|---:|---:|---:|:-:|---:|
-| stream1-down, Gbit/s | 12.9 | 19.7 | 10.6 | ‖ | **42.3 ‡** * |
-| stream16, Gbit/s | 12.8 | 19.1 | 13.5 | ‖ | **33.9** * |
-| ka-1k, k req/s | 17.5 | 17.6 | **25.1** * | ‖ | 17.5 |
-| ka-50k-2000, k req/s | 8.5 | 10.1 | **13.3** * | ‖ | 10.2 |
-| ka-2k-50k-2000, k req/s | 7.8 | 9.4 | **12.4** * | ‖ | 9.5 |
-| close-1k, k req/s | **4.0** * | 3.4 | 3.6 | ‖ | **4.0** * |
+| stream1-down, Gbit/s | 13.9 | 22.8 | 11.2 | ‖ | **48.1 ‡** * |
+| stream16, Gbit/s | 14.2 | 21.0 | 14.6 | ‖ | **38.5 ‡** * |
+| ka-1k, k req/s | 19.7 | 19.7 | **28.5** * | ‖ | 19.7 |
+| ka-50k-2000, k req/s | 9.4 | 11.1 | **14.7** * | ‖ | 11.4 |
+| ka-2k-50k-2000, k req/s | 8.7 | 10.3 | **13.9** * | ‖ | 10.5 |
+| close-1k, k req/s | **4.4** * | 3.6 | 3.8 | ‖ | **4.4** * |
 
 **Intel (Skylake)**
 
 | scenario (Intel) | devel -s0 | 1.0.1 | dante | ‖ | devel |
 |---|---:|---:|---:|:-:|---:|
-| stream1-down, Gbit/s | 9.7 | 19.4 | 8.0 | ‖ | **33.7** * |
-| stream16, Gbit/s | 9.7 | 18.5 | 15.8 | ‖ | **31.2** * |
-| ka-1k, k req/s | **29.6** * | **30.5** * | 25.0 | ‖ | **30.9** * |
-| ka-50k-2000, k req/s | 10.0 | 12.9 | 11.7 | ‖ | **15.0** * |
-| ka-2k-50k-2000, k req/s | 9.2 | 12.3 | 11.1 | ‖ | **14.5** * |
-| close-1k, k req/s | **4.7** * | 3.9 | 1.5 | ‖ | **5.1** * |
+| stream1-down, Gbit/s | 10.2 | 20.7 | 8.2 | ‖ | **33.3** * |
+| stream16, Gbit/s | 10.2 | 19.3 | 15.9 | ‖ | **31.9** * |
+| ka-1k, k req/s | **31.4** * | **31.2** * | 25.6 | ‖ | **30.4** * |
+| ka-50k-2000, k req/s | 10.4 | 13.4 | 12.5 | ‖ | **15.8** * |
+| ka-2k-50k-2000, k req/s | 10.1 | 12.7 | 11.5 | ‖ | **14.7** * |
+| close-1k, k req/s | **5.3** * | 3.9 | 1.6 | ‖ | **5.1** * |
 
-* devel moves 31-42 Gbit/s with splice(), 2-4.2 times dante.
-* On ARM dante answers 43% more 1 KB requests and 30% more with 2000 clients;
-  on Intel devel leads both (by 24% and 28%).
-* With a new tunnel per request devel manages 4.0-5.1k a second, dante 3.6k
-  on ARM and 1.5k on Intel. With 2000 clients dante needs 0.8-1.4 GB, devel
-  200 MB.
+* devel moves 32-48 Gbit/s with splice(), 2-4.3 times dante.
+* On ARM dante answers 45% more 1 KB requests and 29% more with 2000 clients;
+  on Intel devel leads both (by 19% and 26%).
+* With a new tunnel per request devel manages 4.4-5.3k a second, dante 3.8k
+  on ARM and 1.6k on Intel.
 
 ## TCP relay
 
 **ARM (M4)**
 
-| scenario (ARM) | devel -s0 | 1.0.1 | haproxy | nginx | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|:-:|---:|---:|
-| stream1-down, Gbit/s | 13.4 | **20.3** | 13.1 | 12.7 | ‖ | **41.0** * | 26.2 |
-| stream16, Gbit/s | 12.8 | **19.2** | 8.1 ‡ | 12.7 | ‖ | **34.1 ‡** * | 14.3 ‡ |
-| ka-1k, k req/s | 17.9 | 17.9 | **39.0** * | **37.5** | ‖ | 17.9 | **39.8** * |
-| ka-50k-2000, k req/s | 9.4 | 11.1 | 10.3 | **12.8** | ‖ | 11.3 | **15.8** * |
-| ka-2k-50k-2000, k req/s | 8.7 | 10.3 | 10.1 | **11.9** | ‖ | 10.3 | **15.5** * |
-| close-1k, k req/s | 5.9 | 4.7 | **8.9** * | 8.0 | ‖ | 5.9 | **8.9** * |
+| scenario (ARM) | devel -s0 | 1.0.1 | haproxy | nginx | envoy | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|:-:|---:|---:|
+| stream1-down, Gbit/s | 14.0 | 22.5 | 13.4 | 13.4 | **29.2** | ‖ | **48.0 ‡** * | 30.4 |
+| stream16, Gbit/s | 13.8 | **21.0** | 9.7 ‡ | 13.7 | 20.3 | ‖ | **38.3 ‡** * | 16.4 ‡ |
+| ka-1k, k req/s | 20.3 | 20.1 | **46.2** * | 44.2 | 35.5 | ‖ | 20.2 | **43.9** * |
+| ka-50k-2000, k req/s | 10.4 | 12.2 | 11.2 | 14.5 | **15.1** | ‖ | 12.6 | **17.4** * |
+| ka-2k-50k-2000, k req/s | 9.7 | 11.3 | 11.3 | 13.4 | **13.9** | ‖ | 11.6 | **17.1** * |
+| close-1k, k req/s | 6.4 | 5.1 | **9.7** * | 8.8 | **9.6** * | ‖ | 6.4 | **9.7** * |
 
 **Intel (Skylake)**
 
-| scenario (Intel) | devel -s0 | 1.0.1 | haproxy | nginx | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|:-:|---:|---:|
-| stream1-down, Gbit/s | 9.6 | **19.0** | 9.4 | 9.6 | ‖ | **32.9** * | 31.5 |
-| stream16, Gbit/s | 9.9 | **18.7** | 9.1 | 9.8 | ‖ | **31.5** * | **31.0 ‡** * |
-| ka-1k, k req/s | 29.5 | 29.5 | 45.1 | **48.7** * | ‖ | 29.8 | **47.1** * |
-| ka-50k-2000, k req/s | 11.0 | **14.4** | 9.8 | 11.9 | ‖ | 17.5 | **18.8** * |
-| ka-2k-50k-2000, k req/s | 10.4 | **13.3** | 9.5 | 11.6 | ‖ | 15.3 | **17.9** * |
-| close-1k, k req/s | 6.4 | 4.8 | 7.9 | **8.6** * | ‖ | 6.5 | **8.3** |
+| scenario (Intel) | devel -s0 | 1.0.1 | haproxy | nginx | envoy | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|:-:|---:|---:|
+| stream1-down, Gbit/s | 10.1 | **19.3** | 9.8 | 9.4 | 18.2 | ‖ | **33.2** * | **32.7** * |
+| stream16, Gbit/s | 9.7 | **19.2** | 9.2 | 9.7 | 14.7 | ‖ | **32.3** * | 30.7 ‡ |
+| ka-1k, k req/s | 29.8 | 30.9 | **48.3** * | **49.3** * | 36.6 | ‖ | 30.6 | **46.8** |
+| ka-50k-2000, k req/s | 11.0 | **15.0** | 10.2 | 12.3 | 12.8 | ‖ | 18.1 | **19.9** * |
+| ka-2k-50k-2000, k req/s | 10.5 | **13.8** | 9.7 | 12.1 | 12.4 | ‖ | 16.4 | **18.6** * |
+| close-1k, k req/s | 6.8 | 4.8 | **8.8** * | **8.6** * | 5.4 | ‖ | 6.5 | **8.7** * |
 
-* On streams devel splices 32-41 Gbit/s; haproxy `splice-auto` is level on
-  Intel with one stream (31.5) and sixteen (31.0), behind on ARM (26 and 14).
-* nginx and haproxy answer 2.1-2.2 times more 1 KB requests on ARM, 1.5-1.6
+* On streams devel splices 32-48 Gbit/s; haproxy `splice-auto` is level on
+  Intel (32.7 and 30.7), behind on ARM (30 and 16). Of the copying proxies
+  envoy is level with 1.0.1 and its 64 KB buffers on one stream (18-29),
+  devel splicing 1.6-2.2 times either.
+* nginx and haproxy answer 2.2-2.3 times more 1 KB requests on ARM, 1.5-1.6
   times on Intel.
-* With 2000 clients and 50 KB answers haproxy `splice-auto` leads, 40% ahead
-  of devel on ARM and 7% on Intel.
+* With 2000 clients and 50 KB answers haproxy `splice-auto` leads, 38% ahead
+  of devel on ARM and 10% on Intel.
+* nginx runs with `proxy_half_close on` (`nginx::halfclose`), off by default,
+  without which its relays cut short the exchanges whose client shuts down
+  its sending side first.
 
 ## HTTPS: TLS in the proxy
 
@@ -412,113 +426,123 @@ program on one core, can set the pace (‡).
 
 ## Many connections: the mix scenarios
 
-Measured on 13 October 2026 with the same devel ([data/](data/) `*-mix.csv`),
-20000 connections open through the proxy, `--mix-active` 2000; `-3k` at a
-fixed 3000 exchanges a second. dante is left out on Intel: with 20000
-connections it needs more memory than the machine has (6.6 GB on ARM) and the
-OOM killer ended the origin. ‡: limited by the client.
+Measured on the evening of 13 October 2026 with the same devel
+([data/](data/) `*-full-mix.csv`), 20000 connections open through the proxy,
+`--mix-active` 2000; `-3k` at a fixed 3000 exchanges a second. dante is left
+out on Intel: with 20000 connections it needs more memory than the machine
+has (6.5 GB on ARM) and the OOM killer ended the origin. ‡: limited by the
+client.
 
 ### ARM (M4)
 
 **throughput, Gbit/s (thousands of requests per second for HTTP)**
 
-| scenario | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | dante | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| mix-http | 1.80 (4.9k/s) | 1.42 (3.9k/s) | 1.83 (6.5k/s) ‡ | **2.76 (7.5k/s) ‡** | 0.59 (1.5k/s) | 0.92 (2.7k/s) ‡ | – (–k/s) | ‖ | **1.84 (5.0k/s)** | **1.81 (6.5k/s) ‡** |
-| mix-connect | 2.08 (5.5k/s) | 2.07 (5.5k/s) ‡ | – (–k/s) | – (–k/s) | 0.74 (2.0k/s) | **2.76 (7.3k/s) ‡** | – (–k/s) | ‖ | **2.16 (5.7k/s) ‡** | – (–k/s) |
-| mix-socks | 2.03 (5.5k/s) | **2.17 (5.8k/s) ‡** | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | 1.31 (3.5k/s) | ‖ | **2.13 (5.7k/s) ‡** | – (–k/s) |
-| mix-relay | 2.07 (5.7k/s) | 2.12 (5.8k/s) ‡ | 2.31 (6.8k/s) ‡ | **2.72 (7.5k/s) ‡** | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | 2.16 (5.9k/s) ‡ | **2.50 (7.1k/s) ‡** |
-| mix-http-3k | 1.09 (3.0k/s) | 1.08 (3.0k/s) | 1.08 (3.0k/s) | **1.09 (3.0k/s)** | 0.58 (1.5k/s) | **1.09 (3.0k/s) ‡** | – (–k/s) | ‖ | 1.08 (3.0k/s) | **1.08 (3.0k/s)** |
-| mix-connect-3k | **1.09 (3.0k/s)** | 1.08 (3.0k/s) | – (–k/s) | – (–k/s) | 0.74 (2.0k/s) | 1.08 (3.0k/s) | – (–k/s) | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
-| mix-socks-3k | 1.08 (3.0k/s) | 1.08 (3.0k/s) | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | **1.13 (3.1k/s)** | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
-| mix-relay-3k | **1.08 (3.0k/s)** | 1.08 (3.0k/s) | **1.09 (3.0k/s)** | 1.08 (3.0k/s) | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | **1.08 (3.0k/s)** | **1.09 (3.0k/s)** |
+| scenario | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | dante | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 1.72 (4.7k/s) | 1.48 (4.1k/s) | 2.02 (6.8k/s) ‡ | **2.92 (8.0k/s) ‡** | 2.52 (6.9k/s) ‡ | 0.62 (1.6k/s) | 0.99 (2.9k/s) ‡ | – (–k/s) | ‖ | 1.84 (5.0k/s) | **2.06 (7.0k/s) ‡** |
+| mix-connect | 2.25 (6.0k/s) | 2.02 (5.4k/s) | – (–k/s) | – (–k/s) | – (–k/s) | 0.78 (2.2k/s) | **2.78 (7.4k/s) ‡** | – (–k/s) | ‖ | **2.13 (5.7k/s) ‡** | – (–k/s) |
+| mix-socks | **2.11 (5.7k/s)** | **2.07 (5.5k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | 1.34 (3.6k/s) | ‖ | **2.21 (6.0k/s) ‡** | – (–k/s) |
+| mix-relay | 2.17 (6.0k/s) | 2.15 (5.9k/s) | 2.49 (7.2k/s) ‡ | **2.86 (7.8k/s) ‡** | 2.77 (7.6k/s) ‡ | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | 2.28 (6.3k/s) ‡ | **2.66 (7.6k/s) ‡** |
+| mix-http-3k | 1.08 (3.0k/s) | 1.08 (3.0k/s) | 1.08 (3.0k/s) | **1.09 (3.0k/s)** | **1.09 (3.0k/s)** | 0.63 (1.6k/s) | **1.09 (3.0k/s)** | – (–k/s) | ‖ | **1.08 (3.0k/s)** | **1.08 (3.0k/s)** |
+| mix-connect-3k | **1.08 (3.0k/s)** | **1.09 (3.0k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | 0.78 (2.1k/s) | 1.08 (3.0k/s) | – (–k/s) | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
+| mix-socks-3k | 1.08 (3.0k/s) | 1.08 (3.0k/s) | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | **1.14 (3.0k/s)** | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
+| mix-relay-3k | **1.09 (3.0k/s)** | 1.09 (3.0k/s) | 1.08 (3.0k/s) | **1.09 (3.0k/s)** | **1.09 (3.0k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | **1.08 (3.0k/s)** | **1.08 (3.0k/s)** |
 
 **proxy CPU time per gigabyte or per request**
 
-| scenario | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | dante | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| mix-http | 205 µs/req | 272 µs/req | 156 µs/req | **134 µs/req** | 675 µs/req | 375 µs/req | – µs/req | ‖ | 211 µs/req | **157 µs/req** |
-| mix-connect | 190 µs/req | 187 µs/req | – µs/req | – µs/req | 507 µs/req | **139 µs/req** | – µs/req | ‖ | **182 µs/req** | – µs/req |
-| mix-socks | 187 µs/req | **179 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | 298 µs/req | ‖ | **179 µs/req** | – µs/req |
-| mix-relay | 186 µs/req | 182 µs/req | 151 µs/req | **136 µs/req** | – µs/req | – µs/req | – µs/req | ‖ | 177 µs/req | **143 µs/req** |
-| mix-http-3k | 236 µs/req | 278 µs/req | **162 µs/req** | 169 µs/req | 678 µs/req | 326 µs/req | – µs/req | ‖ | 236 µs/req | **162 µs/req** |
-| mix-connect-3k | 218 µs/req | 216 µs/req | – µs/req | – µs/req | 509 µs/req | **194 µs/req** | – µs/req | ‖ | **212 µs/req** | – µs/req |
-| mix-socks-3k | **215 µs/req** | **211 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | 334 µs/req | ‖ | **210 µs/req** | – µs/req |
-| mix-relay-3k | 215 µs/req | 212 µs/req | **179 µs/req** | **178 µs/req** | – µs/req | – µs/req | – µs/req | ‖ | 209 µs/req | **178 µs/req** |
+| scenario | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | dante | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 215 µs/req | 257 µs/req | 150 µs/req | **127 µs/req** | 147 µs/req | 660 µs/req | 351 µs/req | – µs/req | ‖ | 210 µs/req | **146 µs/req** |
+| mix-connect | 173 µs/req | 189 µs/req | – µs/req | – µs/req | – µs/req | 477 µs/req | **139 µs/req** | – µs/req | ‖ | **184 µs/req** | – µs/req |
+| mix-socks | **180 µs/req** | **191 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | – µs/req | 294 µs/req | ‖ | **172 µs/req** | – µs/req |
+| mix-relay | 172 µs/req | 179 µs/req | 140 µs/req | **130 µs/req** | **139 µs/req** | – µs/req | – µs/req | – µs/req | ‖ | 164 µs/req | **134 µs/req** |
+| mix-http-3k | 224 µs/req | 255 µs/req | **154 µs/req** | 162 µs/req | 184 µs/req | 631 µs/req | 295 µs/req | – µs/req | ‖ | 230 µs/req | **155 µs/req** |
+| mix-connect-3k | **201 µs/req** | **211 µs/req** | – µs/req | – µs/req | – µs/req | 482 µs/req | **193 µs/req** | – µs/req | ‖ | **202 µs/req** | – µs/req |
+| mix-socks-3k | **212 µs/req** | **206 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | – µs/req | 343 µs/req | ‖ | **201 µs/req** | – µs/req |
+| mix-relay-3k | 205 µs/req | 207 µs/req | 170 µs/req | **167 µs/req** | 174 µs/req | – µs/req | – µs/req | – µs/req | ‖ | 206 µs/req | **167 µs/req** |
 
 **proxy peak memory, MB**
 
-| scenario | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | dante | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| mix-http | 2,407 | 2,729 | 529 | **153** | 817 | 839 | – | ‖ | 2,438 | **556** |
-| mix-connect | 2,725 | 3,220 | – | – | **1,033** | 1,768 | – | ‖ | **2,760** | – |
-| mix-socks | **1,482** | 2,007 | – | – | – | – | 6,580 | ‖ | **1,506** | – |
-| mix-relay | 1,246 | 1,767 | **293** | 608 | – | – | – | ‖ | 1,296 | **263** |
-| mix-http-3k | 2,614 | 2,752 | 150 | **139** | 803 | 603 | – | ‖ | 2,627 | **154** |
-| mix-connect-3k | 2,653 | 2,831 | – | – | **1,025** | 1,289 | – | ‖ | **2,670** | – |
-| mix-socks-3k | **1,404** | 1,559 | – | – | – | – | 6,747 | ‖ | **1,422** | – |
-| mix-relay-3k | 1,291 | 1,456 | **267** | 574 | – | – | – | ‖ | 1,306 | **264** |
+| scenario | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | dante | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 1,613 | 2,730 | 531 | **151** | 587 | 819 | 839 | – | ‖ | 1,681 | **548** |
+| mix-connect | 1,494 | 3,220 | – | – | – | **1,007** | 1,774 | – | ‖ | **1,774** | – |
+| mix-socks | **1,462** | 1,948 | – | – | – | – | – | 6,518 | ‖ | **1,496** | – |
+| mix-relay | 1,248 | 1,789 | **292** | 617 | 645 | – | – | – | ‖ | 1,284 | **269** |
+| mix-http-3k | 1,564 | 2,756 | 150 | **144** | 386 | 800 | 609 | – | ‖ | 1,592 | **156** |
+| mix-connect-3k | 1,412 | 2,835 | – | – | – | **1,027** | 1,292 | – | ‖ | **1,428** | – |
+| mix-socks-3k | **1,405** | 1,559 | – | – | – | – | – | 6,627 | ‖ | **1,422** | – |
+| mix-relay-3k | 1,293 | 1,462 | **268** | 576 | 598 | – | – | – | ‖ | 1,308 | **268** |
 
 ### Intel (Skylake)
 
 **throughput, Gbit/s (thousands of requests per second for HTTP)**
 
-| scenario | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| mix-http | 2.39 (6.5k/s) | 1.98 (5.4k/s) | 2.29 (7.1k/s) | **2.87 (7.9k/s)** | 0.65 (1.7k/s) | 0.80 (2.2k/s) | ‖ | 2.54 (7.0k/s) | **3.02 (8.6k/s)** |
-| mix-connect | **3.08 (8.2k/s)** | 2.72 (7.3k/s) | – (–k/s) | – (–k/s) | 1.02 (2.8k/s) | 2.72 (7.2k/s) | ‖ | **3.39 (9.1k/s) ‡** | – (–k/s) |
-| mix-socks | 2.98 (8.0k/s) | **3.12 (8.4k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | **3.37 (9.0k/s)** | – (–k/s) |
-| mix-relay | 2.97 (8.1k/s) | 3.11 (8.6k/s) | 2.54 (7.9k/s) ‡ | **3.61 (9.9k/s) ‡** | – (–k/s) | – (–k/s) | ‖ | **3.35 (9.2k/s)** | 3.00 (8.5k/s) |
-| mix-http-3k | **1.10 (3.0k/s)** | **1.09 (3.0k/s)** | 1.08 (3.0k/s) | 1.09 (3.0k/s) | 0.64 (1.6k/s) | 0.63 (2.1k/s) | ‖ | **1.09 (3.0k/s)** | **1.09 (3.0k/s)** |
-| mix-connect-3k | **1.08 (3.0k/s)** | 1.08 (3.0k/s) | – (–k/s) | – (–k/s) | 1.01 (2.8k/s) | 1.08 (3.0k/s) | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
-| mix-socks-3k | **1.08 (3.0k/s)** | **1.08 (3.0k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
-| mix-relay-3k | 1.08 (3.0k/s) | **1.08 (3.0k/s)** | **1.08 (3.0k/s)** | 1.08 (3.0k/s) | – (–k/s) | – (–k/s) | ‖ | **1.08 (3.0k/s)** | **1.08 (3.0k/s)** |
+| scenario | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 2.14 (5.9k/s) | 2.04 (5.6k/s) | 2.42 (7.4k/s) | **2.94 (8.0k/s)** | 2.04 (5.6k/s) | 0.65 (1.7k/s) | 0.82 (2.4k/s) | ‖ | 2.43 (6.7k/s) | **3.19 (9.1k/s)** |
+| mix-connect | **3.02 (8.1k/s)** | **3.03 (8.1k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | 1.04 (2.9k/s) | **2.86 (7.6k/s)** | ‖ | **3.48 (9.3k/s)** | – (–k/s) |
+| mix-socks | 3.08 (8.4k/s) | **3.25 (8.7k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | **3.41 (9.2k/s)** | – (–k/s) |
+| mix-relay | 3.09 (8.5k/s) | 3.26 (9.0k/s) | 2.53 (7.9k/s) | **3.66 (10.0k/s) ‡** | 3.24 (8.9k/s) | – (–k/s) | – (–k/s) | ‖ | **3.46 (9.5k/s)** | 3.27 (9.2k/s) |
+| mix-http-3k | 1.08 (3.0k/s) | **1.08 (3.0k/s)** | 1.08 (3.0k/s) | **1.09 (3.0k/s)** | **1.09 (3.0k/s)** | 0.66 (1.7k/s) | 0.79 (2.3k/s) | ‖ | **1.09 (3.0k/s)** | 1.08 (3.0k/s) |
+| mix-connect-3k | **1.08 (3.0k/s)** | **1.08 (3.0k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | 1.06 (2.9k/s) | 1.08 (3.0k/s) | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
+| mix-socks-3k | **1.08 (3.0k/s)** | **1.08 (3.0k/s)** | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | – (–k/s) | ‖ | **1.08 (3.0k/s)** | – (–k/s) |
+| mix-relay-3k | 1.08 (3.0k/s) | 1.08 (3.0k/s) | 1.08 (3.0k/s) | 1.08 (3.0k/s) | **1.22 (3.3k/s)** | – (–k/s) | – (–k/s) | ‖ | **1.09 (3.0k/s)** | **1.08 (3.0k/s)** |
 
 **proxy CPU time per gigabyte or per request**
 
-| scenario | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| mix-http | 158 µs/req | 192 µs/req | 146 µs/req | **131 µs/req** | 623 µs/req | 462 µs/req | ‖ | 148 µs/req | **121 µs/req** |
-| mix-connect | **125 µs/req** | **137 µs/req** | – µs/req | – µs/req | 372 µs/req | 145 µs/req | ‖ | **114 µs/req** | – µs/req |
-| mix-socks | 129 µs/req | **123 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | ‖ | **115 µs/req** | – µs/req |
-| mix-relay | 128 µs/req | **122 µs/req** | 131 µs/req | **105 µs/req** | – µs/req | – µs/req | ‖ | **113 µs/req** | 123 µs/req |
-| mix-http-3k | 217 µs/req | 238 µs/req | **168 µs/req** | 187 µs/req | 647 µs/req | 489 µs/req | ‖ | 201 µs/req | **160 µs/req** |
-| mix-connect-3k | **175 µs/req** | **172 µs/req** | – µs/req | – µs/req | 358 µs/req | 189 µs/req | ‖ | **171 µs/req** | – µs/req |
-| mix-socks-3k | **181 µs/req** | **171 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | ‖ | **176 µs/req** | – µs/req |
-| mix-relay-3k | 174 µs/req | 170 µs/req | 166 µs/req | **162 µs/req** | – µs/req | – µs/req | ‖ | 171 µs/req | **159 µs/req** |
+| scenario | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 178 µs/req | 186 µs/req | 140 µs/req | **129 µs/req** | 188 µs/req | 630 µs/req | 436 µs/req | ‖ | 155 µs/req | **115 µs/req** |
+| mix-connect | **127 µs/req** | **126 µs/req** | – µs/req | – µs/req | – µs/req | 362 µs/req | **137 µs/req** | ‖ | **113 µs/req** | – µs/req |
+| mix-socks | **127 µs/req** | **122 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | – µs/req | ‖ | **115 µs/req** | – µs/req |
+| mix-relay | 122 µs/req | 116 µs/req | 133 µs/req | **104 µs/req** | 117 µs/req | – µs/req | – µs/req | ‖ | **110 µs/req** | 113 µs/req |
+| mix-http-3k | 217 µs/req | 223 µs/req | **166 µs/req** | 181 µs/req | 236 µs/req | 626 µs/req | 459 µs/req | ‖ | 204 µs/req | **154 µs/req** |
+| mix-connect-3k | **171 µs/req** | **167 µs/req** | – µs/req | – µs/req | – µs/req | 358 µs/req | 185 µs/req | ‖ | **160 µs/req** | – µs/req |
+| mix-socks-3k | 179 µs/req | **165 µs/req** | – µs/req | – µs/req | – µs/req | – µs/req | – µs/req | ‖ | **167 µs/req** | – µs/req |
+| mix-relay-3k | 173 µs/req | 167 µs/req | **162 µs/req** | **159 µs/req** | **158 µs/req** | – µs/req | – µs/req | ‖ | 166 µs/req | **154 µs/req** |
 
 **proxy peak memory, MB**
 
-| scenario | devel -s0 | 1.0.1 | haproxy | nginx | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
-|---|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
-| mix-http | 2,432 | 2,828 | 486 | **222** | 786 | 639 | ‖ | 2,440 | **428** |
-| mix-connect | 2,657 | 3,293 | – | – | **1,066** | 1,812 | ‖ | **2,692** | – |
-| mix-socks | **1,412** | 1,985 | – | – | – | – | ‖ | **1,445** | – |
-| mix-relay | 1,298 | 1,794 | **479** | 648 | – | – | ‖ | 1,328 | **334** |
-| mix-http-3k | 2,644 | 2,820 | 179 | **154** | 765 | 868 | ‖ | 2,659 | **180** |
-| mix-connect-3k | 2,648 | 2,834 | – | – | **1,038** | 1,371 | ‖ | **2,660** | – |
-| mix-socks-3k | **1,398** | 1,574 | – | – | – | – | ‖ | **1,410** | – |
-| mix-relay-3k | 1,358 | 1,531 | **314** | 604 | – | – | ‖ | 1,376 | **318** |
+| scenario | devel -s0 | 1.0.1 | haproxy | nginx | envoy | tinyproxy | squid | ‖ | devel | haproxy splice-auto |
+|---|---:|---:|---:|---:|---:|---:|---:|:-:|---:|---:|
+| mix-http | 1,765 | 2,851 | 489 | **220** | 609 | 786 | 650 | ‖ | 1,813 | **434** |
+| mix-connect | 1,411 | 3,280 | – | – | – | **1,062** | 1,839 | ‖ | **1,442** | – |
+| mix-socks | **1,408** | 2,157 | – | – | – | – | – | ‖ | **1,444** | – |
+| mix-relay | 1,289 | 1,809 | **477** | 662 | 723 | – | – | ‖ | 1,324 | **340** |
+| mix-http-3k | 1,622 | 2,817 | 172 | **153** | 414 | 765 | 613 | ‖ | 1,625 | **179** |
+| mix-connect-3k | 1,403 | 2,837 | – | – | – | **1,034** | 1,378 | ‖ | **1,416** | – |
+| mix-socks-3k | **1,400** | 1,573 | – | – | – | – | – | ‖ | **1,413** | – |
+| mix-relay-3k | 1,357 | 1,529 | **315** | 625 | 614 | – | – | ‖ | 1,372 | **321** |
 
-* Copying many small exchanges devel does 75-80% of nginx and haproxy on ARM
-  and 85-95% on Intel, where it is first through CONNECT and SOCKS; at a fixed rate it takes 3-8% more CPU than they do as a relay, 7-25%
-  more as an HTTP proxy, with the same p99.
-* Memory is where a thread per connection shows: about 65 KB a connection for
-  a relay or a SOCKS tunnel (the thread's stack and two 16 KB buffers), about
-  130 KB for an HTTP proxy or CONNECT connection, against 8-30 KB for nginx and
-  haproxy.
-* nginx relays fail exchanges whose client shuts down its sending side first
-  (`proxy_half_close` is off by default), 350-470 a run; with it on
-  (`nginx::halfclose`, [data/](data/) `*-halfclose.csv`) there are none and
-  nothing else changes: 7.47k against 7.44k on ARM, 9.83k against 9.71k on
-  Intel.
-* devel itself lost 2-11 exchanges a run in the tunnels and relays, every
-  one half-closed by the client with a large answer, cut short. Once the
-  server had answered and closed, `sockmap()` took the hang-up poll() reported
-  on its socket for the end of it while the rest of the answer was still
-  unread there, if its buffer was full at the time; fixed since.
+* Many small exchanges: devel does 63% of nginx's as an HTTP proxy on ARM,
+  74% of haproxy `splice-auto`'s on Intel, and 81-95% of nginx's as a relay;
+  through CONNECT and SOCKS it leads on Intel. At a fixed rate it takes 8-23%
+  more CPU than the best as a relay, 32-49% more as an HTTP proxy; through
+  CONNECT 5% more than squid on ARM and 14% less on Intel, through SOCKS 41%
+  less than dante.
+* Memory is where a thread per connection shows: 65-75 KB a connection for a
+  relay or a SOCKS tunnel (the thread's stack and two 16 KB buffers), 70-90 KB
+  for an HTTP proxy or CONNECT connection, against 8-36 KB for nginx, haproxy
+  and envoy. That is 30-45% less than in the morning session (120-140 KB
+  for HTTP and CONNECT): devel now frees the request buffer of a kept-alive
+  connection idle for a second, and before relaying a CONNECT tunnel.
+* No exchange failed through devel, or through nginx relaying with
+  `proxy_half_close on`. 1.0.1 still loses 1-5 a run in the tunnels and
+  relays, exchanges half-closed by the client with a large answer cut short,
+  the bug fixed in devel (and in master and 0.9) since the morning session.
+* envoy at the fixed rate on Intel relays more than 3000 a second: it fell
+  behind at times (p99 0.7-1.2 s) and the client made up the delayed
+  exchanges.
 
 ## Earlier sessions
+
+The morning session of 13 October ([data/](data/) `*-16k-*.csv`, `*-mix.csv`)
+ran devel before the half-close fix, the idle buffer release and the TLS
+changes, 1.0.1 without TCP_NODELAY and nginx relays without
+`proxy_half_close`, and had no envoy. Its ARM figures are 5-15% lower for
+every proxy alike, probably because two stray 3proxy processes were spinning
+on the host's CPUs at the time.
 
 The session of 11-12 October, devel with 64 KB buffers, splice() by direction
 (`-s1`, `-s3`) and the automatic mode as an option, against 0.9.4, 1.0.1 and
