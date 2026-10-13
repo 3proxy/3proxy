@@ -140,6 +140,8 @@ char * proxy_stringtable[] = {
 #define HDRRESERVE 2048
 #define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
+/* seconds a connection waits for its next request before its buffer is freed */
+#define IDLEBUF 1
 
 #define PST_COUNT (sizeof(proxy_stringtable)/sizeof(proxy_stringtable[0]) - 1)
 static int proxy_stringtable_len[PST_COUNT];
@@ -226,11 +228,16 @@ static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
  char *sb;
  char *se;
  int len;
+ char *own = NULL;
 
- if(!buf) req = NULL;
+ if(param->res == 555 || param->res == 508) return;
  if(req) {
 	len = (int)strlen(req);
 	if(len > (LINESIZE - 1)) len = LINESIZE - 1;
+	/* a tunnel gave its buffer back before it was relayed */
+	if(!buf && !(buf = own = malloc(LINESIZE))) req = NULL;
+ }
+ if(req) {
 	memcpy(buf, req, len + 1);
 	buf[LINESIZE - 1] = 0;
 	sb = strchr(buf, '\r');
@@ -239,7 +246,8 @@ static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
 		memmove(se, sb, strlen(sb)+1);
 	}
  }
- if(param->res != 555 && param->res != 508)dolog(param, (unsigned char *)(req?buf:NULL));
+ dolog(param, (unsigned char *)(req?buf:NULL));
+ free(own);
 }
 
 void decodeurl(unsigned char *s, int allowcr){
@@ -335,18 +343,24 @@ void * proxychild(struct clientparam* param) {
 
 
  if(param->remsock != INVALID_SOCKET) haveconnection = 1; 
- if(!(buf = malloc(BUFSIZE))) {RETURN(21);}
- bufsize = BUFSIZE;
 #ifndef ANONYMOUS
  anonymous = param->srv->anonymous;
 #endif
 for(;;){
- memset(buf, 0, bufsize);
  inbuf = 0;
  chunkedcli = 0;
  clhdrofs_req = -1;
  param->nolongdatfilter = 0;
 
+ /* A connection waiting a while for its next request, or a tunnel, holds
+    no buffer: it is taken again once a request starts coming. */
+ if(buf && param->cliinbuf == param->clioffset){
+	memset(fds, 0, sizeof(fds));
+	fds[0].fd = param->clisock;
+	fds[0].events = POLLIN;
+	if(param->srv->so._poll(param->sostate, fds, 1, IDLEBUF * 1000) == 0) freeptr(&buf);
+ }
+ if(buf) memset(buf, 0, bufsize);
 
  if(keepalive && (param->cliinbuf == param->clioffset) && (param->remsock != INVALID_SOCKET)){
 	memset(fds, 0, sizeof(fds));
@@ -372,6 +386,13 @@ for(;;){
 	}
  }
 
+ if(!buf){
+	if(sockgetcharcli(param, conf.timeouts[STRING_L], 0) == EOF) RETURN((keepalive)?555:508);
+	param->clioffset--;
+	if(!(buf = malloc(BUFSIZE))) {RETURN(21);}
+	bufsize = BUFSIZE;
+	memset(buf, 0, bufsize);
+ }
  i = sockgetlinebuf(param, CLIENT, buf, LINESIZE - 1, '\n', conf.timeouts[STRING_L]);
  if(i<=0) {
 	RETURN((keepalive)?555:(i)?507:508);
@@ -987,6 +1008,7 @@ for(;;){
 		freeptr(&req); freeptr(&buf); freeptr(&ftpbase);
 		return (void *)param->redirectfunc;
 	}
+	freeptr(&buf);
 	param->res =  mapsocket(param, conf.timeouts[CONNECTION_L]);
 	RETURN(param->res);
  }
@@ -1298,6 +1320,7 @@ for(;;){
         } while(param->chunked);
  }
  if(isconnect && res == 200 && param->operation){
+	freeptr(&buf);
 	RETURN (mapsocket(param, conf.timeouts[CONNECTION_S]));
  }
  else if(isconnect){
