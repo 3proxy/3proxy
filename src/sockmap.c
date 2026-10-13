@@ -61,6 +61,16 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
    before the sockets are closed. */
 #define SESSIONEND (!halfclose && (CLIENTTERMREAD || SERVERTERMREAD))
 
+/* The fixed buffers have room for a TLS record and its header, which tlspr
+   needs. What is relayed is read into them a record at most: written to a
+   side using TLS, a full buffer then makes one record rather than a record
+   and another of 64 bytes, which costs a third of the throughput. A buffer
+   already holding more, or a larger one taken for a filter, is used whole. */
+#define ROOM(size, inbuf) (((size) == CLIENTBUFSIZE && (inbuf) <= CLIENTBUFSIZE - 64)? \
+	(unsigned)(CLIENTBUFSIZE - 64) : (unsigned)(size))
+#define CLIROOM ROOM(param->clibufsize, param->cliinbuf)
+#define SRVROOM ROOM(param->srvbufsize, param->srvinbuf)
+
 /* usesplice is a mask of the directions passed with splice() rather than
    through a buffer: SPLICE_DOWNLOAD, server to client, and SPLICE_UPLOAD,
    client to server. */
@@ -145,8 +155,8 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 #endif
  if(param->srvinbuf == param->srvoffset) param->srvinbuf =param->srvoffset = 0;
  if(param->cliinbuf == param->clioffset) param->cliinbuf =param->clioffset = 0;
- if(param->clibufsize == param->cliinbuf) TOCLIENTBUF = 0;
- if(param->srvbufsize == param->srvinbuf) TOSERVERBUF = 0;
+ if(param->cliinbuf >= CLIROOM) TOCLIENTBUF = 0;
+ if(param->srvinbuf >= SRVROOM) TOSERVERBUF = 0;
 
  action = handlepredatflt(param);
  if(action == HANDLED){
@@ -264,7 +274,7 @@ log("done send to server from buf");
 			fromclient -= res;
 			param->clioffset += res;
 			bufrelease(param, CLIENT);
-			if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
+			if(param->cliinbuf < CLIROOM) TOCLIENTBUF = 1;
 			if(param->bandlimfunc) {
 				int sl1;
 				sl1 = (*param->bandlimfunc)(param, 0, res);
@@ -310,7 +320,7 @@ log("done send to client from buf");
 			fromserver -= res;
 			param->srvoffset += res;
 			bufrelease(param, SERVER);
-			if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
+			if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
 			needaction = 0;
 			continue;
 		}
@@ -319,11 +329,11 @@ log("done send to client from buf");
 	/* a direction going back to copying does once its pipe is empty */
 	if(wantbufcli && !inclientpipe){
 		splicecli = wantbufcli = streakcli = 0;
-		if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
+		if(param->cliinbuf < CLIROOM) TOCLIENTBUF = 1;
 	}
 	if(wantbufsrv && !inserverpipe){
 		splicesrv = wantbufsrv = streaksrv = 0;
-		if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
+		if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
 	}
 	{
 		/* each direction goes through its pipe if spliced, through its
@@ -402,7 +412,7 @@ log("read from client to pipe");
 			if(pipecli[0] < 0 && pipe2(pipecli, O_NONBLOCK) < 0){
 				/* no pipe to be had: copy instead */
 				allowcli = splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 0;
-				if(param->cliinbuf < param->clibufsize) TOCLIENTBUF = 1;
+				if(param->cliinbuf < CLIROOM) TOCLIENTBUF = 1;
 				continue;
 			}
 			errno = 0;
@@ -451,7 +461,7 @@ log("read from server to pipe\n");
 #endif
 			if(pipesrv[0] < 0 && pipe2(pipesrv, O_NONBLOCK) < 0){
 				allowsrv = splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 0;
-				if(param->srvinbuf < param->srvbufsize) TOSERVERBUF = 1;
+				if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
 				continue;
 			}
 			errno = 0;
@@ -509,7 +519,7 @@ log("done read from server to pipe\n");
 log("read from client to buf");
 #endif
 			sasize = sizeof(param->sincr);
-			res = param->srv->so._recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)param->clibufsize - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
+			res = param->srv->so._recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)CLIROOM - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
 			if(res <= 0) {
 				FROMCLIENT = 0;
 				if(res == 0) {
@@ -542,7 +552,7 @@ log("done read from client to buf");
 #endif
 				inclientbuf += res;
 				param->cliinbuf += res;
-				if(param->clibufsize == param->cliinbuf) TOCLIENTBUF = 0;
+				if(param->cliinbuf >= CLIROOM) TOCLIENTBUF = 0;
 				needaction = 0;
 				continue;
 			}
@@ -553,7 +563,7 @@ log("done read from client to buf");
 log("read from server to buf");
 #endif
 			sasize = sizeof(param->sinsr);
-			res = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)param->srvbufsize - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
+			res = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)SRVROOM - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
 			if(res <= 0) {
 				FROMSERVER = 0;
 				if(res == 0) {
@@ -591,7 +601,7 @@ log("done read from server to buf");
 					sl1 = (*param->bandlimfunc)(param, res, 0);
 					if(sl1 > sleeptime) sleeptime = sl1;
 		    		}
-				if(param->srvbufsize == param->srvinbuf) TOSERVERBUF = 0;
+				if(param->srvinbuf >= SRVROOM) TOSERVERBUF = 0;
 				needaction = 0;
 				continue;
 			}
