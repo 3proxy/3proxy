@@ -262,7 +262,11 @@ int ssl_pending(SSL_CONN connection)
 {
 	ssl_conn *conn = (ssl_conn *) connection;
 
+#if SSL_READAHEAD
+	return SSL_has_pending(conn->ssl);
+#else
 	return SSL_pending(conn->ssl);
+#endif
 }
 
 void ssl_conn_free(SSL_CONN connection)

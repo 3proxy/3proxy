@@ -409,7 +409,7 @@ SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
  }
 
  SSL_set_mode((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
- SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, 0);
+ SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_READAHEAD);
 
  return ServerConn;
 }
@@ -442,7 +442,7 @@ int domitm(struct clientparam* param){
  }
 
  SSL_set_mode((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
- SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, 0);
+ SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_READAHEAD);
 
  addSSL(param->clisock, ClientConn, param->remsock, ServerConn, param);
 
@@ -774,7 +774,7 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 		return REJECT;
 	    }
 	    SSL_set_mode((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
-	    SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, 0);
+	    SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_READAHEAD);
 	    addSSL(param->clisock, ClientConn, INVALID_SOCKET, NULL, param);
 	}
 	return CONTINUE;

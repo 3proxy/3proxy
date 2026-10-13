@@ -76,6 +76,16 @@ int ssl_read(SSL_CONN connection, void * buf, int bufsize);
 int ssl_write(SSL_CONN connection, void * buf, int bufsize);
 int ssl_pending(SSL_CONN connection);
 
+/* TLS records are read ahead, a buffer at a time rather than two reads for
+   each record, where what is read ahead and not yet decrypted shows as
+   pending (SSL_has_pending(), OpenSSL 1.1.0 and later): poll() would wait
+   on it otherwise. */
+#if !defined(WITH_WOLFSSL) && defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define SSL_READAHEAD 1
+#else
+#define SSL_READAHEAD 0
+#endif
+
 //
 // Release of opaque structures
 //
