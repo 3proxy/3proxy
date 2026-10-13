@@ -458,16 +458,16 @@ int op_admin_counters(struct httpreq *r, const unsigned char *params)
 					"<td>%s</td>",
 				 cp->traflim64 / (1024 * 1024),
 				 rotations[cp->type],
-				 cp->traf64 / (1024 * 1024),
-				 (((cp->traf64/16) *10) / (64*1024))%10,
-				 cp->cleared?ctime(&cp->cleared):"never"
+				 cp->v->traf64 / (1024 * 1024),
+				 (((cp->v->traf64/16) *10) / (64*1024))%10,
+				 cp->v->cleared?ctime(&cp->v->cleared):"never"
 				);
 			 inbuf += sprintf(buf + inbuf,
 					"<td>%s</td>"
 					"<td>%i</td>"
 					"</tr>\r\n",
 
-				 cp->updated?ctime(&cp->updated):"never",
+				 cp->v->updated?ctime(&cp->v->updated):"never",
 				 cp->number
 				);
 			 }

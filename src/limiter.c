@@ -184,8 +184,8 @@ void trafcountfunc(struct clientparam *param){
 				countout = 1;
 				continue;
 			}
-			tc->traf64 += param->statssrv64;
-			tc->updated = curtime;
+			tc->v->traf64 += param->statssrv64;
+			tc->v->updated = curtime;
 		}
 	}
 	if(countout) for(tc = conf.trafcounter; tc; tc = tc->next) {
@@ -194,8 +194,8 @@ void trafcountfunc(struct clientparam *param){
 			if(tc->ace->action != COUNTOUT && tc->ace->action != COUNTALL ) {
 				continue;
 			}
-			tc->traf64 += param->statscli64;
-			tc->updated = curtime;
+			tc->v->traf64 += param->statscli64;
+			tc->v->updated = curtime;
 		}
 	}
 

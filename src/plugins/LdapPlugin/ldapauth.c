@@ -120,8 +120,8 @@ int savecounters(void *v)
       sprintf(tmpbuf,pat_file,ldap_dircount,tcd->ace->users->user);
       f=fopen(tmpbuf,"w+b");
       fseek(f,0,SEEK_SET);
-      fprintf(f,"%"PRIu64" %lu %lu\n",tcd->traf64,
-					(unsigned long)tcd->cleared,(unsigned long)tcd->updated);
+      fprintf(f,"%"PRIu64" %lu %lu\n",tcd->v->traf64,
+					(unsigned long)tcd->v->cleared,(unsigned long)tcd->v->updated);
 
       fclose(f);
       free(tmpbuf);
@@ -433,6 +433,7 @@ int h_trafgroup(int argc, unsigned char ** argv)
              newtrafcount =(*mypluginlink->mallocfunc)(sizeof (struct trafcount));
              memset(newtrafcount, 0, sizeof(struct trafcount));
              newtrafcount->ace = newace;
+             newtrafcount->v = &newtrafcount->own;
              newtrafcount->type=rtype;
              newtrafcount->traflim64  = traflimit;
              newtrafcount->comment=(*mypluginlink->strdupfunc)("ldapcounters");
@@ -450,9 +451,9 @@ int h_trafgroup(int argc, unsigned char ** argv)
 				&rcounter.cleared, &rcounter.updated);
 
 
-               newtrafcount->traf64=rcounter.traf64;
-               newtrafcount->cleared=rcounter.cleared;
-               newtrafcount->updated=rcounter.updated;
+               newtrafcount->own.traf64=rcounter.traf64;
+               newtrafcount->own.cleared=rcounter.cleared;
+               newtrafcount->own.updated=rcounter.updated;
                fclose(f);
               }
              free(tmpbuf);   

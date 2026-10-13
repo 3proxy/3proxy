@@ -214,7 +214,7 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 		if(cfp){
 			for(tl = tlin; cfp && tl; tl = tl->next){
 				if(tl->type >= conf.countertype)
-					fprintf(cfp, "%05d %020"PRIu64"%s%s\n", tl->number, tl->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
+					fprintf(cfp, "%05d %020"PRIu64"%s%s\n", tl->number, tl->v->traf64, tl->comment?" #" : "", tl->comment? tl->comment : "");
 			}
 			fclose(cfp);
 		}
@@ -228,15 +228,15 @@ void dumpcounters(struct trafcount *tlin, int counterd){
 			if(lseek(counterd, 
 				sizeof(struct counter_header) + (tl->number - 1) * sizeof(struct counter_record),
 				SEEK_SET) >= 0){
-			    crecord.traf64 = tl->traf64;
-			    crecord.cleared = tl->cleared;
-			    crecord.updated = tl->updated;
+			    crecord.traf64 = tl->v->traf64;
+			    crecord.cleared = tl->v->cleared;
+			    crecord.updated = tl->v->updated;
 			    if(write(counterd, &crecord, sizeof(struct counter_record))){}
 			}
 		}
-		if(tl->type!=NEVER && timechanged(tl->cleared, curtime, tl->type)){
-			tl->cleared = curtime;
-			tl->traf64 = 0;
+		if(tl->type!=NEVER && timechanged(tl->v->cleared, curtime, tl->type)){
+			tl->v->cleared = curtime;
+			tl->v->traf64 = 0;
 		}
 	}
  }

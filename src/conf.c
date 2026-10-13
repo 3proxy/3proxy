@@ -47,6 +47,42 @@ int linenum = 0;
 struct counter_header cheader = {"3CF", (time_t)0};
 struct counter_record crecord;
 
+/* The values of the numbered counters, process-wide: a counter of a number
+   met for the first time takes its value from the counter file. Only the
+   thread reading the configuration adds to the list. */
+static struct trafcell {
+	struct trafcell *next;
+	unsigned number;
+	struct trafvalue v;
+} *trafcells = NULL;
+
+struct trafvalue * trafvalue(unsigned number){
+	struct trafcell *tc;
+
+	for(tc = trafcells; tc; tc = tc->next) if(tc->number == number) return &tc->v;
+	if(!(tc = malloc(sizeof(*tc)))) return NULL;
+	memset(tc, 0, sizeof(*tc));
+	tc->number = number;
+	if(conf.counterd >= 0) {
+		lseek(conf.counterd,
+			sizeof(struct counter_header) + (number - 1) * sizeof(struct counter_record),
+			SEEK_SET);
+		memset(&crecord, 0, sizeof(struct counter_record));
+		if(read(conf.counterd, &crecord, sizeof(struct counter_record)) == sizeof(struct counter_record)){
+			if(crecord.cleared < 0 || crecord.cleared >= MAX_COUNTER_TIME || crecord.updated < 0 || crecord.updated >= MAX_COUNTER_TIME){
+				free(tc);
+				return NULL;
+			}
+			tc->v.traf64 = crecord.traf64;
+			tc->v.cleared = crecord.cleared;
+			tc->v.updated = crecord.updated;
+		}
+	}
+	tc->next = trafcells;
+	trafcells = tc;
+	return &tc->v;
+}
+
 int mainprepare(int argc, char** argv, void **service);
 int mainrun(void *service);
 void maindrop(void *service);
@@ -1718,22 +1754,16 @@ static int h_ace(int argc, unsigned char **argv){
 				fprintf(stderr, "Wrong traffic limit specified, line %d\n", linenum);
 				return(6);
 			}
-			if(tl->number != 0 && conf.counterd >= 0) {
-				lseek(conf.counterd, 
-					sizeof(struct counter_header) + (tl->number - 1) * sizeof(struct counter_record),
-					SEEK_SET);
-				memset(&crecord, 0, sizeof(struct counter_record));
-				if(read(conf.counterd, &crecord, sizeof(struct counter_record)) == sizeof(struct counter_record)){
-				    tl->traf64 = crecord.traf64;
-				    tl->cleared = crecord.cleared;
-				    tl->updated = crecord.updated;
-				    if(tl->cleared < 0 || tl->cleared >=  MAX_COUNTER_TIME || tl->updated < 0 || tl->updated >=  MAX_COUNTER_TIME){
-					    fprintf(stderr, "Invalid, incompatible or corrupted counter file.\n");
-					    return(6);
-				    }
-				}
+			if(!tl->number) tl->v = &tl->own;
+			else if(!(tl->v = trafvalue(tl->number))){
+				free(tl->comment);
+				free(tl);
+				freeacl(acl);
+				fprintf(stderr, "Invalid, incompatible or corrupted counter file.\n");
+				return(6);
 			}
 		}
+		else tl->v = &tl->own;
 		_3proxy_mutex_lock(&tc_mutex);
 		if(!conf.trafcounter){
 			conf.trafcounter = tl;

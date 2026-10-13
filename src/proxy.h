@@ -291,6 +291,7 @@ int ipauth(struct clientparam * param);
 int doauth(struct clientparam * param);
 int strongauth(struct clientparam * param);
 void trafcountfunc(struct clientparam *param);
+struct trafvalue * trafvalue(unsigned number);
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout);
 int handleredirect(struct clientparam * param, struct ace * acentry);
 

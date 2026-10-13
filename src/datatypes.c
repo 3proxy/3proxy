@@ -471,7 +471,7 @@ static void * ef_trafcounter_type(struct node * node){
 }
 
 static void * ef_trafcounter_traffic64(struct node * node){
-	return &((struct trafcount *)node->value) -> traf64;
+	return &((struct trafcount *)node->value) -> v->traf64;
 }
 static void * ef_trafcounter_limit64(struct node * node){
 	return &((struct trafcount *)node->value) -> traflim64;
@@ -493,11 +493,11 @@ static void * ef_client_bytesout64(struct node * node){
 }
 
 static void * ef_trafcounter_cleared(struct node * node){
-	return &((struct trafcount *)node->value) -> cleared;
+	return &((struct trafcount *)node->value) -> v->cleared;
 }
 
 static void * ef_trafcounter_updated(struct node * node){
-	return &((struct trafcount *)node->value) -> updated;
+	return &((struct trafcount *)node->value) -> v->updated;
 }
 
 static void * ef_trafcounter_comment(struct node * node){

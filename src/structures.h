@@ -471,17 +471,26 @@ struct schedule {
 };
 
 
+/* What a traffic counter has counted. A numbered counter's lives as long as
+   the process, shared by the counters of that number in every configuration
+   loaded, so that a reload neither loses it nor splits it; an unnumbered
+   counter keeps its own. */
+struct trafvalue {
+	uint64_t traf64;
+	time_t cleared;
+	time_t updated;
+};
+
 struct trafcount {
 	struct trafcount *next;
 	struct ace *ace;
 	unsigned number;
 	ROTATION type;
-	uint64_t traf64;
 	uint64_t traflim64;
 	char * comment;
 	int disabled;
-	time_t cleared;
-	time_t updated;
+	struct trafvalue *v;	/* the shared value, or &own */
+	struct trafvalue own;
 };
 
 struct nserver {
