@@ -154,7 +154,7 @@ takes effect, or that services come back.
 
 ### DNS
 
-`fakeresolve` `nscache6` `dialer`.
+`fakeresolve` `nscache6`.
 
 ### Known limitations, deliberately not asserted
 

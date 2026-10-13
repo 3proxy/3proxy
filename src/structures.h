@@ -882,7 +882,6 @@ struct extparam {
 	struct filter * filters;
 	struct auth *authfuncs;
 	FILE *stdlog;
-	char* demanddialprog;
 	unsigned char **stringtable;
 	time_t logtime, time;
 	unsigned logdumpsrv, logdumpcli;

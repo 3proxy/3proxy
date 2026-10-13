@@ -288,7 +288,6 @@ struct extparam conf = {
 	.filters = NULL,
 	.authfuncs = NULL,
 	.stdlog = NULL,
-	.demanddialprog = NULL,
 	.stringtable = NULL,
 	.logtime = (time_t)0,
 	.time = (time_t)0,
@@ -956,8 +955,6 @@ uint32_t getip(unsigned char *name){
 		}
 	}
 	if((tmpresolv=resolvfunc)){
-		if((*tmpresolv)(AF_INET, name, (unsigned char *)&retval)) return retval;
-		if(conf.demanddialprog) system(conf.demanddialprog);
 		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
 	}
 #ifndef NOSTDRESOLVE
@@ -969,10 +966,6 @@ uint32_t getip(unsigned char *name){
 	_3proxy_mutex_lock(&gethostbyname_mutex);
 #endif
 	hp=gethostbyname((char *)name);
-	if (!hp && conf.demanddialprog) {
-		system(conf.demanddialprog);
-		hp=gethostbyname((char *)name);
-	}
 	retval = hp?*(uint32_t *)hp->h_addr:0;
 #if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
 	_3proxy_mutex_unlock(&gethostbyname_mutex);

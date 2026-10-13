@@ -579,9 +579,7 @@ for a record naming an IPv6 address - and
 \fBnserver\fR must be set as well: without it the system resolver is used and
 static records are never consulted. If 0.0.0.0
 is used as a hostaddr host will never resolve, it can be used to
-blacklist something or together with 
-.B dialer
-command to set up UDL for dialing.
+blacklist something.
 
 .br
 .B fakeresolve
@@ -593,10 +591,8 @@ redirected to a parent proxy with \fBhttp\fR, \fBsocks4+\fR, \fBconnect+\fR or \
 .BR dialer
 \fI<progname>\fR
 .br
- Execute progname if external name can\'t be resolved.
-Hint: if you use nscache, dialer may not work, because names will
-be resolved through cache. In this case you can use something like
-http://dial.right.now/ from browser to set up connection.
+ Ignored: dial on demand is no longer supported. The command is accepted so
+that configurations using it still load.
 
 
 .br

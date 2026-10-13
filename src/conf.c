@@ -757,9 +757,9 @@ static int h_nsrecord(int argc, unsigned char **argv){
 	return 0;
 }
 
+/* dialer: running a program when a name does not resolve is gone; the
+   command is still taken, and ignored, so configurations keep loading */
 static int h_dialer(int argc, unsigned char **argv){
-	if(conf.demanddialprog) free(conf.demanddialprog);
-	conf.demanddialprog = strdup((char *)argv[1]);
 	return 0;
 }
 
