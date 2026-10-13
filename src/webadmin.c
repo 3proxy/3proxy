@@ -503,7 +503,6 @@ int op_admin_services(struct httpreq *r, const unsigned char *params)
 {
 	struct clientparam *param = r->param;
 	struct printparam pp;
-	char *buf;
 	const char *sel;
 
 	if(param->srv->s_option) return op_admin(r, params);
@@ -514,7 +513,6 @@ int op_admin_services(struct httpreq *r, const unsigned char *params)
 	   wrapper the other pages share. */
 	pp.inbuf = 0;
 	pp.cp = param;
-	buf = NULL;
 
 	if(sel[0] == 'X') printstr(&pp, style);
 	else {

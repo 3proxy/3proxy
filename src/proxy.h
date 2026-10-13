@@ -275,7 +275,6 @@ int hascap(const unsigned char *line, const char *cap);
 void dolog(struct clientparam * param, const unsigned char *s);
 int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
-extern FILE * stdlog;
 void logstdout(struct clientparam * param, const unsigned char *s);
 void logsyslog(struct clientparam * param, const unsigned char *s);
 void lognone(struct clientparam * param, const unsigned char *s);
@@ -316,7 +315,6 @@ int socks5_udp_build_hdr(unsigned char *buf, PROXYSOCKADDRTYPE *addr);
 extern struct auth authfuncs[];
 
 int reload (void);
-extern int demon;
 
 unsigned char * mycrypt(const unsigned char *key, const unsigned char *salt, unsigned char *buf);
 unsigned char * ntpwdhash (unsigned char *szHash, const unsigned char *szPassword, int tohex);

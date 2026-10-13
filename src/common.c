@@ -247,7 +247,6 @@ struct extparam conf = {
 	.poolmax = -1,
 	.pooltimeout = 60,
 	.counterd = -1,
-	.haveerror = 0,
 	.rotate = 0,
 	.paused = 0,
 	.archiverc = 0,

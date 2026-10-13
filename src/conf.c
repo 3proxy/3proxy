@@ -1337,7 +1337,6 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 			arg = (unsigned char *)strtok((char *)argv[2], ",");
 			if(arg) do {
 			 int arglen;
-			 unsigned char *pattern;
 			 struct iplist tmpip={NULL};
 			 
 			 arglen = (int)strlen((char *)arg);

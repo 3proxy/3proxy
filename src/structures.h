@@ -671,7 +671,6 @@ struct srvparam {
 	int o_nsfd;
 #endif
 	struct auth *authenticate;
-	struct pollfd * srvfds;
 	struct ace *acl;
 #ifdef WITH_HTTPSRV
 	struct httprule *httprules;
@@ -862,7 +861,7 @@ struct extparam {
 	struct trafcount * trafcounter;
 	struct srvparam *services;
 	int stacksize,
-		counterd, haveerror, rotate, paused, archiverc,
+		counterd, rotate, paused, archiverc,
 		demon, maxchild, backlog, version, noforce, bandlimver, parentretries;
 	unsigned authcachetype, authcachetime;
 	int filtermaxsize;
