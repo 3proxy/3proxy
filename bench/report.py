@@ -36,7 +36,8 @@ import csv
 import statistics
 
 STREAM = ("stream1", "stream1-down", "stream16", "connect-stream1-down", "connect-stream16",
-          "socks-stream1-down", "socks-stream16", "relay-stream1-down", "relay-stream16")
+          "socks-stream1-down", "socks-stream16", "relay-stream1-down", "relay-stream16",
+          "tls-term-stream1-down", "tls-term-stream16", "tls-init-stream1-down", "tls-init-stream16")
 # connect-ka-1m etc. are bulk too when present
 
 
@@ -117,7 +118,7 @@ def load(paths):
 
 # In the combined table, the bulk scenarios in Gbit/s, the others in
 # thousands of requests per second.
-BULK = STREAM + ("http-ka-1m",)
+BULK = STREAM + ("http-ka-1m", "tls-term-ka-1m", "tls-init-ka-1m")
 
 
 def combined(machines, labels, splice, prefix=None, split=False, overall_only=False):
@@ -288,7 +289,7 @@ def main():
         sel = by.get((s, p), [])
         if p == "direct":
             return "–"
-        if s in STREAM or s in ("http-ka-1m", "http-ka-50k-2000", "http-ka-2k-50k-2000"):
+        if s in BULK or s in ("http-ka-50k-2000", "http-ka-2k-50k-2000"):
             return fmt(median(sel, "cpu_s_per_gb"), 2) + " s/GB"
         return fmt(median(sel, "cpu_us_per_req"), 0) + " µs/req"
 
