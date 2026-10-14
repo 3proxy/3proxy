@@ -52,6 +52,8 @@ struct ssl_config {
     int client_verify;
     int server_verify;
     int client_mode;
+    int ktls;		/* ssl_ktls: kernel TLS asked for (SSL_OP_ENABLE_KTLS) */
+    int ktls_reported;	/* whether the kernel took it has been logged */
     int timeout;	/* seconds a handshake step may wait: the service's CONNECT_TO */
 };
 

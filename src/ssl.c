@@ -69,6 +69,7 @@ static char * client_cipher_list = NULL;
 static char * server_cipher_list = NULL;
 static char * client_sni = NULL;
 static int client_mode = 0;
+static int ktls = 0;
 
 
 struct SSLsock {
@@ -393,6 +394,32 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 
 #define PCONF (((struct SSLstate *)param->sostate)->config)
 
+/* After a handshake: read ahead, unless the kernel took receiving (kernel TLS
+   reads a record at a time), and say once for the service whether it took
+   either direction, which depends on the library, the kernel and the cipher. */
+static void ssl_after_handshake(struct clientparam* param, SSL_CONN conn){
+ SSL *ssl = ((ssl_conn *)conn)->ssl;
+ int ksend = 0, krecv = 0;
+
+ SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
+#if defined(SSL_OP_ENABLE_KTLS) && defined(BIO_get_ktls_send) && defined(BIO_get_ktls_recv)
+ if(PCONF->ktls){
+	ksend = BIO_get_ktls_send(SSL_get_wbio(ssl));
+	krecv = BIO_get_ktls_recv(SSL_get_rbio(ssl));
+	if(!PCONF->ktls_reported){
+		char buf[96];
+
+		PCONF->ktls_reported = 1;
+		sprintf(buf, "kernel TLS: sending %s, receiving %s",
+			ksend? "in the kernel" : "in 3proxy", krecv? "in the kernel" : "in 3proxy");
+		param->srv->logfunc(param, (unsigned char *)buf);
+	}
+ }
+#endif
+ if(!krecv) SSL_set_read_ahead(ssl, SSL_READAHEAD);
+ (void)ksend;
+}
+
 SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
  SSL_CONN ServerConn;
  char *errSSL=NULL;
@@ -408,8 +435,7 @@ SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
 	return NULL;
  }
 
- SSL_set_mode((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
- SSL_set_read_ahead((SSL *)((ssl_conn *)ServerConn)->ssl, SSL_READAHEAD);
+ ssl_after_handshake(param, ServerConn);
 
  return ServerConn;
 }
@@ -441,8 +467,7 @@ int domitm(struct clientparam* param){
 	return 3;
  }
 
- SSL_set_mode((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
- SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_READAHEAD);
+ ssl_after_handshake(param, ClientConn);
 
  addSSL(param->clisock, ClientConn, param->remsock, ServerConn, param);
 
@@ -549,6 +574,9 @@ SSL_CTX * ssl_cli_ctx(SSL_CONFIG *config, X509 *server_cert, EVP_PKEY *server_ke
 	}
     }
     SSL_CTX_set_session_id_context(ctx, (const unsigned char *)"3proxy", 6);
+#ifdef SSL_OP_ENABLE_KTLS
+    if(config->ktls) SSL_CTX_set_options(ctx, SSL_OP_ENABLE_KTLS);
+#endif
     if(config->server_min_proto_version)SSL_CTX_set_min_proto_version(ctx, config->server_min_proto_version);
     if(config->server_max_proto_version)SSL_CTX_set_max_proto_version(ctx, config->server_max_proto_version);
     if(config->server_cipher_list)SSL_CTX_set_cipher_list(ctx, config->server_cipher_list);
@@ -589,6 +617,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	sc->server_min_proto_version = server_min_proto_version;
 	sc->server_max_proto_version = server_max_proto_version;
 	sc->client_mode = client_mode;
+	sc->ktls = ktls;
 	sc->timeout = srv->timeouts[CONNECT_TO];
 	sc->client_verify = client_verify;
 	sc->server_verify = server_verify;
@@ -707,6 +736,9 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 		fprintf(stderr, "failed to set client context\n");
 		sc->mitm = sc->cli = 0;
 	    }
+#ifdef SSL_OP_ENABLE_KTLS
+	    if(sc->srv_ctx && sc->ktls) SSL_CTX_set_options(sc->srv_ctx, SSL_OP_ENABLE_KTLS);
+#endif
 	    if(sc->client_cert){
 		SSL_CTX_use_certificate(sc->srv_ctx, (X509 *) sc->client_cert);
 		ssl_ctx_use_pkey(sc->srv_ctx, sc->client_key);
@@ -774,8 +806,7 @@ static FILTER_ACTION ssl_filter_client(void *fo, struct clientparam * param, voi
 		if(err)param->srv->logfunc(param, (unsigned char *)err);
 		return REJECT;
 	    }
-	    SSL_set_mode((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE|SSL_MODE_AUTO_RETRY);
-	    SSL_set_read_ahead((SSL *)((ssl_conn *)ClientConn)->ssl, SSL_READAHEAD);
+	    ssl_after_handshake(param, ClientConn);
 	    addSSL(param->clisock, ClientConn, INVALID_SOCKET, NULL, param);
 	}
 	return CONTINUE;
@@ -1184,6 +1215,20 @@ int h_no_server_verify(int argc, unsigned char **argv){
 	return 0;
 }
 
+int h_ktls(int argc, unsigned char **argv){
+#ifdef SSL_OP_ENABLE_KTLS
+	ktls = 1;
+#else
+	fprintf(stderr, "ssl_ktls: kernel TLS is not supported by this TLS library, ignored\n");
+#endif
+	return 0;
+}
+
+int h_noktls(int argc, unsigned char **argv){
+	ktls = 0;
+	return 0;
+}
+
 static struct symbol ssl_symbols[] = {
         {NULL, "ssl_parent", (void *)&ssl_parent},
 };
@@ -1214,6 +1259,7 @@ void ssl_install(void){
 	client_verify = 0;
 	server_verify = 0;
 	client_mode = 0;
+	ktls = 0;
 	free(client_ciphersuites);
 	client_ciphersuites = NULL;
 	free(server_ciphersuites);

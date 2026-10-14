@@ -1380,6 +1380,16 @@ ssl_client_mode</b> <i>mode</i> - when to establish TLS
 connection: 0 - on connect (default), 1 - after
 authentication, 2 - before data, 3 - only for secure parent
 types (ending with &rsquo;s&rsquo;) <b><br>
+ssl_ktls</b> - use kernel TLS (Linux, FreeBSD) for the
+connections of the services which follow, where the TLS
+library, the kernel and the negotiated cipher allow it: the
+kernel then encrypts and decrypts the data; <b>ssl_noktls</b>
+(default) keeps it in 3proxy. Needs OpenSSL 3.0 or later built
+with kernel TLS (enable-ktls) and, on Linux, the tls kernel
+module; receiving with TLS 1.3 needs a later OpenSSL than 3.0.
+Whether the kernel took sending and receiving is logged on the
+first TLS connection of a service. Not supported with wolfSSL.
+<b><br>
 ssl_certcache</b> <i>/path/to/cache/</i> - location for the
 generated MITM certificates cache</p>
 

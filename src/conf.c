@@ -2046,6 +2046,8 @@ int h_no_client_verify(int argc, unsigned char **argv);
 int h_server_verify(int argc, unsigned char **argv);
 int h_no_server_verify(int argc, unsigned char **argv);
 int h_client_mode(int argc, unsigned char **argv);
+int h_ktls(int argc, unsigned char **argv);
+int h_noktls(int argc, unsigned char **argv);
 #endif
 #ifdef WITH_HTTPSRV
 int h_http_content_type(int argc, unsigned char **argv);
@@ -2183,6 +2185,8 @@ struct commands commandhandlers[]={
 	{NULL, "ssl_client_sni", h_client_sni, 1, 2},
 	{NULL, "ssl_client_alpn", h_client_alpn, 1, 0},
 	{NULL, "ssl_client_mode", h_client_mode, 1, 2},
+	{NULL, "ssl_ktls", h_ktls, 1, 1},
+	{NULL, "ssl_noktls", h_noktls, 1, 1},
 	{NULL, "ssl_certcache", h_certcache, 2, 2},
 #endif
 #ifdef WITH_TRANSPARENT
