@@ -1058,6 +1058,62 @@ ms caps a copying connection at 13 Mbit/s, 20 ms at 6.5 ([data/](data/)
   exchanges were lost there (`mix-connect-3k` and `mix-relay-3k`), none on
   Intel.
 
+### The slow link, two CPUs for the proxy
+
+The same, with the client's 4 CPUs kept and a second CPU for the proxy
+(`--cpus cli=0-3,prx=4-5,srv=6-7`), so that the HTTP proxy is not held by
+its CPU ([data/](data/) `*-slow-gp2.csv`). "CPU busy" is of both of the
+proxy's CPUs, 200% for both full.
+
+**Intel (Skylake)**
+
+| | -s0 | -s | -s0 -g8000,2,2 | -s -g8000,2,2 | -s0 -g8000,2,10 | -s -g8000,2,10 | -s0 -g8000,2,20 | -s -g8000,2,20 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| stream16, Mbit/s | 59 | 60 | 57 | 58 | 57 | 55 | 51 | 54 |
+| stream16, process / busy CPU s/GB | 8.3 / 20.8 | 8.1 / 20.2 | 9.9 / 24.2 | 9.1 / 22.7 | 5.5 / 13.9 | 5.9 / 14.6 | 5.2 / 13.4 | 5.4 / 13.6 |
+| mix-relay-3k, k/s | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 |
+| mix-relay-3k, process / busy CPU µs | 103 / 351 | 95 / 342 | 119 / 358 | 105 / 342 | 107 / 346 | 108 / 362 | 104 / 329 | 95 / 337 |
+| mix-relay-3k, CPU busy % | 105 | 102 | 107 | 102 | 103 | 108 | 98 | 100 |
+| mix-relay-3k, p50 / p90 / p99 ms | 98.3 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,114 | 102 / 311 / 1,180 | 102 / 311 / 1,180 |
+| mix-http-3k, k/s | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 |
+| mix-http-3k, process / busy CPU µs | 137 / 367 | 135 / 373 | 160 / 417 | 135 / 394 | 140 / 377 | 144 / 392 | 147 / 379 | 134 / 378 |
+| mix-http-3k, CPU busy % | 109 | 111 | 124 | 117 | 112 | 117 | 113 | 113 |
+| mix-http-3k, p50 / p90 / p99 ms | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,114 | 102 / 311 / 1,180 | 102 / 311 / 1,114 | 102 / 311 / 1,180 | 102 / 311 / 1,180 |
+| mix-connect-3k, k/s | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 |
+| mix-connect-3k, process / busy CPU µs | 97 / 335 | 91 / 330 | 113 / 350 | 98 / 337 | 111 / 354 | 105 / 345 | 99 / 325 | 108 / 352 |
+| mix-connect-3k, CPU busy % | 100 | 98 | 104 | 100 | 106 | 103 | 97 | 105 |
+| mix-connect-3k, p50 / p90 / p99 ms | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 | 102 / 311 / 1,180 |
+
+**ARM (M4)**
+
+| | -s0 | -s | -s0 -g8000,2,2 | -s -g8000,2,2 | -s0 -g8000,2,10 | -s -g8000,2,10 | -s0 -g8000,2,20 | -s -g8000,2,20 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| stream16, Mbit/s | 55 | 57 | 53 | 53 | 54 | 53 | 49 | 46 |
+| stream16, process / busy CPU s/GB | 26.9 / 66.8 | 26.2 / 66.8 | 34.9 / 67.2 | 34.5 / 63.1 | 23.6 / 48.4 | 23.4 / 47.6 | 22.6 / 43.2 | 24.5 / 48.9 |
+| mix-relay-3k, k/s | 1.81 | 1.77 | 1.78 | 1.77 | 1.72 | 1.76 | 1.75 | 1.76 |
+| mix-relay-3k, process / busy CPU µs | 340 / 629 | 369 / 678 | 375 / 669 | 363 / 667 | 438 / 736 | 362 / 670 | 405 / 691 | 378 / 682 |
+| mix-relay-3k, CPU busy % | 114 | 120 | 118 | 118 | 127 | 118 | 121 | 120 |
+| mix-relay-3k, p50 / p90 / p99 ms | 2,359 / 4,194 / 6,554 | 2,490 / 4,194 / 6,816 | 2,359 / 4,194 / 6,816 | 2,490 / 4,194 / 6,816 | 2,621 / 4,456 / 7,078 | 2,490 / 4,194 / 6,816 | 2,490 / 4,194 / 6,816 | 2,359 / 4,194 / 6,816 |
+| mix-http-3k, k/s | 1.70 | 1.74 | 1.74 | 1.74 | 1.74 | 1.67 | 1.66 | 1.73 |
+| mix-http-3k, process / busy CPU µs | 472 / 737 | 395 / 671 | 401 / 685 | 391 / 662 | 397 / 658 | 478 / 757 | 478 / 764 | 383 / 666 |
+| mix-http-3k, CPU busy % | 125 | 117 | 120 | 116 | 115 | 127 | 127 | 114 |
+| mix-http-3k, p50 / p90 / p99 ms | 2,621 / 4,456 / 7,078 | 2,621 / 4,456 / 6,816 | 2,621 / 4,456 / 6,816 | 2,621 / 4,456 / 6,816 | 2,621 / 4,456 / 6,816 | 2,753 / 4,719 / 7,078 | 2,621 / 4,719 / 7,078 | 2,490 / 4,456 / 6,816 |
+| mix-connect-3k, k/s | 1.77 | 1.81 | 1.78 | 1.74 | 1.78 | 1.75 | 1.77 | 1.74 |
+| mix-connect-3k, process / busy CPU µs | 367 / 662 | 329 / 626 | 409 / 694 | 473 / 769 | 388 / 668 | 416 / 722 | 358 / 654 | 412 / 700 |
+| mix-connect-3k, CPU busy % | 117 | 113 | 123 | 134 | 119 | 126 | 116 | 122 |
+| mix-connect-3k, p50 / p90 / p99 ms | 2,359 / 4,194 / 6,816 | 2,228 / 4,063 / 6,816 | 2,359 / 4,194 / 6,816 | 2,490 / 4,194 / 6,816 | 2,359 / 4,194 / 6,816 | 2,228 / 4,194 / 6,816 | 2,359 / 4,194 / 6,816 | 2,490 / 4,194 / 6,816 |
+
+* With two CPUs the HTTP proxy kept the 3000 exchanges a second in every
+  configuration on Intel, at the latency of the relay (p90 311 ms).
+* The settings rank as with one: on streams 10 ms takes 27-34% off the
+  process CPU per gigabyte for 3-8% of the throughput, 20 ms 33-37% for
+  10-14%, 2 ms adds 12-19%. In the mix a 2 ms wait adds up to 17% per
+  exchange; 10 and 20 ms move it by less than the runs do.
+* On two CPUs the proxy spends 7-13% more process CPU per exchange as a
+  relay and through CONNECT than on one, the cost of spreading its threads.
+* ARM's client set the pace of the mix again (1.7-1.8k a second); 1 exchange
+  was lost there, none on Intel.
+
 ## Earlier sessions
 
 The morning session of 13 October ([data/](data/) `*-16k-*.csv`, `*-mix.csv`)
