@@ -875,11 +875,14 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
    reload, a service of the new configuration listening on the same
    address, port, network namespace and device with the same options takes
    it over. The old service stops accepting once its configuration is no
-   longer in force; whoever lets go of the socket last closes it. TCP only:
-   a UDP service's clients read from its socket. */
+   longer in force; whoever lets go of the socket last closes it. A UDP
+   service's socket is the way its sessions answer too: the old sessions go
+   on answering through it, the new service reading what comes, the
+   sessions found by client address whichever service made them. */
 struct listener {
 	struct listener *next;
 	SOCKET sock;
+	int isudp;
 	PROXYSOCKADDRTYPE sa;
 	char *netns, *device;
 	struct sockoptset opts;
@@ -892,7 +895,7 @@ struct listener {
 static struct listener *listeners = NULL;
 _3proxy_mutex_t listener_mutex;
 
-static int listenerkeep(struct srvparam *srv, SOCKET sock);
+static int listenerkeep(struct srvparam *srv, SOCKET sock, int isudp);
 static void listenerstop(struct srvparam *srv);
 static void listenerrelease(struct srvparam *srv);
 #endif
@@ -912,6 +915,10 @@ static int srvlisten(struct srvstart *s){
 	/* taken over from a service of the configuration before: listening
 	   already, only the backlog may be new */
 	sock = srv->srvsock = srv->listener->sock;
+#ifndef NOUDPMAIN
+	if(s->isudp) defparam->clisock = sock;
+	else
+#endif
 	if(srv->so._listen (srv->so.state, sock, srv->backlog?srv->backlog : 1+(srv->maxchild>>3))==-1) {
 		sprintf((char *)buf, "listen(): %s", strerror(errno));
 		if(!srv->silent)dolog(defparam, buf);
@@ -981,13 +988,17 @@ static int srvlisten(struct srvstart *s){
 #ifndef STDMAIN
 	/* kept for a service of a later configuration to take over; without
 	   memory for it the service closes the socket itself */
-	listenerkeep(srv, sock);
+	listenerkeep(srv, sock, 0);
 #endif
  }
 #endif
 #ifndef NOUDPMAIN
- if(s->isudp)
+ if(s->isudp){
 	defparam->clisock = sock;
+#ifndef STDMAIN
+	listenerkeep(srv, sock, 1);
+#endif
+ }
 #endif
  srv->fds.fd = sock;
  srv->fds.events = POLLIN;
@@ -1524,7 +1535,8 @@ static int samestr(const char *a, const char *b){
  return (!a && !b) || (a && b && !strcmp(a, b));
 }
 
-static int samelistener(struct listener *l, struct srvparam *srv){
+static int samelistener(struct listener *l, struct srvparam *srv, int isudp){
+ if(l->isudp != isudp) return 0;
 #ifdef __linux__
  if(!samestr(l->netns, srv->inetns)) return 0;
 #endif
@@ -1544,10 +1556,10 @@ void mainclaim(void *service){
  struct srvparam *srv = &s->srv;
  struct listener *l;
 
- if(s->isudp || s->iscbc) return;
+ if(!s->isudp && s->iscbc) return;	/* connects back: no socket of its own */
  _3proxy_mutex_lock(&listener_mutex);
  for(l = listeners; l; l = l->next){
-	if(l->owner && l->sock != INVALID_SOCKET && l->owner->config != srv->config && samelistener(l, srv)){
+	if(l->owner && l->sock != INVALID_SOCKET && l->owner->config != srv->config && samelistener(l, srv, s->isudp)){
 		l->owner = srv;
 		l->users++;
 		srv->listener = l;
@@ -1559,12 +1571,13 @@ void mainclaim(void *service){
 
 /* A socket a service opened and bound itself, kept for whoever may take it
    over; 0, or 1 for want of memory, when the service closes it itself. */
-static int listenerkeep(struct srvparam *srv, SOCKET sock){
+static int listenerkeep(struct srvparam *srv, SOCKET sock, int isudp){
  struct listener *l;
 
  if(!(l = malloc(sizeof(*l)))) return 1;
  memset(l, 0, sizeof(*l));
  l->sock = sock;
+ l->isudp = isudp;
  l->sa = srv->intsa;
  l->opts = srv->lissockopts;
 #ifdef __linux__
@@ -1650,7 +1663,7 @@ int reattach(struct clientparam *param){
  struct srvparam *cur = PSRV(param), *newest, *orig;
  int version = runconf->version, res;
 
- /* without a listener (UDP, connecting back) nothing replaces it */
+ /* without a listener (connecting back) nothing replaces it */
  if(!cur->listener){
 	param->version = version;
 	return 0;

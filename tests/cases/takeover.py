@@ -67,6 +67,57 @@ def run(t):
     t.eq(0, done["failed"], "no request is refused or reset by a reload "
          f"(first errors: {done['errors']})")
 
+    # --- UDP: the socket is handed over too, and a session of the old
+    # service goes on through it, its datagrams forwarded by the new one ---
+    echo = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    echo.bind(("127.0.0.1", 0))
+    echo_port = echo.getsockname()[1]
+
+    def echo_server():
+        while True:
+            try:
+                data, addr = echo.recvfrom(2048)
+            except OSError:
+                return
+            echo.sendto(data, addr)
+
+    threading.Thread(target=echo_server, daemon=True).start()
+    udp = t.free_port()
+    uconf = conf + f"\n        udppm {udp} 127.0.0.1 {echo_port}\n"
+    t.write_config("takeover", uconf)
+    t.http(f"http://127.0.0.1:{adm}/R")
+    time.sleep(1.5)
+
+    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client.settimeout(1)
+    sent = lost = 0
+    stopudp = time.time() + 5
+    reloads = 0
+    next_reload = time.time() + 0.5
+    while time.time() < stopudp:
+        if reloads < 3 and time.time() >= next_reload:
+            t.write_config("takeover", uconf)
+            t.http(f"http://127.0.0.1:{adm}/R")
+            reloads += 1
+            next_reload = time.time() + 1.2
+        msg = f"n{sent}".encode()
+        client.sendto(msg, ("127.0.0.1", udp))
+        sent += 1
+        try:
+            data, _ = client.recvfrom(2048)
+            if data != msg:
+                lost += 1
+        except OSError:
+            lost += 1
+        time.sleep(0.02)
+    client.close()
+    echo.close()
+    t.ok(f"a UDP session sends through three reloads ({sent} datagrams)") if sent > 100 else \
+        t.fail("a UDP session sends through three reloads", "more than 100", sent)
+    t.eq(0, lost, "and every datagram comes back, the socket handed over")
+    t.contains(server.output(), f"{udp} 0.0.0.0:0 0 0 0 Accepting connections, taken over",
+               "the UDP service takes the socket over")
+
     # a changed port is a new socket: the old one closes, the new one opens
     moved = t.free_port()
     t.write_config("takeover", conf.replace(f"proxy -p{proxy}", f"proxy -p{moved}"))
