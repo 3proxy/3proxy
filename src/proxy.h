@@ -488,7 +488,13 @@ extern struct datatype datatypes[64];
 extern struct commands commandhandlers[];
 
 #ifdef WITHSPLICE
-#define mapsocket(a,b) ((a->srv->usesplice && !a->ndatfilterssrv && !a->ndatfilterscli)?sockmap(a,b,a->srv->usesplice):sockmap(a,b,0))
+/* set by the TLS code where it splices over kernel TLS: 0 for a socket TLS
+   does not handle, SPLICE_TLS for one it does, SPLICE_TLSPENDING for one
+   whose data it has read and not handed out, which splice() would not see */
+#define SPLICE_TLS 1
+#define SPLICE_TLSPENDING 2
+extern int (*splicetls)(struct clientparam *param, SOCKET s);
+#define mapsocket(a,b) ((a->srv->usesplice && !a->nosplice && !a->ndatfilterssrv && !a->ndatfilterscli)?sockmap(a,b,a->srv->usesplice):sockmap(a,b,0))
 #else
 #define mapsocket(a,b) sockmap(a,b, 0)
 #endif

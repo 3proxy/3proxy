@@ -38,6 +38,9 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 
 
 #define MAXSPLICE 65536
+/* splice() refuses a kernel TLS record that is not data: EINVAL, or EIO
+   and EBADMSG on some kernels */
+#define SPLICEREFUSED(e) ((e) == EINVAL || (e) == EIO || (e) == EBADMSG)
 
 /* With SPLICE_AUTO, when a direction allowed to splice actually does
    (without it, an allowed direction always does).
@@ -50,6 +53,9 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 #define SPLICE_MIN 16384
 #define SPLICE_SMALL 4096
 #define SPLICE_STREAK 2
+/* a large read from a TLS socket: TLS hands out a record at a time, at most
+   16K and often less */
+#define SPLICE_TLSMIN SPLICE_SMALL
 
 #endif
 
@@ -96,6 +102,10 @@ static int hupwrite(SOCKET s, short revents, int timeo){
 /* usesplice is a mask of the directions passed with splice() rather than
    through a buffer: SPLICE_DOWNLOAD, server to client, and SPLICE_UPLOAD,
    client to server. */
+#ifdef WITHSPLICE
+int (*splicetls)(struct clientparam *param, SOCKET s) = NULL;
+#endif
+
 int sockmap(struct clientparam * param, int timeo, int usesplice){
  int halfclose = param->srv->halfclose;
  uint64_t fromclient=0x7fffffffffffffff, fromserver =0x7fffffffffffffff;
@@ -135,8 +145,12 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
     towards switching; wantbuf: go back to copying once the pipe is empty */
  int allowcli = 0, allowsrv = 0, splicecli = 0, splicesrv = 0, autosplice;
  int streakcli = 0, streaksrv = 0, wantbufcli = 0, wantbufsrv = 0;
+ /* TLS holds data for the side that a splice() would not see: it is read
+    into the buffer first (drain), once the pipe is empty, so as to keep the
+    order; tail: the last read left some, the next only collects it */
+ int draincli = 0, drainsrv = 0, tailcli = 0, tailsrv = 0;
 
- if((!param->nolongdatfilter && (param->ndatfilterscli > 0 || param->ndatfilterssrv))) usesplice = 0;
+ if((!param->nolongdatfilter && (param->ndatfilterscli > 0 || param->ndatfilterssrv)) || param->nosplice) usesplice = 0;
  allowcli = (usesplice & SPLICE_UPLOAD) != 0;
  allowsrv = (usesplice & SPLICE_DOWNLOAD) != 0;
  autosplice = (usesplice & SPLICE_AUTO) != 0;
@@ -151,6 +165,8 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 #define splicesrv 0
 #define wantbufcli 0
 #define wantbufsrv 0
+#define draincli 0
+#define drainsrv 0
 #endif
 
  inserverbuf = param->srvinbuf - param->srvoffset;
@@ -439,6 +455,16 @@ log("read from client to pipe");
 				if(param->cliinbuf < CLIROOM) TOCLIENTBUF = 1;
 				continue;
 			}
+			/* what TLS has read and not handed out yet is read through it
+			   first, behind what the pipe holds */
+			if(splicetls && splicetls(param, param->clisock) == SPLICE_TLSPENDING){
+				TOCLIENTPIPE = 0;
+				if(!inclientpipe){
+					draincli = 1;
+					if(param->cliinbuf < CLIROOM) TOCLIENTBUF = 1;
+				}
+				continue;
+			}
 			errno = 0;
 			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)MAXSPLICE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
@@ -454,6 +480,14 @@ log(logbuf);
 				FROMCLIENT = TOCLIENTPIPE = 0;
 				if(res == 0 && !errno) {
 					CLIENTTERMREAD = 1;
+					continue;
+				}
+				if(SPLICEREFUSED(errno)) {
+					/* a record kernel TLS does not splice (an alert, a key
+					   update, a ticket): read it through TLS */
+					if(autosplice) wantbufcli = 1;
+					else allowcli = splicecli = FROMCLIENTPIPE = 0;
+					FROMCLIENT = 1;
 					continue;
 				}
 				if(errno && errno != EINTR && errno != EAGAIN) {
@@ -488,6 +522,14 @@ log("read from server to pipe\n");
 				if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
 				continue;
 			}
+			if(splicetls && splicetls(param, param->remsock) == SPLICE_TLSPENDING){
+				TOSERVERPIPE = 0;
+				if(!inserverpipe){
+					drainsrv = 1;
+					if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
+				}
+				continue;
+			}
 			errno = 0;
 			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(MAXSPLICE - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
@@ -503,6 +545,12 @@ log(logbuf);
 				FROMSERVER = TOSERVERPIPE = 0;
 				if(res == 0 && !errno) {
 					SERVERTERMREAD = 1;
+					continue;
+				}
+				if(SPLICEREFUSED(errno)) {
+					if(autosplice) wantbufsrv = 1;
+					else allowsrv = splicesrv = FROMSERVERPIPE = 0;
+					FROMSERVER = 1;
 					continue;
 				}
 				if(errno && errno != EINTR && errno != EAGAIN) {
@@ -538,7 +586,7 @@ log("done read from server to pipe\n");
 	}
 #endif
 	{
-		if(!splicecli && fromclient > inclientbuf && FROMCLIENT && TOCLIENTBUF && !SESSIONEND){
+		if((!splicecli || draincli) && fromclient > inclientbuf && FROMCLIENT && TOCLIENTBUF && !SESSIONEND){
 #ifdef WITHLOG
 log("read from client to buf");
 #endif
@@ -564,14 +612,26 @@ log("done read from client to buf");
 				graceclitraf += res;
 				gracesrvnum = gracesrvtraf = 0;
 #ifdef WITHSPLICE
-				if(autosplice && allowcli && !param->waitclient64){
-					if(res < SPLICE_MIN) streakcli = 0;
-					else if(++streakcli >= SPLICE_STREAK){
-						/* a stream: splice from now on, after what is
-						   buffered has been sent */
-						splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 1;
-						streakcli = 0;
+				if(draincli){
+					/* what TLS held is in the buffer: splice again */
+					draincli = 0;
+					TOCLIENTPIPE = 1;
+				}
+				else if(autosplice && allowcli && !param->waitclient64){
+					int tls = splicetls? splicetls(param, param->clisock) : 0;
+
+					if(res >= (tls? SPLICE_TLSMIN : SPLICE_MIN)){
+						if(++streakcli >= SPLICE_STREAK){
+							/* a stream: splice from now on, after what is
+							   buffered has been sent */
+							splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 1;
+							streakcli = 0;
+						}
 					}
+					/* a short read only collecting what TLS had left from
+					   the last one does not end a run of large ones */
+					else if(!tailcli) streakcli = 0;
+					tailcli = (tls == SPLICE_TLSPENDING);
 				}
 #endif
 				inclientbuf += res;
@@ -582,7 +642,7 @@ log("done read from client to buf");
 			}
 		}
 
-		if(!splicesrv && fromserver > inserverbuf && FROMSERVER && TOSERVERBUF && !SESSIONEND){
+		if((!splicesrv || drainsrv) && fromserver > inserverbuf && FROMSERVER && TOSERVERBUF && !SESSIONEND){
 #ifdef WITHLOG
 log("read from server to buf");
 #endif
@@ -608,12 +668,21 @@ log("done read from server to buf");
 				gracesrvtraf += res;
 				graceclinum = graceclitraf = 0;
 #ifdef WITHSPLICE
-				if(autosplice && allowsrv && !param->waitserver64){
-					if(res < SPLICE_MIN) streaksrv = 0;
-					else if(++streaksrv >= SPLICE_STREAK){
-						splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 1;
-						streaksrv = 0;
+				if(drainsrv){
+					drainsrv = 0;
+					TOSERVERPIPE = 1;
+				}
+				else if(autosplice && allowsrv && !param->waitserver64){
+					int tls = splicetls? splicetls(param, param->remsock) : 0;
+
+					if(res >= (tls? SPLICE_TLSMIN : SPLICE_MIN)){
+						if(++streaksrv >= SPLICE_STREAK){
+							splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 1;
+							streaksrv = 0;
+						}
 					}
+					else if(!tailsrv) streaksrv = 0;
+					tailsrv = (tls == SPLICE_TLSPENDING);
 				}
 #endif
 			    	param->nreads++;

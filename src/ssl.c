@@ -417,8 +417,21 @@ static void ssl_after_handshake(struct clientparam* param, SSL_CONN conn){
  }
 #endif
  if(!krecv) SSL_set_read_ahead(ssl, SSL_READAHEAD);
- (void)ksend;
+ /* splice() passes the data of a TLS socket only where the kernel does TLS
+    for it both ways */
+ if(!ksend || !krecv) param->nosplice = 1;
 }
+
+#ifdef WITHSPLICE
+/* Whether TLS handles the socket, and whether it has read data for it that
+   it has not handed out, which a splice() from the socket would not see. */
+static int ssl_splicetls(struct clientparam *param, SOCKET s){
+ struct SSLsock *sslq = searchSSL(param->sostate, s);
+
+ if(!sslq) return 0;
+ return ssl_pending(sslq->conn)? SPLICE_TLSPENDING : SPLICE_TLS;
+}
+#endif
 
 SSL_CONN dosrvcon(struct clientparam* param, SSL_CERT* cert){
  SSL_CONN ServerConn;
@@ -779,7 +792,13 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 #endif
 	}
 #ifdef WITHSPLICE
-	srv->usesplice = 0;
+	/* the data of a TLS connection passes through 3proxy, unless the kernel
+	   does TLS for it: then each connection which got it both ways may
+	   splice() */
+#ifdef SSL_OP_ENABLE_KTLS
+	if(!sc || !sc->ktls)
+#endif
+	    srv->usesplice = 0;
 #endif
 	return sc;
 }
@@ -1291,6 +1310,9 @@ void ssl_install(void){
 		pl->symbols.next = ssl_symbols;
 	}
 
+#ifdef WITHSPLICE
+	splicetls = ssl_splicetls;
+#endif
 	tcppmfunc = (PROXYFUNC)pl->findbyname("tcppm");
 	if(!tcppmfunc) return;
 	proxyfunc = (PROXYFUNC)pl->findbyname("proxy");

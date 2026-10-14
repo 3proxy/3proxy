@@ -60,11 +60,15 @@ def run(t):
     t.eq(200, r.status, "a request through the TLS chain with ssl_ktls arrives")
     t.contains(r, "path=/echo", "the origin sees it")
 
-    # many records, both ways through both TLS legs
+    # many records, both ways through both TLS legs; where the kernel took
+    # TLS a large body is spliced, so what arrives is compared with the origin
     for size in (100000, 3000000):
-        t.eq(size, t.http(f"http://127.0.0.1:{origin}/data?size={size}",
-                          proxy=through).length,
-             f"a {size} byte body survives the kernel TLS chain")
+        url = f"http://127.0.0.1:{origin}/data?size={size}"
+        got = t.http(url, proxy=through)
+        t.eq(size, got.length, f"a {size} byte body survives the kernel TLS chain")
+        t.ok(f"the {size} byte body arrives unchanged") if got.body == t.http(url).body \
+            else t.fail(f"the {size} byte body arrives unchanged", "the origin's bytes",
+                        "different bytes")
     t.eq(200000, t.http(f"http://127.0.0.1:{origin}/data?size=200000&chunked=1",
                         proxy=through).length,
          "a chunked body survives the kernel TLS chain")

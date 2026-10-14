@@ -740,6 +740,7 @@ struct clientparam {
 		weight,
 		nolog,
 		nolongdatfilter,
+		nosplice,	/* a TLS socket of the connection is not in the kernel */
 		nooverwritefilter,
 		transparent,
 		chunked,
