@@ -653,6 +653,8 @@ struct srvparam {
 	unsigned char fakeip6[16];
 #ifdef WITHSPLICE
 	int usesplice;
+	/* the automatic mode's heuristics, -s[N]:MIN,STREAK,SMALL */
+	int splicemin, splicestreak, splicesmall;
 #endif
 	int halfclose;
 	int udpauth;

@@ -436,6 +436,10 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 	" -s[N] Use splice(): -s1 server to client, -s2 client to server, -s3 both\n"
 	"  directions; -s (-s7, the default) both, -s5 or -s6 one, only where it\n"
 	"  pays (large transfers); -s0 never. Not with data filters\n"
+	"  :MIN,STREAK,SMALL tune where it pays (-s:16384,2,4096): splice after\n"
+	"  STREAK reads in a row of MIN bytes or more (SMALL from a TLS socket),\n"
+	"  copy again after more than STREAK splices of less than SMALL; a body of\n"
+	"  known length is spliced if MIN or more of it is left\n"
 	" -C connection closed by any of the sides terminates the session, by default\n"
 	"    the session is kept until both sides close it (TCP half-close)\n"
 	" -U(0-3) (for socks) what to do when the destination changes within an UDP\n"
@@ -716,10 +720,22 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 				srv->s_option = 1 + atoi(argv[i]+2);
 #ifdef WITHSPLICE
-			else
-				srv->usesplice = (*(argv[i]+2)? atoi(argv[i]+2) :
+			else {
+				/* -s[N][:MIN,STREAK,SMALL] */
+				char *heur = strchr(argv[i]+2, ':');
+
+				srv->usesplice = ((argv[i][2] && argv[i][2] != ':')? atoi(argv[i]+2) :
 					SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO) &
 					(SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO);
+				if(heur){
+					int min = 0, streak = 0, small = 0;
+
+					sscanf(heur+1, "%d,%d,%d", &min, &streak, &small);
+					if(min > 0) srv->splicemin = min;
+					if(streak > 0) srv->splicestreak = streak;
+					if(small > 0) srv->splicesmall = small;
+				}
+			}
 #endif
 			break;
 		 case 'o':
@@ -1498,6 +1514,9 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
 #ifdef WITHSPLICE
  /* where it pays: large transfers, -s0 to never */
  srv->usesplice = SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO;
+ srv->splicemin = SPLICE_MIN;
+ srv->splicestreak = SPLICE_STREAK;
+ srv->splicesmall = SPLICE_SMALL;
 #endif
  srv->halfclose = 1;
  srv->udpauth = 3;

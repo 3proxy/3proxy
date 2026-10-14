@@ -235,6 +235,11 @@ extern struct extparam confboot;
 #define SPLICE_DOWNLOAD 1
 #define SPLICE_UPLOAD 2
 #define SPLICE_AUTO 4
+/* where SPLICE_AUTO splices, by default (-s[N]:MIN,STREAK,SMALL): see
+   sockmap.c */
+#define SPLICE_MIN 16384
+#define SPLICE_STREAK 2
+#define SPLICE_SMALL 4096
 int sockmap(struct clientparam * param, int timeo, int usesplice);
 int udpsockmap(struct clientparam * param, int timeo);
 int udpbind(struct clientparam * param);

@@ -209,11 +209,18 @@ once it carries large reads, back to copying when they turn small. \fB-s1\fR alw
 splices what the server sends to the client (downloads), \fB-s2\fR what the client
 sends (uploads), \fB-s3\fR both; adding 4 (\fB-s5\fR, \fB-s6\fR, \fB-s7\fR, the last the same as
 \fB-s\fR, and the default) splices those directions only where it pays. \fB-s0\fR turns it
-off. splice() suits large transfers: they go faster and use less CPU; small
-requests go slower with it. A spliced direction needs a pipe (two file
-descriptors), made when first needed and kept for the connection, and more
-kernel memory. A service with data filters does not splice, so that the filters
-see all of the data. Available in builds with WITHSPLICE, the default on Linux.
+off. Where it pays can be tuned with \fB:\fIMIN\fB,\fISTREAK\fB,\fISMALL\fR after the
+mode, e.g. \fB-s:16384,2,4096\fR (the default) or \fB-s6:65536,3,8192\fR: a direction is
+spliced after \fISTREAK\fR reads in a row of \fIMIN\fR bytes or more (\fISMALL\fR from a
+TLS socket, which hands out a record at a time) and copied again after more
+than \fISTREAK\fR splices in a row of less than \fISMALL\fR; a body of known length is
+spliced if at least \fIMIN\fR of it is left to read. splice() suits large
+transfers: they go faster and use less CPU. A spliced direction needs a pipe
+(two file descriptors), made when first needed and kept for the connection,
+and more kernel memory. A service with data filters does not splice, so that
+the filters see all of the data, nor does one ending or beginning TLS, unless
+the kernel does TLS for it both ways (\fBssl_ktls\fR). Available in builds with
+WITHSPLICE, the default on Linux.
 .br
 .B -C
  (for TCP services) a connection closed by any of the sides terminates the
