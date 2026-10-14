@@ -1208,6 +1208,29 @@ CPU per exchange, three runs each.
 * Splicing the 8-16K exchanges too is never better and, as an HTTP proxy on
   the slow link, costs 20% more CPU and a longer tail: the default stays.
 
+### The TLS splice() threshold
+
+Intel only, splicing over kernel TLS (`ssl_ktls`): from a TLS socket a read
+of SMALL counts as large, 4K by default (`-s`), against 8K
+(`-s:16384,2,8192`) and 16K (`-s:16384,2,16384`), in the new
+`tls-term-ka-2k-50k-2000` and `tls-init-ka-2k-50k-2000` scenarios (2000
+clients, a 2K POST and a 50K answer each) over 20, 10 and 5 Mbit/s links
+(5 ms 0.5%, 10 ms 0.5%, 25 ms 1% loss), 5 client CPUs ([data/](data/)
+`skylake-tls8-*.csv`). The proxy's CPU was 99-100% busy in every run, so
+the requests a second and the process CPU per request compare.
+
+| link, scenario | 4K (default) | 8K | 16K |
+|---|---|---|---|
+| 20 Mbit/s, term | 5.3-5.6k/s, 107-111 µs | 5.5-5.8k/s, 105-108 µs | 5.4-5.5k/s, 106-108 µs |
+| 20 Mbit/s, init | 4.3-4.4k/s, 122-123 µs | 4.0-4.4k/s, 121-131 µs | 4.2-4.3k/s, 124-129 µs |
+| 10 Mbit/s, term | 4.4-5.0k/s, 111-124 µs | 4.7-4.9k/s, 112-117 µs | 4.8-4.9k/s, 113-116 µs |
+| 10 Mbit/s, init | 4.0-4.2k/s, 128-134 µs | 4.1k/s, 130-131 µs | 4.0-4.1k/s, 129-134 µs |
+| 5 Mbit/s, term | 3.7-3.9k/s, 129-136 µs | 3.6k/s, 139-141 µs | 3.4-3.7k/s, 133-146 µs |
+| 5 Mbit/s, init | 3.0-3.4k/s, 154-171 µs | 2.6-3.3k/s, 158-201 µs | 3.1-3.2k/s, 162-169 µs |
+
+* At 20 and 10 Mbit/s the three cannot be told apart; at 5 Mbit/s 4K is a
+  little ahead (5-7% less CPU per request ending TLS): the default stays.
+
 ## Earlier sessions
 
 The morning session of 13 October ([data/](data/) `*-16k-*.csv`, `*-mix.csv`)

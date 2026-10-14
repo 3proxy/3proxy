@@ -106,6 +106,8 @@ SCENARIOS = {
     # TLS ended or begun by the proxy, relaying to or from the origin: one
     # handshake for each connection, so the close-1k ones measure handshakes
     "tls-term-ka-1k":    ("http", {"file": "1k", "conns": 64, "via": "tls-term"}),
+    "tls-term-ka-2k-50k-2000": ("http", {"file": "50k", "conns": 2000, "body": 2048, "via": "tls-term"}),
+    "tls-init-ka-2k-50k-2000": ("http", {"file": "50k", "conns": 2000, "body": 2048, "via": "tls-init"}),
     "tls-term-ka-1m":    ("http", {"file": "1m", "conns": 16, "via": "tls-term"}),
     "tls-term-close-1k": ("http", {"file": "1k", "conns": 64, "close": True, "via": "tls-term"}),
     "tls-init-ka-1k":    ("http", {"file": "1k", "conns": 64, "via": "tls-init"}),
