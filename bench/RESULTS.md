@@ -1188,6 +1188,26 @@ Intel only: 10 Mbit/s, 10 ms and 0.5% loss each way, two CPUs for the proxy
   the spread of the runs, as on the other links, and no setting moves the
   latency.
 
+### splice() heuristics in the mix
+
+Intel only, `-s` (the default, `-s:16384,2,4096`) against `-s:8192`, which
+splices after two reads of 8K rather than 16K: the mix scenarios, whose
+answers have a median of 12K, unshaped and over the 20 Mbit/s, 5 ms, 0.5%
+loss link with 5 client CPUs ([data/](data/) `skylake-mixsh-*.csv`); process
+CPU per exchange, three runs each.
+
+| scenario | -s | -s:8192 |
+|---|---:|---:|
+| mix-relay, unshaped | 62-65 µs | 61-65 µs |
+| mix-http, unshaped | 96-100 µs | 93-104 µs |
+| mix-connect, unshaped | 61-62 µs | 61-64 µs |
+| mix-connect-3k, unshaped | 76-88 µs | 77-93 µs |
+| mix-http-3k, 20 Mbit/s | 122-143 µs, p99 0.8 s | 152-172 µs, p99 3.1 s |
+| mix-relay-3k, mix-connect-3k, 20 Mbit/s | 80-94 µs | 80-98 µs |
+
+* Splicing the 8-16K exchanges too is never better and, as an HTTP proxy on
+  the slow link, costs 20% more CPU and a longer tail: the default stays.
+
 ## Earlier sessions
 
 The morning session of 13 October ([data/](data/) `*-16k-*.csv`, `*-mix.csv`)
