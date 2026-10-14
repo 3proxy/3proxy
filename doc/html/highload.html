@@ -660,36 +660,127 @@ proxy -osTCP_NODELAY=0 -ocTCP_NODELAY=0
 
 On Linux, splice() passes data between the client and the server connections
 through a kernel pipe, without copying it into the 3proxy process. Linux builds
-include it, but a service uses it only when given the -s option:
+include it, and services use it by default where it pays; -s sets the mode:
 <pre>
-proxy -s
-socks -s
+proxy -s0
 tcppm -s3 8080 192.168.1.1 80
 </pre>
--s alone splices both directions where it pays: an HTTP body of known length if at
+-s alone, the default, splices both directions where it pays: an HTTP body of known length if at
 least 16K of it is left to read, a stream (CONNECT, SOCKS, tcppm) once it carries
 large reads, going back to copying when they turn small. -s1 always splices what the
 server sends to the client (downloads), -s2 what the client sends to the server
 (uploads), -s3 both; -s5, -s6 and -s7 (the same as -s) do it for those directions
-only where it pays. -s0, the default, turns it off. In builds without it (CMake option 3PROXY_USE_SPLICE=OFF,
+only where it pays. -s0 turns it off. In builds without it (CMake option 3PROXY_USE_SPLICE=OFF,
 or -DWITHSPLICE removed from the Makefile) -s is accepted and ignored.
-<p>splice() pays off when most of the traffic is large transfers: in the
-<a href="https://github.com/3proxy/3proxy/blob/devel/bench/RESULTS.md">benchmarks</a> it moved
-1.3 to 2.1 times more data than the read/write path at 40-55% less CPU per gigabyte.
-It does not help small requests and short connections, which go slower with it, and
-every spliced direction needs a pipe (two file descriptors) and more kernel
-buffer memory. Data filters are not applied to spliced data.
+<p>splice() pays off when most of the traffic is large transfers. Measured in
+the <a href="https://github.com/3proxy/3proxy/blob/devel/bench/RESULTS.md">benchmarks</a>
+on an 8 CPU KVM virtual machine (Intel Xeon Skylake, 2.0 GHz, Linux 6.12), with
+3proxy confined to one CPU and the client and the origin on CPUs and in network
+namespaces of their own, linked by veth pairs (MTU 1500), default 16K buffers,
+the automatic mode (-s) against copying (-s0):
+<table border="1" cellpadding="3">
+<tr><th>load</th><th>-s0</th><th>-s</th><th>CPU per gigabyte</th></tr>
+<tr><td>TCP streams through tcppm, CONNECT or SOCKS</td><td>9.4-10.2 Gbit/s</td><td>28-34 Gbit/s</td><td>65-70% less</td></tr>
+<tr><td>HTTP proxy, 1 MB answers on kept-alive connections</td><td>9.4 Gbit/s</td><td>25.3 Gbit/s</td><td>62% less</td></tr>
+<tr><td>2000 clients, 50 KB answers: tcppm</td><td>11.0k req/s</td><td>18.1k req/s</td><td>39% less</td></tr>
+<tr><td>2000 clients, 50 KB answers: CONNECT, SOCKS</td><td>10.4-10.5k req/s</td><td>15.8k req/s</td><td>33-35% less</td></tr>
+<tr><td>2000 clients, 50 KB answers: HTTP proxy</td><td>8.1k req/s</td><td>9.6k req/s</td><td>16% less</td></tr>
+<tr><td>2000 clients, 2 KB POST and 50 KB answer: tcppm</td><td>10.5k req/s</td><td>16.4k req/s</td><td>36% less</td></tr>
+<tr><td>2000 clients, 2 KB POST and 50 KB answer: CONNECT, SOCKS</td><td>9.8-10.1k req/s</td><td>14.6-14.7k req/s</td><td>31-34% less</td></tr>
+<tr><td>2000 clients, 2 KB POST and 50 KB answer: HTTP proxy</td><td>7.5k req/s</td><td>9.4k req/s</td><td>20% less</td></tr>
+<tr><td>1K requests, kept alive or a connection each</td><td colspan="3">within 5% either way: the automatic mode does not splice them</td></tr>
+</table>
+These loads are synthetic: the network between the client, 3proxy and the
+origin has no bandwidth limit and no delay, so every connection goes as fast
+as the CPUs allow, which favours splice() more than real clients would. The
+mix scenarios, many connections with web-like exchanges, over links emulated
+as below, are closer to a proxy giving clients access to the Internet.
+<p>The mix closer to a proxy giving clients access to the Internet: 20000
+connections, 3000 exchanges a second, web-like answers (median 12K, up to
+8M), as a TCP relay, an HTTP proxy and through CONNECT, on the same machine,
+with the clients' links emulated as in the grace delay tests below. 3proxy's
+own CPU time per exchange with -s against -s0 (and the CPU's busy time, the
+kernel's network work included):
+<table border="1" cellpadding="3">
+<tr><th>client link</th><th>tcppm</th><th>HTTP proxy</th><th>CONNECT</th></tr>
+<tr><td>no limit, no delay</td><td>8% less (4%)</td><td>9% less (6%)</td><td>12% less (7%)</td></tr>
+<tr><td>100 Mbit/s, 2 ms, 0.1% loss</td><td>7% less (+1%)</td><td>1% less (+3%)</td><td>6% less (+1%)</td></tr>
+<tr><td>20 Mbit/s, 5 ms, 0.5% loss</td><td>+1% (+3%)</td><td>12% less (5%)</td><td>+7% (+8%)</td></tr>
+<tr><td>5 Mbit/s, 25 ms, 1% loss</td><td>8% less (0%)</td><td>10% less (9%)</td><td>6% less (2%)</td></tr>
+</table>
+<p><b>Conclusion:</b> for web traffic -s, the default, and -s0 show no
+significant difference: most connections are slow and their exchanges
+short, splice() applies to few of them, and the difference stays within
+0-12% of 3proxy's CPU at no cost in latency. -s increases the speed and
+decreases CPU usage for high-speed large uploads and downloads, 3 times the
+speed at 60-70% less CPU per gigabyte here, especially for traffic inside
+high-speed local networks and virtual environments, where nothing but the
+CPU limits a connection.
+<p>Every spliced direction needs a pipe (two file descriptors) and more kernel
+buffer memory. splice() is not used where 3proxy has to see the data: on a connection while
+data filters apply to it (an HTTP body is spliced only once the filters are
+done with it: they saw it whole, or it is larger than filtermaxsize, which
+they skip), and not at all by a service that ends or begins TLS (ssl_serv,
+ssl_cli).
 <p>TCP_NODELAY and splice() do not conflict and can be combined on high-speed connections.
 
 <h4>Add Grace Delay to Reduce System Calls</h4>
 
-<pre>proxy -g8000,3,10</pre>
-The first parameter is the average read size we want to keep, the second parameter is
-the minimal number of packets in the same direction to apply the algorithm,
-and the last value is the delay added after polling and prior to reading data.
-The example above adds a 10-millisecond delay before reading data if the average
-polling size is below 8000 bytes and 3 read operations have been made in the same
-direction. It's especially useful with splice. <pre>logdump 1 1</pre> is useful
-to see how grace delays work; choose a delay value to avoid filling the read
-buffer (typically 64K) but keep the request sizes close to the chosen average
-on large file uploads/downloads.
+<pre>proxy -g8000,2,2</pre>
+-gTRAFF,NUM,DELAY: once NUM reads in a row in one direction, within the same
+second, have averaged TRAFF bytes or less, 3proxy waits DELAY milliseconds
+before it polls and reads again, so that data gathers in the socket and is read
+in fewer, larger pieces. The example waits 2 milliseconds after two reads in a
+row averaging 8000 bytes or less. The counts start again every second and
+whenever the other direction is read, and the wait stops as soon as reads grow
+larger than TRAFF on average.
+<p>Fewer reads mean fewer system calls, wakeups and context switches: it
+decreases CPU usage on connections which carry data in small pieces, such as
+bulk transfers to and from clients on slow links. The cost is the throughput of
+a single connection. While 3proxy waits, it reads at most a buffer's worth
+after each wait: 16K copying (with the default buffer size; less with -b), up
+to 64K (the pipe) with splice(). This caps a connection's direction at one
+buffer per DELAY:
+<table border="1" cellpadding="3">
+<tr><th>DELAY</th><th>copying, 16K per read</th><th>splice(), 64K per read</th></tr>
+<tr><td>1 ms</td><td>131 Mbit/s</td><td>524 Mbit/s</td></tr>
+<tr><td>2 ms</td><td>65 Mbit/s</td><td>262 Mbit/s</td></tr>
+<tr><td>3 ms</td><td>44 Mbit/s</td><td>175 Mbit/s</td></tr>
+<tr><td>5 ms</td><td>26 Mbit/s</td><td>105 Mbit/s</td></tr>
+<tr><td>10 ms</td><td>13 Mbit/s</td><td>52 Mbit/s</td></tr>
+</table>
+These are the limits while the wait applies; the wait stops once reads grow
+larger than TRAFF, so a fast connection escapes it as soon as data arrives
+faster than TRAFF per DELAY.
+<p>Measured on the same Intel machine as splice() above, the clients' links
+emulated for each connection (rate limit, delay and loss each way, with fq and
+netem on the client's side), 16 streams through tcppm and a mix of 20000
+connections at a fixed 3000 exchanges a second (web-like answers, median 12K),
+against 3proxy without grace delay:
+<table border="1" cellpadding="3">
+<tr><th>client link</th><th>setting</th><th>16 streams: throughput</th><th>16 streams: 3proxy CPU per gigabyte</th><th>mix, HTTP proxy: CPU busy</th></tr>
+<tr><td rowspan="3">100 Mbit/s, 2 ms, 0.1% loss</td><td>-g8000,2,2</td><td rowspan="3">the same (100 Mbit/s each)</td><td rowspan="3">the same: reads are large, waits do not apply</td><td rowspan="3">the same (73%)</td></tr>
+<tr><td>-g6000,3,2</td></tr>
+<tr><td>-g8000,2,3</td></tr>
+<tr><td rowspan="3">20 Mbit/s, 5 ms, 0.5% loss</td><td>-g8000,2,2</td><td>3% less</td><td>41% less</td><td>88% instead of 97%</td></tr>
+<tr><td>-g6000,3,2</td><td>3% less</td><td>35% less</td><td>92%</td></tr>
+<tr><td>-g8000,2,3</td><td>7% less</td><td>46% less</td><td>88%</td></tr>
+<tr><td rowspan="3">5 Mbit/s, 25 ms, 1% loss</td><td>-g8000,2,2</td><td>the same (held by the loss)</td><td>21-23% more</td><td rowspan="3">CPU-bound with or without</td></tr>
+<tr><td>-g8000,2,10</td><td>5-8% less</td><td>21-29% less</td></tr>
+<tr><td>-g8000,2,20</td><td>12-17% less</td><td>31-32% less</td></tr>
+</table>
+Grace delay pays where clients receive data steadily at a few tens of Mbit/s,
+in small pieces, with DELAY matched to the speed: about the time TRAFF bytes
+take to arrive. At 20 Mbit/s -g8000,2,2 takes about 40% off the CPU per
+gigabyte for 3% of the throughput; at 5 Mbit/s 2 ms is too short and costs
+CPU, while 10 ms takes a quarter off for 5-8%. On fast links it does nothing.
+In these tests splice() and copying cost about the same once clients' links
+are emulated; with grace delay on such streams splice() saves a little more. Many short exchanges gain
+little either way. Nor does grace delay help once 3proxy's CPU is exhausted:
+the waits then come on top of the queueing, and it degrades slightly, with a
+little more CPU per exchange and longer delays. Choose DELAY so that the cap is above the speed
+of a single client connection you want to serve in full, and TRAFF below the
+read size you expect from a fast one. Grace delay does not help many small
+requests and answers: they are too short to give NUM small reads in a row, and
+the waits rarely apply. <pre>logdump 1 1</pre> is useful to see how grace
+delays work.
