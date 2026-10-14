@@ -203,13 +203,13 @@ SOCKET ftpdata(struct clientparam *param){
 	*SAPORT(&param->sinsl) = 0;
 	i = param->operation;
 	param->operation = FTP_DATA;
-	if((param->res = (*param->srv->authfunc)(param))) {
+	if((param->res = clientauth(param))) {
 		if(param->remsock != INVALID_SOCKET) {
 			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 		}
 		memset(&param->sinsl, 0, sizeof(param->sinsl));
-		if((param->res = (*param->srv->authfunc)(param))) {
+		if((param->res = clientauth(param))) {
 			param->remsock = rem;
 			return INVALID_SOCKET;
 		}

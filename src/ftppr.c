@@ -54,7 +54,7 @@ void * ftpprchild(struct clientparam* param) {
 			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 		}
-		if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
+		if((res = clientauth(param))) {RETURN(res);}
 		param->ctrlsocksrv = param->remsock;
 		if(socksend(param, param->ctrlsock, (unsigned char *)"220 Ready\r\n", 11, param->srv->timeouts[STRING_S])!=11) {RETURN (801);}
 		status = 1;
@@ -62,7 +62,7 @@ void * ftpprchild(struct clientparam* param) {
 	else if (!strncasecmp((char *)buf, "USER ", 5)){
 		if(parseconnusername((char *)buf +5, param, 0, 21)){RETURN(804);}
 		if(!status){
-			if((res = (*param->srv->authfunc)(param))) {RETURN(res);}
+			if((res = clientauth(param))) {RETURN(res);}
 			param->ctrlsocksrv = param->remsock;
 		}
 		if(socksend(param, param->ctrlsock, (unsigned char *)"331 ok\r\n", 8, param->srv->timeouts[STRING_S])!=8) {RETURN (807);}
