@@ -1122,6 +1122,10 @@ void freehttprules(struct httprule *rule)
 		next = rule->next;
 		if(rule->host.name) free(rule->host.name);
 		if(rule->url.name) free(rule->url.name);
+#ifdef WITH_PCRE
+		if(rule->host.re) pcre_pattern_free(rule->host.re);
+		if(rule->url.re) pcre_pattern_free(rule->url.re);
+#endif
 		if(rule->params) free(rule->params);
 		if(rule->ctype) free(rule->ctype);
 		if(rule->hdrs) free(rule->hdrs);

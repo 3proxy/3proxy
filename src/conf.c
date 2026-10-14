@@ -2334,6 +2334,7 @@ int readconfig(FILE * fp){
 
   if( !(buf = malloc(bufsize)) || ! (argv = malloc((NPARAMS + 1) * sizeof(unsigned char *))) ) {
 		fprintf(stderr, "No memory for configuration");
+		if(buf) free(buf);
 		return(10);
   }
   for (linenum = 1; fgets((char *)buf, STRINGBUF, fp); linenum++){
@@ -2343,7 +2344,8 @@ int readconfig(FILE * fp){
 	argc = parsestr (buf, argv, NPARAMS-1, &buf, &inbuf, &bufsize);
 	if(argc < 1) {
 		fprintf(stderr, "Parse error line %d\n", linenum);
-		return(11);
+		res = 11;
+		goto DONE;
 	}
 	argv[argc] = NULL;
 	if(!strcmp((char *)argv[0], "end") && argc == 1) {	
@@ -2355,23 +2357,28 @@ int readconfig(FILE * fp){
 		if(!strcmp((char *)argv[0], (char *)cm->command)){
 		    if(argc < cm->minargs || (cm->maxargs && argc > cm->maxargs)){
 			fprintf(stderr, "Command: '%s' wrong number of arguments , line %d\n", argv[0], linenum);
-			return(linenum);
+			res = linenum;
+			goto DONE;
 		    }
 		    res = (*cm->handler)(argc, argv);
 		    if(res > 0){
 			fprintf(stderr, "Command: '%s' failed with code %d, line %d\n", argv[0], res, linenum);
-			return(linenum);
+			res = linenum;
+			goto DONE;
 		    }
 		    if(!res) break;
 		}
 	}
 	if(res != 1)continue;
 	fprintf(stderr, "Unknown command: '%s' line %d\n", argv[0], linenum);
-	return(linenum);
+	res = linenum;
+	goto DONE;
   }
+  res = 0;
+DONE:
   free(buf);
   free(argv);
-  return 0;
+  return res;
 
 }
 
