@@ -1694,9 +1694,17 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 		
 	for(i=0; i<srv->nfilters; i++){
 		if(!srv->filter[i].filter_client)continue;
+		/* the slots are not cleared when they are allocated */
+		param->filters[param->nfilters].data = NULL;
 		action = (*srv->filter[i].filter_client)(srv->filter[i].data, param, &param->filters[param->nfilters].data);
 		if(action == PASS) continue;
-		if(action > CONTINUE) return action;
+		if(action > CONTINUE) {
+			/* a filter refusing the connection is not kept, but it may
+			   have made a state for it */
+			if(srv->filter[i].filter_clear && param->filters[param->nfilters].data)
+				(*srv->filter[i].filter_clear)(param->filters[param->nfilters].data);
+			return action;
+		}
 		param->filters[param->nfilters].filter = srv->filter + i;
 		if(srv->filter[i].filter_request)param->reqfilters[param->nreqfilters++] = param->filters + param->nfilters;
 		if(srv->filter[i].filter_connect)param->connectfilters[param->nconnectfilters++] = param->filters + param->nfilters;
