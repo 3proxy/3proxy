@@ -870,6 +870,29 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 
 /* The listening socket. A UDP one also receives the datagrams of new
    clients, so it is their client socket too. 0, or the code to exit with. */
+#ifndef STDMAIN
+/* A listening socket: it outlives the service that opened it when, on a
+   reload, a service of the new configuration listening on the same
+   address, port, network namespace and device with the same options takes
+   it over. The old service stops accepting once its configuration is no
+   longer in force; whoever lets go of the socket last closes it. TCP only:
+   a UDP service's clients read from its socket. */
+struct listener {
+	struct listener *next;
+	SOCKET sock;
+	PROXYSOCKADDRTYPE sa;
+	char *netns, *device;
+	struct sockoptset opts;
+	struct srvparam *owner;	/* the service accepting on it */
+	int users;		/* the services holding it */
+};
+static struct listener *listeners = NULL;
+_3proxy_mutex_t listener_mutex;
+
+static int listenerkeep(struct srvparam *srv, SOCKET sock);
+static void listenerrelease(struct srvparam *srv);
+#endif
+
 static int srvlisten(struct srvstart *s){
  struct srvparam *srv = &s->srv;
  struct clientparam *defparam = &s->defparam;
@@ -878,6 +901,26 @@ static int srvlisten(struct srvstart *s){
  unsigned char buf[256];
 #ifdef _WIN32
  unsigned long ul = 1;
+#endif
+
+#ifndef STDMAIN
+ if(srv->listener){
+	/* taken over from a service of the configuration before: listening
+	   already, only the backlog may be new */
+	sock = srv->srvsock = srv->listener->sock;
+	if(srv->so._listen (srv->so.state, sock, srv->backlog?srv->backlog : 1+(srv->maxchild>>3))==-1) {
+		sprintf((char *)buf, "listen(): %s", strerror(errno));
+		if(!srv->silent)dolog(defparam, buf);
+		return -4;
+	}
+	if(!srv->silent){
+		sprintf((char *)buf, "Accepting connections, taken over [%"PRIu64"/%"PRIu64"]", (uint64_t)getpid(), (uint64_t)pthread_self());
+		dolog(defparam, buf);
+	}
+	srv->fds.fd = sock;
+	srv->fds.events = POLLIN;
+	return 0;
+ }
 #endif
 
 #ifndef NOTCPMAIN
@@ -931,6 +974,11 @@ static int srvlisten(struct srvstart *s){
 		if(!srv->silent)dolog(defparam, buf);
 		return -4;
 	}
+#ifndef STDMAIN
+	/* kept for a service of a later configuration to take over; without
+	   memory for it the service closes the socket itself */
+	listenerkeep(srv, sock);
+#endif
  }
 #endif
 #ifndef NOUDPMAIN
@@ -1468,6 +1516,94 @@ int mainrun(void *service){
  return res;
 }
 
+static int samestr(const char *a, const char *b){
+ return (!a && !b) || (a && b && !strcmp(a, b));
+}
+
+static int samelistener(struct listener *l, struct srvparam *srv){
+#ifdef __linux__
+ if(!samestr(l->netns, srv->inetns)) return 0;
+#endif
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+ if(!samestr(l->device, srv->ibindtodevice)) return 0;
+#endif
+ return SASIZE(&l->sa) == SASIZE(&srv->intsa) &&
+	!memcmp(&l->sa, &srv->intsa, SASIZE(&srv->intsa)) &&
+	!memcmp(&l->opts, &srv->lissockopts, sizeof(l->opts));
+}
+
+/* On a reload, before the old services are told to stop: a prepared
+   service takes over the listening socket of an older configuration's
+   service on the same address, if there is one. */
+void mainclaim(void *service){
+ struct srvstart *s = (struct srvstart *)service;
+ struct srvparam *srv = &s->srv;
+ struct listener *l;
+
+ if(s->isudp || s->iscbc) return;
+ _3proxy_mutex_lock(&listener_mutex);
+ for(l = listeners; l; l = l->next){
+	if(l->owner && l->owner->config != srv->config && samelistener(l, srv)){
+		l->owner = srv;
+		l->users++;
+		srv->listener = l;
+		break;
+	}
+ }
+ _3proxy_mutex_unlock(&listener_mutex);
+}
+
+/* A socket a service opened and bound itself, kept for whoever may take it
+   over; 0, or 1 for want of memory, when the service closes it itself. */
+static int listenerkeep(struct srvparam *srv, SOCKET sock){
+ struct listener *l;
+
+ if(!(l = malloc(sizeof(*l)))) return 1;
+ memset(l, 0, sizeof(*l));
+ l->sock = sock;
+ l->sa = srv->intsa;
+ l->opts = srv->lissockopts;
+#ifdef __linux__
+ if(srv->inetns && !(l->netns = strdup(srv->inetns))) { free(l); return 1; }
+#endif
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+ if(srv->ibindtodevice && !(l->device = strdup(srv->ibindtodevice))) { free(l->netns); free(l); return 1; }
+#endif
+ l->owner = srv;
+ l->users = 1;
+ _3proxy_mutex_lock(&listener_mutex);
+ l->next = listeners;
+ listeners = l;
+ _3proxy_mutex_unlock(&listener_mutex);
+ srv->listener = l;
+ return 0;
+}
+
+/* A service lets go of its listening socket: closed if nobody else holds
+   it. */
+static void listenerrelease(struct srvparam *srv){
+ struct listener *l = srv->listener, **lp;
+ int last;
+
+ srv->listener = NULL;
+ _3proxy_mutex_lock(&listener_mutex);
+ if(l->owner == srv) l->owner = NULL;
+ last = !--l->users;
+ if(last) for(lp = &listeners; *lp; lp = &(*lp)->next) if(*lp == l) {
+	*lp = l->next;
+	break;
+ }
+ _3proxy_mutex_unlock(&listener_mutex);
+ if(!last) return;
+ so._closesocket(so.state, l->sock);
+#ifdef WITH_UN
+ if(*SAFAMILY(&l->sa) == AF_UNIX && *SAADDR(&l->sa))unlink((char *)SAADDR(&l->sa));
+#endif
+ if(l->netns) free(l->netns);
+ if(l->device) free(l->device);
+ free(l);
+}
+
 /* A prepared service which could not be started. */
 void maindrop(void *service){
  struct srvstart *s = (struct srvstart *)service;
@@ -1580,6 +1716,14 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 void srvfree(struct srvparam * srv){
  int i;
 
+#ifndef STDMAIN
+ /* a listening socket kept as a listener is closed by its last holder,
+    which may be a service of a later configuration */
+ if(srv->listener){
+	srv->srvsock = INVALID_SOCKET;
+	listenerrelease(srv);
+ }
+#endif
  if(srv->srvsock != INVALID_SOCKET) {
     so._closesocket(srv->so.state, srv->srvsock);
 #ifdef WITH_UN

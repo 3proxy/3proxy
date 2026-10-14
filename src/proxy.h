@@ -226,7 +226,7 @@ extern int timetoexit, needreload;
 extern time_t curtime;		/* the clock, kept by the main thread */
 
 extern struct extparam *conf, *runconf;
-extern _3proxy_mutex_t confref_mutex;
+extern _3proxy_mutex_t confref_mutex, listener_mutex;
 struct extparam * confget(void);
 void confhold(struct extparam *c);
 void confput(struct extparam *c);

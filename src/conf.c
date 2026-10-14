@@ -86,6 +86,7 @@ struct trafvalue * trafvalue(unsigned number){
 int mainprepare(int argc, char** argv, void **service);
 int mainrun(void *service);
 void maindrop(void *service);
+void mainclaim(void *service);
 
 struct proxydef childdef = {NULL, 0, 0, S_NOSERVICE, ""};
 
@@ -2638,7 +2639,9 @@ int reload (void){
 	runconf = new;
 	_3proxy_mutex_unlock(&confref_mutex);
 	resolvfunc = new->resolvfunc;
-	/* the old services stop accepting, the new ones start */
+	/* the new services take over the listening sockets of the old ones on
+	   the same addresses, which then stop accepting, and start */
+	for(d = deferred; d; d = d->next) mainclaim(d->service);
 	old->paused++;
 	while((d = deferred)){
 		deferred = d->next;

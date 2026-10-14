@@ -115,7 +115,16 @@ configuration
 start to accept new connections
 .TP
 .B SIGUSR1
-reload configuration
+reload configuration. The file is read whole before anything changes: if
+it has an error, the configuration in force stays as it is, its services
+running. Otherwise the new services start and the old ones stop accepting
+within a second; connections already open finish under the old
+configuration. A new service listening on the same address and port, in
+the same network namespace and on the same device, with the same -ol
+options, takes over the old service's TCP listening socket, so no
+connection is refused or lost meanwhile; any other listening socket is
+closed by the old service and opened by the new one. Settings left out of
+the new file go back to their defaults.
 .PP
 Under Windows, if
 .BR 3proxy

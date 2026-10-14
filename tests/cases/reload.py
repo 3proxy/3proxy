@@ -81,10 +81,6 @@ def run(t):
 
     t.write_config("reload", config(origin, second, adm, "bob:CL:two"))
     reload_and_wait()
-    # The old services stop accepting within a second; until then both the
-    # old and the new origin listen, and a connection the old one has queued
-    # is reset when it closes (a listener is not handed over yet).
-    time.sleep(1.5)
     t.ok("the new services start") if t.wait_port(second) else \
         t.fail("the new services start", f"port {second} open", "closed")
     moved = f"127.0.0.1:{second}"

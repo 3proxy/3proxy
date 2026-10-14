@@ -240,6 +240,7 @@ struct node;
 struct symbol;
 struct pluginlink;
 struct srvparam;
+struct listener;
 
 typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char *);
 typedef int (*AUTHFUNC)(struct clientparam * param);
@@ -619,6 +620,8 @@ struct srvparam {
 	struct sockfuncs so;
 	struct srvparam *next;
 	struct srvparam *prev;
+	struct listener *listener;	/* its listening socket, which a newer
+					   service may take over on a reload */
 	struct clientparam *child;
 	PROXYSERVICE service;
 	LOGFUNC logfunc;
