@@ -268,10 +268,10 @@ log(logbuf);
 		(param->srv->logdumpcli && (param->statscli64 > param->srv->logdumpcli)))
 			dolog(param, NULL);
 
-	if(param->version < param->srv->config->version){
-		if(!param->srv->noforce && (res = (*param->srv->authfunc)(param)) && res != 2) {RETURN(res);}
-		param->paused = param->srv->config->paused;
-		param->version = param->srv->config->version;
+	/* a reload: the client goes by the newest configuration's rules */
+	if(param->version < runconf->version){
+		if(param->srv->noforce || !reattachfunc) param->version = runconf->version;
+		else if((res = (*reattachfunc)(param)) && res != 2) {RETURN(res);}
 	}
 
 	if((param->maxtrafin64 && param->statssrv64 >= param->maxtrafin64) || (param->maxtrafout64 && param->statscli64 >= param->maxtrafout64)){

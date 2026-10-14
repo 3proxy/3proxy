@@ -15,8 +15,11 @@ int startconnlims (struct clientparam *param){
 	int ret = 0;
 
 	param->connlim = 1;
+	/* released where they were taken, whatever configuration applies by
+	   then: that one stays while the connection does */
+	param->connlimconf = PSRV(param)->config;
 	_3proxy_mutex_lock(&connlim_mutex);
-	for(ce = param->srv->config->connlimiter; ce; ce = ce->next) {
+	for(ce = param->connlimconf->connlimiter; ce; ce = ce->next) {
 		if(ACLmatches(ce->ace, param)){
 			if(ce->ace->action == NOCONNLIM)break;
 			if(!ce->period){
@@ -44,7 +47,7 @@ int startconnlims (struct clientparam *param){
 	}
 	if(ret) {
 		struct connlim * cee;
-		for(cee = param->srv->config->connlimiter; cee != ce; cee = cee->next) {
+		for(cee = param->connlimconf->connlimiter; cee != ce; cee = cee->next) {
 			if(ACLmatches(cee->ace, param) && !cee->period && cee->rating) {
 				cee->rating--;
 			}
@@ -59,7 +62,7 @@ void stopconnlims (struct clientparam *param){
 	struct connlim * ce;
 
 	_3proxy_mutex_lock(&connlim_mutex);
-	for(ce = param->srv->config->connlimiter; ce; ce = ce->next) {
+	for(ce = (param->connlimconf? param->connlimconf : param->srv->config)->connlimiter; ce; ce = ce->next) {
 		if(ACLmatches(ce->ace, param)){
 			if(ce->ace->action == NOCONNLIM)break;
 			if(!ce->period && ce->rating){
@@ -78,28 +81,28 @@ void initbandlims (struct clientparam *param){
 	param->bandlimfunc = NULL;
 	param->bandlims[0] = NULL;
 	param->bandlimsout[0] = NULL;
-	if(!param->srv->config->bandlimfunc || (!param->srv->config->bandlimiter && !param->srv->config->bandlimiterout)) return;
-	for(i=0, be = param->srv->config->bandlimiter; be && i<MAXBANDLIMS; be = be->next) {
+	if(!PSRV(param)->config->bandlimfunc || (!PSRV(param)->config->bandlimiter && !PSRV(param)->config->bandlimiterout)) return;
+	for(i=0, be = PSRV(param)->config->bandlimiter; be && i<MAXBANDLIMS; be = be->next) {
 		if(ACLmatches(be->ace, param)){
 			if(be->ace->action == NOBANDLIM) {
 				break;
 			}
 			param->bandlims[i++] = be;
-			param->bandlimfunc = param->srv->config->bandlimfunc;
+			param->bandlimfunc = PSRV(param)->config->bandlimfunc;
 		}
 	}
 	if(i<MAXBANDLIMS)param->bandlims[i] = NULL;
-	for(i=0, be = param->srv->config->bandlimiterout; be && i<MAXBANDLIMS; be = be->next) {
+	for(i=0, be = PSRV(param)->config->bandlimiterout; be && i<MAXBANDLIMS; be = be->next) {
 		if(ACLmatches(be->ace, param)){
 			if(be->ace->action == NOBANDLIM) {
 				break;
 			}
 			param->bandlimsout[i++] = be;
-			param->bandlimfunc = param->srv->config->bandlimfunc;
+			param->bandlimfunc = PSRV(param)->config->bandlimfunc;
 		}
 	}
 	if(i<MAXBANDLIMS)param->bandlimsout[i] = NULL;
-	param->bandlimver = param->srv->config->bandlimver;
+	param->bandlimver = PSRV(param)->config->bandlimver;
 }
 
 unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nbytesout){
@@ -125,9 +128,9 @@ unsigned bandlimitfunc(struct clientparam *param, unsigned nbytesin, unsigned nb
 
 	if(!nbytesin && !nbytesout) return 0;
 	_3proxy_mutex_lock(&bandlim_mutex);
-	if(param->bandlimver != param->srv->config->bandlimver){
+	if(param->bandlimver != PSRV(param)->config->bandlimver){
 		initbandlims(param);
-		param->bandlimver = param->srv->config->bandlimver;
+		param->bandlimver = PSRV(param)->config->bandlimver;
 	}
 	for(i=0; nbytesin&& i<MAXBANDLIMS && param->bandlims[i]; i++){
 		if( !param->bandlims[i]->basetime ||
@@ -172,7 +175,7 @@ void trafcountfunc(struct clientparam *param){
 	int countout = 0;
 
 	_3proxy_mutex_lock(&tc_mutex);
-	for(tc = param->srv->config->trafcounter; tc; tc = tc->next) {
+	for(tc = PSRV(param)->config->trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
 
 			if(tc->ace->action == NOCOUNTIN) {
@@ -188,7 +191,7 @@ void trafcountfunc(struct clientparam *param){
 			tc->v->updated = curtime;
 		}
 	}
-	if(countout) for(tc = param->srv->config->trafcounter; tc; tc = tc->next) {
+	if(countout) for(tc = PSRV(param)->config->trafcounter; tc; tc = tc->next) {
 		if(ACLmatches(tc->ace, param)){
 			if(tc->ace->action == NOCOUNTOUT || tc->ace->action == NOCOUNTALL) break;
 			if(tc->ace->action != COUNTOUT && tc->ace->action != COUNTALL ) {

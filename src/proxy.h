@@ -226,6 +226,9 @@ extern int timetoexit, needreload;
 extern time_t curtime;		/* the clock, kept by the main thread */
 
 extern struct extparam *conf, *runconf;
+/* the service whose rules apply to a client: its own, or after a reload the
+   newest one on its listener */
+#define PSRV(param) ((param)->newsrv? (param)->newsrv : (param)->srv)
 extern _3proxy_mutex_t confref_mutex, listener_mutex;
 struct extparam * confget(void);
 void confhold(struct extparam *c);
@@ -397,6 +400,9 @@ void freeauth(struct auth *);
 void freefilter(struct filter *filter);
 void freeconf(struct extparam *confp);
 void confbegin(void);
+int reattach(struct clientparam *param);
+/* reattach() where configurations are reloaded, NULL elsewhere */
+extern int (*reattachfunc)(struct clientparam *param);
 struct passwords * copypwl (struct passwords *pwl);
 void freepwl(struct passwords *pw);
 int copyfilter(struct filter *, struct srvparam *srv);

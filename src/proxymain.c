@@ -883,13 +883,17 @@ struct listener {
 	PROXYSOCKADDRTYPE sa;
 	char *netns, *device;
 	struct sockoptset opts;
-	struct srvparam *owner;	/* the service accepting on it */
-	int users;		/* the services holding it */
+	struct srvparam *owner;	/* the service accepting on it, if any */
+	int users;		/* the services holding it: the one accepting,
+				   and those which did until their last client
+				   is gone, whose clients look up the newest
+				   service through it after a reload */
 };
 static struct listener *listeners = NULL;
 _3proxy_mutex_t listener_mutex;
 
 static int listenerkeep(struct srvparam *srv, SOCKET sock);
+static void listenerstop(struct srvparam *srv);
 static void listenerrelease(struct srvparam *srv);
 #endif
 
@@ -1543,7 +1547,7 @@ void mainclaim(void *service){
  if(s->isudp || s->iscbc) return;
  _3proxy_mutex_lock(&listener_mutex);
  for(l = listeners; l; l = l->next){
-	if(l->owner && l->owner->config != srv->config && samelistener(l, srv)){
+	if(l->owner && l->sock != INVALID_SOCKET && l->owner->config != srv->config && samelistener(l, srv)){
 		l->owner = srv;
 		l->users++;
 		srv->listener = l;
@@ -1579,8 +1583,29 @@ static int listenerkeep(struct srvparam *srv, SOCKET sock){
  return 0;
 }
 
-/* A service lets go of its listening socket: closed if nobody else holds
-   it. */
+/* A service stops accepting: if it was the one accepting and no service
+   took the socket over, it is closed now, so that connections do not queue
+   up on it. */
+static void listenerstop(struct srvparam *srv){
+ struct listener *l = srv->listener;
+ SOCKET sock = INVALID_SOCKET;
+
+ _3proxy_mutex_lock(&listener_mutex);
+ if(l->owner == srv){
+	l->owner = NULL;
+	sock = l->sock;
+	l->sock = INVALID_SOCKET;
+ }
+ _3proxy_mutex_unlock(&listener_mutex);
+ if(sock == INVALID_SOCKET) return;
+ so._closesocket(so.state, sock);
+#ifdef WITH_UN
+ if(*SAFAMILY(&l->sa) == AF_UNIX && *SAADDR(&l->sa))unlink((char *)SAADDR(&l->sa));
+#endif
+}
+
+/* A service lets go of its listener once its last client is gone; the last
+   to let go frees it. */
 static void listenerrelease(struct srvparam *srv){
  struct listener *l = srv->listener, **lp;
  int last;
@@ -1595,13 +1620,69 @@ static void listenerrelease(struct srvparam *srv){
  }
  _3proxy_mutex_unlock(&listener_mutex);
  if(!last) return;
- so._closesocket(so.state, l->sock);
+ if(l->sock != INVALID_SOCKET){
+	so._closesocket(so.state, l->sock);
 #ifdef WITH_UN
- if(*SAFAMILY(&l->sa) == AF_UNIX && *SAADDR(&l->sa))unlink((char *)SAADDR(&l->sa));
+	if(*SAFAMILY(&l->sa) == AF_UNIX && *SAADDR(&l->sa))unlink((char *)SAADDR(&l->sa));
 #endif
+ }
  if(l->netns) free(l->netns);
  if(l->device) free(l->device);
  free(l);
+}
+
+/* Gives back a client's slot in a service it was not a child of. */
+static void slotrelease(struct srvparam *srv){
+ _3proxy_mutex_lock(&srv->counter_mutex);
+ _3proxy_sem_unlock(srv->childslots);
+ _3proxy_mutex_unlock(&srv->counter_mutex);
+}
+
+/* After a reload, unless noforce: a client goes by the rules of the newest
+   service on its listener, the one now accepting there, re-authenticated
+   as it. It takes one of that service's maxconn slots, which counts it
+   there and keeps the service, and its configuration, until the client is
+   done; a slot it held in a service before is given back. 0 to go on, or
+   the code to end the connection with: 26 if its service was removed, or
+   is another one now, 27 if the newest has no slot free, or what the
+   authentication says. */
+int reattach(struct clientparam *param){
+ struct srvparam *cur = PSRV(param), *newest, *orig;
+ int version = runconf->version, res;
+
+ /* without a listener (UDP, connecting back) nothing replaces it */
+ if(!cur->listener){
+	param->version = version;
+	return 0;
+ }
+ _3proxy_mutex_lock(&listener_mutex);
+ newest = cur->listener->owner;
+ if(newest == cur){
+	/* the old service has not let go of the socket yet */
+	_3proxy_mutex_unlock(&listener_mutex);
+	return 0;
+ }
+ /* param->service: the old service is a zombie by now */
+ if(!newest || newest->service != param->service){
+	_3proxy_mutex_unlock(&listener_mutex);
+	return 26;
+ }
+ /* while it accepts the newest is not freed, nor after it has a slot */
+ if(_3proxy_sem_timedlock(newest->childslots, 0)){
+	_3proxy_mutex_unlock(&listener_mutex);
+	return 27;
+ }
+ _3proxy_mutex_unlock(&listener_mutex);
+ if(param->newsrv) slotrelease(param->newsrv);
+ param->newsrv = newest;
+ param->version = version;
+ /* authenticated as the newest service's client: its access lists, users,
+    limits and counters */
+ orig = param->srv;
+ param->srv = newest;
+ res = (*newest->authfunc)(param);
+ param->srv = orig;
+ return res;
 }
 
 /* A prepared service which could not be started. */
@@ -1623,7 +1704,7 @@ _3proxy_sem_t udpinit;
 void srvinit(struct srvparam * srv, struct clientparam *param){
 
  memset(srv, 0, sizeof(struct srvparam));
- srv->version = conf->version + 1;
+ srv->version = conf->version;
  srv->paused = conf->paused;
  srv->logfunc = conf->havelog?conf->logfunc:lognone;
  srv->noforce = conf->noforce;
@@ -1717,11 +1798,11 @@ void srvfree(struct srvparam * srv){
  int i;
 
 #ifndef STDMAIN
- /* a listening socket kept as a listener is closed by its last holder,
-    which may be a service of a later configuration */
+ /* a listening socket kept as a listener goes on if a service of a later
+    configuration took it over */
  if(srv->listener){
 	srv->srvsock = INVALID_SOCKET;
-	listenerrelease(srv);
+	listenerstop(srv);
  }
 #endif
  if(srv->srvsock != INVALID_SOCKET) {
@@ -1781,6 +1862,7 @@ void srvfree(struct srvparam * srv){
 #endif
  /* the last service of a configuration no longer in force releases it */
 #ifndef STDMAIN
+ if(srv->listener) listenerrelease(srv);
  if(srv->config){
 	struct extparam *c = srv->config;
 
@@ -1856,6 +1938,11 @@ void releaseparam(struct clientparam * param) {
 			(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
 	}
 	if(param->connlim) stopconnlims(param);
+	/* a slot held in the newest service on the listener after a reload */
+	if(param->newsrv){
+		slotrelease(param->newsrv);
+		param->newsrv = NULL;
+	}
 #endif
 	/* the sockets were closed and the filters cleared with it */
 	param->sostate = NULL;

@@ -708,6 +708,12 @@ struct clientparam {
 				*prev;
 	void * sostate;
 	struct srvparam *srv;
+	/* After a reload: the newest service on the same listener, one of whose
+	   maxconn slots the client holds; its configuration's rules apply
+	   (PSRV()). */
+	struct srvparam *newsrv;
+	/* the configuration whose connection limits the client counts in */
+	struct extparam *connlimconf;
 	REDIRECTFUNC redirectfunc;
 	BANDLIMFUNC bandlimfunc;
 	TRAFCOUNTFUNC trafcountfunc;

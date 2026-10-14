@@ -233,6 +233,7 @@ struct extparam confboot = {
    whatever runs meanwhile without a service of its own. */
 struct extparam *conf = &confboot;
 struct extparam *runconf = &confboot;
+int (*reattachfunc)(struct clientparam *param) = NULL;
 _3proxy_mutex_t confref_mutex;
 
 

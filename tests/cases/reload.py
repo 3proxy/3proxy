@@ -66,34 +66,47 @@ def run(t):
     t.eq(200, as_user("alice", "one"), "after a failed reload alice still gets in")
     t.ne(200, as_user("bob", "two"), "and bob, from the refused file, does not")
 
-    # --- a good file: the new configuration takes over -------------------
-    slow = {}
-
-    def download():
+    # --- a good file: the new configuration takes over, and the connections
+    # of the old services go by its rules from then on ---------------------
+    def download(result):
         # about two seconds: 2 MB in 64 KB blocks, 60 ms apart
         r = t.http(f"http://127.0.0.1:{origin}/data?size=2000000&block=65536&delay=60",
                    proxy=proxy, proxy_auth=("alice", "one"))
-        slow["status"], slow["length"] = r.status, r.length
+        result["status"], result["length"] = r.status, r.length
 
-    th = threading.Thread(target=download)
-    th.start()
-    time.sleep(0.3)
+    def during_reload(users, port):
+        result = {}
+        th = threading.Thread(target=download, args=(result,))
+        th.start()
+        time.sleep(0.3)
+        t.write_config("reload", config(origin, port, adm, users))
+        reload_and_wait()
+        return th, result
 
+    # alice stays: her download goes on under the new service
+    th, kept = during_reload("alice:CL:one bob:CL:two", first)
+    t.eq(200, as_user("bob", "two"), "the new configuration lets bob in")
+    th.join(20)
+    t.eq(2000000, kept.get("length"),
+         "a download of a user the new configuration keeps finishes whole")
+
+    # alice is removed: her download is cut, being re-authenticated
+    th, cut = during_reload("bob:CL:two", first)
+    th.join(20)
+    t.ok("a download of a user the new configuration removes is cut") \
+        if cut.get("length", 0) < 2000000 else \
+        t.fail("a download of a user the new configuration removes is cut",
+               "less than 2000000 bytes", cut.get("length"))
+    t.ne(200, as_user("alice", "one"), "and alice cannot come back")
+
+    # the service moves to another port: the old one closes
     t.write_config("reload", config(origin, second, adm, "bob:CL:two"))
     reload_and_wait()
-    t.ok("the new services start") if t.wait_port(second) else \
-        t.fail("the new services start", f"port {second} open", "closed")
-    moved = f"127.0.0.1:{second}"
-    t.eq(200, as_user("bob", "two", moved), "the new configuration lets bob in")
-    t.ne(200, as_user("alice", "one", moved), "and not alice, who is gone from it")
-
-    # the old service stops accepting, its port closes
+    t.ok("the moved service listens on its new port") if t.wait_port(second) else \
+        t.fail("the moved service listens on its new port", f"port {second} open", "closed")
+    t.eq(200, as_user("bob", "two", f"127.0.0.1:{second}"), "bob gets in there")
     deadline = time.time() + 5
     while time.time() < deadline and t.wait_port(first, timeout=0.2):
         time.sleep(0.2)
-    t.ok("the old service stops listening") if not t.wait_port(first, timeout=0.2) else \
-        t.fail("the old service stops listening", f"port {first} closed", "open")
-
-    th.join(20)
-    t.eq(200, slow.get("status"), "a download through the old service finishes")
-    t.eq(2000000, slow.get("length"), "with the whole answer")
+    t.ok("the old port is closed") if not t.wait_port(first, timeout=0.2) else \
+        t.fail("the old port is closed", f"port {first} closed", "open")

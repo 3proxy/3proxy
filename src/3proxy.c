@@ -558,6 +558,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   _3proxy_mutex_init(&config_mutex);
   _3proxy_mutex_init(&confref_mutex);
   _3proxy_mutex_init(&listener_mutex);
+  reattachfunc = reattach;
   _3proxy_mutex_init(&runningservices_mutex);
   _3proxy_mutex_init(&bandlim_mutex);
   _3proxy_mutex_init(&connlim_mutex);
@@ -587,8 +588,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
   confbegin();
   initcommands();
-  res = readconfig(fp);
+  /* numbered before it is read, as a reload numbers the new one */
   conf->version++;
+  res = readconfig(fp);
   resolvfunc = conf->resolvfunc;
 
   /* readconfig() names the failing line, which an exit status would cut
