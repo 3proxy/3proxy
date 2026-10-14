@@ -1745,6 +1745,21 @@ struct ace * copyacl (struct ace *ac){
 			if(hst->name) {
 				hst->name = (unsigned char*)strdup((char *)hst->name);
 				if(!hst->name) {
+					hst->re = NULL;
+					hst->next = NULL;
+					goto ERRORDSTNAMES;
+				}
+			}
+			/* each copy compiles its own pattern, freed with it */
+			if(hst->re){
+#ifdef WITH_PCRE
+				char err[256];
+
+				hst->re = pcre_pattern_compile(hst->name, err, sizeof(err));
+#else
+				hst->re = NULL;
+#endif
+				if(!hst->re) {
 					hst->next = NULL;
 					goto ERRORDSTNAMES;
 				}
@@ -1868,9 +1883,17 @@ FILTER_ACTION makefilters (struct srvparam *srv, struct clientparam *param){
 		
 	for(i=0; i<srv->nfilters; i++){
 		if(!srv->filter[i].filter_client)continue;
+		/* the slot may hold what the connection before left in it */
+		param->filters[param->nfilters].data = NULL;
 		action = (*srv->filter[i].filter_client)(srv->filter[i].data, param, &param->filters[param->nfilters].data);
 		if(action == PASS) continue;
-		if(action > CONTINUE) return action;
+		if(action > CONTINUE) {
+			/* a filter refusing the connection is not kept, but it may
+			   have made a state for it */
+			if(srv->filter[i].filter_clear && param->filters[param->nfilters].data)
+				(*srv->filter[i].filter_clear)(param->filters[param->nfilters].data);
+			return action;
+		}
 		param->filters[param->nfilters].filter = srv->filter + i;
 		if(srv->filter[i].filter_request)param->reqfilters[param->nreqfilters++] = param->filters + param->nfilters;
 		if(srv->filter[i].filter_connect)param->connectfilters[param->nconnectfilters++] = param->filters + param->nfilters;
@@ -1911,6 +1934,9 @@ void freeacl(struct ace *ac){
 		}
 		for(hst = ac->dstnames; hst; hst = (struct hostname *)itfree(hst, hst->next)){
 			if(hst->name)free(hst->name);
+#ifdef WITH_PCRE
+			if(hst->re)pcre_pattern_free(hst->re);
+#endif
 		}
 		for(ch = ac->chains; ch; ch = (struct chain *) itfree(ch, ch->next)){
 			if(ch->extuser) free(ch->extuser);

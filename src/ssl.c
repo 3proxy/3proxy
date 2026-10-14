@@ -867,6 +867,9 @@ static void ssl_filter_close(void *fo){
     free(CONFIG->client_ca_file);
     free(CONFIG->client_ca_dir);
     free(CONFIG->client_ca_store);
+    free(CONFIG->server_ca_file);
+    free(CONFIG->server_ca_dir);
+    free(CONFIG->server_ca_store);
     free(CONFIG->client_sni);
     if(CONFIG->client_alpn_protos.protos_len){
 	free(CONFIG->client_alpn_protos.protos);
