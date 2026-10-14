@@ -225,7 +225,11 @@ extern time_t basetime;
 extern int timetoexit, needreload;
 extern time_t curtime;		/* the clock, kept by the main thread */
 
-extern struct extparam *conf;
+extern struct extparam *conf, *runconf;
+extern _3proxy_mutex_t confref_mutex;
+struct extparam * confget(void);
+void confhold(struct extparam *c);
+void confput(struct extparam *c);
 extern const struct extparam confdefaults;
 extern struct extparam confboot;
 
@@ -383,7 +387,6 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 int ACLmatches(struct ace* acentry, struct clientparam * param);
 int checkACL(struct clientparam * param);
 char * aceaction (int action);
-extern int havelog;
 uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth);
 
 struct ace * copyacl (struct ace *ac);
@@ -393,6 +396,7 @@ void freeacl(struct ace *ac);
 void freeauth(struct auth *);
 void freefilter(struct filter *filter);
 void freeconf(struct extparam *confp);
+void confbegin(void);
 struct passwords * copypwl (struct passwords *pwl);
 void freepwl(struct passwords *pw);
 int copyfilter(struct filter *, struct srvparam *srv);

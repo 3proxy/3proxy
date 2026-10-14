@@ -228,7 +228,12 @@ const struct extparam confdefaults = {
 struct extparam confboot = {
 #include "confinit.h"
 };
+/* conf is the configuration commands act on: the one being read during a
+   reload, the one in force otherwise. runconf is the one in force, for
+   whatever runs meanwhile without a service of its own. */
 struct extparam *conf = &confboot;
+struct extparam *runconf = &confboot;
+_3proxy_mutex_t confref_mutex;
 
 
 char* NULLADDR="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";

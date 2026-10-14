@@ -73,13 +73,13 @@ void __stdcall CommandHandler( DWORD dwCommand )
     case SERVICE_CONTROL_SHUTDOWN:
         SetStatus( SERVICE_STOP_PENDING, 0, 1 );
 	timetoexit = 1;
-	conf->paused++;
+	runconf->paused++;
 	/* ServiceMain() reports the service stopped once cyclestep() has
 	   seen this and the services are done */
         break;
     case SERVICE_CONTROL_PAUSE:
         SetStatus( SERVICE_PAUSE_PENDING, 0, 1 );
-	conf->paused++;
+	runconf->paused++;
         SetStatus( SERVICE_PAUSED, 0, 0 );
         break;
     case SERVICE_CONTROL_CONTINUE:
@@ -120,9 +120,11 @@ void mysigusr1 (int sig){
 
 int even = 0;
 
+/* Signals may come while a reload reads the file: they act on the
+   configuration in force. */
 void mysigpause (int sig){
 
-	conf->paused++;
+	runconf->paused++;
 	even = !even;
 	if(!even){
 		needreload = 1;
@@ -130,7 +132,7 @@ void mysigpause (int sig){
 }
 
 void mysigterm (int sig){
-	conf->paused++;
+	runconf->paused++;
 	timetoexit = 1;
 }
 
@@ -554,6 +556,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   nsopen();	/* before a chroot in the configuration takes /proc away */
 #endif
   _3proxy_mutex_init(&config_mutex);
+  _3proxy_mutex_init(&confref_mutex);
   _3proxy_mutex_init(&runningservices_mutex);
   _3proxy_mutex_init(&bandlim_mutex);
   _3proxy_mutex_init(&connlim_mutex);
@@ -581,10 +584,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   httpsrv_init();
 #endif
 
-  freeconf(conf);
+  confbegin();
   initcommands();
   res = readconfig(fp);
   conf->version++;
+  resolvfunc = conf->resolvfunc;
 
   /* readconfig() names the failing line, which an exit status would cut
      to 8 bits: a failed configuration exits with 1 */

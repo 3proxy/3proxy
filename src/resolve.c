@@ -15,7 +15,7 @@ static int dnsqmatch(const unsigned char *a, const unsigned char *b, int len){
 }
 
 
-uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth){
+static uint32_t udpresolvec(struct extparam *c, int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth){
 
     int i,n;
     uint32_t retval;
@@ -26,7 +26,7 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
     if((af == AF_INET6) && (retval = hashresolv(&dns6_table, name, value, retttl))) {
 	return retval;
     }
-    n = (makeauth && !SAISNULL(&conf->authnserver.addr))? 1 : conf->numservers;
+    n = (makeauth && !SAISNULL(&c->authnserver.addr))? 1 : c->numservers;
     for(i=0; i<n; i++){
 	unsigned short nq, na;
 	unsigned char b[4098], *buf, *s1, *s2;
@@ -49,13 +49,13 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	memset(sinsr, 0, sizeof(addr));
 	
 
-	if(makeauth && !SAISNULL(&conf->authnserver.addr)){
-	    usetcp = conf->authnserver.usetcp;
-	    *SAFAMILY(sinsl) = *SAFAMILY(&conf->authnserver.addr);
+	if(makeauth && !SAISNULL(&c->authnserver.addr)){
+	    usetcp = c->authnserver.usetcp;
+	    *SAFAMILY(sinsl) = *SAFAMILY(&c->authnserver.addr);
 	}
 	else {
-	    usetcp = conf->nservers[i].usetcp;
-	    *SAFAMILY(sinsl) = *SAFAMILY(&conf->nservers[i].addr);
+	    usetcp = c->nservers[i].usetcp;
+	    *SAFAMILY(sinsl) = *SAFAMILY(&c->nservers[i].addr);
 	}
 	if((sock=so._socket(so.state, SASOCK(sinsl), usetcp?SOCK_STREAM:SOCK_DGRAM, usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) break;
 	if(so._bind(so.state, sock,(struct sockaddr *)sinsl,SASIZE(sinsl))){
@@ -63,14 +63,14 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	    so._closesocket(so.state, sock);
 	    break;
 	}
-	if(makeauth && !SAISNULL(&conf->authnserver.addr)){
-	    *sinsr = conf->authnserver.addr;
+	if(makeauth && !SAISNULL(&c->authnserver.addr)){
+	    *sinsr = c->authnserver.addr;
 	}
 	else {
-	    *sinsr = conf->nservers[i].addr;
+	    *sinsr = c->nservers[i].addr;
 	}
 	if(usetcp){
-	    if(connectwithpoll(NULL, sock,(struct sockaddr *)sinsr,SASIZE(sinsr),conf->timeouts[CONNECT_TO])) {
+	    if(connectwithpoll(NULL, sock,(struct sockaddr *)sinsr,SASIZE(sinsr),c->timeouts[CONNECT_TO])) {
 		so._shutdown(so.state, sock, SHUT_RDWR);
 		so._closesocket(so.state, sock);
 		break;
@@ -115,13 +115,13 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	    len+=2;
 	}
 
-	if(socksendto(NULL, sock, (struct sockaddr *)sinsr, buf, len, conf->timeouts[SINGLEBYTE_L]*1000) != len){
+	if(socksendto(NULL, sock, (struct sockaddr *)sinsr, buf, len, c->timeouts[SINGLEBYTE_L]*1000) != len){
 	    so._shutdown(so.state, sock, SHUT_RDWR);
 	    so._closesocket(so.state, sock);
 	    continue;
 	}
 	if(param) param->statscli64 += len;
-	len = sockrecvfrom(NULL, sock, (struct sockaddr *)&from, buf, 4096, conf->timeouts[DNS_TO]*1000);
+	len = sockrecvfrom(NULL, sock, (struct sockaddr *)&from, buf, 4096, c->timeouts[DNS_TO]*1000);
 	if(len > 13 && usetcp){
 	    unsigned short us;
 	    us = ntohs(*(unsigned short*)buf);
@@ -129,7 +129,7 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	    buf+=2;
 	    if(us > 4096 || us < len) len = 0;
 	    else if(us > len){
-		if(sockrecvfrom(NULL, sock, (struct sockaddr *)&from, buf+len, us-len, conf->timeouts[DNS_TO]*1000) != us-len) len = 0;
+		if(sockrecvfrom(NULL, sock, (struct sockaddr *)&from, buf+len, us-len, c->timeouts[DNS_TO]*1000) != us-len) len = 0;
 		else len = us;
 	    }
 	}
@@ -202,11 +202,30 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 		/* a name longer than the field is no name to authenticate */
 		if(PARAMSTR(param, username, buf + k + 13)) return 0;
 
-		return udpresolve(af,param->username, value, NULL, NULL, 2);
+		return udpresolvec(c, af,param->username, value, NULL, NULL, 2);
 	    }
 	}
     }
     return 0;
+}
+
+/* A client resolves with its service's name servers, which its service
+   holds; anything else with those in force, held while it waits. */
+uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth){
+    struct extparam *c;
+    uint32_t res;
+
+    if(param && param->srv && param->srv->config)
+	return udpresolvec(param->srv->config, af, name, value, retttl, param, makeauth);
+#ifdef STDMAIN
+    c = conf;
+    return udpresolvec(c, af, name, value, retttl, param, makeauth);
+#else
+    c = confget();
+    res = udpresolvec(c, af, name, value, retttl, param, makeauth);
+    confput(c);
+    return res;
+#endif
 }
 
 uint32_t myresolver(int af, unsigned char * name, unsigned char * value){

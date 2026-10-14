@@ -79,4 +79,5 @@ void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
 struct hashtable dns_table = {char_index2hash, char_index2hash, 4, 32};
 struct hashtable dns6_table = {char_index2hash, char_index2hash, 16, 32};
 struct hashtable auth_table = {param2hash_add, param2hash_search, sizeof(struct authcache), 64};
-struct hashtable pwl_table = {char_index2hash, char_index2hash, 64, 64};
+/* users: each configuration has a table of its own, made from this one */
+const struct hashtable pwl_template = {char_index2hash, char_index2hash, 64, 64};

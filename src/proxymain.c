@@ -148,7 +148,7 @@ static void freeworker(struct clientparam *param){
 static unsigned poollimit(void){
  unsigned limit;
 
- if(conf->poolmax >= 0) limit = (unsigned)conf->poolmax;
+ if(runconf->poolmax >= 0) limit = (unsigned)runconf->poolmax;
  else {
 	limit = 32 * tpool.services;
 	if(limit > tpool.maxchild) limit = tpool.maxchild;
@@ -173,7 +173,7 @@ static int poolpark(struct clientparam *param){
  tpool.idle = param;
  tpool.nidle++;
  param->pooled = 1;
- timeout = conf->pooltimeout;
+ timeout = runconf->pooltimeout;
  _3proxy_mutex_unlock(&tpool.mutex);
 
  if(timeout <= 0) _3proxy_sem_lock(param->wake);
@@ -400,7 +400,7 @@ static void srvdiscard(struct srvstart *s){
 static void srvunlink(struct srvparam *srv){
  if(srv->next)srv->next->prev = srv->prev;
  if(srv->prev)srv->prev->next = srv->next;
- else conf->services = srv->next;
+ else srv->config->services = srv->next;
  srv->next = srv->prev = NULL;
 }
 #endif
@@ -479,6 +479,9 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 #endif
  srvinit(srv, defparam);
+#ifndef STDMAIN
+ confhold(srv->config);	/* until srvfree() */
+#endif
  srv->pf = childdef.pf;
  s->isudp = childdef.isudp;
 
@@ -1486,7 +1489,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf->version + 1;
  srv->paused = conf->paused;
- srv->logfunc = havelog?conf->logfunc:lognone;
+ srv->logfunc = conf->havelog?conf->logfunc:lognone;
  srv->noforce = conf->noforce;
  srv->logformat = conf->logformat? (unsigned char *)strdup((char *)conf->logformat) : NULL;
  srv->authfunc = conf->authfunc;
@@ -1500,7 +1503,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->maxseg = conf->maxseg;
  srv->delimchar = conf->delimchar;
  srv->time_start = time(NULL);
- if(havelog && conf->logtarget){
+ if(conf->havelog && conf->logtarget){
 	 srv->logtarget = (unsigned char *)strdup((char *)conf->logtarget);
  }
  srv->srvsock = INVALID_SOCKET;
@@ -1631,6 +1634,15 @@ void srvfree(struct srvparam * srv){
 #ifndef NOUDPMAIN
  if(srv->udpbuf) free(srv->udpbuf);
  if(srv->udpbuf2) free(srv->udpbuf2);
+#endif
+ /* the last service of a configuration no longer in force releases it */
+#ifndef STDMAIN
+ if(srv->config){
+	struct extparam *c = srv->config;
+
+	srv->config = NULL;
+	confput(c);
+ }
 #endif
 }
 

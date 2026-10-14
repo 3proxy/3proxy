@@ -909,6 +909,12 @@ struct extparam {
 	struct radserver radiuslist[MAXRADIUS];
 	int nradservers;
 	char radiussecret[64];
+	/* the services which use it and whoever else holds it (confhold()):
+	   freed when none does and it is no longer the one in force */
+	int refs;
+	struct hashtable pwl_table;	/* users */
+	int havelog;		/* log was configured */
+	RESOLVFUNC resolvfunc;	/* nserver or fakeresolve, in force once committed */
 };
 
 struct property {
@@ -974,7 +980,7 @@ struct child {
 extern struct hashtable dns_table;
 extern struct hashtable dns6_table;
 extern struct hashtable auth_table;
-extern struct hashtable pwl_table;
+extern const struct hashtable pwl_template;
 extern struct hashtable udp_table;
 
 struct authcache {

@@ -1048,7 +1048,7 @@ for(;;){
 		hlen += sprintf((char*)buf + hlen, "Via: 1.1 ");
 		gethostname((char *)(buf + hlen), 256);
 		hlen += (int)strlen((char *)(buf + hlen));
-		hlen += sprintf((char*)buf + hlen, ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), conf->stringtable?conf->stringtable[2]:(unsigned char *)"", conf->stringtable?conf->stringtable[3]:(unsigned char *)"");
+		hlen += sprintf((char*)buf + hlen, ":%d (%s %s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), runconf->stringtable?runconf->stringtable[2]:(unsigned char *)"", runconf->stringtable?runconf->stringtable[3]:(unsigned char *)"");
 		if(anonymous != 2)hlen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + hlen, 128);
 		else {
 			uint32_t tmp = myrand();

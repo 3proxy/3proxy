@@ -245,28 +245,30 @@ int strongauth(struct clientparam * param){
 
 	if (!*param->username) return 4;
 	if (!param->pwtype && *param->password) {
-		if (pwl_table.ihashtable && hashresolv(&pwl_table, param->username, pass, NULL)) {
+		struct hashtable *pwl = &param->srv->config->pwl_table;
+
+		if (pwl->ihashtable && hashresolv(pwl, param->username, pass, NULL)) {
 			switch(pass[0]){
 			    case CL: {
 			    int pwlen = strlen((char *)param->password);
 			    if(pwlen > 255) pwlen = 255;
-			    if((unsigned)pwlen < pwl_table.recsize) {
-				memset(buf, 0, pwl_table.recsize - 1);
+			    if((unsigned)pwlen < pwl->recsize) {
+				memset(buf, 0, pwl->recsize - 1);
 				memcpy(buf, param->password, pwlen);
-				if(!ctmemcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
+				if(!ctmemcmp(pass + 1, buf, pwl->recsize - 1)) return 0;
 			    } else {
 				mdh_ctx *bctx;
 				unsigned hashsz;
 				unsigned int blen;
-				hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
-				memset(buf, 0, pwl_table.recsize - 1);
+				hashsz = pwl->recsize - 1 < 64 ? pwl->recsize - 1 : 64;
+				memset(buf, 0, pwl->recsize - 1);
 				bctx = mdh_init(MDH_BLAKE2, hashsz);
 				if(!bctx) return 6;
 				mdh_update(bctx, param->password, pwlen + 1);
 				blen = hashsz;
 				mdh_final(bctx, buf, &blen);
 				mdh_free(bctx);
-				if(!ctmemcmp(pass + 1, buf, pwl_table.recsize - 1)) return 0;
+				if(!ctmemcmp(pass + 1, buf, pwl->recsize - 1)) return 0;
 			    }
 			    return 6;
 			    }

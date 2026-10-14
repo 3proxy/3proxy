@@ -186,21 +186,40 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 	return buf;
 }
 
+static int deferred_add(void *service);
+static int startservice(void *service);
+
 /* The service is set up here, in the thread reading the configuration, so
    an error in its options stops the configuration; its own thread then
-   listens and serves. */
+   listens and serves. During a reload it is started only once the whole
+   file has been read. */
 int start_proxy_thread(struct child * chp){
-  pthread_t thread;
   void *service;
   int res;
-#ifdef _WIN32
-  HANDLE h;
-#endif
 
 	if((res = mainprepare(chp->argc, (char **)chp->argv, &service))) {
 		fprintf(stderr, "Service not started on line: %d%s\n", linenum, res == 2? ": insufficient memory": res == 3? ": too many filters": res == 4? ": network namespace unavailable":"");
 		return(40);
 	}
+	switch(deferred_add(service)){
+	case 1:
+		return 0;
+	case -1:
+		maindrop(service);
+		fprintf(stderr, "Service not started on line: %d: insufficient memory\n", linenum);
+		return(40);
+	}
+	return startservice(service);
+}
+
+/* Starts the thread of a prepared service; 40 if it could not be. */
+static int startservice(void *service){
+  pthread_t thread;
+  int res;
+#ifdef _WIN32
+  HANDLE h;
+#endif
+
 	_3proxy_mutex_lock(&runningservices_mutex);
 	runningservices++;
 	_3proxy_mutex_unlock(&runningservices_mutex);
@@ -244,7 +263,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.helpmessage = " -Xftp - fetch ftp:// URLs\n";
 #endif
 #ifdef NOIPV6
-		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize)){
+		if(!conf->resolvfunc || (conf->resolvfunc == myresolver && !dns_table.poolsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, proxy may run very slow\n", linenum);
 		}
 #endif
@@ -283,7 +302,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 0;
 		childdef.service = S_SOCKS;
 #ifdef NOIPV6
-		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize)){
+		if(!conf->resolvfunc || (conf->resolvfunc == myresolver && !dns_table.poolsize)){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, socks may run very slow\n", linenum);
 		}
 #endif
@@ -349,7 +368,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_DNSPR;
 		childdef.helpmessage = " -s - simple DNS forwarding - do not use 3proxy resolver / name cache\n -Fip - fake: answer all A queries with this IP\n";
 #ifndef NOIPV6
-		if(!resolvfunc || (resolvfunc == myresolver && !dns_table.poolsize) || resolvfunc == fakeresolver){
+		if(!conf->resolvfunc || (conf->resolvfunc == myresolver && !dns_table.poolsize) || conf->resolvfunc == fakeresolver){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
 		}
 #endif
@@ -396,7 +415,7 @@ static int h_log(int argc, unsigned char ** argv){
 	int notchanged = 0;
 
 
-	havelog = 1;
+	conf->havelog = 1;
 	if(argc > 1 && conf->logtarget && !strcmp((char *)conf->logtarget, (char *)argv[1])) {
 		notchanged = 1;
 	}
@@ -620,8 +639,10 @@ static int h_users(int argc, unsigned char **argv){
         *arg = 0;
         pw[0] = (char *)argv[j];
 
-        if (!pwl_table.ihashtable && inithashtable(&pwl_table, 16, 32, 1048576))
-                    return 3;
+        if (!conf->pwl_table.ihashtable){
+		conf->pwl_table = pwl_template;
+		if(inithashtable(&conf->pwl_table, 16, 32, 1048576)) return 3;
+	}
 	memset(pass, 0, sizeof(pass));
         if (arg[1] && arg[2] && arg[3] == ':') {
             pw[1] = (char *)(arg + 4);
@@ -646,12 +667,12 @@ static int h_users(int argc, unsigned char **argv){
         }
 	l = strlen(pw[1]);
 	if(l > 255) l = 255;
-	if((unsigned)l >= pwl_table.recsize) {
+	if((unsigned)l >= conf->pwl_table.recsize) {
 	    mdh_ctx *bctx;
 	    unsigned hashsz;
 	    unsigned int blen;
 	    if(*pass != CL) continue;
-	    hashsz = pwl_table.recsize - 1 < 64 ? pwl_table.recsize - 1 : 64;
+	    hashsz = conf->pwl_table.recsize - 1 < 64 ? conf->pwl_table.recsize - 1 : 64;
 	    bctx = mdh_init(MDH_BLAKE2, hashsz);
 	    if(!bctx) continue;
 	    mdh_update(bctx, pw[1], l + 1);
@@ -661,7 +682,7 @@ static int h_users(int argc, unsigned char **argv){
 	} else {
 	    memcpy(pass + 1, pw[1], l);
 	}
-        hashadd(&pwl_table, pw[0], pass, MAX_COUNTER_TIME);
+        hashadd(&conf->pwl_table, pw[0], pass, MAX_COUNTER_TIME);
     }
     return 0;
 }
@@ -723,7 +744,7 @@ static int h_nserver(int argc, unsigned char **argv){
 		conf->numservers++;
 
 	}
-	resolvfunc = myresolver;
+	conf->resolvfunc = myresolver;
 	return 0;
 }
 
@@ -742,7 +763,7 @@ static int h_authnserver(int argc, unsigned char **argv){
 }
 
 static int h_fakeresolve(int argc, unsigned char **argv){
-	resolvfunc = fakeresolver;
+	conf->resolvfunc = fakeresolver;
 	return 0;
 }
 
@@ -2392,6 +2413,8 @@ void freepwl(struct passwords *pwl){
 }
 
 
+/* Releases what a configuration holds, once nothing uses it. Nothing global
+   is touched: a configuration may be released while another is in force. */
 void freeconf(struct extparam *confp){
  struct bandlim * bl;
  struct bandlim * blout;
@@ -2402,11 +2425,7 @@ void freeconf(struct extparam *confp){
  int counterd, archiverc;
  unsigned char **archiver;
  unsigned char * logformat;
-
  int i;
-
-
-
 
  _3proxy_mutex_lock(&tc_mutex);
  confp->trafcountfunc = NULL;
@@ -2430,52 +2449,24 @@ void freeconf(struct extparam *confp){
  confp->connlimiter = NULL;
  _3proxy_mutex_unlock(&connlim_mutex);
 
- destroyhashtable(&pwl_table);
-
+ if(confp->pwl_table.ihashtable) destroyhashtable(&confp->pwl_table);
  confp->logfunc = lognone;
  logformat = confp->logformat;
  confp->logformat = NULL;
- confp->rotate = 0;
- confp->logtype = NONE;
- confp->logtime = curtime = 0;
- confp->poolmax = -1;
- confp->pooltimeout = 60;
-
  archiverc = confp->archiverc;
  confp->archiverc = 0;
  archiver = confp->archiver;
  confp->archiver = NULL;
  fm = confp->fmon;
  confp->fmon = NULL;
- confp->bandlimfunc = NULL;
- memset(&confp->intsa, 0, sizeof(confp->intsa));
- memset(&confp->extsa, 0, sizeof(confp->extsa));
-#ifndef NOIPV6
- memset(&confp->extsa6, 0, sizeof(confp->extsa6));
- *SAFAMILY(&confp->extsa6) = AF_INET6;
-#endif
- *SAFAMILY(&confp->intsa) = AF_INET;
- *SAFAMILY(&confp->extsa) = AF_INET;
- confp->maxchild = DEFAULT_MAXCHILD;
- confp->backlog = 0;
- resolvfunc = NULL;
- conf->numservers = 0;
  acl = confp->acl;
  confp->acl = NULL;
 
- usleep(SLEEPTIME);
-
- {
-	char * args[] = {"auth", "iponly", NULL};
-  	h_auth(2, (unsigned char **)args);
- }
  if(tc)dumpcounters(tc,counterd);
  for(; tc; tc = (struct trafcount *) itfree(tc, tc->next)){
 	if(tc->comment)free(tc->comment);
 	freeacl(tc->ace);
  }
-
- 
  freeacl(acl);
  for(; bl; bl = (struct bandlim *) itfree(bl, bl->next)) freeacl(bl->ace);
  for(; blout; blout = (struct bandlim *) itfree(blout, blout->next))freeacl(blout->ace);
@@ -2494,14 +2485,110 @@ void freeconf(struct extparam *confp){
 	for(i = 0; i < archiverc; i++) free(archiver[i]);
 	free(archiver);
  }
- havelog = 0;
+ if(confp->authfuncs) freeauth(confp->authfuncs);
+ confp->authfuncs = NULL;
+ freepwl(confp->pwl);
+ confp->pwl = NULL;
+#ifdef WITH_HTTPSRV
+ if(confp->httprules) freehttprules(confp->httprules);
+ confp->httprules = NULL;
+#endif
+ if(confp->logname) free(confp->logname);
+ confp->logname = NULL;
+ if(confp->logtarget) free(confp->logtarget);
+ confp->logtarget = NULL;
+ if(confp->counterfile) free(confp->counterfile);
+ confp->counterfile = NULL;
+ if(confp->conffile) free(confp->conffile);
+ confp->conffile = NULL;
+}
+
+/* What every reading of the file starts from, before its first command. */
+void confbegin(void){
+	char * args[] = {"auth", "iponly", NULL};
+
+	h_auth(2, (unsigned char **)args);
+}
+
+/* The configuration in force, held until confput(): for what uses one
+   without a service of its own, the resolver for one. */
+struct extparam * confget(void){
+	struct extparam *c;
+
+	_3proxy_mutex_lock(&confref_mutex);
+	c = runconf;
+	c->refs++;
+	_3proxy_mutex_unlock(&confref_mutex);
+	return c;
+}
+
+void confhold(struct extparam *c){
+	_3proxy_mutex_lock(&confref_mutex);
+	c->refs++;
+	_3proxy_mutex_unlock(&confref_mutex);
+}
+
+/* The last to let go of a configuration no longer in force releases it. */
+void confput(struct extparam *c){
+	int gone;
+
+	_3proxy_mutex_lock(&confref_mutex);
+	gone = (--c->refs <= 0 && c != runconf);
+	_3proxy_mutex_unlock(&confref_mutex);
+	if(gone){
+		freeconf(c);
+		if(c != &confboot) free(c);
+	}
+}
+
+/* During a reload the services are prepared as their lines are read, but
+   started only once the whole file has been read without an error. */
+struct deferred {
+	void *service;
+	int linenum;
+	struct deferred *next;
+};
+static struct deferred *deferred = NULL;
+static int deferring = 0;
+
+/* Keeps a prepared service for later if a reload is reading the file: 1,
+   or 0 if none is, and the service is to be started now, -1 for want of
+   memory. The services start in the order of their lines. */
+static int deferred_add(void *service){
+	struct deferred *d, **dp;
+
+	if(!deferring) return 0;
+	if(!(d = malloc(sizeof(*d)))) return -1;
+	d->service = service;
+	d->linenum = linenum;
+	d->next = NULL;
+	for(dp = &deferred; *dp; dp = &(*dp)->next);
+	*dp = d;
+	return 1;
 }
 
 int reload (void){
 	FILE *fp;
 	int error = -2;
+	struct extparam *old = conf, *new;
+	struct deferred *d;
+
+	if(!(new = malloc(sizeof(*new)))) return -1;
+	*new = confdefaults;
+	/* what belongs to the process rather than to one reading of the file:
+	   the open log, which a log command reopens, and the filters, a list
+	   of static entries the TLS, PCRE and transparent code link in once */
+	new->conffile = old->conffile;
+	new->stringtable = old->stringtable;
+	new->demon = old->demon;
+	new->stdlog = old->stdlog;
+	new->filters = old->filters;
+	new->version = old->version + 1;
+	new->refs = 1;	/* this reload's, until it is done with it */
 
 	_3proxy_mutex_lock(&config_mutex);
+	conf = new;
+	pluginlink.conf = new;
 #ifdef WITH_SSL
 	ssl_install();
 #endif
@@ -2511,19 +2598,56 @@ int reload (void){
 #ifdef WITH_TRANSPARENT
 	transparent_install();
 #endif
-	conf->paused++;
-	freeconf(conf);
-	conf->paused++;
-
+	confbegin();
+	deferring = 1;
 	fp = confopen();
 	if(fp){
 		error = readconfig(fp);
-		conf->version++;
-		if(error) {
-			 freeconf(conf);
-		}
 		fclose(fp);
 	}
+	deferring = 0;
+
+	if(error){
+		/* the old configuration stays in force, its services running:
+		   what was prepared for the new one is dropped */
+		while((d = deferred)){
+			deferred = d->next;
+			maindrop(d->service);
+			free(d);
+		}
+		old->conffile = new->conffile;
+		old->stdlog = new->stdlog;
+		old->filters = new->filters;
+		new->conffile = NULL;
+		new->stdlog = NULL;
+		new->filters = NULL;
+		new->stringtable = NULL;
+		conf = old;
+		pluginlink.conf = old;
+		_3proxy_mutex_unlock(&config_mutex);
+		confput(new);
+		return error;
+	}
+
+	old->conffile = NULL;
+	old->stdlog = NULL;
+	old->filters = NULL;
+	old->stringtable = NULL;
+	confhold(old);
+	_3proxy_mutex_lock(&confref_mutex);
+	runconf = new;
+	_3proxy_mutex_unlock(&confref_mutex);
+	resolvfunc = new->resolvfunc;
+	/* the old services stop accepting, the new ones start */
+	old->paused++;
+	while((d = deferred)){
+		deferred = d->next;
+		linenum = d->linenum;
+		startservice(d->service);
+		free(d);
+	}
 	_3proxy_mutex_unlock(&config_mutex);
-	return error;
+	confput(new);
+	confput(old);
+	return 0;
 }

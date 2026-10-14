@@ -11,7 +11,6 @@
 
 #include "proxy.h"
 _3proxy_mutex_t log_mutex;
-int havelog = 0;
 
 
 struct clientparam logparam;
@@ -69,7 +68,12 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 	struct timezone tz;
 #endif
 
-	if(!logparam.srv) srvinit(&logsrv, &logparam);
+	if(!logparam.srv) {
+		srvinit(&logsrv, &logparam);
+		/* not a service: it holds no configuration, and the first one
+		   is never freed, only what it holds */
+		logsrv.config = &confboot;
+	}
 	if(!param) param = &logparam;
 
 
@@ -189,9 +193,9 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 
 				case 'N':
 				 if(param->service <= MAX_SERVICE) {
-					 len = (conf->stringtable)? (int)strlen((char *)conf->stringtable[SERVICES + param->service]) : 0;
+					 len = (runconf->stringtable)? (int)strlen((char *)runconf->stringtable[SERVICES + param->service]) : 0;
 					 if(len > 20) len = 20;
-					 memcpy(buf+i, (len)?conf->stringtable[SERVICES + param->service]:(unsigned char*)"-", (len)?len:1);
+					 memcpy(buf+i, (len)?runconf->stringtable[SERVICES + param->service]:(unsigned char*)"-", (len)?len:1);
 					 i += (len)?len:1;
 				 }
 				 break;
@@ -345,11 +349,11 @@ void logstdout(struct clientparam * param, const unsigned char *s) {
 	/* with no connection, an error from the main thread */
 	tmpbuf = param? param->tmpbuf : logparam.tmpbuf;
 	dobuf(param, tmpbuf, s, NULL);
-	log = (param && param->srv && param->srv->stdlog)?param->srv->stdlog:conf->stdlog?conf->stdlog:stdout;
+	log = (param && param->srv && param->srv->stdlog)?param->srv->stdlog:runconf->stdlog?runconf->stdlog:stdout;
 	if(!param || !param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
 		perror("printf()");
 	};
-	if(log != conf->stdlog)fflush(log);
+	if(log != runconf->stdlog)fflush(log);
 }
 #ifndef _WIN32
 void logsyslog(struct clientparam * param, const unsigned char *s) {
