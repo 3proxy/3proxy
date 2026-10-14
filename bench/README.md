@@ -232,8 +232,18 @@ cluster by default, are lifted for the scenarios that open more. The
 official release binaries run as they are (`envoy` on the PATH).
 
 `--scenario` picks scenarios, `--reps` and `--duration` set the repetitions
-and their length, `--netem "delay 1ms rate 10gbit"` puts a slower, longer link
-between the client and the proxy, `--mtu` changes the links' MTU.
+and their length, `--mtu` changes the links' MTU. Two options make the link
+between the client and the proxy more like the clients' links of a real
+proxy, both ways: `--netem "delay 5ms loss 0.5%"` adds netem's delay and
+loss (`rate` there would be the link's as a whole), `--flow-rate 20mbit`
+limits each connection (fq `maxrate`). Both are applied in the client's
+namespace, on its way out and on an ifb its way in is redirected through,
+so the emulation's work is done on the client's CPUs and not charged to the
+proxy. Segmentation offload and GRO are turned off on that link, so that
+netem drops single packets: the proxy then sends and receives packets of the
+MTU's size, as it would from slow clients, which costs it 2-3 times the CPU
+per exchange of a plain veth. Shaped, the client's CPUs set the pace of the
+full-load mix scenarios; the fixed-rate `-3k` ones are what compares.
 
 ## Caveats
 

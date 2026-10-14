@@ -201,10 +201,37 @@ def net_up(args):
                           ("bprx", "bp1", "prx"), ("bsrv", "bs0", "srv")):
         sh(f"ip netns exec {ns} sh -c 'echo {cpumask(args.cpus[role])} "
            f"> /sys/class/net/{dev}/queues/rx-0/rps_cpus'", check=False)
-    if args.netem:
+    # The client link, both ways: netem for its delay and loss, fq for a
+    # rate of each connection, under netem when both are given. Both ways
+    # are shaped in the client's namespace, so the work is the client's
+    # CPUs', not charged to the proxy: what the client sends on bc0's way
+    # out, what it receives on an ifb its way in is redirected through.
+    # Segmentation offload is off on the link, so that what netem drops is
+    # one packet rather than a 64 KB burst and fq paces packets the size of
+    # the MTU.
+    if args.netem or args.flow_rate:
+        netem = args.netem or ""
+        if netem and "limit" not in netem.split():
+            # netem's queue holds 1000 packets by default: too few for
+            # thousands of connections, which would lose more than asked
+            netem += " limit 1000000"
+        fq = f"fq maxrate {args.flow_rate} flow_limit 1000"
+        sh("modprobe ifb numifbs=0", check=False)
+        sh("ip -n bcli link add bci type ifb")
+        sh("ip -n bcli link set bci up")
+        sh("ip netns exec bcli tc qdisc add dev bc0 handle ffff: ingress")
+        sh("ip netns exec bcli tc filter add dev bc0 parent ffff: matchall "
+           "action mirred egress redirect dev bci")
         for ns, dev in (("bcli", "bc0"), ("bprx", "bp0")):
-            sh(f"ip netns exec {ns} tc qdisc add dev {dev} root netem {args.netem}")
-
+            sh(f"ip netns exec {ns} ethtool -K {dev} gso off tso off gro off", check=False)
+        for dev in ("bc0", "bci"):
+            if netem and args.flow_rate:
+                sh(f"ip netns exec bcli tc qdisc add dev {dev} root handle 1: netem {netem}")
+                sh(f"ip netns exec bcli tc qdisc add dev {dev} parent 1:1 handle 10: {fq}")
+            elif netem:
+                sh(f"ip netns exec bcli tc qdisc add dev {dev} root netem {netem}")
+            else:
+                sh(f"ip netns exec bcli tc qdisc add dev {dev} root {fq}")
 
 def net_down():
     for ns in ("bcli", "bprx", "bsrv"):
@@ -959,7 +986,7 @@ def run_http(proxy, params, args, work, mark):
     res["rate"] = float(m.group(1)) if m else 0.0
     m = re.search(r"Transfer/sec:\s+([\d.]+)(\w+)", out)
     res["gbit"] = float(m.group(1)) * UNITS[m.group(2)] * 8 / 1e9 if m else 0.0
-    for pct in ("50", "99"):
+    for pct in ("50", "90", "99"):
         m = re.search(rf"^\s+{pct}%\s+(\S+)", out, re.M)
         res[f"p{pct}_ms"] = to_ms(m.group(1)) if m else float("nan")
     errors = 0
@@ -1013,7 +1040,7 @@ def run_stream(proxy, params, args, work, mark):
     finally:
         if wrapper:
             stop(wrapper)
-    res = {"raw": out, "rate": float("nan"), "p50_ms": float("nan"),
+    res = {"raw": out, "rate": float("nan"), "p50_ms": float("nan"), "p90_ms": float("nan"),
            "p99_ms": float("nan"), "requests": 0, "errors": 0, "retrans": 0, "timeouts": 0}
     try:
         j = json.loads(out)
@@ -1087,8 +1114,8 @@ def run_mix(proxy, params, args, work, mark):
     res["rate"] = j.get("rate", 0.0)
     res["gbit"] = j.get("gbit", 0.0)
     res["bytes"] = j.get("bytes", 0)
-    res["p50_ms"] = j.get("p50_ms", float("nan"))
-    res["p99_ms"] = j.get("p99_ms", float("nan"))
+    for pct in ("50", "90", "99"):
+        res[f"p{pct}_ms"] = j.get(f"p{pct}_ms", float("nan"))
     res["timeouts"] = j.get("timeouts", 0)
     # connections of the pool which could not be opened count too
     res["errors"] = j.get("errors", 0) + max(j.get("pool", 0) - j.get("opened", 0), 0)
@@ -1151,7 +1178,7 @@ def measure(proxy, scenario, args, work):
 
 # --- main --------------------------------------------------------------------
 
-FIELDS = ["proxy", "scenario", "rep", "gbit", "rate", "p50_ms", "p99_ms", "errors", "timeouts", "retrans",
+FIELDS = ["proxy", "scenario", "rep", "gbit", "rate", "p50_ms", "p90_ms", "p99_ms", "errors", "timeouts", "retrans",
           "prx_cpu_s", "prx_task_s", "cpu_s_per_gb", "cpu_us_per_req", "peak_mb",
           "cli_util", "prx_util", "srv_util", "cli_thread", "srv_thread", "bound"]
 
@@ -1188,7 +1215,10 @@ def main():
     ap.add_argument("--cpus", default="cli=0-3,prx=4,srv=5-7",
                     help="CPUs per role (default %(default)s)")
     ap.add_argument("--mtu", type=int, default=1500)
-    ap.add_argument("--netem", help='netem on the client link, e.g. "delay 1ms rate 10gbit"')
+    ap.add_argument("--netem", help='netem on the client link, both ways, e.g. '
+                    '"delay 5ms loss 0.5%%"')
+    ap.add_argument("--flow-rate", help="the client link's rate for each connection, "
+                    "each way, e.g. 20mbit (fq maxrate)")
     ap.add_argument("--out", default="bench/results", help="directory for the CSV and logs")
     ap.add_argument("--mix", help="the bench/mix binary for the mix-* scenarios "
                     "(default: bench/mix/mix-linux-<arch>, see bench/mix/build.sh)")

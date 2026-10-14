@@ -722,6 +722,7 @@ type summary struct {
 	Gbit       float64 `json:"gbit"`
 	Bytes      uint64  `json:"bytes"`
 	P50ms      float64 `json:"p50_ms"`
+	P90ms      float64 `json:"p90_ms"`
 	P99ms      float64 `json:"p99_ms"`
 	FirstP50ms float64 `json:"first_p50_ms"`
 	FirstP99ms float64 `json:"first_p99_ms"`
@@ -847,7 +848,8 @@ func runClient(cl *client, active int, rate float64, warmup, duration time.Durat
 		Bytes: cl.bytes.Load(), Errors: cl.errs.Load(), Timeouts: cl.timeouts.Load(),
 		Reconnects: cl.reconnects.Load(), Late: late.Load(),
 		Aborts: cl.aborts.Load(), Resets: cl.resets.Load(), HalfCloses: cl.halfcloses.Load(),
-		P50ms: cl.complete.quantile(0.5), P99ms: cl.complete.quantile(0.99),
+		P50ms: cl.complete.quantile(0.5), P90ms: cl.complete.quantile(0.9),
+		P99ms: cl.complete.quantile(0.99),
 		FirstP50ms: cl.first.quantile(0.5), FirstP99ms: cl.first.quantile(0.99)}
 	s.DialError, _ = cl.dialErr.Load().(string)
 	s.ExchError, _ = cl.exchErr.Load().(string)
