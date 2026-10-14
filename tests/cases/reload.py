@@ -90,6 +90,19 @@ def run(t):
     t.eq(2000000, kept.get("length"),
          "a download of a user the new configuration keeps finishes whole")
 
+    # a connection kept alive: each request is authorized by the rules in
+    # force, so alice's next request after she is removed is refused
+    keep = t.connection("127.0.0.1", origin, proxy=proxy)
+    t.eq(200, t.http(url, proxy=proxy, proxy_auth=("alice", "one"), conn=keep).status,
+         "a kept-alive connection serves alice")
+    t.write_config("reload", config(origin, first, adm, "bob:CL:two"))
+    reload_and_wait()
+    r = t.http(url, proxy=proxy, proxy_auth=("alice", "one"), conn=keep)
+    t.eq(407, r.status, "after she is removed, her next request on it is refused "
+         "with a request for credentials, authorized by the new rules")
+    t.write_config("reload", config(origin, first, adm, "alice:CL:one bob:CL:two"))
+    reload_and_wait()
+
     # alice is removed: her download is cut, being re-authenticated
     th, cut = during_reload("bob:CL:two", first)
     th.join(20)

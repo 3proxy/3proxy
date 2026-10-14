@@ -641,7 +641,7 @@ for(;;){
 
 
  if(param->srv->needuser > 1 && !*param->username) {RETURN(4);}
- if((res = (*param->srv->authfunc)(param))) {
+ if((res = clientauth(param))) {
 	if (res <= 10 || haveconnection || param->transparent) RETURN(res);
 	param->srv->so._closesocket(param->sostate, param->remsock);
 	param->remsock = INVALID_SOCKET;
@@ -649,7 +649,7 @@ for(;;){
 	param->redirtype = 0;
 	memset(&param->sinsl, 0, sizeof(param->sinsl));
 	memset(&param->sinsr, 0, sizeof(param->sinsr));
-	if((res = (*param->srv->authfunc)(param))) RETURN(res);
+	if((res = clientauth(param))) RETURN(res);
  }
 
 

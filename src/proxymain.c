@@ -1653,13 +1653,13 @@ static void slotrelease(struct srvparam *srv){
 
 /* After a reload, unless noforce: a client goes by the rules of the newest
    service on its listener, the one now accepting there, re-authenticated
-   as it. It takes one of that service's maxconn slots, which counts it
-   there and keeps the service, and its configuration, until the client is
-   done; a slot it held in a service before is given back. 0 to go on, or
-   the code to end the connection with: 26 if its service was removed, or
-   is another one now, 27 if the newest has no slot free, or what the
-   authentication says. */
-int reattach(struct clientparam *param){
+   as it if auth is set. It takes one of that service's maxconn slots,
+   which counts it there and keeps the service, and its configuration,
+   until the client is done; a slot it held in a service before is given
+   back. 0 to go on, or the code to end the connection with: 26 if its
+   service was removed, or is another one now, 27 if the newest has no slot
+   free, or what the authentication says. */
+int reattach(struct clientparam *param, int auth){
  struct srvparam *cur = PSRV(param), *newest, *orig;
  int version = runconf->version, res;
 
@@ -1689,6 +1689,7 @@ int reattach(struct clientparam *param){
  if(param->newsrv) slotrelease(param->newsrv);
  param->newsrv = newest;
  param->version = version;
+ if(!auth) return 0;
  /* authenticated as the newest service's client: its access lists, users,
     limits and counters */
  orig = param->srv;

@@ -400,9 +400,10 @@ void freeauth(struct auth *);
 void freefilter(struct filter *filter);
 void freeconf(struct extparam *confp);
 void confbegin(void);
-int reattach(struct clientparam *param);
+int reattach(struct clientparam *param, int auth);
 /* reattach() where configurations are reloaded, NULL elsewhere */
-extern int (*reattachfunc)(struct clientparam *param);
+extern int (*reattachfunc)(struct clientparam *param, int auth);
+int clientauth(struct clientparam *param);
 struct passwords * copypwl (struct passwords *pwl);
 void freepwl(struct passwords *pw);
 int copyfilter(struct filter *, struct srvparam *srv);

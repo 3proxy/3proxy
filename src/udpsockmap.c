@@ -215,6 +215,13 @@ int udpsockmap(struct clientparam *param, int timeo)
 		if (res < 0) return 481;
 		if (res == 0) return 92;
 
+		/* a reload: the session goes by the newest configuration's rules,
+		   as a TCP connection does in sockmap() */
+		if (param->version < runconf->version) {
+			if (param->srv->noforce || !reattachfunc) param->version = runconf->version;
+			else if ((len = (*reattachfunc)(param, 1)) && len != 2) return len;
+		}
+
 		/* datagram from client */
 		if (p.cli >= 0 && p.fds[p.cli].revents) {
 			unsigned char *base = param->srvbuf + UDPHDROFF;

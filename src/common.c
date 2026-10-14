@@ -233,7 +233,26 @@ struct extparam confboot = {
    whatever runs meanwhile without a service of its own. */
 struct extparam *conf = &confboot;
 struct extparam *runconf = &confboot;
-int (*reattachfunc)(struct clientparam *param) = NULL;
+int (*reattachfunc)(struct clientparam *param, int auth) = NULL;
+
+/* Authorizes a request on a connection which may outlive a reload, an HTTP
+   one kept alive: as a client of the service whose rules apply now, the
+   newest one on its listener after a reload (unless noforce). */
+int clientauth(struct clientparam *param){
+	struct srvparam *orig;
+	int res;
+
+	if(param->version < runconf->version){
+		if(param->srv->noforce || !reattachfunc) param->version = runconf->version;
+		else if((res = (*reattachfunc)(param, 0))) return res;
+	}
+	if(!param->newsrv) return (*param->srv->authfunc)(param);
+	orig = param->srv;
+	param->srv = param->newsrv;
+	res = (*param->srv->authfunc)(param);
+	param->srv = orig;
+	return res;
+}
 _3proxy_mutex_t confref_mutex;
 
 
