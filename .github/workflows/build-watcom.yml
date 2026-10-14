@@ -40,6 +40,8 @@ jobs:
       run: |
        echo "volatile char VerSion[]=^"3APA3A-3proxy-Internal-Build: 3proxy-%RELEASE%-%NOW%\r\n^";" >>src/3proxy.c
        nmake /F Makefile.watcom
+       if errorlevel 1 exit /b 1
+       if not exist bin\3proxy.exe (echo bin\3proxy.exe was not built & exit /b 1)
     - name: make dist dir
       shell: cmd
       run: |

@@ -459,12 +459,12 @@ static int widepath(const char *path, wchar_t *out, int outchars)
 	char *p;
 
 	if(!strncmp(path, "\\\\?\\", 4)) snprintf(prefixed, sizeof(prefixed), "%s", path);
-	else if(path[0] == '\\\\' && path[1] == '\\\\')
+	else if(path[0] == '\\' && path[1] == '\\')
 		snprintf(prefixed, sizeof(prefixed), "\\\\?\\UNC\\%s", path + 2);
 	else snprintf(prefixed, sizeof(prefixed), "\\\\?\\%s", path);
 
 	/* the extended form takes no forward slashes */
-	for(p = prefixed; *p; p++) if(*p == '/') *p = '\\\\';
+	for(p = prefixed; *p; p++) if(*p == '/') *p = '\\';
 
 	return MultiByteToWideChar(CP_UTF8, 0, prefixed, -1, out, outchars) > 0? 0 : 1;
 }
@@ -481,9 +481,19 @@ static int filemeta(const char *path, struct filemeta *m)
 {
 #ifdef _WIN32
 	wchar_t wide[HTTPSRV_LINE];
+#ifdef __WATCOMC__
+	/* Open Watcom has the 64-bit stat under its older name */
+#ifndef _S_IFREG
+#define _S_IFREG S_IFREG
+#endif
+	struct _stati64 st;
+
+	if(widepath(path, wide, HTTPSRV_LINE) || _wstati64(wide, &st)) return 1;
+#else
 	struct _stat64 st;
 
 	if(widepath(path, wide, HTTPSRV_LINE) || _wstat64(wide, &st)) return 1;
+#endif
 	m->size = (uint64_t)st.st_size;
 	m->mtime = st.st_mtime;
 	m->isreg = (st.st_mode & _S_IFREG) != 0;
