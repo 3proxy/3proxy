@@ -672,6 +672,74 @@ client.
   1.3-8 seconds, but envoy, which keeps them to 340-480 ms around a median of
   210-340.
 
+## Grace delay on a slow link
+
+Measured on 14 October 2026 ([data/](data/) `*-grace-link.csv`) with devel
+as in the tables above, and nginx for reference, over an emulated link
+between the client and the proxy: each connection limited to 20 Mbit/s each
+way (`--flow-rate 20mbit`), 5 ms of delay and 0.5% of the packets lost, each
+way (`--netem "delay 5ms loss 0.5%"`), segmentation offload and GRO off. The
+emulation runs in the client's namespace, on its CPUs; the link from the
+proxy to the origin is left as it is ([README](README.md)). Scenarios: one
+iperf3 download stream and 16 upload streams through a TCP relay
+(`tcppm`), and the mix scenarios at a fixed 3000 exchanges a second with
+20000 connections open.
+
+`-gTRAFF,NUM,DELAY`: once a second has seen NUM reads in a row in one
+direction averaging TRAFF bytes or less, 3proxy waits DELAY ms before it
+polls again, so that data gathers and is read in fewer, larger pieces. A
+read takes at most 16 KB, so the wait also caps a connection: 16 KB per
+DELAY, 13 Mbit/s at 10 ms, 26 at 5 ms, 65 at 2 ms. `-g65536,2,5` waits after
+any two reads.
+
+**ARM (M4)**
+
+| | devel | -g8000,3,10 | -g8000,3,5 | -g8000,3,2 | -g65536,2,5 | nginx |
+|---|---:|---:|---:|---:|---:|---:|
+| relay-stream1-down, Mbit/s | 13.9 | 13.4 | 14.7 | 14.2 | 15.0 | 14.9 |
+| relay-stream16, Mbit/s | 290 | 238 | 261 | 279 | 227 | 289 |
+| relay-stream16, proxy CPU s/GB | 18.7 | 12.6 | 13.3 | 13.9 | 10.8 | 16.7 |
+| mix-relay-3k, k/s | 1.86 | 1.86 | 1.86 | 1.90 | 1.85 | 1.94 |
+| mix-relay-3k, µs/exchange | 460 | 462 | 465 | 459 | 476 | 366 |
+| mix-relay-3k, p50 / p90 / p99 ms | 2,097 / 3,801 / 6,554 | 2,097 / 3,932 / 6,554 | 2,097 / 3,801 / 6,816 | 2,097 / 3,801 / 6,554 | 2,097 / 3,932 / 6,554 | 1,966 / 3,670 / 6,291 |
+| mix-http-3k, k/s | 1.78 | 1.79 | 1.82 | 1.82 | 1.83 | 1.95 |
+| mix-http-3k, µs/exchange | 523 | 470 | 506 | 517 | 512 | 337 |
+| mix-http-3k, p50 / p90 / p99 ms | 2,621 / 4,194 / 7,078 | 2,359 / 4,194 / 6,816 | 2,359 / 4,063 / 6,816 | 2,359 / 4,063 / 6,816 | 2,359 / 4,194 / 6,816 | 1,901 / 3,539 / 6,291 |
+
+**Intel (Skylake)**
+
+| | devel | -g8000,3,10 | -g8000,3,5 | -g8000,3,2 | -g65536,2,5 | nginx |
+|---|---:|---:|---:|---:|---:|---:|
+| relay-stream1-down, Mbit/s | 16.0 | 14.7 | 15.3 | 16.3 | 16.0 | 15.5 |
+| relay-stream16, Mbit/s | 291 | 239 | 259 | 281 | 236 | 293 |
+| relay-stream16, proxy CPU s/GB | 10.5 | 5.7 | 6.3 | 6.7 | 4.3 | 9.8 |
+| mix-relay-3k, k/s | 2.98 | 2.99 | 2.99 | 2.99 | 2.99 | 2.98 |
+| mix-relay-3k, µs/exchange | 253 | 237 | 257 | 244 | 244 | 241 |
+| mix-relay-3k, p50 / p90 / p99 ms | 20.5 / 63.5 / 279 | 20.5 / 65.5 / 279 | 20.5 / 63.5 / 279 | 20.5 / 63.5 / 279 | 21.5 / 65.5 / 279 | 20.5 / 63.5 / 279 |
+| mix-http-3k, k/s | 2.99 | 3.01 | 3.10 | 2.99 | 3.01 | 2.99 |
+| mix-http-3k, µs/exchange | 294 | 306 | 303 | 300 | 312 | 264 |
+| mix-http-3k, p50 / p90 / p99 ms | 22.5 / 73.7 / 311 | 24.6 / 147 / 557 | 34.8 / 590 / 1,769 | 23.6 / 77.8 / 311 | 25.6 / 115 / 393 | 20.5 / 65.5 / 295 |
+
+* 16 streams: every wait costs throughput and saves CPU. 2 ms costs 3-4% and
+  saves 26% of the proxy's CPU per gigabyte on ARM, 36% on Intel; 5 ms costs
+  10-11% and saves 29-40%; 10 ms, whose cap (13 Mbit/s) is under the link's
+  rate, costs 18% and saves 33-46%; `-g65536,2,5` costs 19-22% and saves
+  42-59%. Without a wait devel needs 7-12% more CPU per gigabyte than nginx,
+  with any of them less.
+* One stream is held to 13-16 Mbit/s by the loss (TCP at 0.5% loss and a
+  10 ms round trip), whatever the setting.
+* The mix scenarios show no difference: on Intel the proxy's CPU per
+  exchange is within 8% across the settings and the latency the same but
+  for runs which stalled and caught up (more than 3000 exchanges a second),
+  several in every setting, devel without a wait among them. On ARM the client
+  could not keep 3000 exchanges a second over the shaped link (1.8-1.9k, its
+  CPUs the limit), so the latency there is the client's backlog; the CPU per
+  exchange does not move with the setting either. devel needs 5-11% more CPU
+  per exchange than nginx on Intel, 26-55% on ARM.
+* For slow clients moving bulk data `-g8000,3,2` keeps 96% of the
+  throughput for a quarter to a third less CPU; longer waits trade more of
+  one for the other.
+
 ## Earlier sessions
 
 The morning session of 13 October ([data/](data/) `*-16k-*.csv`, `*-mix.csv`)
@@ -716,32 +784,6 @@ M4 and 7.5% or less on the Skylake host, except for one origin-bound case
 | http-ka-1m, Gbit/s | 71.6 / 67.5 / 69.5 | ‖ | 8.3 / 5.8 / 7.1 | 12.5 / 12.4 / 12.4 | **21.9 / 18.3 / 20.1** | 12.6 / 5.8 / 9.2 | 6.0 / 7.6 / 6.8 | ‖ | **33.0 / 26.6 / 29.8** * | **35.3 / 23.9 / 29.6** * | 5.9 / 24.2 / 15.1 |
 | http-ka-50k-2000, k req/s | 84.5 / 85.7 / 85.1 | ‖ | 7.6 / 7.0 / 7.3 | 9.0 / 10.3 / 9.6 | **10.4 / 10.5 / 10.5** * | 11.0 / 9.2 / 10.1 | 9.6 / 7.3 / 8.4 | ‖ | 9.1 / 9.4 / 9.3 | 9.9 / 9.0 / 9.4 | 9.6 / 7.7 / 8.6 |
 | http-close-1k, k req/s | 48.7 / 52.1 / 50.4 | ‖ | 5.0 / 4.8 / 4.9 | 4.4 / 4.0 / 4.2 | 5.2 / 4.8 / 5.0 | 13.3 / 12.9 / 13.1 | **16.6 / 15.1 / 15.9** * | ‖ | 4.8 / 4.4 / 4.6 | 5.0 / 4.4 / 4.7 | **16.7 / 15.1 / 15.9** * |
-
-### Grace delay with splice
-
-`-s1` without grace delay, with the setting suggested in the documentation
-(`-g8000,3,10`: wait 10 ms before reading once 3 reads in a row averaged 8 KB or
-less), and with one meant to wait on answers only (`-g65536,2,10`: any 2 reads
-in a row; an HTTP request body is read at once, an answer of 50 KB or more is
-not). Measured in a session of their own ([data/](data/) `*-grace.csv`).
-
-| scenario (M4 / Intel / average) | -s1, no grace delay | -s1 -g8000,3,10 | -s1 -g65536,2,10 |
-|---|---:|---:|---:|
-| stream1, Gbit/s | **22.0 / 20.0 / 21.0** * | **22.1 / 19.7 / 20.9** * | **22.4 / 20.1 / 21.3** * |
-| stream16, Gbit/s | **20.8 / 19.5 / 20.2** * | **20.9 / 18.4 / 19.7** * | **20.7 / 19.1 / 19.9** * |
-| stream1-down, Gbit/s | **48.1 / 32.7 / 40.4** * | 28.6 / 33.0 / 30.8 | 18.3 / 32.5 / 25.4 |
-| http-ka-1k, k req/s | 15.4 / 15.4 / 15.4 | **15.5 / 16.4 / 16.0** * | **15.5 / 16.6 / 16.0** * |
-| http-ka-1m, Gbit/s | **35.6 / 25.5 / 30.5** * | **35.5 / 25.2 / 30.3** * | **36.1 / 25.4 / 30.8** * |
-| http-ka-2k-50k-2000, k req/s | **9.0 / 8.3 / 8.6** * | **9.0 / 8.3 / 8.7** * | **9.1 / 8.5 / 8.8** * |
-| http-close-1k, k req/s | **5.1 / 4.5 / 4.8** * | **5.1 / 4.6 / 4.8** * | **5.1 / 4.7 / 4.9** * |
-
-* Grace delay makes little difference here: 4% more 1 KB requests over
-  kept-alive connections, nothing elsewhere - except on the M4 with a single
-  download stream, where it costs 40% (`-g8000,3,10`) to 60% (`-g65536,2,10`)
-  of the throughput. These links are fast and local: reads are rarely small,
-  so the delay seldom applies, and when it does it mostly adds waiting. It is
-  meant for slow links carrying small packets, which this benchmark does not
-  have.
 
 ## Caveats
 

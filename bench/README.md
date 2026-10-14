@@ -109,6 +109,12 @@ clients sees, with `bench/mix`, a load generator and an origin in Go:
 * both sides write in pieces of random sizes with short random pauses between
   them, and the client reads in amounts of its own, now and then slowly, so
   data reaches the proxy in parts and buffers fill up at times;
+* the profile is not fitted to measured traffic: sizes are lognormal, the
+  shape web workload models use for them (P. Barford, M. Crovella,
+  [Generating Representative Web Workloads for Network and Server
+  Performance Evaluation](https://doi.org/10.1145/277851.277897), SIGMETRICS
+  1998), and the parameters (the medians and spreads in `mix/main.go`, the
+  pieces, pauses and how often clients go away) are chosen, not measured;
 * connections end and are opened again: a connection carries 15 exchanges on
   average (`-per-conn`, a geometric number), and some end the way clients
   going away end them: 0.5% of exchanges are left with a close before the
