@@ -529,6 +529,62 @@ program on one core, can set the pace (‡).
   envoy. With 16 streams on Intel haproxy needs the least (44-55 MB, devel
   80-95), and envoy the most everywhere (66-148 MB).
 
+## Kernel TLS
+
+Measured on 14 October 2026 on Intel only, whose OpenSSL (3.5.8) and nginx
+are built with kernel TLS and whose kernel has the tls module; the ARM
+machine's OpenSSL (Ubuntu 24.04) is not. devel with `ssl_ktls` (bench option
+`3proxy:<binary>:ktls`) and without, nginx with `ssl_conf_command Options
+KTLS` / `proxy_ssl_conf_command Options KTLS` (`nginx::ktls`) and without, in
+the TLS scenarios of the HTTPS section; `/proc/net/tls_stat` confirmed the
+sessions in the kernel. Each cell is throughput and the CPU busy time per
+gigabyte or per request.
+
+**devel splicing over kernel TLS** ([data/](data/) `skylake-ktls-splice.csv`):
+a connection whose TLS sockets the kernel took both ways is spliced as a
+plain one is.
+
+| scenario (Intel) | 3proxy | 3proxy ssl_ktls | nginx | nginx KTLS |
+|---|---:|---:|---:|---:|
+| tls-term-ka-1k | 23.5k/s, 43 µs | 21.2k/s, 47 µs | 34.5k/s, 29 µs | 32.3k/s, 31 µs |
+| tls-term-ka-1m | 5.82 Gbit/s, 1.38 s/GB | 6.80 Gbit/s, 1.18 s/GB | 5.77 Gbit/s, 1.39 s/GB | 5.59 Gbit/s, 1.43 s/GB |
+| tls-term-close-1k | 1.3k/s, 782 µs | 1.2k/s, 820 µs | 1.3k/s, 781 µs | 1.3k/s, 783 µs |
+| tls-term-stream1-down | 6.56 Gbit/s, 1.20 s/GB | 7.49 Gbit/s, 0.79 s/GB | 6.27 Gbit/s, 1.26 s/GB | 6.01 Gbit/s, 1.30 s/GB |
+| tls-term-stream16 | 6.31 Gbit/s, 1.27 s/GB | 6.94 Gbit/s, 1.15 s/GB | 6.20 Gbit/s, 1.29 s/GB | 5.63 Gbit/s, 1.43 s/GB |
+| tls-init-ka-1k | 24.6k/s, 41 µs | 22.0k/s, 45 µs | 32.7k/s, 31 µs | 31.5k/s, 32 µs |
+| tls-init-ka-1m | 5.59 Gbit/s, 1.43 s/GB | 5.90 Gbit/s, 1.36 s/GB | 5.44 Gbit/s, 1.47 s/GB | 5.03 Gbit/s, 1.59 s/GB |
+| tls-init-close-1k | 0.8k/s, 1243 µs | 0.8k/s, 1265 µs | 1.3k/s, 798 µs | 1.2k/s, 861 µs |
+| tls-init-stream1-down | 6.09 Gbit/s, 1.31 s/GB | 6.91 Gbit/s, 1.16 s/GB | 6.15 Gbit/s, 1.30 s/GB | 5.59 Gbit/s, 1.43 s/GB |
+| tls-init-stream16 | 7.03 Gbit/s, 1.14 s/GB | 7.65 Gbit/s, 1.05 s/GB | 6.24 Gbit/s, 1.29 s/GB | 6.01 Gbit/s, 1.33 s/GB |
+
+* With splice() kernel TLS pays for bulk data: 3proxy moves 6-17% more at
+  5-34% less CPU per gigabyte (ending TLS for one stream it is no longer
+  held by its CPU: 7.5 Gbit/s at 0.79 s/GB against 6.6 at 1.20), ahead of
+  nginx with or without it by 8-23%.
+* Small requests, which are not spliced, are 0-11% slower with it: the
+  kernel does the same encryption with a layer more for every record.
+* nginx, which relays TLS through user space with or without it, is 0-9%
+  slower with kernel TLS.
+
+**Before splice() over kernel TLS** ([data/](data/) `skylake-ktls.csv`), the
+same with devel copying TLS connections:
+
+| scenario (Intel) | 3proxy | 3proxy ssl_ktls | nginx | nginx KTLS |
+|---|---:|---:|---:|---:|
+| tls-term-ka-1k | 24.1k/s, 42 µs | 22.9k/s, 44 µs | 35.1k/s, 29 µs | 33.5k/s, 30 µs |
+| tls-term-ka-1m | 6.20 Gbit/s, 1.29 s/GB | 5.48 Gbit/s, 1.46 s/GB | 5.86 Gbit/s, 1.37 s/GB | 5.75 Gbit/s, 1.39 s/GB |
+| tls-term-close-1k | 1.3k/s, 785 µs | 1.2k/s, 814 µs | 1.4k/s, 712 µs | 1.3k/s, 782 µs |
+| tls-term-stream1-down | 7.11 Gbit/s, 1.06 s/GB | 6.00 Gbit/s, 1.32 s/GB | 5.98 Gbit/s, 1.32 s/GB | 6.70 Gbit/s, 1.16 s/GB |
+| tls-term-stream16 | 6.57 Gbit/s, 1.22 s/GB | 5.00 Gbit/s, 1.61 s/GB | 6.31 Gbit/s, 1.27 s/GB | 5.74 Gbit/s, 1.40 s/GB |
+| tls-init-ka-1k | 25.7k/s, 39 µs | 22.6k/s, 44 µs | 35.9k/s, 28 µs | 33.3k/s, 30 µs |
+| tls-init-ka-1m | 5.66 Gbit/s, 1.42 s/GB | 4.58 Gbit/s, 1.75 s/GB | 5.62 Gbit/s, 1.43 s/GB | 5.07 Gbit/s, 1.58 s/GB |
+| tls-init-close-1k | 0.9k/s, 1124 µs | 0.8k/s, 1197 µs | 1.3k/s, 796 µs | 1.2k/s, 834 µs |
+| tls-init-stream1-down | 6.43 Gbit/s, 1.24 s/GB | 5.00 Gbit/s, 1.60 s/GB | 6.17 Gbit/s, 1.30 s/GB | 5.58 Gbit/s, 1.43 s/GB |
+| tls-init-stream16 | 7.20 Gbit/s, 1.11 s/GB | 6.37 Gbit/s, 1.26 s/GB | 6.43 Gbit/s, 1.25 s/GB | 6.14 Gbit/s, 1.31 s/GB |
+
+* Without splice() kernel TLS did not pay: 3proxy did 5-24% less, at 4-32%
+  more CPU per gigabyte or request.
+
 ## Many connections: the mix scenarios
 
 Measured on the evening of 13 October 2026 with the same devel
@@ -1113,6 +1169,24 @@ proxy's CPUs, 200% for both full.
   relay and through CONNECT than on one, the cost of spreading its threads.
 * ARM's client set the pace of the mix again (1.7-1.8k a second); 1 exchange
   was lost there, none on Intel.
+
+### CONNECT at 10 Mbit/s
+
+Intel only: 10 Mbit/s, 10 ms and 0.5% loss each way, two CPUs for the proxy
+(`--cpus cli=0-3,prx=4-5,srv=6-7`), `mix-connect-3k` only ([data/](data/)
+`skylake-10m-connect.csv`); each cell the three runs.
+
+| | -s0 | -s | -s0 -g8000,2,5 | -s -g8000,2,5 |
+|---|---:|---:|---:|---:|
+| exchanges a second | 2.98k | 2.98k | 2.98k | 2.98k |
+| CPU busy, % of 200 | 98, 98, 105 | 94, 96, 100 | 96, 96, 101 | 94, 97, 102 |
+| process CPU µs per exchange | 104, 108, 114 | 98, 98, 102 | 97, 103, 111 | 97, 100, 105 |
+| p50 / p90 / p99 ms | 41 / 123-127 / 508 | 41 / 123-127 / 508 | 41 / 127 / 508 | 41 / 127 / 508 |
+
+* `-s` takes about 9% off the process CPU per exchange; a wait matched to
+  the rate (5 ms: 8000 bytes take about 6 ms to come) changes nothing beyond
+  the spread of the runs, as on the other links, and no setting moves the
+  latency.
 
 ## Earlier sessions
 

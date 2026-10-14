@@ -562,6 +562,11 @@ def proxy_conf(kind, work, ncpu, label, opts="", out=PRX_OUT):
     both 3proxy services, e.g. -s0 to keep a version from using splice(). out
     is the address the proxy connects from."""
     if kind == "3proxy":
+        # ktls among the options is not a service option: kernel TLS for the
+        # TLS services (ssl_ktls)
+        words = opts.split()
+        ktls = "ssl_ktls\n" if "ktls" in words else ""
+        opts = " ".join(w for w in words if w != "ktls")
         conf = os.path.join(work, f"{label}.cfg")
         with open(conf, "w") as f:
             f.write(f"""maxconn 100000
@@ -573,7 +578,7 @@ tcppm {opts} -i{PRX_IN} -e{out} {RELAY_MIX} {SRV_ADDR} {ORIGIN_MIX}
 socks {opts} -i{PRX_IN} -e{out} -p{SOCKS_PORT}
 """)
             if TLS:
-                f.write(f"""ssl_server_cert {TLS["cert"]}
+                f.write(f"""{ktls}ssl_server_cert {TLS["cert"]}
 ssl_server_key {TLS["key"]}
 ssl_serv
 tcppm {opts} -i{PRX_IN} -e{out} {TLS_TERM} {SRV_ADDR} {ORIGIN_HTTP}
@@ -676,17 +681,22 @@ socks pass {{ from: 0.0.0.0/0 to: 0.0.0.0/0 }}
                 if os.path.exists(stream):
                     load = f"load_module {stream};\n"
                     break
-            halfclose = "    proxy_half_close on;\n" if opts == "halfclose" else ""
+            nopts = opts.split("+")
+            halfclose = "    proxy_half_close on;\n" if "halfclose" in nopts else ""
+            # kernel TLS, where nginx's OpenSSL is built with it
+            ktls = "ktls" in nopts
             nginx_tls = ""
             if TLS:
                 nginx_tls = ""
                 for port, dest in ((TLS_TERM, ORIGIN_HTTP), (TLS_TERM_TCP, ORIGIN_TCP)):
                     nginx_tls += (f"    server {{\n        listen {PRX_IN}:{port} ssl backlog=65535 reuseport;\n"
                                   f"        ssl_certificate {TLS['cert']};\n        ssl_certificate_key {TLS['key']};\n"
+                                  + ("        ssl_conf_command Options KTLS;\n" if ktls else "") +
                                   f"        proxy_pass {SRV_ADDR}:{dest};\n        proxy_bind {out};\n    }}\n")
                 for port, dest in ((TLS_INIT, ORIGIN_TLS), (TLS_INIT_TCP, ORIGIN_TLS_TCP)):
                     nginx_tls += (f"    server {{\n        listen {PRX_IN}:{port} backlog=65535 reuseport;\n"
                                   f"        proxy_pass {SRV_ADDR}:{dest};\n        proxy_ssl on;\n"
+                                  + ("        proxy_ssl_conf_command Options KTLS;\n" if ktls else "") +
                                   f"        proxy_bind {out};\n    }}\n")
             f.write(f"""{load}daemon off;
 worker_processes {ncpu};
@@ -838,8 +848,8 @@ class Proxy:
             path, _, self.opts = path.partition(":")
             # nginx has no splice(): its one option is halfclose, for
             # proxy_half_close on, which its relays leave off by default
-            if kind == "nginx" and self.opts not in ("", "halfclose"):
-                sys.exit("nginx options: halfclose")
+            if kind == "nginx" and not set(self.opts.split("+")) <= {"", "halfclose", "ktls"}:
+                sys.exit("nginx options: halfclose, ktls, halfclose+ktls")
             self.binary = path or tool(kind)
             self.label = kind + ("-" + self.opts if self.opts else "")
         elif kind == "envoy":
@@ -1204,7 +1214,8 @@ def summary(rows):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--proxy", action="append", required=True,
-                    help="3proxy:<binary>[:<service options>], nginx[:<binary>[:halfclose]], "
+                    help="3proxy:<binary>[:<service options>, ktls for ssl_ktls], "
+                         "nginx[:<binary>[:halfclose|ktls|halfclose+ktls]], "
                          "tinyproxy, squid, dante (sockd), "
                          "haproxy[:<binary>[:splice-auto|splice-response|splice-request|splice]] "
                          "or none (the kernel routing, an upper bound); repeat")

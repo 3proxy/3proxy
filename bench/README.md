@@ -230,6 +230,12 @@ variant; `nginx::halfclose` turns on `proxy_half_close` in its relays, which
 nginx leaves off: then a client shutting down its sending side still gets the
 answer, as through 3proxy and haproxy.
 
+`ktls` asks for kernel TLS in the `tls-*` scenarios: among 3proxy's options
+(`3proxy:bench/bin/3proxy:ktls`) it adds `ssl_ktls` before the TLS services,
+for nginx (`nginx::ktls`, or `nginx::halfclose+ktls`) it adds `Options KTLS`
+to both sides' OpenSSL configuration. Either takes effect only where the
+proxy's OpenSSL is built with kernel TLS and the tls module is loaded.
+
 `--proxy stunnel` measures stunnel in the `tls-*` scenarios. `--proxy envoy`
 measures envoy where nginx and haproxy are measured: as an HTTP proxy for the
 origin (its connections there pooled), as a TCP relay (`tcp_proxy`) and in
