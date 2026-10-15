@@ -51,6 +51,11 @@ def run(t):
     t.contains(counters, "<tr>", "the counters page renders a table")
     t.contains(reload("/R"), "Reload", "the reload page confirms the request")
     t.contains(t.http(url + "/S"), "<", "the services page returns markup")
+    # admin and httpsrv services are of type HTTPSRV, named as such, not as
+    # the zombie a stopped service is
+    services = t.http(url + "/S")
+    t.contains(services, "CDATA[HTTPSRV]", "the services page names the admin service HTTPSRV")
+    t.not_contains(services, "CDATA[ZOMBIE]", "and no running service a zombie")
 
     # --- the menu no longer offers the removed config editor -----------
     main = t.http(url + "/")
