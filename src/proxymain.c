@@ -906,6 +906,9 @@ struct listener {
 	/* its clients, whichever of its services, old or new, they came to:
 	   those connected now, and those done with */
 	uint64_t clients, processed;
+	/* the traffic of its clients as logged: from the server (%I) and
+	   from the client (%O) */
+	uint64_t trafin, trafout;
 	_3proxy_mutex_t count_mutex;
 };
 
@@ -923,6 +926,18 @@ static void listenercount(struct srvparam *srv, int delta){
  _3proxy_mutex_unlock(&l->count_mutex);
 }
 
+/* The traffic of a client, about to be cleared once logged, counted for
+   its listener. */
+void listenertraffic(struct clientparam *param){
+ struct listener *l = param->srv->listener;
+
+ if(!l) return;
+ _3proxy_mutex_lock(&l->count_mutex);
+ l->trafin += param->statssrv64;
+ l->trafout += param->statscli64;
+ _3proxy_mutex_unlock(&l->count_mutex);
+}
+
 static uint64_t nocount = 0;
 
 /* The counters of a running service's listener, for the admin pages; the
@@ -933,6 +948,14 @@ uint64_t *listenerclients(struct srvparam *srv){
 
 uint64_t *listenerprocessed(struct srvparam *srv){
  return srv->listener? &srv->listener->processed : &nocount;
+}
+
+uint64_t *listenertrafin(struct srvparam *srv){
+ return srv->listener? &srv->listener->trafin : &nocount;
+}
+
+uint64_t *listenertrafout(struct srvparam *srv){
+ return srv->listener? &srv->listener->trafout : &nocount;
 }
 static struct listener *listeners = NULL;
 _3proxy_mutex_t listener_mutex;

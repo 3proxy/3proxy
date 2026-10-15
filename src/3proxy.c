@@ -559,6 +559,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   _3proxy_mutex_init(&confref_mutex);
   _3proxy_mutex_init(&listener_mutex);
   reattachfunc = reattach;
+  listenertrafficfunc = listenertraffic;
   _3proxy_mutex_init(&runningservices_mutex);
   _3proxy_mutex_init(&bandlim_mutex);
   _3proxy_mutex_init(&connlim_mutex);

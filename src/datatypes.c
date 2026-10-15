@@ -538,6 +538,14 @@ static void * ef_server_listenerprocessed(struct node * node){
 	return listenerprocessed((struct srvparam *)node->value);
 }
 
+static void * ef_server_listenertrafin(struct node * node){
+	return listenertrafin((struct srvparam *)node->value);
+}
+
+static void * ef_server_listenertrafout(struct node * node){
+	return listenertrafout((struct srvparam *)node->value);
+}
+
 static void * ef_server_childcount(struct node * node){
 	return &((struct srvparam *)node->value) -> childcount;
 }
@@ -896,6 +904,8 @@ static struct property prop_server[] = {
 	{"childcount", ef_server_childcount, TYPE_INTEGER, "number of servers connected"},
 	{"listenerclients", ef_server_listenerclients, TYPE_UNSIGNED64, "clients connected to the listening socket, of its services old and new"},
 	{"listenerprocessed", ef_server_listenerprocessed, TYPE_UNSIGNED64, "clients of the listening socket done with"},
+	{"listenertrafin", ef_server_listenertrafin, TYPE_UNSIGNED64, "bytes from servers to the clients of the listening socket, as logged"},
+	{"listenertrafout", ef_server_listenertrafout, TYPE_UNSIGNED64, "bytes from the clients of the listening socket, as logged"},
 	{"maxchild", ef_server_maxchild, TYPE_INTEGER, "max concurrent connections"},
 	{"backlog", ef_server_backlog, TYPE_INTEGER, "listen backlog"},
 	{"needuser", ef_server_needuser, TYPE_INTEGER, "require user authentication"},

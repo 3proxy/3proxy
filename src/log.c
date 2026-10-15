@@ -25,6 +25,9 @@ void dolog(struct clientparam * param, const unsigned char *s){
 
 
 void clearstat(struct clientparam * param) {
+	/* the traffic logged, or dropped, counted for the listener first */
+	if(param->srv && listenertrafficfunc && (param->statssrv64 || param->statscli64))
+		(*listenertrafficfunc)(param);
 
 #ifdef _WIN32
 	struct timeb tb;

@@ -406,6 +406,11 @@ extern int (*reattachfunc)(struct clientparam *param, int auth);
 int clientauth(struct clientparam *param);
 uint64_t *listenerclients(struct srvparam *srv);
 uint64_t *listenerprocessed(struct srvparam *srv);
+uint64_t *listenertrafin(struct srvparam *srv);
+uint64_t *listenertrafout(struct srvparam *srv);
+void listenertraffic(struct clientparam *param);
+/* listenertraffic() where services have listeners, NULL elsewhere */
+extern void (*listenertrafficfunc)(struct clientparam *param);
 struct passwords * copypwl (struct passwords *pwl);
 void freepwl(struct passwords *pw);
 int copyfilter(struct filter *, struct srvparam *srv);

@@ -234,6 +234,7 @@ struct extparam confboot = {
 struct extparam *conf = &confboot;
 struct extparam *runconf = &confboot;
 int (*reattachfunc)(struct clientparam *param, int auth) = NULL;
+void (*listenertrafficfunc)(struct clientparam *param) = NULL;
 
 /* Authorizes a request on a connection which may outlive a reload, an HTTP
    one kept alive: as a client of the service whose rules apply now, the

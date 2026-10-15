@@ -76,15 +76,25 @@ def run(t):
         page = t.http(f"http://127.0.0.1:{adm}/S").text
         m = re.search(r"type of the service/client</description><value><!\[CDATA\[" + service +
                       r"\]\].*?<name>listenerclients</name>.*?CDATA\[(\d+)\]"
-                      r".*?<name>listenerprocessed</name>.*?CDATA\[(\d+)\]", page, re.S)
-        return (int(m.group(1)), int(m.group(2))) if m else (None, None)
+                      r".*?<name>listenerprocessed</name>.*?CDATA\[(\d+)\]"
+                      r".*?<name>listenertrafin</name>.*?CDATA\[(\d+)\]"
+                      r".*?<name>listenertrafout</name>.*?CDATA\[(\d+)\]", page, re.S)
+        return tuple(int(v) for v in m.groups()) if m else (None,) * 4
 
-    clients, processed = listener_counts("PROXY")
+    clients, processed, trafin, trafout = listener_counts("PROXY")
     t.eq(0, clients, "no client is connected to the proxy's listener after the run")
     total = done["ok"] + done["failed"]
     t.ok(f"its count of clients done with goes on through the reloads ({processed} of {total})") \
         if processed is not None and processed >= total else \
         t.fail("its count of clients done with goes on through the reloads", f"at least {total}", processed)
+    # and the traffic as logged: each answer brings 2000 bytes of body, each
+    # request a few dozen bytes
+    t.ok(f"the traffic from servers is counted through the reloads ({trafin} bytes)") \
+        if trafin is not None and trafin >= 2000 * done["ok"] else \
+        t.fail("the traffic from servers is counted through the reloads", f"at least {2000 * done['ok']}", trafin)
+    t.ok(f"and the traffic from clients ({trafout} bytes)") \
+        if trafout is not None and trafout >= 50 * done["ok"] else \
+        t.fail("and the traffic from clients", f"at least {50 * done['ok']}", trafout)
 
     # --- UDP: the socket is handed over too, and a session of the old
     # service goes on through it, its datagrams forwarded by the new one ---
