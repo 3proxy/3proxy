@@ -31,8 +31,8 @@ unsigned char * strings[] = {
 /* 18 */	(unsigned char *)"AUTO",
 /* 19 */	(unsigned char *)"TLSPR",
 /* 20 */	(unsigned char *)"IMAPP",
-/* 21 */	(unsigned char *)"ZOMBIE",
-/* 22 */	NULL,
+/* 21 */	(unsigned char *)"HTTPSRV",
+/* 22 */	(unsigned char *)"ZOMBIE",
 /* 23 */	NULL,
 /* 24 */	NULL,
 #ifndef TPROXY_CONF
