@@ -903,7 +903,37 @@ struct listener {
 	/* held while the first of its services opens the socket, binding
 	   which may take long: the others then use what it opened */
 	_3proxy_mutex_t open_mutex;
+	/* its clients, whichever of its services, old or new, they came to:
+	   those connected now, and those done with */
+	uint64_t clients, processed;
+	_3proxy_mutex_t count_mutex;
 };
+
+/* A client of srv comes (1) or goes (-1). */
+static void listenercount(struct srvparam *srv, int delta){
+ struct listener *l = srv->listener;
+
+ if(!l) return;
+ _3proxy_mutex_lock(&l->count_mutex);
+ if(delta > 0) l->clients++;
+ else {
+	l->clients--;
+	l->processed++;
+ }
+ _3proxy_mutex_unlock(&l->count_mutex);
+}
+
+static uint64_t nocount = 0;
+
+/* The counters of a running service's listener, for the admin pages; the
+   listener lasts as long as the service. */
+uint64_t *listenerclients(struct srvparam *srv){
+ return srv->listener? &srv->listener->clients : &nocount;
+}
+
+uint64_t *listenerprocessed(struct srvparam *srv){
+ return srv->listener? &srv->listener->processed : &nocount;
+}
 static struct listener *listeners = NULL;
 _3proxy_mutex_t listener_mutex;
 
@@ -1350,6 +1380,9 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
  }
  else {
 	srv->childcount++;
+#ifndef STDMAIN
+	listenercount(srv, 1);
+#endif
 	if(!reused){
 		newparam->workerid = (uint64_t)thread;
 		_3proxy_mutex_lock(&tpool.mutex);
@@ -1719,7 +1752,10 @@ void mainclaim(void *service){
 		free(newl);
 		newl = NULL;
 	}
-	else _3proxy_mutex_init(&newl->open_mutex);
+	else {
+		_3proxy_mutex_init(&newl->open_mutex);
+		_3proxy_mutex_init(&newl->count_mutex);
+	}
  }
  _3proxy_mutex_lock(&listener_mutex);
  for(l = listeners; l; l = l->next){
@@ -1745,6 +1781,7 @@ void mainclaim(void *service){
  _3proxy_mutex_unlock(&listener_mutex);
  if(newl){
 	_3proxy_mutex_destroy(&newl->open_mutex);
+	_3proxy_mutex_destroy(&newl->count_mutex);
 	free(newl->cbdest);
 	free(newl->netns);
 	free(newl->device);
@@ -1793,6 +1830,7 @@ static void listenerrelease(struct srvparam *srv){
  _3proxy_mutex_unlock(&listener_mutex);
  if(!last) return;
  _3proxy_mutex_destroy(&l->open_mutex);
+ _3proxy_mutex_destroy(&l->count_mutex);
  if(l->netns) free(l->netns);
  if(l->device) free(l->device);
  if(l->cbdest) free(l->cbdest);
@@ -2134,6 +2172,9 @@ void releaseparam(struct clientparam * param) {
 				param->next->prev = param->prev;
 			}
 			(param->srv->childcount)--;
+#ifndef STDMAIN
+			listenercount(param->srv, -1);
+#endif
 			/* under the mutex too: srvfree() may destroy the semaphore as
 			   soon as the mutex shows the last child gone */
 			_3proxy_sem_unlock(param->srv->childslots);

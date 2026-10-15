@@ -2,6 +2,7 @@
 the same address and port takes over the old service's socket, so clients
 connecting all the while are never refused nor reset."""
 
+import re
 import socket
 import threading
 import time
@@ -66,6 +67,24 @@ def run(t):
         t.fail("requests go on through the reloads", "more than 100", done["ok"])
     t.eq(0, done["failed"], "no request is refused or reset by a reload "
          f"(first errors: {done['errors']})")
+
+    # the listener counts its clients, whichever service took them: through
+    # the reloads the proxy's socket is one, its count goes on
+    def listener_counts(service):
+        """The listener counters of the running service of that type: its
+        item has nested ones, acl and clients, before its counters."""
+        page = t.http(f"http://127.0.0.1:{adm}/S").text
+        m = re.search(r"type of the service/client</description><value><!\[CDATA\[" + service +
+                      r"\]\].*?<name>listenerclients</name>.*?CDATA\[(\d+)\]"
+                      r".*?<name>listenerprocessed</name>.*?CDATA\[(\d+)\]", page, re.S)
+        return (int(m.group(1)), int(m.group(2))) if m else (None, None)
+
+    clients, processed = listener_counts("PROXY")
+    t.eq(0, clients, "no client is connected to the proxy's listener after the run")
+    total = done["ok"] + done["failed"]
+    t.ok(f"its count of clients done with goes on through the reloads ({processed} of {total})") \
+        if processed is not None and processed >= total else \
+        t.fail("its count of clients done with goes on through the reloads", f"at least {total}", processed)
 
     # --- UDP: the socket is handed over too, and a session of the old
     # service goes on through it, its datagrams forwarded by the new one ---

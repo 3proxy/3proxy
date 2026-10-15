@@ -404,6 +404,8 @@ int reattach(struct clientparam *param, int auth);
 /* reattach() where configurations are reloaded, NULL elsewhere */
 extern int (*reattachfunc)(struct clientparam *param, int auth);
 int clientauth(struct clientparam *param);
+uint64_t *listenerclients(struct srvparam *srv);
+uint64_t *listenerprocessed(struct srvparam *srv);
 struct passwords * copypwl (struct passwords *pwl);
 void freepwl(struct passwords *pw);
 int copyfilter(struct filter *, struct srvparam *srv);
