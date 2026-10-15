@@ -118,6 +118,36 @@ def run(t):
     t.contains(server.output(), f"{udp} 0.0.0.0:0 0 0 0 Accepting connections, taken over",
                "the UDP service takes the socket over")
 
+    # --- options: a live -ol option changed is set on the socket taken over,
+    # a bind-time one makes another socket; two services of one
+    # configuration on one address are each taken over ----------------------
+    def taken_for(port, since):
+        return server.output()[since:].count(f":{port} 0.0.0.0:0 0 0 0 Accepting connections, taken over")
+
+    def reload_conf(c):
+        mark = len(server.output())
+        t.write_config("takeover", c)
+        t.http(f"http://127.0.0.1:{adm}/R")
+        time.sleep(1.5)
+        return mark
+
+    oconf = conf.replace(f"proxy -p{proxy}", f"proxy -olTCP_NODELAY -p{proxy}")
+    reload_conf(oconf)
+    mark = reload_conf(oconf.replace("-olTCP_NODELAY", "-olTCP_NODELAY,SO_KEEPALIVE"))
+    t.eq(1, taken_for(proxy, mark), "a live socket option changed: the socket is taken over")
+    t.eq(200, t.http(f"http://127.0.0.1:{origin}/data?size=100", proxy=f"127.0.0.1:{proxy}").status,
+         "and serves")
+    mark = reload_conf(oconf.replace("-olTCP_NODELAY", "-olTCP_NODELAY,SO_KEEPALIVE,SO_REUSEADDR=0"))
+    t.eq(0, taken_for(proxy, mark), "a bind-time socket option changed: another socket")
+    t.ok("which serves") if t.wait_port(proxy) and t.http(
+        f"http://127.0.0.1:{origin}/data?size=100", proxy=f"127.0.0.1:{proxy}").status == 200 else \
+        t.fail("which serves", 200, "no answer")
+    twice = conf.replace(f"proxy -p{proxy}", f"proxy -p{proxy}\n        proxy -p{proxy}")
+    reload_conf(twice)
+    mark = reload_conf(twice)
+    t.eq(2, taken_for(proxy, mark), "two services on one address are both taken over")
+    reload_conf(conf)
+
     # a changed port is a new socket: the old one closes, the new one opens
     moved = t.free_port()
     t.write_config("takeover", conf.replace(f"proxy -p{proxy}", f"proxy -p{moved}"))

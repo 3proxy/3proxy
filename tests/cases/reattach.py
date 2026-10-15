@@ -2,6 +2,8 @@
 the rules of the newest service on its listener, taking one of its maxconn
 slots, and is dropped where that cannot be."""
 
+import base64
+import socket
 import threading
 import time
 
@@ -81,3 +83,58 @@ def run(t):
         t.fail("a proxy download is cut when a socks service takes the port",
                "less than 2000000 bytes", results[0].get("length"))
     t.contains(server.output(), " 00026 ", "as its service is another one now (26)")
+
+    # --- a service connecting back (-r) has no socket, but a listener for the
+    # place it connects to: its clients are re-authenticated all the same ---
+    peer = socket.socket()
+    peer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    peer.bind(("127.0.0.1", 0))
+    peer.listen(16)
+    peer.settimeout(10)
+    cb = peer.getsockname()[1]
+
+    def cbconfig(users):
+        return config(f"proxy -p{proxy}").replace(
+            "flush\n            maxconn 50\n            auth iponly\n            allow *\n            admin",
+            f"flush\n            users {users}\n            auth strong\n            allow *\n"
+            f"            proxy -r127.0.0.1:{cb}\n\n            flush\n            maxconn 50\n"
+            "            auth iponly\n            allow *\n            admin")
+
+    def cb_download(result):
+        """A request over a connection the -r service made: the peer is its
+        client once it has sent C."""
+        try:
+            c, _ = peer.accept()
+            c.settimeout(20)
+            c.sendall(b"C")
+            auth = base64.b64encode(b"alice:one").decode()
+            c.sendall((f"GET http://127.0.0.1:{origin}/data?size=2000000&block=65536&delay=60 HTTP/1.1\r\n"
+                       f"Host: 127.0.0.1:{origin}\r\nProxy-Authorization: Basic {auth}\r\n"
+                       "Connection: close\r\n\r\n").encode())
+            got = b""
+            while True:
+                b = c.recv(65536)
+                if not b:
+                    break
+                got += b
+            c.close()
+            result["body"] = len(got.split(b"\r\n\r\n", 1)[1]) if b"\r\n\r\n" in got else 0
+        except OSError as e:
+            result["error"] = str(e)
+
+    reload(cbconfig("alice:CL:one"))
+    for keep, users, want in ((True, "alice:CL:one bob:CL:two", "finishes whole"),
+                              (False, "bob:CL:two", "is cut")):
+        result = {}
+        th = threading.Thread(target=cb_download, args=(result,))
+        th.start()
+        time.sleep(0.5)
+        reload(cbconfig(users))
+        th.join(25)
+        whole = result.get("body") == 2000000
+        name = f"a download through a connect-back service {want} when alice is " + \
+            ("kept" if keep else "removed")
+        t.ok(name) if whole == keep else t.fail(name, "whole" if keep else "cut", result)
+        if keep:
+            reload(cbconfig("alice:CL:one"))
+    peer.close()
