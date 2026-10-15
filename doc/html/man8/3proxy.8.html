@@ -161,17 +161,19 @@ within a second; connections already open finish under the old
 configuration. A new service listening on the same address and port, in
 the same network namespace and on the same device, takes over the old
 service's TCP or UDP socket, so no connection is refused or lost
-meanwhile, and UDP sessions go on through it; a service of the same type
-is preferred where several share an address, as two services of one
-configuration may. Of the <b>-ol</b> options only those acting when the socket is
+meanwhile, and UDP sessions go on through it. Services of one
+configuration on one address share its socket, all accepting on it; they
+must be of the same type with the same <b>-ol</b> options, or the
+configuration is refused. Of the <b>-ol</b> options only those acting when the socket is
 bound must be the same (SO_REUSEADDR, SO_REUSEPORT, SO_EXCLUSIVEADDRUSE,
 IP_TRANSPARENT, TCP_FASTOPEN); the others are set on the socket taken over,
 those no longer given turned off. Otherwise the old service closes its
 socket and the new one opens another. Connections of the old services are
 re-authenticated as clients of the new service on their address, or on the
-place a service connecting back (<b>-r</b>) connects to, unless <b>noforce</b> is set;
+place a service connecting back (<b>-r</b>) connects to (several
+may connect to one place), unless <b>noforce</b> is set;
 they are closed if their service was removed or is of another type, or if
-the new one has no free slot of its maxconn. Settings left out of
+none of the new ones of their type has a free slot of its maxconn. Settings left out of
 the new file go back to their defaults.</p>
 
 <p style="margin-left:9%; margin-top: 1em">Under Windows,

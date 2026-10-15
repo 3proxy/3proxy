@@ -84,8 +84,31 @@ def run(t):
                "less than 2000000 bytes", results[0].get("length"))
     t.contains(server.output(), " 00026 ", "as its service is another one now (26)")
 
+    # --- services of one configuration on one address share its socket, so
+    # they must be of one type with the same options: otherwise the file is
+    # refused and the configuration in force stays ---------------------------
+    for line, why in ((f"proxy -p{proxy}\n            socks -p{proxy}",
+                       "a service of another type listens there"),
+                      (f"proxy -p{proxy}\n            proxy -olSO_KEEPALIVE -p{proxy}",
+                       "a service with other socket options listens there")):
+        mark = len(server.output())
+        t.write_config("reattach", config(line))
+        t.http(f"http://127.0.0.1:{adm}/R")
+        deadline = time.time() + 10
+        while time.time() < deadline and why not in server.output()[mark:]:
+            time.sleep(0.05)
+        t.contains(server.output()[mark:], why, f"refused: {why}")
+    # the socks service of the case before is still the one there
+    t.ne(200, t.http(f"http://127.0.0.1:{origin}/data?size=100", proxy=f"127.0.0.1:{proxy}").status,
+         "the configuration in force stays: the socks service, no HTTP proxy")
+    reload(config(f"proxy -p{proxy}\n            proxy -p{proxy}"))
+    ok = sum(1 for _ in range(20)
+             if t.http(f"http://127.0.0.1:{origin}/data?size=100", proxy=f"127.0.0.1:{proxy}").status == 200)
+    t.eq(20, ok, "two proxy services on one address both serve, sharing its socket")
+
     # --- a service connecting back (-r) has no socket, but a listener for the
-    # place it connects to: its clients are re-authenticated all the same ---
+    # place it connects to, here shared by two services connecting there: its
+    # clients are re-authenticated all the same ---
     peer = socket.socket()
     peer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     peer.bind(("127.0.0.1", 0))
@@ -97,7 +120,8 @@ def run(t):
         return config(f"proxy -p{proxy}").replace(
             "flush\n            maxconn 50\n            auth iponly\n            allow *\n            admin",
             f"flush\n            users {users}\n            auth strong\n            allow *\n"
-            f"            proxy -r127.0.0.1:{cb}\n\n            flush\n            maxconn 50\n"
+            f"            proxy -r127.0.0.1:{cb}\n            proxy -r127.0.0.1:{cb}\n\n"
+            "            flush\n            maxconn 50\n"
             "            auth iponly\n            allow *\n            admin")
 
     def cb_download(result):

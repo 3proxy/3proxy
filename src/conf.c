@@ -199,7 +199,7 @@ int start_proxy_thread(struct child * chp){
   int res;
 
 	if((res = mainprepare(chp->argc, (char **)chp->argv, &service))) {
-		fprintf(stderr, "Service not started on line: %d%s\n", linenum, res == 2? ": insufficient memory": res == 3? ": too many filters": res == 4? ": network namespace unavailable":"");
+		fprintf(stderr, "Service not started on line: %d%s\n", linenum, res == 2? ": insufficient memory": res == 3? ": too many filters": res == 4? ": network namespace unavailable": res == 5? ": a service of another type listens there": res == 6? ": a service with other socket options listens there":"");
 		return(40);
 	}
 	switch(deferred_add(service)){
@@ -210,6 +210,7 @@ int start_proxy_thread(struct child * chp){
 		fprintf(stderr, "Service not started on line: %d: insufficient memory\n", linenum);
 		return(40);
 	}
+	mainclaim(service);
 	return startservice(service);
 }
 

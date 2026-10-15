@@ -622,6 +622,7 @@ struct srvparam {
 	struct srvparam *prev;
 	struct listener *listener;	/* its listening socket, which a newer
 					   service may take over on a reload */
+	struct srvparam *lisnext;	/* the next service on the listener */
 	struct clientparam *child;
 	PROXYSERVICE service;
 	LOGFUNC logfunc;
