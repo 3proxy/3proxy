@@ -430,7 +430,13 @@ int
 	return send(s, msg, len, flags);
     }
     ssize_t def_sendto(void* state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-	return sendto(s, msg, len, flags, to, tolen);
+	ssize_t res = sendto(s, msg, len, flags, to, tolen);
+	if(res < 0 && errno == EISCONN && to) {
+	    /* connected stream socket: a destination address is not allowed
+	     * (Linux returns EISCONN e.g. for AF_UNIX); retry without it */
+	    res = sendto(s, msg, len, flags, NULL, 0);
+	}
+	return res;
     }
     ssize_t def_recv(void* state, SOCKET s, void *buf, size_t len, int flags){
 	return recv(s, buf, len, flags);
