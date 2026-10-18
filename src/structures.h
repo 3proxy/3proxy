@@ -976,12 +976,17 @@ struct symbol {
 	void * value;
 };
 
+struct udpservice;
+
 struct proxydef {
 	PROXYFUNC pf;
 	uint16_t port;
 	int isudp;
 	int service;
 	char * helpmessage;
+	/* a UDP service: its datagrams are handled in the service's own thread
+	   by these, no thread for a client */
+	const struct udpservice *udp;
 };
 
 extern struct proxydef childdef;
@@ -996,7 +1001,6 @@ extern struct hashtable dns_table;
 extern struct hashtable dns6_table;
 extern struct hashtable auth_table;
 extern const struct hashtable pwl_template;
-extern struct hashtable udp_table;
 
 struct authcache {
         unsigned char username[64];

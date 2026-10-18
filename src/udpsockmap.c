@@ -21,7 +21,7 @@ int socks5_udp_build_hdr(unsigned char *buf, PROXYSOCKADDRTYPE *addr)
 	return 4 + SAADDRLEN(addr) + 2;
 }
 
-static int socks5_udp_skip_hdr(unsigned char *buf, int len)
+int socks5_udp_skip_hdr(unsigned char *buf, int len)
 {
 	int addr_len;
 	int off;
@@ -49,7 +49,6 @@ static int socks5_udp_skip_hdr(unsigned char *buf, int len)
  *    3  three parent proxies (prepend 2 headers / strip 2 headers)
  *
  * param->waitserver64   non-zero: skip client socket polling (server→client only)
- * param->srv->s_option non-zero: return after first datagram sent to client
  * param->ctrlsock    TCP control socket from the client; INVALID_SOCKET if none.
  */
 
@@ -207,7 +206,6 @@ int udpsockmap(struct clientparam *param, int timeo)
 	sin = cliaddr;
 
 	nhops = param->udp_nhops;
-	if(param->srv->service == S_UDPPM) nhops++;
 	udpfds(param, &p);
 
 	for (;;) {
@@ -330,7 +328,6 @@ int udpsockmap(struct clientparam *param, int timeo)
 					ares = udpreconnect(param);
 					if (param->remsock == INVALID_SOCKET) return ares;
 					nhops = param->udp_nhops;
-					if(param->srv->service == S_UDPPM) nhops++;
 					udpfds(param, &p);
 				}
 				lastres = ares;
@@ -413,7 +410,6 @@ int udpsockmap(struct clientparam *param, int timeo)
 				param->srv->so._sendto(param->sostate, param->clisock,
 					   (char *)param->srvbuf + sendoff, sendlen, 0,
 					   (struct sockaddr *)&sin, SASIZE(&sin));
-			if (param->srv->s_option && param->srv->service == S_UDPPM) return 0;
 		}
 
 		if ((p.ctrl >= 0 && p.fds[p.ctrl].revents) ||

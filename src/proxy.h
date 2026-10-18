@@ -146,20 +146,6 @@ void daemonize(void);
 #endif
 #endif
 
-/* A UDP service answers from the address the client sent to, so the reply has
-   to leave the listening socket. Sharing that socket with the request handler
-   is the simple way, and what every Unix build does.
-
-   Older Windows cannot have two operations in flight on one socket, so a
-   build for it binds a second socket to the same address instead, which needs
-   SO_REUSEADDR on the listening socket as well. A build for those versions
-   asks for that with NO_SHARE_UDP_SOCKET, as Makefile.watcom does.
- */
-#ifndef SHARE_UDP_SOCKET
-#ifndef NO_SHARE_UDP_SOCKET
-#define SHARE_UDP_SOCKET
-#endif
-#endif
 
 #ifndef _WIN32
 size_t threadstacksize(int extra);
@@ -250,6 +236,50 @@ extern struct extparam confboot;
 int sockmap(struct clientparam * param, int timeo, int usesplice);
 int udpsockmap(struct clientparam * param, int timeo);
 int udpbind(struct clientparam * param);
+int socks5_udp_skip_hdr(unsigned char *buf, int len);
+
+/* A UDP service runs in one thread, the service's: it reads the service's
+   socket, from which every answer to a client leaves too, and the sockets
+   of its sessions towards their destinations, and keeps the time. A
+   session is a client of the service, a struct clientparam, without a
+   thread. */
+struct udploop;
+struct udpsession {
+	struct udpsession *next, *prev;
+	struct clientparam *param;
+	const struct udpservice *svc;
+	time_t deadline;	/* when it ends unless refreshed */
+	int idle;		/* seconds of silence it lasts, 0: deadline fixed */
+	int keyed;		/* found by its client's address */
+	int done;		/* to be ended, param->res saying how */
+	void *data;		/* the service's own, freed by it in end() */
+};
+struct udpservice {
+	/* datagrams from a client are found its session by the client's
+	   address (udppm), or each starts one of its own (dnspr) */
+	int keyed;
+	/* a session's first datagram, in buf, from param->sincr: 0 to keep the
+	   session, nonzero to end it, param->res saying how */
+	int (*first)(struct udploop *u, struct udpsession *ss, unsigned char *buf, int len);
+	/* a later datagram of its client (keyed services) */
+	int (*client)(struct udploop *u, struct udpsession *ss, unsigned char *buf, int len);
+	/* its socket towards the destination is readable */
+	int (*server)(struct udploop *u, struct udpsession *ss);
+	/* it ends: logged, its own data freed */
+	void (*end)(struct udploop *u, struct udpsession *ss);
+	/* param->res of a session whose deadline passed */
+	int timeoutres;
+};
+struct udploop {
+	struct srvparam *srv;
+	struct clientparam *defparam;
+	/* scratch of UDPBUFSIZE for a handler */
+	unsigned char *buf;
+};
+/* an answer to the session's client, from the service's socket */
+int udpanswer(struct udploop *u, struct clientparam *param, unsigned char *buf, int len);
+
+extern const struct udpservice udppmservice, dnsprservice;
 int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADDRTYPE *sa);
 /* which of a service's network namespaces a socket is made in */
 #define NS_IN	0	/* -ni: what faces the clients */
@@ -337,7 +367,6 @@ unsigned char* en64 (const unsigned char *in, unsigned char *out, int inlen, int
 void tohex(unsigned char *in, unsigned char *out, int len);
 void fromhex(unsigned char *in, unsigned char *out, int len);
 
-extern _3proxy_sem_t udpinit;
 #ifdef _WIN32
 #define _3proxy_sem_init(x, count, maxcount) (((x) = CreateSemaphore(NULL, (count), (maxcount), NULL))? 0 : 1)
 #define _3proxy_sem_lock(x) WaitForSingleObject(x, INFINITE)
@@ -460,7 +489,6 @@ extern char *copyright;
 
 #define SERVICES 5
 
-void * dnsprchild(struct clientparam * param);
 void * pop3pchild(struct clientparam * param);
 void * imappchild(struct clientparam * param);
 void * smtppchild(struct clientparam * param);
@@ -468,7 +496,6 @@ void * proxychild(struct clientparam * param);
 void * sockschild(struct clientparam * param);
 void * tcppmchild(struct clientparam * param);
 void * autochild(struct clientparam * param);
-void * udppmchild(struct clientparam * param);
 #ifdef WITH_HTTPSRV
 int op_admin(struct httpreq *r, const unsigned char *params);
 int op_admin_counters(struct httpreq *r, const unsigned char *params);

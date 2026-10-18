@@ -14,30 +14,36 @@
 #ifndef UDP
 #define UDP
 #endif
-#define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
+/* udppm: a session per client address, in the service's thread (see
+   udploop() in proxymain.c). Its datagrams go on to the target from a socket
+   of the session's own, behind the headers of a parent chain if the ACL
+   gives one; what comes back is answered from the service's socket. */
 
-static void udpparam2hash(const struct hashtable *ht, void *index, uint8_t *hash){
-    struct clientparam *param = (struct clientparam *)index;
-    uint32_t m1, m2;
-    m1 = murmurhash3(SAADDR(&param->srv->intsa), SAADDRLEN(&param->srv->intsa), 0x3a3a3a3a);
-    m1 = murmurhash3(SAPORT(&param->sincr), 2, m1);
-    m2 = murmurhash3(SAADDR(&param->sincr), SAADDRLEN(&param->sincr), m1);
-    m2 = murmurhash3(SAPORT(&param->srv->intsa), 2, m2);
-    memcpy(hash, &m1, 4);
-    memcpy(hash+4, &m2, 4);
+/* A datagram of the client to the target, or to the first relay of a chain
+   with the headers of the hops after it and of the target. */
+static void udppmforward(struct udploop *u, struct clientparam *param, unsigned char *data, int len){
+	int i, off = 0;
+
+	if(param->bandlimfunc && (*param->bandlimfunc)(param, 0, len)) return;
+	if(param->udp_nhops){
+		for(i = 1; i < param->udp_nhops; i++)
+			off += socks5_udp_build_hdr(u->buf + off, &param->udp_relay[i-1]);
+		off += socks5_udp_build_hdr(u->buf + off, &param->req);
+	}
+	if(len > UDPBUFSIZE - off) len = UDPBUFSIZE - off;
+	memcpy(u->buf + off, data, len);
+	param->srv->so._sendto(param->sostate, param->remsock, (char *)u->buf, off + len, 0,
+		(struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr));
+	param->statscli64 += len;
+	param->nwrites++;
 }
 
-struct hashtable udp_table =  {udpparam2hash, udpparam2hash, sizeof(struct clientparam *), 8};
-int socks5_udp_build_hdr(unsigned char *buf, PROXYSOCKADDRTYPE *addr);
+static int udppmfirst(struct udploop *u, struct udpsession *ss, unsigned char *buf, int len){
+	struct clientparam *param = ss->param;
+	int res;
 
-void * udppmchild(struct clientparam* param) {
-	int authres;
-	int i;
-	int len = 0;
-
-	if(parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) { RETURN(100) }
-
+	if(parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) return (param->res = 100);
 #ifndef NOIPV6
 	param->sinsl = *SAFAMILY(&param->req) == AF_INET6? param->srv->extsa6 : param->srv->extsa;
 #else
@@ -46,46 +52,74 @@ void * udppmchild(struct clientparam* param) {
 	*SAPORT(&param->sinsl) = 0;
 	param->sinsr = param->req;
 	param->operation = UDPASSOC;
-	authres = (*param->srv->authfunc)(param);
-	if(authres) { RETURN(authres); }
-	if((authres = udpbind(param))) { RETURN(authres); }
-	if(!param->srv->s_option)hashadd(&udp_table, param, &param, MAX_COUNTER_TIME);
-	if(!param->bandlimfunc || !(*param->bandlimfunc)(param, 0, param->srv->udplen)){
-	    if(param->udp_nhops){
-		for(i=1; i < param->udp_nhops; i++){
-		    len+=socks5_udp_build_hdr(param->srvbuf+len, &param->udp_relay[i-1]);
-		}
-		len += socks5_udp_build_hdr(param->srvbuf+len, &param->req);
-	    }
-	    memcpy(param->srvbuf+len, param->srv->udpbuf, param->srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : param->srv->udplen);
-	    len += param->srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : param->srv->udplen;
-	    param->srv->so._sendto(param->sostate, param->remsock, (char *)param->srvbuf, len, 0, (struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr));
-	    param->statscli64 += param->srvinbuf;
-	    param->nwrites++;
-	}
-	_3proxy_sem_unlock(udpinit);
-	param->srvinbuf = 0;
-	param->clisock = param->srv->srvsock;
-	param->waitserver64 = 0x7fffffffffffffff;
-	param->res = udpsockmap(param, param->srv->timeouts[STRING_L]);
-	_3proxy_sem_lock(udpinit);
-	if(!param->srv->s_option)hashdelete(&udp_table, param);
-
-CLEANRET:
-
- _3proxy_sem_unlock(udpinit);
- dolog(param, NULL);
- param->clisock = INVALID_SOCKET;
- return (NULL);
+	if((res = (*param->srv->authfunc)(param))) return (param->res = res);
+	if((res = udpbind(param))) return (param->res = res);
+	ss->idle = param->srv->timeouts[STRING_L];
+	udppmforward(u, param, buf, len);
+	return 0;
 }
+
+static int udppmclient(struct udploop *u, struct udpsession *ss, unsigned char *buf, int len){
+	udppmforward(u, ss->param, buf, len);
+	return 0;
+}
+
+/* What the target, or the relay of a chain, sends back: to the client, the
+   headers of the chain taken off. */
+static int udppmserver(struct udploop *u, struct udpsession *ss){
+	struct clientparam *param = ss->param;
+	PROXYSOCKADDRTYPE from;
+	SASIZETYPE size = sizeof(from);
+	int len, off = 0, k, next;
+
+	len = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)u->buf, UDPBUFSIZE, 0,
+		(struct sockaddr *)&from, &size);
+	if(len < 0 && (errno == EAGAIN || errno == EINTR)) return 0;
+#ifdef _WIN32
+	/* an earlier datagram was refused (ICMP): reported here, not fatal */
+	if(len < 0 && WSAGetLastError() == WSAECONNRESET) return 0;
+#endif
+	if(len <= 0) return (param->res = 486);
+	if(!SAISNULL(&param->sinsr) && *SAPORT(&param->sinsr) &&
+	   (SAADDRLEN(&from) != SAADDRLEN(&param->sinsr) ||
+	    memcmp(SAADDR(&from), SAADDR(&param->sinsr), SAADDRLEN(&from)) ||
+	    memcmp(SAPORT(&from), SAPORT(&param->sinsr), 2)))
+		return 0;
+	for(k = 0; k < param->udp_nhops; k++){
+		if((next = socks5_udp_skip_hdr(u->buf + off, len - off)) < 0) return 0;
+		off += next;
+	}
+	len -= off;
+	param->statssrv64 += len;
+	param->nreads++;
+	if(param->bandlimfunc && (*param->bandlimfunc)(param, len, 0)) return 0;
+	udpanswer(u, param, u->buf + off, len);
+	/* -s: one answer to a request */
+	if(param->srv->s_option) return 1;
+	return 0;
+}
+
+static void udppmend(struct udploop *u, struct udpsession *ss){
+	dolog(ss->param, NULL);
+}
+
+const struct udpservice udppmservice = {
+	1,
+	udppmfirst,
+	udppmclient,
+	udppmserver,
+	udppmend,
+	92
+};
 
 #ifdef WITHMAIN
 struct proxydef childdef = {
-	udppmchild,
+	NULL,
 	0,
 	1,
 	S_UDPPM,
-	" -s single packet UDP service for request/reply (DNS-like) services\n"
+	" -s single packet UDP service for request/reply (DNS-like) services\n",
+	&udppmservice
 };
 #include "proxymain.c"
 #endif

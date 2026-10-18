@@ -256,6 +256,8 @@ static int h_proxy(int argc, unsigned char ** argv){
 
 	ch.argc = argc;
 	ch.argv = argv;
+	/* set below for a UDP service only */
+	childdef.udp = NULL;
 	if(!strcmp((char *)argv[0], "proxy")) {
 		childdef.pf = proxychild;
 		childdef.port = 3128;
@@ -331,7 +333,8 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.helpmessage = "";
 	}
 	else if(!strcmp((char *)argv[0], "udppm")) {
-		childdef.pf = udppmchild;
+		childdef.pf = NULL;
+		childdef.udp = &udppmservice;
 		childdef.port = 0;
 		childdef.isudp = 1;
 		childdef.service = S_UDPPM;
@@ -364,7 +367,8 @@ static int h_proxy(int argc, unsigned char ** argv){
 	}
 #endif
 	else if(!strcmp((char *)argv[0], "dnspr")) {
-		childdef.pf = dnsprchild;
+		childdef.pf = NULL;
+		childdef.udp = &dnsprservice;
 		childdef.port = 53;
 		childdef.isudp = 1;
 		childdef.service = S_DNSPR;
@@ -883,7 +887,7 @@ struct redirdesc redirs[] = {
     {R_INTPORT, "intport", NULL},
     {R_TLS, "tls", tlsprchild},
     {R_HA, "ha", NULL},
-    {R_DNS, "dns", dnsprchild},
+    {R_DNS, "dns", NULL},
     {0, NULL, NULL}
 };
 

@@ -35,9 +35,6 @@ static void serveparam(struct clientparam *param){
  int i = -1;
 #ifdef MODULEMAINFUNC
  if(makefilters(param->srv, param) > CONTINUE){
-#ifndef NOUDPMAIN
-	if(param->srv->service == S_UDPPM) _3proxy_sem_unlock(udpinit);
-#endif
 	releaseparam(param);
 	return;
  }
@@ -97,7 +94,7 @@ static void serveparam(struct clientparam *param){
 #ifndef _WIN32
 	sigset_t mask;
 	sigfillset(&mask);
-	if(param->srv->service != S_UDPPM)pthread_sigmask(SIG_SETMASK, &mask, NULL);
+	pthread_sigmask(SIG_SETMASK, &mask, NULL);
 #endif
 #endif
 
@@ -378,6 +375,7 @@ struct srvstart {
 	unsigned char *cbc_string, *cbl_string;
 	FILE *fp;
 	int isudp, iscbc, iscbl;
+	const struct udpservice *udp;
 #ifndef _WIN32
 	pthread_attr_t pa;
 #endif
@@ -484,6 +482,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
  srv->pf = childdef.pf;
  s->isudp = childdef.isudp;
+ s->udp = childdef.udp;
 
  /* Default socket options, which -oc, -os, -ol and -oR change by naming
     them, NAME=0 to turn one off.
@@ -496,17 +495,13 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
     listening port there, and it only allows another local process to bind
     the same address and port, with undefined behaviour as to which socket
     receives the connections. Use -olSO_EXCLUSIVEADDRUSE to prevent that
-    instead. A Windows build which does not share the listening socket is the
-    exception: its UDP services bind a second socket to the same address to
-    answer from, and Windows only allows that when both sockets ask for it.
+    instead.
  */
  (void)getopts("TCP_NODELAY", &srv->clisockopts);
  (void)getopts("TCP_NODELAY", &srv->srvsockopts);
 #ifndef _WIN32
  (void)getopts("SO_REUSEADDR", &srv->lissockopts);
  (void)getopts("SO_REUSEADDR", &srv->cbssockopts);
-#elif !defined SHARE_UDP_SOCKET
- if(s->isudp) (void)getopts("SO_REUSEADDR", &srv->lissockopts);
 #endif
 #ifdef SO_REUSEPORT
  (void)getopts("SO_REUSEPORT", &srv->lissockopts);
@@ -514,7 +509,6 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 #ifndef NOUDPMAIN
  if(s->isudp) {
-	if(!udp_table.ihashtable)inithashtable(&udp_table, 64, 256, 65536);
 	srv->udpbuf = malloc(UDPBUFSIZE);
 	srv->udpbuf2 = malloc(UDPBUFSIZE);
 	if(!srv->udpbuf || !srv->udpbuf2) return 2;
@@ -916,6 +910,9 @@ struct listener {
 	   from the client (%O) */
 	uint64_t trafin, trafout;
 	_3proxy_mutex_t count_mutex;
+	/* a UDP service's sessions on a reload, for the newest service on the
+	   listener to adopt */
+	struct udpsession *udphand;
 };
 
 /* A client of srv comes (1) or goes (-1). */
@@ -967,6 +964,9 @@ static struct listener *listeners = NULL;
 _3proxy_mutex_t listener_mutex;
 
 static void listenerstop(struct srvparam *srv);
+#ifndef NOUDPMAIN
+static void udpendall(struct udpsession *list, int res);
+#endif
 static void takeopts(struct listener *l, struct srvparam *srv);
 static void listenerrelease(struct srvparam *srv);
 #endif
@@ -1292,40 +1292,383 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 #endif
 
 #ifndef NOUDPMAIN
-/* The next UDP client: a datagram from a peer with no association yet. One
-   from a known peer is passed on to it here. A new client is returned with
-   udpinit held, for its child to read the datagram and release it. */
-static int udpnext(struct srvstart *s){
- struct srvparam *srv = &s->srv;
- struct clientparam *defparam = &s->defparam;
- struct clientparam *toparam;
+/* A UDP service's loop, in the service's thread: the datagrams of its
+   clients come on the service's socket, those of their destinations on the
+   sockets of their sessions, and every answer to a client leaves from the
+   service's socket. No thread for a client. */
+struct udpstate {
+ struct udploop u;
+ const struct udpservice *svc;
+ struct udpsession *head;
+ int count;
+ struct hashtable keys;	/* a session by its client's address */
+ struct pollfd *fds;
+ struct udpsession **of;	/* the session of each of fds, NULL: the service */
+ int nalloc;
+ int nfull;
+};
 
- _3proxy_sem_lock(udpinit);
- srv->udplen = sockrecvfrom(NULL, srv->srvsock, (struct sockaddr *)&defparam->sincr, srv->udpbuf, UDPBUFSIZE, 0);
- if(srv->udplen <= 0) {
-	_3proxy_sem_unlock(udpinit);
-	return NEXT_RETRY;
+static void udpkey2hash(const struct hashtable *ht, void *index, uint8_t *hash){
+ PROXYSOCKADDRTYPE *sa = (PROXYSOCKADDRTYPE *)index;
+ uint32_t m1, m2;
+
+ m1 = murmurhash3(SAADDR(sa), SAADDRLEN(sa), 0x3a3a3a3a);
+ m2 = murmurhash3(SAPORT(sa), 2, m1);
+ memcpy(hash, &m1, 4);
+ memcpy(hash+4, &m2, 4);
+}
+
+int udpanswer(struct udploop *u, struct clientparam *param, unsigned char *buf, int len){
+ return param->srv->so._sendto(param->sostate, param->srv->srvsock, (char *)buf, len, 0,
+	(struct sockaddr *)&param->sincr, SASIZE(&param->sincr));
+}
+
+/* A session among its service's children, counted there and, if it is new,
+   on the listener. */
+static void udpjoin(struct srvparam *srv, struct clientparam *param, int new){
+ param->prev = param->next = NULL;
+ _3proxy_mutex_lock(&srv->counter_mutex);
+ if(srv->child){
+	param->next = srv->child;
+	srv->child->prev = param;
  }
- if(hashresolv(&udp_table, defparam, &toparam, NULL)) {
-    int i, len=0;
+ srv->child = param;
+ srv->childcount++;
+#ifndef STDMAIN
+ if(new) listenercount(srv, 1);
+#endif
+ _3proxy_mutex_unlock(&srv->counter_mutex);
+}
 
-    if(!toparam->bandlimfunc || !(*toparam->bandlimfunc)(toparam, 0, srv->udplen)){
-	if(toparam->udp_nhops){
-	    for(i=1; i < toparam->udp_nhops; i++){
-		len+=socks5_udp_build_hdr(srv->udpbuf2+len, &toparam->udp_relay[i-1]);
-	    }
-	    len += socks5_udp_build_hdr(srv->udpbuf2+len, &toparam->req);
+/* A new client: a slot of maxchild and a param, as a thread for it would
+   have; NULL without a slot or memory. */
+static struct udpsession *udpnew(struct udpstate *st){
+ struct srvparam *srv = st->u.srv;
+ struct udpsession *ss;
+ struct clientparam *param = NULL;
+
+ if(_3proxy_sem_timedlock(srv->childslots, 0)){
+	if(!srv->silent && !(st->nfull++ % 100)){
+		char buf[128];
+
+		sprintf(buf, "Warning: too many connected clients (%d/%d), datagram dropped", srv->childcount, srv->maxchild);
+		dolog(st->u.defparam, (unsigned char *)buf);
 	}
-	memcpy(srv->udpbuf2+len, srv->udpbuf, srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv->udplen);
-	len += srv->udplen > UDPBUFSIZE - len?UDPBUFSIZE - len : srv->udplen;
-	srv->so._sendto(toparam->sostate, toparam->remsock, (char *)srv->udpbuf2, len, 0, (struct sockaddr *)&toparam->sinsr, SASIZE(&toparam->sinsr));
-	toparam->statscli64 += srv->udplen;
-	toparam->nwrites++;
-    }
-    _3proxy_sem_unlock(udpinit);
-    return NEXT_RETRY;
+	return NULL;
  }
- return NEXT_CLIENT;
+ st->nfull = 0;
+ if(!(ss = calloc(1, sizeof(*ss))) || !(param = malloc(sizeof(*param)))){
+	free(ss);
+	_3proxy_sem_unlock(srv->childslots);
+	return NULL;
+ }
+ memset(param, 0, sizeof(*param));
+ memcpy(param, st->u.defparam, offsetof(struct clientparam, filters));
+ param->clibuf = param->clibufdata;
+ param->srvbuf = param->srvbufdata;
+ param->clibufsize = param->srvbufsize = SRVBUFSIZE(srv);
+ clearstat(param);
+ param->clisock = param->remsock = param->ctrlsock = param->ctrlsocksrv = INVALID_SOCKET;
+ udpjoin(srv, param, 1);
+ ss->param = param;
+ ss->svc = st->svc;
+#ifdef MODULEMAINFUNC
+ if(makefilters(srv, param) > CONTINUE){
+	freeparam(param);
+	free(ss);
+	return NULL;
+ }
+#endif
+ return ss;
+}
+
+/* A session ends: logged by its service, its sockets closed, its slot
+   given back. Its own service may be gone after. */
+static void udpend(struct udpsession *ss){
+ struct clientparam *param = ss->param;
+
+ if(ss->svc->end) (*ss->svc->end)(NULL, ss);
+ param->clisock = INVALID_SOCKET;
+ freeparam(param);
+ free(ss);
+}
+
+static void udpendall(struct udpsession *list, int res){
+ struct udpsession *ss;
+
+ while((ss = list)){
+	list = ss->next;
+	if(!ss->param->res) ss->param->res = res;
+	udpend(ss);
+ }
+}
+
+static void udpadd(struct udpstate *st, struct udpsession *ss){
+ ss->prev = NULL;
+ ss->next = st->head;
+ if(st->head) st->head->prev = ss;
+ st->head = ss;
+ st->count++;
+ ss->keyed = st->svc->keyed;
+ if(ss->keyed) hashadd(&st->keys, &ss->param->sincr, &ss, MAX_COUNTER_TIME);
+}
+
+static void udpremove(struct udpstate *st, struct udpsession *ss){
+ if(ss->prev) ss->prev->next = ss->next;
+ else st->head = ss->next;
+ if(ss->next) ss->next->prev = ss->prev;
+ ss->next = ss->prev = NULL;
+ st->count--;
+ if(ss->keyed) hashdelete(&st->keys, &ss->param->sincr);
+}
+
+static void udprefresh(struct udpsession *ss, time_t now){
+ if(ss->idle) ss->deadline = now + ss->idle;
+}
+
+#ifndef STDMAIN
+/* On a reload: the sessions go to the listener, for the newest service on
+   it to adopt; if it has none, the last service to stop on it ends them. */
+static void udphandover(struct udpstate *st){
+ struct listener *l = st->u.srv->listener;
+ struct udpsession *ss, *last = NULL;
+
+ for(ss = st->head; ss; ss = ss->next){
+	if(ss->keyed) hashdelete(&st->keys, &ss->param->sincr);
+	ss->keyed = 0;
+	last = ss;
+ }
+ if(!last) return;
+ if(!l){
+	udpendall(st->head, 26);
+	st->head = NULL;
+	return;
+ }
+ _3proxy_mutex_lock(&listener_mutex);
+ last->next = l->udphand;
+ if(l->udphand) l->udphand->prev = last;
+ l->udphand = st->head;
+ _3proxy_mutex_unlock(&listener_mutex);
+ st->head = NULL;
+ st->count = 0;
+}
+
+/* Sessions of an older service on the listener become this one's: a slot
+   here, the old one given back, its rules and limits, re-authenticated; 26
+   if it is another kind of service, 27 without a slot. */
+static void udpadopt(struct udpstate *st){
+ struct srvparam *srv = st->u.srv, *old;
+ struct listener *l = srv->listener;
+ struct udpsession *list, *ss;
+ struct clientparam *param;
+ int res;
+
+ if(!l || !l->udphand) return;
+ _3proxy_mutex_lock(&listener_mutex);
+ list = l->udphand;
+ l->udphand = NULL;
+ _3proxy_mutex_unlock(&listener_mutex);
+ while((ss = list)){
+	list = ss->next;
+	ss->next = ss->prev = NULL;
+	param = ss->param;
+	old = param->srv;
+	if(old == srv) { udpadd(st, ss); continue; }
+	if(param->service != srv->service){
+		param->res = 26;
+		udpend(ss);
+		continue;
+	}
+	if(_3proxy_sem_timedlock(srv->childslots, 0)){
+		param->res = 27;
+		udpend(ss);
+		continue;
+	}
+	/* what belongs to the old service and configuration let go */
+	while(param->nfilters > 0){
+		param->nfilters--;
+		if(param->filters[param->nfilters].filter->filter_clear)
+			(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
+	}
+	if(param->connlim) stopconnlims(param);
+	param->bandlimfunc = NULL;
+	param->bandlims[0] = param->bandlimsout[0] = NULL;
+	param->trafcountfunc = NULL;
+	param->maxtrafin64 = param->maxtrafout64 = 0;
+	_3proxy_mutex_lock(&old->counter_mutex);
+	if(param->prev) param->prev->next = param->next;
+	else old->child = param->next;
+	if(param->next) param->next->prev = param->prev;
+	old->childcount--;
+	_3proxy_sem_unlock(old->childslots);
+	_3proxy_mutex_unlock(&old->counter_mutex);
+	param->srv = srv;
+	param->sostate = srv->so.state;
+	param->version = srv->version;
+	udpjoin(srv, param, 0);
+	ss->svc = st->svc;
+#ifdef MODULEMAINFUNC
+	if(makefilters(srv, param) > CONTINUE){
+		param->res = 26;
+		udpend(ss);
+		continue;
+	}
+#endif
+	if((res = (*srv->authfunc)(param))){
+		param->res = res;
+		udpend(ss);
+		continue;
+	}
+	udpadd(st, ss);
+ }
+}
+#endif
+
+#ifndef STDMAIN
+/* After a reload, while an older service of this kind still accepts on the
+   listener, it goes on serving the service's socket alone, until it hands
+   its sessions over: a client is not given a session in both. */
+static int udpolder(struct srvparam *srv){
+ struct srvparam *o;
+ int older = 0;
+
+ if(!srv->listener) return 0;
+ _3proxy_mutex_lock(&listener_mutex);
+ for(o = srv->listener->owners; o; o = o->lisnext)
+	if(o != srv && o->version < srv->version && o->service == srv->service) older = 1;
+ _3proxy_mutex_unlock(&listener_mutex);
+ return older;
+}
+#endif
+
+/* The datagrams waiting on the service's socket: to a session, or a new
+   one. Some at a time, so that the sessions get their turn. */
+static void udpclients(struct udpstate *st, time_t now){
+ struct srvparam *srv = st->u.srv;
+ struct clientparam *defparam = st->u.defparam;
+ struct udpsession *ss;
+ SASIZETYPE size;
+ int len, n;
+
+ for(n = 0; n < 64; n++){
+	size = sizeof(defparam->sincr);
+	len = srv->so._recvfrom(srv->so.state, srv->srvsock, (char *)srv->udpbuf, UDPBUFSIZE, 0,
+		(struct sockaddr *)&defparam->sincr, &size);
+	if(len < 0){
+#ifdef _WIN32
+		/* an answer to a client was refused (ICMP): reported here */
+		if(WSAGetLastError() == WSAECONNRESET) continue;
+#endif
+		break;
+	}
+	if(st->svc->keyed && hashresolv(&st->keys, &defparam->sincr, &ss, NULL)){
+		if(ss->done) continue;
+		udprefresh(ss, now);
+		if(st->svc->client && (*st->svc->client)(&st->u, ss, srv->udpbuf, len)) ss->done = 1;
+		continue;
+	}
+	if(!(ss = udpnew(st))) continue;
+	ss->param->sincr = defparam->sincr;
+	udpadd(st, ss);
+	if((*st->svc->first)(&st->u, ss, srv->udpbuf, len)) ss->done = 1;
+	else if(!ss->deadline || ss->idle) udprefresh(ss, now);
+ }
+}
+
+static int udploop(struct srvstart *s){
+ struct udpstate st;
+ struct srvparam *srv = &s->srv;
+ struct udpsession *ss, *next;
+ time_t now;
+ int i, n, nfds, timeo, res = 0, wait = 0;
+
+ memset(&st, 0, sizeof(st));
+ st.u.srv = srv;
+ st.u.defparam = &s->defparam;
+ st.u.buf = srv->udpbuf2;
+ st.svc = s->udp;
+ st.keys.index2hash_add = udpkey2hash;
+ st.keys.index2hash_search = udpkey2hash;
+ st.keys.recsize = sizeof(struct udpsession *);
+ st.keys.hash_size = 8;
+ if(st.svc->keyed && inithashtable(&st.keys, 64, 256, 1048576)) return 21;
+ for(;;){
+	if(srv->config->paused != srv->paused) break;
+#ifndef STDMAIN
+	udpadopt(&st);
+#endif
+	if(st.nalloc < 2 * st.count + 1){
+		int want = 2 * st.count + 64;
+		struct pollfd *f = realloc(st.fds, want * sizeof(*f));
+
+		if(f) st.fds = f;
+		if(f && (st.of = realloc(st.of, want * sizeof(*st.of)))) st.nalloc = want;
+		else { res = 21; break; }
+	}
+	now = time(NULL);
+	timeo = 1000;
+#ifndef STDMAIN
+	/* waiting for an older service's sessions: soon looked for again */
+	if((wait = udpolder(srv))) timeo = 20;
+#endif
+	nfds = 0;
+	st.fds[nfds].fd = srv->srvsock;
+	st.fds[nfds].events = wait? 0 : POLLIN;
+	st.fds[nfds].revents = 0;
+	st.of[nfds++] = NULL;
+	for(ss = st.head; ss; ss = ss->next){
+		if(ss->deadline && (ss->deadline - now) * 1000 < timeo)
+			timeo = ss->deadline > now? (int)(ss->deadline - now) * 1000 : 0;
+		if(ss->param->remsock != INVALID_SOCKET){
+			st.fds[nfds].fd = ss->param->remsock;
+			st.fds[nfds].events = POLLIN;
+			st.fds[nfds].revents = 0;
+			st.of[nfds++] = ss;
+		}
+		/* a parent's control connection: its end ends the session */
+		if(ss->param->ctrlsocksrv != INVALID_SOCKET && ss->param->ctrlsocksrv != ss->param->remsock){
+			st.fds[nfds].fd = ss->param->ctrlsocksrv;
+			st.fds[nfds].events = POLLIN;
+			st.fds[nfds].revents = 0;
+			st.of[nfds++] = ss;
+		}
+	}
+	n = srv->so._poll(srv->so.state, st.fds, nfds, timeo);
+	if(n < 0 && errno != EINTR && errno != EAGAIN){
+		res = 91;
+		break;
+	}
+	now = time(NULL);
+	for(i = 1; n > 0 && i < nfds; i++){
+		ss = st.of[i];
+		if(!st.fds[i].revents || ss->done) continue;
+		if(st.fds[i].fd == ss->param->remsock){
+			udprefresh(ss, now);
+			if((*st.svc->server)(&st.u, ss)) ss->done = 1;
+		}
+		else ss->done = 1;
+	}
+	if(n > 0 && !wait && st.fds[0].revents) udpclients(&st, now);
+	for(ss = st.head; ss; ss = next){
+		next = ss->next;
+		if(!ss->done && ss->deadline && ss->deadline <= now){
+			ss->done = 1;
+			ss->param->res = st.svc->timeoutres;
+		}
+		if(ss->done){
+			udpremove(&st, ss);
+			udpend(ss);
+		}
+	}
+ }
+#ifndef STDMAIN
+ if(srv->config->paused != srv->paused) udphandover(&st);
+#endif
+ udpendall(st.head, 26);
+ if(st.svc->keyed) destroyhashtable(&st.keys);
+ free(st.fds);
+ free(st.of);
+ return res;
 }
 #endif
 
@@ -1363,12 +1706,7 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
  reused = newparam != NULL;
  if(!reused && (!(newparam = malloc (sizeof(*defparam))) || _3proxy_sem_init_timed(newparam->wake, 0, 1))){
 	if(newparam) free(newparam);
-	if(!s->isudp) srv->so._closesocket(srv->so.state, client_sock);
-#ifndef NOUDPMAIN
-	else {
-		_3proxy_sem_unlock(udpinit);
-	}
-#endif
+	srv->so._closesocket(srv->so.state, client_sock);
 	defparam->res = 21;
 	if(!srv->silent)dolog(defparam, (unsigned char *)"Memory Allocation Failed");
 	usleep(SLEEPTIME);
@@ -1427,11 +1765,6 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 		newparam->clisock = INVALID_SOCKET;
 	}
 	newparam->srv = NULL;
-#ifndef NOUDPMAIN
-	if(s->isudp){
-		_3proxy_sem_unlock(udpinit);
-	}
-#endif
 	freeworker(newparam);
  }
  else {
@@ -1489,6 +1822,10 @@ static int srvrun(struct srvstart *s){
  tpool.services++;
  tpool.maxchild += srv->maxchild;
  _3proxy_mutex_unlock(&tpool.mutex);
+#ifndef NOUDPMAIN
+ if(s->isudp) res = udploop(s);
+ else
+#endif
  for (;;) {
 	for(;;){
 		/* A connection is only taken with a slot of maxchild in hand, which
@@ -1518,12 +1855,10 @@ static int srvrun(struct srvstart *s){
 	}
 	if((srv->config->paused != srv->paused) || (error < 0)) break;
 	error = 0;
-#if defined NOTCPMAIN
-	next = udpnext(s);
-#elif defined NOUDPMAIN
+#ifndef NOTCPMAIN
 	next = tcpnext(s, &new_sock, &nlog);
 #else
-	next = s->isudp? udpnext(s) : tcpnext(s, &new_sock, &nlog);
+	next = NEXT_STOP;
 #endif
 	if(next == NEXT_STOP) break;
 	if(next == NEXT_RETRY) continue;
@@ -1851,6 +2186,7 @@ static void listenerstop(struct srvparam *srv){
  struct listener *l = srv->listener;
  struct srvparam **op;
  SOCKET sock = INVALID_SOCKET;
+ struct udpsession *hand = NULL;
 
  _3proxy_mutex_lock(&listener_mutex);
  for(op = &l->owners; *op; op = &(*op)->lisnext) if(*op == srv){
@@ -1861,8 +2197,14 @@ static void listenerstop(struct srvparam *srv){
  if(!l->owners){
 	sock = l->sock;
 	l->sock = INVALID_SOCKET;
+	/* sessions handed over with no service left to adopt them */
+	hand = l->udphand;
+	l->udphand = NULL;
  }
  _3proxy_mutex_unlock(&listener_mutex);
+#ifndef NOUDPMAIN
+ udpendall(hand, 26);
+#endif
  if(sock == INVALID_SOCKET) return;
  so._closesocket(so.state, sock);
 #ifdef WITH_UN
@@ -1963,10 +2305,6 @@ void maindrop(void *service){
 
 #endif
 
-#ifndef NOUDPMAIN
-int udpinited = 0;
-_3proxy_sem_t udpinit;
-#endif
 
 void srvinit(struct srvparam * srv, struct clientparam *param){
 
@@ -2017,12 +2355,6 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  *SAFAMILY(&param->req) = *SAFAMILY(&param->sinsl) = *SAFAMILY(&param->sinsr) = *SAFAMILY(&param->sincr) = *SAFAMILY(&param->sincl) = AF_INET;
  _3proxy_mutex_init(&srv->counter_mutex);
  (void)_3proxy_sem_init_timed(srv->childslots, srv->maxchild, srv->maxchild);
-#ifndef NOUDPMAIN
- if(!udpinited){
-    (void)_3proxy_sem_init(udpinit, 1, 1);
- }
- udpinited = 1;
-#endif
  srv->intsa = conf->intsa;
  srv->extsa = conf->extsa;
 #ifndef NOIPV6
@@ -2147,13 +2479,6 @@ void srvfree(struct srvparam * srv){
 void releaseparam(struct clientparam * param) {
 	if(param->srv){
 		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
-#ifndef STDMAIN
-		if(param->srv->service == S_UDPPM){
-			_3proxy_mutex_lock(&param->srv->counter_mutex);
-			hashdelete(&udp_table, param);
-			_3proxy_mutex_unlock(&param->srv->counter_mutex);
-		}
-#endif
 	}
 	if(param->clibuf != param->clibufdata) free(param->clibuf);
 	if(param->srvbuf != param->srvbufdata) free(param->srvbuf);
