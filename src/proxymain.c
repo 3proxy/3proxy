@@ -84,7 +84,7 @@ void * threadfunc (void *p) {
 			continue;
 		}
 #endif
-		if(socksendto(param, param->remsock, (struct sockaddr*)&param->sinsr, (unsigned char *)"C", 1, CONNBACK_TO*1000) != 1){
+		if(socksend(param, param->remsock, (unsigned char *)"C", 1, CONNBACK_TO) != 1){
 			dolog(param, (unsigned char *)"Connect back sending command failed");
 			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
@@ -705,7 +705,12 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
  else {
 #endif
 #ifndef NOPORTMAP
-	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv->intsa) = htons((uint16_t)atoi(argv[i])))==0 || (srv->targetport = htons((uint16_t)atoi(argv[i+2])))==0) {
+	/* the port of a Unix socket target is ignored, 0 as the manual has it */
+	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv->intsa) = htons((uint16_t)atoi(argv[i])))==0 || ((srv->targetport = htons((uint16_t)atoi(argv[i+2])))==0
+#ifdef WITH_UN
+	    && strncmp(argv[i+1], "unix:", 5)
+#endif
+	    )) {
 		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options"
 			" [-e<external_ip>] <port_to_bind>"
@@ -761,6 +766,11 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 
 /* The listening socket. A UDP one also receives the datagrams of new
    clients, so it is their client socket too. 0, or the code to exit with. */
+#ifdef WITH_UN
+static void unbound(struct srvparam *srv);
+static void ununlink(struct srvparam *srv);
+#endif
+
 static int srvlisten(struct srvstart *s){
  struct srvparam *srv = &s->srv;
  struct clientparam *defparam = &s->defparam;
@@ -815,6 +825,9 @@ static int srvlisten(struct srvstart *s){
 	sleeptime = (sleeptime<<1);
 	if(!sleeptime) return -3;
  }
+#ifdef WITH_UN
+ unbound(srv);
+#endif
 #ifndef NOTCPMAIN
  if(!s->isudp){
 	if(srv->so._listen (srv->so.state, sock, srv->backlog?srv->backlog : 1+(srv->maxchild>>3))==-1) {
@@ -909,7 +922,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 		return NEXT_RETRY;
 	}
 
-	if(sockrecvfrom(NULL, new_sock,(struct sockaddr*)&defparam->sincr,buf,1,60*1000) != 1 || *buf!='C') {
+	if(sockrecvfrom(NULL, new_sock, NULL, buf, 1, 60*1000) != 1 || *buf!='C') {
 		so._closesocket(so.state, new_sock);
 		usleep(SLEEPTIME);
 		return NEXT_RETRY;
@@ -1478,13 +1491,37 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 	param->sinsr = srv->extsa;
 }
 
+#ifdef WITH_UN
+/* A service bound to a Unix socket path notes its file, as a service of a
+   newer configuration may bind the same path before this one closes: the
+   file is then the other's, which closing must not remove. */
+static void unbound(struct srvparam *srv){
+ struct stat st;
+
+ if(*SAFAMILY(&srv->intsa) == AF_UNIX && *SAADDR(&srv->intsa) &&
+    !stat((char *)SAADDR(&srv->intsa), &st)){
+	srv->undev = (uint64_t)st.st_dev;
+	srv->unino = (uint64_t)st.st_ino;
+ }
+}
+
+static void ununlink(struct srvparam *srv){
+ struct stat st;
+
+ if(*SAFAMILY(&srv->intsa) == AF_UNIX && *SAADDR(&srv->intsa) &&
+    !stat((char *)SAADDR(&srv->intsa), &st) &&
+    (uint64_t)st.st_dev == srv->undev && (uint64_t)st.st_ino == srv->unino)
+	unlink((char *)SAADDR(&srv->intsa));
+}
+#endif
+
 void srvfree(struct srvparam * srv){
  int i;
 
  if(srv->srvsock != INVALID_SOCKET) {
     so._closesocket(srv->so.state, srv->srvsock);
 #ifdef WITH_UN
-    if(*SAFAMILY(&srv->intsa) == AF_UNIX && *SAADDR(&srv->intsa))unlink((char *)SAADDR(&srv->intsa));
+    ununlink(srv);
 #endif
  }
  srv->srvsock = INVALID_SOCKET;

@@ -113,6 +113,7 @@ int
 
 #ifdef WITH_UN
 #include <sys/un.h>
+#include <stddef.h>
 #endif
 
 #define ALLOW		0
@@ -160,7 +161,9 @@ int
 #define	UN_SAADDR(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (unsigned char *)((struct sockaddr_un *)sa)->sun_path :
 #define	UN_SAADDRLEN(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (int)sizeof(((struct sockaddr_un *)sa)->sun_path) :
 #define	UN_SASOCK(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? PF_UNIX :
-#define	UN_SASIZE(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? sizeof(struct sockaddr_un) :
+/* an abstract name (Linux) is its bytes after the leading 0, no more:
+   padded with zeros it would be another name */
+#define	UN_SASIZE(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (((struct sockaddr_un *)sa)->sun_path[0] || !((struct sockaddr_un *)sa)->sun_path[1]? sizeof(struct sockaddr_un) : offsetof(struct sockaddr_un, sun_path) + 1 + strlen(((struct sockaddr_un *)sa)->sun_path + 1)) :
 #define	UN_SAISNULL(sa) (((struct sockaddr_un *)sa)->sun_family == AF_UNIX)? (((struct sockaddr_un *)sa)->sun_path[0] == 0 && ((struct sockaddr_un *)sa)->sun_path[1] == 0) :
 #else
 #define UN_SAPORT(sa)
@@ -608,6 +611,8 @@ struct srvparam {
 	AUTHFUNC authfunc;
 	PROXYFUNC pf;
 	SOCKET srvsock, cbsock;
+	/* the file of a Unix socket bound to a path, to remove only it */
+	uint64_t undev, unino;
 	int childcount;
 	int maxchild;
 	int backlog;
