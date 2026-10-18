@@ -344,7 +344,7 @@ static int udploop(struct srvstart *s){
 			timeo = ss->deadline > now? (int)(ss->deadline - now) * 1000 : 0;
 		if(ss->param->remsock != INVALID_SOCKET){
 			st.fds[nfds].fd = ss->param->remsock;
-			st.fds[nfds].events = POLLIN;
+			st.fds[nfds].events = ss->events? ss->events : POLLIN;
 			st.fds[nfds].revents = 0;
 			st.of[nfds++] = ss;
 		}
@@ -375,8 +375,11 @@ static int udploop(struct srvstart *s){
 	for(ss = st.head; ss; ss = next){
 		next = ss->next;
 		if(!ss->done && ss->deadline && ss->deadline <= now){
-			ss->done = 1;
-			ss->param->res = st.svc->timeoutres;
+			if(st.svc->timeout) ss->done = (*st.svc->timeout)(&st.u, ss);
+			else {
+				ss->done = 1;
+				ss->param->res = st.svc->timeoutres;
+			}
 		}
 		if(ss->done){
 			udpremove(&st, ss);

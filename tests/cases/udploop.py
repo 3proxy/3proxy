@@ -24,28 +24,64 @@ def dns_raw(name, qtype, qid=0x3B3B):
     return q + b"\x00" + struct.pack("!HH", qtype, 1)
 
 
-def fake_name_server(answer):
-    """A name server answering every query with one TXT record, the text
-    given; and one which answers nothing."""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def dns_reply(data, answer):
+    """The answer to a query: an A record 10.9.8.7 for an A query, else a TXT
+    record with the text given."""
+    reply = bytearray(data)
+    reply[2] = 0x81
+    reply[3] = 0x80
+    reply[6:8] = struct.pack("!H", 1)
+    pos = 12
+    while data[pos]:
+        pos += data[pos] + 1
+    qtype = struct.unpack("!H", data[pos + 1:pos + 3])[0]
+    if qtype == 1:
+        reply += b"\xc0\x0c" + struct.pack("!HHIH", 1, 1, 60, 4) + bytes([10, 9, 8, 7])
+    else:
+        txt = bytes([len(answer)]) + answer
+        reply += b"\xc0\x0c" + struct.pack("!HHIH", 16, 1, 60, len(txt)) + txt
+    return bytes(reply)
+
+
+def fake_name_server(answer, tcp=False):
+    """A name server answering every query (see dns_reply), over UDP or
+    TCP; with answer None, one which answers nothing."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM if tcp else socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", 0))
+
+    def serve_tcp(c):
+        try:
+            c.settimeout(10)
+            head = c.recv(2)
+            n = struct.unpack("!H", head)[0]
+            data = b""
+            while len(data) < n:
+                data += c.recv(n - len(data))
+            reply = dns_reply(data, answer)
+            # in two pieces, as a stream may bring it
+            c.sendall(struct.pack("!H", len(reply)) + reply[:5])
+            time.sleep(0.05)
+            c.sendall(reply[5:])
+        except OSError:
+            pass
+        c.close()
 
     def serve():
         while True:
             try:
+                if tcp:
+                    c, _ = sock.accept()
+                    threading.Thread(target=serve_tcp, args=(c,), daemon=True).start()
+                    continue
                 data, peer = sock.recvfrom(65536)
             except OSError:
                 return
-            if answer is None:
-                continue
-            reply = bytearray(data)
-            reply[2] = 0x81
-            reply[3] = 0x80
-            reply[6:8] = struct.pack("!H", 1)
-            txt = bytes([len(answer)]) + answer
-            reply += b"\xc0\x0c" + struct.pack("!HHIH", 16, 1, 60, len(txt)) + txt
-            sock.sendto(bytes(reply), peer)
+            if answer is not None:
+                sock.sendto(dns_reply(data, answer), peer)
 
+    if tcp:
+        sock.listen(8)
     threading.Thread(target=serve, daemon=True).start()
     return sock, sock.getsockname()[1]
 
@@ -201,9 +237,22 @@ def run(t):
         if got and b"from-the-server" in got else \
         t.fail("a TXT query is sent on to the name server and its answer relayed", "the TXT", got)
 
+    # an address not in the cache is asked of the name server, and kept
+    got = exchange(s, fwd, dns_raw("a.test", 1))
+    t.ok("an A query not in the cache is answered by the name server") \
+        if got and bytes([10, 9, 8, 7]) in got else \
+        t.fail("an A query not in the cache is answered by the name server", "10.9.8.7", got)
+    good.close()
+    time.sleep(0.2)
+    got = exchange(s, fwd, dns_raw("a.test", 1))
+    t.ok("and then from the name cache, the name server gone") \
+        if got and bytes([10, 9, 8, 7]) in got else \
+        t.fail("and then from the name cache, the name server gone", "10.9.8.7", got)
+
     t.wait_udp(slow, payload=dns_raw("local.test", 1))
     pending = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    pending.sendto(dns_raw("mute.test", 16), ("127.0.0.1", slow))
+    # an A query, which the resolver used to wait for in place
+    pending.sendto(dns_raw("mute.test", 1), ("127.0.0.1", slow))
     start = time.time()
     other = exchange(s, slow, dns_raw("local.test", 1), timeout=2)
     t.ok(f"while one query waits for a silent name server another is answered ({time.time() - start:.2f} s)") \
@@ -213,5 +262,41 @@ def run(t):
     while time.time() < deadline and " 00821 " not in dns2.output():
         time.sleep(0.2)
     t.contains(dns2.output(), " 00821 ", "the waiting one ends at DNS_TO (821)")
-    for x in (s, pending, good, mute):
+
+    # a name server over TCP; and a second one asked when the first is silent
+    tcpns, tport = fake_name_server(b"over-tcp", tcp=True)
+    second, sport = fake_name_server(b"the-second")
+    viatcp, fallback = t.free_port(), t.free_port()
+    t.start("udploop_tcpns", f"""
+        log
+        timeouts 1 5 30 60 180 1800 2 60 15 5 5
+        nserver 127.0.0.1:{tport}/tcp
+        nscache 256
+        nsrecord local.test 10.1.2.3
+        auth iponly
+        allow *
+        dnspr -p{viatcp}
+    """)
+    t.start("udploop_fallback", f"""
+        log
+        timeouts 1 5 30 60 180 1800 2 60 15 5 5
+        nserver 127.0.0.1:{mport}
+        nserver 127.0.0.1:{sport}
+        nscache 256
+        nsrecord local.test 10.1.2.3
+        auth iponly
+        allow *
+        dnspr -p{fallback}
+    """)
+    t.wait_udp(viatcp, payload=dns_raw("local.test", 1))
+    got = exchange(s, viatcp, dns_raw("tcp.test", 16), timeout=4)
+    t.ok("a name server over TCP is asked, its answer in pieces put together") \
+        if got and b"over-tcp" in got else \
+        t.fail("a name server over TCP is asked, its answer in pieces put together", "the TXT", got)
+    t.wait_udp(fallback, payload=dns_raw("local.test", 1))
+    got = exchange(s, fallback, dns_raw("second.test", 16), timeout=6)
+    t.ok("the first name server silent, the second is asked after DNS_TO") \
+        if got and b"the-second" in got else \
+        t.fail("the first name server silent, the second is asked after DNS_TO", "the TXT", got)
+    for x in (s, pending, mute, tcpns, second):
         x.close()

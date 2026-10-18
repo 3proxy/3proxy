@@ -15,22 +15,30 @@
 #define BUFSIZE 16384
 
 /* dnspr: a query is a session of its own in the service's thread (see
-   udploop() in proxymain.c). It is answered there and then, from the name
-   cache, the resolver or a fake address, or sent on to the first name
-   server, whose answer, or its timeout, ends it. A name server over TCP is
-   still waited for in the loop. */
+   udploop() in mainudp.c). It is answered there and then from a fake
+   address, the name cache, or the service's own address for a PTR;
+   anything else goes to the name servers, one after another, over UDP or
+   TCP, the loop waiting for their sockets: nothing here blocks. An address
+   in an answer is kept in the name cache. */
 
 struct dnsquery {
 	unsigned type;
 	uint32_t ip, ttl;
 	unsigned char addr[16];
 	char *host;
-	unsigned char *query;	/* as the client sent it, for a name server */
+	/* the query as the client sent it, behind 2 bytes for its length over
+	   TCP */
+	unsigned char *query;
 	int len;
+	/* the name server asked, and over TCP what of its answer came */
+	int server;
+	int tcp, connecting;
+	unsigned char *answer;
+	int got;
 };
 
 /* The answer to the client, the query in buf made one: ip set, an address
-   for it; a PTR for the service's own address; else the name not found. */
+   for it; else the name not found. */
 static int dnsanswer(struct udploop *u, struct clientparam *param, struct dnsquery *q, unsigned char *buf, int len){
 	uint32_t ttl;
 
@@ -59,6 +67,113 @@ static int dnsanswer(struct udploop *u, struct clientparam *param, struct dnsque
 	return q->ip? 0 : 888;
 }
 
+/* An address of the type asked for in a name server's answer: noted for the
+   log and kept in the name cache for its TTL, up to 12 hours. */
+static void dnscache(struct clientparam *param, struct dnsquery *q, unsigned char *buf, int len){
+	int k = 12, n, j, rlen;
+	unsigned type;
+	uint32_t ttl;
+
+	if((q->type != 0x01 && q->type != 0x1c) || !q->host) return;
+	while(k < len && buf[k]) k += buf[k] + 1;
+	k += 5;
+	n = buf[7] + (((unsigned)buf[6])<<8);
+	for(j = 0; j < n && k < len; j++){
+		/* the name: a pointer, or labels to the end */
+		if((buf[k] & 0xc0) == 0xc0) k += 2;
+		else {
+			while(k < len && buf[k]) k += buf[k] + 1;
+			k++;
+		}
+		if(k + 10 > len) return;
+		type = buf[k+1] + (((unsigned)buf[k])<<8);
+		rlen = buf[k+9] + (((unsigned)buf[k+8])<<8);
+		if(k + 10 + rlen > len) return;
+		if(type == q->type && rlen == (q->type == 0x01? 4 : 16)){
+			ttl = ntohl(*(uint32_t *)(buf + k + 4));
+			if(ttl > 3600*12) ttl = 3600*12;
+			if(!ttl) ttl = 1;
+			memcpy(q->addr, buf + k + 10, rlen);
+			q->ip = 1;
+			if(!param->srv->s_option)
+				hashadd(q->type == 0x1c? &dns6_table : &dns_table, (unsigned char *)q->host, q->addr, curtime + ttl);
+			return;
+		}
+		k += 10 + rlen;
+	}
+}
+
+/* An answer from a name server: to the client as it is if it has answers,
+   else as the name not found. 1: the query is done. */
+static int dnsreply(struct udploop *u, struct udpsession *ss, unsigned char *buf, int len){
+	struct clientparam *param = ss->param;
+	struct dnsquery *q = ss->data;
+
+	param->statssrv64 += len;
+	param->nreads++;
+	if(buf[6] || buf[7]){
+		dnscache(param, q, buf, len);
+		param->res = (udpanswer(u, param, buf, len) == len)? 0 : 822;
+		return 1;
+	}
+	q->ip = 0;
+	param->res = dnsanswer(u, param, q, buf, len);
+	return 1;
+}
+
+/* The query to name server q->server or a later one: 0 once it is on its
+   way, the loop to wait for the answer; nonzero if none takes it. */
+static int dnsforward(struct udploop *u, struct udpsession *ss){
+	struct clientparam *param = ss->param;
+	struct dnsquery *q = ss->data;
+	struct extparam *c = param->srv->config;
+#ifdef _WIN32
+	unsigned long ul = 1;
+#endif
+
+	for(; q->server < c->numservers; q->server++){
+		if(param->remsock != INVALID_SOCKET){
+			param->srv->so._closesocket(param->sostate, param->remsock);
+			param->remsock = INVALID_SOCKET;
+		}
+		q->tcp = c->nservers[q->server].usetcp;
+		q->got = 0;
+		if((param->remsock = param->srv->so._socket(param->sostate, SASOCK(&c->nservers[q->server].addr),
+			q->tcp? SOCK_STREAM : SOCK_DGRAM, q->tcp? IPPROTO_TCP : IPPROTO_UDP)) == INVALID_SOCKET) continue;
+#ifdef _WIN32
+		ioctlsocket(param->remsock, FIONBIO, &ul);
+#else
+		fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
+#endif
+		memset(&param->sinsl, 0, sizeof(param->sinsl));
+		*SAFAMILY(&param->sinsl) = *SAFAMILY(&c->nservers[q->server].addr);
+		if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) continue;
+		param->sinsr = c->nservers[q->server].addr;
+		ss->idle = 0;
+		ss->deadline = time(NULL) + param->srv->timeouts[DNS_TO];
+		if(q->tcp){
+			/* connected, then written to, as the loop sees it writable */
+			if(param->srv->so._connect(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr))
+#ifdef _WIN32
+			    && WSAGetLastError() != WSAEWOULDBLOCK
+#else
+			    && errno != EINPROGRESS
+#endif
+			) continue;
+			q->connecting = 1;
+			ss->events = POLLOUT;
+			return 0;
+		}
+		ss->events = POLLIN;
+		if(param->srv->so._sendto(param->sostate, param->remsock, (char *)q->query + 2, q->len, 0,
+			(struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr)) != q->len) continue;
+		param->statscli64 += q->len;
+		param->nwrites++;
+		return 0;
+	}
+	return 1;
+}
+
 static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *query, int i){
 	struct clientparam *param = ss->param;
 	struct dnsquery *q;
@@ -66,9 +181,6 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 	unsigned char c;
 	int res, len;
 	uint32_t ttl, ip = 0;
-#ifdef _WIN32
-	unsigned long ul = 1;
-#endif
 
 	if(!(q = calloc(1, sizeof(*q))) || !(q->query = malloc(BUFSIZE + 2))){
 		free(q);
@@ -78,21 +190,23 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 	if(i > BUFSIZE) i = BUFSIZE;
 	memcpy(q->query + 2, query, i);
 	q->len = i;
-	buf = q->query + 2;
-	param->sincl = param->srv->intsa;
 	if(i<=13 || i>1000) return (param->res = 814);
+	/* the query as it came is what goes to a name server; buf is worked on */
+	if(!(buf = malloc(BUFSIZE))) return (param->res = 21);
+	memcpy(buf, query, i);
 	buf[BUFSIZE - 1] = 0;
+	param->sincl = param->srv->intsa;
 	param->operation = DNSRESOLVE;
-	if((res = (*param->srv->authfunc)(param))) return (param->res = res);
+	if((res = (*param->srv->authfunc)(param))) { free(buf); return (param->res = res); }
 
-	if(buf[4]!=0 || buf[5]!=1) return (param->res = 816);
+	if(buf[4]!=0 || buf[5]!=1) { free(buf); return (param->res = 816); }
 	for(len = 12; len<i; len+=(c+1)){
 		c = buf[len];
 		if(!c)break;
 		buf[len] = '.';
 	}
-	if(len > (i-4)) return (param->res = 817);
-	if(!(q->host = strdup((char *)buf+13))) return (param->res = 21);
+	if(len > (i-4)) { free(buf); return (param->res = 817); }
+	if(!(q->host = strdup((char *)buf+13))) { free(buf); return (param->res = 21); }
 	for(s2 = buf + 12; (s1 = (unsigned char *)strchr((char *)s2 + 1, '.')); s2 = s1)*s2 = (unsigned char)((s1 - s2) - 1);
 	*s2 = (len - (int)(s2 - buf)) - 1;
 
@@ -108,8 +222,10 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 		memcpy(q->addr, param->srv->fakeip6, 16);
 	}
 #endif
+	/* the name cache only: what it does not have the name servers are
+	   asked, without waiting here */
 	else if((q->type==0x01 || q->type==0x1c) && !param->srv->s_option){
-		ip = udpresolve((q->type==0x1c)?AF_INET6:AF_INET, (unsigned char *)q->host, q->addr, &q->ttl, param, 0);
+		ip = hashresolv(q->type==0x1c? &dns6_table : &dns_table, (unsigned char *)q->host, q->addr, &q->ttl);
 	}
 	len += 5;
 
@@ -137,85 +253,73 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 			memcpy(buf+len+13,(void *)"3proxy",6);
 			len += 20;
 			q->ip = 1;
-			if(udpanswer(u, param, buf, len) != len) return (param->res = 819);
+			param->res = (udpanswer(u, param, buf, len) == len)? 0 : 819;
+			free(buf);
 			return 1;
 		}
 	}
 	q->ip = ip;
 	if(ip || !param->srv->config->numservers){
 		param->res = dnsanswer(u, param, q, buf, len);
+		free(buf);
 		return 1;
 	}
-
-	/* on to the first name server */
-	if((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&param->srv->config->nservers[0].addr), param->srv->config->nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, param->srv->config->nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET)
-		return (param->res = 818);
-	memset(&param->sinsl, 0, sizeof(param->sinsl));
-	*SAFAMILY(&param->sinsl) = *SAFAMILY(&param->srv->config->nservers[0].addr);
-	if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) return (param->res = 819);
-	param->sinsr = param->srv->config->nservers[0].addr;
-	if(param->srv->config->nservers[0].usetcp) {
-		unsigned short us;
-
-		if(connectwithpoll(param, param->remsock,(struct sockaddr *)&param->sinsr,SASIZE(&param->sinsr),param->srv->timeouts[CONNECT_TO])) return (param->res = 830);
-		buf -= 2;
-		*(unsigned short*)buf = htons(i);
-		i += 2;
-		if(socksend(param, param->remsock, buf, i, param->srv->timeouts[SINGLEBYTE_L]) != i) return (param->res = 820);
-		param->statscli64 += i;
-		param->nwrites++;
-		len = sockrecvfrom(param, param->remsock, NULL, buf, BUFSIZE, param->srv->timeouts[DNS_TO]*1000);
-		if(len <= 13) return (param->res = 821);
-		param->statssrv64 += len;
-		param->nreads++;
-		us = ntohs(*(unsigned short *)buf);
-		if(us > 4096) return (param->res = 833);
-		buf += 2;
-		len -= 2;
-		if(len < us) len += sockgetlinebuf(param, SERVER, buf+len, us - len, 0, param->srv->timeouts[SINGLEBYTE_L]);
-		if(len != us) return (param->res = 832);
-		if(buf[6] || buf[7]){
-			if(udpanswer(u, param, buf, len) != len) return (param->res = 822);
-			return 1;
-		}
-		param->res = dnsanswer(u, param, q, buf, len);
-		return 1;
-	}
-#ifdef _WIN32
-	ioctlsocket(param->remsock, FIONBIO, &ul);
-#else
-	fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
-#endif
-	if(param->srv->so._sendto(param->sostate, param->remsock, (char *)buf, i, 0, (struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr)) != i)
-		return (param->res = 820);
-	param->statscli64 += i;
-	param->nwrites++;
-	/* its answer is waited for in the loop, as long as DNS_TO */
-	ss->idle = 0;
-	ss->deadline = time(NULL) + param->srv->timeouts[DNS_TO];
+	free(buf);
+	if(dnsforward(u, ss)) return (param->res = 818);
 	return 0;
 }
 
-/* The name server's answer: to the client as it is if it has answers,
-   else as the name not found. */
+/* The name server's socket: connected, over TCP, so the query is written;
+   an answer, or over TCP some of it. */
 static int dnsprserver(struct udploop *u, struct udpsession *ss){
 	struct clientparam *param = ss->param;
 	struct dnsquery *q = ss->data;
 	int len;
 
+	if(q->tcp && q->connecting){
+		q->connecting = 0;
+		q->query[0] = (unsigned char)(q->len >> 8);
+		q->query[1] = (unsigned char)(q->len & 0xff);
+		if(param->srv->so._send(param->sostate, param->remsock, (char *)q->query, q->len + 2, 0) != q->len + 2){
+			q->server++;
+			return dnsforward(u, ss)? (param->res = 820) : 0;
+		}
+		param->statscli64 += q->len + 2;
+		param->nwrites++;
+		ss->events = POLLIN;
+		return 0;
+	}
+	if(q->tcp){
+		unsigned short us;
+
+		if(!q->answer && !(q->answer = malloc(4096 + 2))) return (param->res = 21);
+		len = param->srv->so._recv(param->sostate, param->remsock, (char *)q->answer + q->got, 4096 + 2 - q->got, 0);
+		if(len < 0 && (errno == EAGAIN || errno == EINTR)) return 0;
+		if(len <= 0){
+			q->server++;
+			return dnsforward(u, ss)? (param->res = 821) : 0;
+		}
+		q->got += len;
+		if(q->got < 2) return 0;
+		us = (unsigned short)((q->answer[0] << 8) | q->answer[1]);
+		if(us > 4096 || us <= 13) return (param->res = 833);
+		if(q->got < us + 2) return 0;
+		return dnsreply(u, ss, q->answer + 2, us);
+	}
 	len = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)u->buf, UDPBUFSIZE, 0, NULL, NULL);
 	if(len < 0 && (errno == EAGAIN || errno == EINTR)) return 0;
-	if(len <= 13) return (param->res = 821);
-	param->statssrv64 += len;
-	param->nreads++;
-	if(u->buf[6] || u->buf[7]){
-		if(udpanswer(u, param, u->buf, len) != len) return (param->res = 822);
-		param->res = 0;
-		return 1;
-	}
-	q->ip = 0;
-	param->res = dnsanswer(u, param, q, u->buf, len);
-	return 1;
+	/* an answer to another query, or none at all */
+	if(len <= 13 || u->buf[0] != q->query[2] || u->buf[1] != q->query[3]) return 0;
+	return dnsreply(u, ss, u->buf, len);
+}
+
+/* No answer in DNS_TO: the next name server, if there is one. */
+static int dnsprtimeout(struct udploop *u, struct udpsession *ss){
+	struct dnsquery *q = ss->data;
+
+	q->server++;
+	if(dnsforward(u, ss)) return (ss->param->res = 821);
+	return 0;
 }
 
 static void dnsprend(struct udploop *u, struct udpsession *ss){
@@ -233,6 +337,7 @@ static void dnsprend(struct udploop *u, struct udpsession *ss){
 	if(q){
 		free(q->host);
 		free(q->query);
+		free(q->answer);
 		free(q);
 	}
 	ss->data = NULL;
@@ -244,5 +349,6 @@ const struct udpservice dnsprservice = {
 	NULL,
 	dnsprserver,
 	dnsprend,
-	821
+	821,
+	dnsprtimeout
 };

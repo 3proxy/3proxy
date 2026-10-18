@@ -252,6 +252,7 @@ struct udpsession {
 	int idle;		/* seconds of silence it lasts, 0: deadline fixed */
 	int keyed;		/* found by its client's address */
 	int done;		/* to be ended, param->res saying how */
+	short events;		/* polled for on remsock, 0: POLLIN */
 	void *data;		/* the service's own, freed by it in end() */
 };
 struct udpservice {
@@ -269,6 +270,9 @@ struct udpservice {
 	void (*end)(struct udploop *u, struct udpsession *ss);
 	/* param->res of a session whose deadline passed */
 	int timeoutres;
+	/* or, if set, its deadline passed: 0 if it goes on, a new deadline
+	   set, nonzero to end it, param->res saying how */
+	int (*timeout)(struct udploop *u, struct udpsession *ss);
 };
 struct udploop {
 	struct srvparam *srv;

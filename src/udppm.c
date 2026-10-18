@@ -109,7 +109,8 @@ const struct udpservice udppmservice = {
 	udppmclient,
 	udppmserver,
 	udppmend,
-	92
+	92,
+	NULL
 };
 
 #ifdef WITHMAIN
