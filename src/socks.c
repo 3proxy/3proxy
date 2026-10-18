@@ -227,7 +227,7 @@ fprintf(stderr, "%hu bound to communicate with server\n", *SAPORT(&param->sinsl)
 fflush(stderr);
 #endif
 	}
-	sasize = SASIZE(&param->sinsl);
+	sasize = sizeof(param->sinsl);
 	param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl,  &sasize);
  }
  if(command == 3) {
@@ -246,7 +246,7 @@ fflush(stderr);
 		sin = param->sincl;
 		*SAPORT(&sin) = 0;
 		if(param->srv->so._bind(param->sostate, param->clisock,(struct sockaddr *)&sin,SASIZE(&sin))) {RETURN (12);}
-		sasize = SASIZE(&sin);
+		sasize = sizeof(sin);
 		param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin, &sasize);
 #if SOCKSTRACE > 0
 fprintf(stderr, "%hu binded to communicate with client\n",
