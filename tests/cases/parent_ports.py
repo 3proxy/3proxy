@@ -107,10 +107,16 @@ def run(t):
                      "peer.port")
     t.in_range(port, MLOW, MHIGH, "CONNECT uses the range its rule sets")
 
-    # a plain GET matches the later rule, which sets no range
-    port = int_field(t.http(origin + "/echo", proxy=method_proxy), "peer.port")
-    t.not_in_range(port, MLOW, MHIGH,
-                   "a method outside that rule keeps an ephemeral port")
+    # a plain GET matches the later rule, which sets no range. On Linux the
+    # window lies within the ephemeral range, so an ephemeral port falls in
+    # it now and then by chance: bound to the window every port would, so
+    # one of a few outside it tells them apart.
+    ports = [int_field(t.http(origin + "/echo", proxy=method_proxy), "peer.port")
+             for _ in range(5)]
+    outside = [p for p in ports if isinstance(p, int) and not MLOW <= p <= MHIGH]
+    t.ok(f"a method outside that rule keeps an ephemeral port ({ports})") if outside else \
+        t.fail("a method outside that rule keeps an ephemeral port",
+               f"some outside {MLOW}-{MHIGH}", ports)
 
     # --- a range the platform cannot honour --------------------------------
     # Linux ignores a range outside net.ipv4.ip_local_port_range, and any
