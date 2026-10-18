@@ -30,7 +30,8 @@ static void udpkey2hash(const struct hashtable *ht, void *index, uint8_t *hash){
  PROXYSOCKADDRTYPE *sa = (PROXYSOCKADDRTYPE *)index;
  uint32_t m1, m2;
 
- m1 = murmurhash3(SAADDR(sa), SAADDRLEN(sa), 0x3a3a3a3a);
+ /* seeded at random per table: an address is not chosen to collide */
+ m1 = murmurhash3(SAADDR(sa), SAADDRLEN(sa), ht->entropy);
  m2 = murmurhash3(SAPORT(sa), 2, m1);
  memcpy(hash, &m1, 4);
  memcpy(hash+4, &m2, 4);
@@ -279,7 +280,11 @@ static void udpclients(struct udpstate *st, time_t now){
 #endif
 		break;
 	}
-	if(st->svc->keyed && hashresolv(&st->keys, &defparam->sincr, &ss, NULL)){
+	/* the hash found is checked against the address itself */
+	if(st->svc->keyed && hashresolv(&st->keys, &defparam->sincr, &ss, NULL) &&
+	   *SAFAMILY(&ss->param->sincr) == *SAFAMILY(&defparam->sincr) &&
+	   !memcmp(SAADDR(&ss->param->sincr), SAADDR(&defparam->sincr), SAADDRLEN(&defparam->sincr)) &&
+	   *SAPORT(&ss->param->sincr) == *SAPORT(&defparam->sincr)){
 		if(ss->done) continue;
 		udprefresh(ss, now);
 		if(st->svc->client && (*st->svc->client)(&st->u, ss, srv->udpbuf, len)) ss->done = 1;
