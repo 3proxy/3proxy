@@ -898,6 +898,7 @@ struct listener {
 	char *netns, *device;
 	struct sockoptset opts;
 	int maxseg;
+	uint64_t undev, unino;	/* its file, for a Unix socket on a path */
 	int optversion;		/* the configuration whose options are set */
 	/* the services accepting on it, linked by lisnext */
 	struct srvparam *owners;
@@ -972,6 +973,28 @@ static void listenerrelease(struct srvparam *srv);
 
 static int srvopen(struct srvstart *s);
 
+#ifdef WITH_UN
+/* A Unix socket bound to a path: its file is noted, as a service of a
+   newer configuration may bind the same path anew before this socket is
+   closed, when the file is the other's, which closing must not remove. */
+static void unbound(PROXYSOCKADDRTYPE *sa, uint64_t *dev, uint64_t *ino){
+ struct stat st;
+
+ if(*SAFAMILY(sa) == AF_UNIX && *SAADDR(sa) && !stat((char *)SAADDR(sa), &st)){
+	*dev = (uint64_t)st.st_dev;
+	*ino = (uint64_t)st.st_ino;
+ }
+}
+
+static void ununlink(PROXYSOCKADDRTYPE *sa, uint64_t dev, uint64_t ino){
+ struct stat st;
+
+ if(*SAFAMILY(sa) == AF_UNIX && *SAADDR(sa) && !stat((char *)SAADDR(sa), &st) &&
+    (uint64_t)st.st_dev == dev && (uint64_t)st.st_ino == ino)
+	unlink((char *)SAADDR(sa));
+}
+#endif
+
 /* The listening socket of the service: its listener's, opened by the first
    of the listener's services to get here. */
 static int srvlisten(struct srvstart *s){
@@ -993,6 +1016,8 @@ static int srvlisten(struct srvstart *s){
 			_3proxy_mutex_lock(&listener_mutex);
 			l->sock = srv->srvsock;
 			l->optversion = srv->version;
+			l->undev = srv->undev;
+			l->unino = srv->unino;
 			_3proxy_mutex_unlock(&listener_mutex);
 		}
 		else if(srv->srvsock != INVALID_SOCKET){
@@ -1087,6 +1112,9 @@ static int srvopen(struct srvstart *s){
 	sleeptime = (sleeptime<<1);
 	if(!sleeptime) return -3;
  }
+#ifdef WITH_UN
+ unbound(&srv->intsa, &srv->undev, &srv->unino);
+#endif
 #ifndef NOTCPMAIN
  if(!s->isudp){
 	if(srv->so._listen (srv->so.state, sock, srv->backlog?srv->backlog : 1+(srv->maxchild>>3))==-1) {
@@ -1838,7 +1866,7 @@ static void listenerstop(struct srvparam *srv){
  if(sock == INVALID_SOCKET) return;
  so._closesocket(so.state, sock);
 #ifdef WITH_UN
- if(*SAFAMILY(&l->sa) == AF_UNIX && *SAADDR(&l->sa))unlink((char *)SAADDR(&l->sa));
+ ununlink(&l->sa, l->undev, l->unino);
 #endif
 }
 
@@ -2047,7 +2075,7 @@ void srvfree(struct srvparam * srv){
  if(srv->srvsock != INVALID_SOCKET) {
     so._closesocket(srv->so.state, srv->srvsock);
 #ifdef WITH_UN
-    if(*SAFAMILY(&srv->intsa) == AF_UNIX && *SAADDR(&srv->intsa))unlink((char *)SAADDR(&srv->intsa));
+    ununlink(&srv->intsa, srv->undev, srv->unino);
 #endif
  }
  srv->srvsock = INVALID_SOCKET;

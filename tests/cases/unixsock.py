@@ -157,6 +157,18 @@ def run(t):
         t.fail("its file is still there", path, "missing")
     t.eq((200, 1000), unix_get(path, url), "and the proxy answers on it")
 
+    # --- a bind-time option changed: a new socket on the same path, and
+    # the old one, closing after, must not remove the new one's file -------
+    t.write_config("unixsock", config().replace(f"proxy -iunix:{path}",
+                                                f"proxy -olSO_REUSEADDR=0 -iunix:{path}"))
+    t.http(f"http://127.0.0.1:{adm}/R")
+    # the old services stop within a second of the reload
+    time.sleep(2)
+    t.ok("a new socket on the same path keeps its file when the old one closes") \
+        if os.path.exists(path) else \
+        t.fail("a new socket on the same path keeps its file when the old one closes", path, "missing")
+    t.eq((200, 1000), unix_get(path, url), "and the proxy answers on it")
+
     # --- no service listens there any more: the file goes -------------------
     t.write_config("unixsock", config(unix=False))
     t.http(f"http://127.0.0.1:{adm}/R")

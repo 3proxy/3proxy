@@ -113,6 +113,7 @@ int
 
 #ifdef WITH_UN
 #include <sys/un.h>
+#include <stddef.h>
 #endif
 
 #define ALLOW		0
@@ -631,6 +632,8 @@ struct srvparam {
 	AUTHFUNC authfunc;
 	PROXYFUNC pf;
 	SOCKET srvsock, cbsock;
+	/* the file of a Unix socket bound to a path, to remove only it */
+	uint64_t undev, unino;
 	int childcount;
 	int maxchild;
 	int backlog;
