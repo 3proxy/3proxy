@@ -87,7 +87,7 @@ def run(t):
     ok = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nok"
     origin = Origin(ok)
     proxy = t.free_port()
-    t.start("proxy_headers", f"""
+    server = t.start("proxy_headers", f"""
         log
         auth iponly
         allow *
@@ -144,6 +144,80 @@ def run(t):
         t.fail("an answer with a 30 KB header arrives with it whole", "the header", len(got))
     t.ok("and its body after it") if got.endswith(b"\r\n\r\nok") else \
         t.fail("and its body after it", "ok at the end", got[-40:])
+
+    # --- through a parent proxy: the line goes back to absolute form, put
+    # in front of the headers in the buffer, one piece with them -----------
+    origin.answer = ok
+    viaparent = t.free_port()
+    t.start("proxy_headers_parent", f"""
+        log
+        auth iponly
+        allow *
+        parent 1000 http 127.0.0.1 {origin.port}
+        proxy -p{viaparent}
+    """, ports=[viaparent])
+    origin.requests.clear()
+    body = b"abcdefghij" * 30
+    got = session(viaparent, request(b"/viaparent", b"", body, b"POST"), 1)
+    t.contains(got.decode("latin-1"), "200 OK", "a request through an HTTP parent is answered")
+    head, rbody = origin.requests[0] if origin.requests else (b"", b"")
+    want = b"POST " + base.encode() + b"/viaparent HTTP/1.1\r\n"
+    t.ok("the parent gets the request line in absolute form") if head.startswith(want) else \
+        t.fail("the parent gets the request line in absolute form", want, head[:80])
+    t.ok("and the headers after it, with Forwarded added") if b"\r\nHost: 127.0.0.1" in head and b"\r\nForwarded: for=" in head else \
+        t.fail("and the headers after it, with Forwarded added", "Host, Forwarded", head[:300])
+    t.eq(body, rbody, "and the body whole")
+
+    # user and password in the URL: the line put back is the longer for them
+    origin.requests.clear()
+    user, password = "u" * 120, "p" * 120
+    long = (b"GET http://" + user.encode() + b":" + password.encode() + b"@127.0.0.1:" +
+            str(origin.port).encode() + b"/longline HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+    got = session(viaparent, long, 1)
+    t.contains(got.decode("latin-1"), "200 OK", "a request with user and password in its URL is answered")
+    head = origin.requests[0][0] if origin.requests else b""
+    t.ok("its line arrives in absolute form") if head.startswith(b"GET http://") and b"/longline HTTP/1.1\r\n" in head else \
+        t.fail("its line arrives in absolute form", "GET http://...", head[:80])
+    t.ok("with the credentials of the URL as Proxy-Authorization for the parent") if b"\r\nProxy-Authorization: Basic " in head else \
+        t.fail("with the credentials of the URL as Proxy-Authorization for the parent", "Proxy-Authorization", head[-200:])
+
+    # headers which went to a buffer of their own, here for a data filter
+    # to read the body into the connection's: line and headers are put
+    # together there, still in one piece
+    filtered = t.free_port()
+    t.start("proxy_headers_filtered", f"""
+        log
+        auth iponly
+        allow *
+        pcre clidata dunno *
+        parent 1000 http 127.0.0.1 {origin.port}
+        proxy -p{filtered}
+    """, ports=[filtered])
+    origin.requests.clear()
+    body = b"klmnopqrst" * 20
+    got = session(filtered, request(b"/filtered", b"", body, b"POST"), 1)
+    t.contains(got.decode("latin-1"), "200 OK", "a request with a data filter, through a parent, is answered")
+    head, rbody = origin.requests[0] if origin.requests else (b"", b"")
+    want = b"POST " + base.encode() + b"/filtered HTTP/1.1\r\n"
+    t.ok("its line is in absolute form, put together with the headers") if head.startswith(want) and b"\r\nHost: 127.0.0.1" in head else \
+        t.fail("its line is in absolute form, put together with the headers", want, head[:120])
+    t.eq(body, rbody, "and its body whole")
+
+    # --- a long request line: served whole, logged up to REQMAX (6 KB) ----
+    origin.answer = ok
+    origin.requests.clear()
+    got = session(proxy, request(b"/" + b"q" * 7000), 1)
+    t.contains(got.decode("latin-1"), "200 OK", "a request line of 7 KB is answered")
+    head = origin.requests[0][0] if origin.requests else b""
+    t.ok("and reaches the server whole") if (b"/" + b"q" * 7000 + b" HTTP/1.1") in head else \
+        t.fail("and reaches the server whole", "7000 q", len(head))
+    deadline = time.time() + 3
+    while time.time() < deadline and "q" * 3000 not in server.output():
+        time.sleep(0.1)
+    # the log line holds 4000 characters (log.c): cut there before REQMAX
+    logged = [l for l in server.output().splitlines() if "qqqq" in l]
+    t.ok("and it is logged, cut") if logged and "q" * 7000 not in logged[-1] else \
+        t.fail("and it is logged, cut", "a log line", logged[-1][-60:] if logged else None)
 
     # --- a request too big for any buffer is refused, and the proxy stays --
     huge = b"".join(b"X-Huge-%d: %s\r\n" % (i, b"H" * 30000) for i in range(20))
