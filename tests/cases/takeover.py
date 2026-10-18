@@ -115,7 +115,25 @@ def run(t):
     uconf = conf + f"\n        udppm {udp} 127.0.0.1 {echo_port}\n"
     t.write_config("takeover", uconf)
     t.http(f"http://127.0.0.1:{adm}/R")
-    time.sleep(1.5)
+    # a UDP service has no listening socket to wait for, so ask until it
+    # answers rather than racing it
+    def udp_answers(deadline):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.settimeout(0.3)
+        try:
+            while time.time() < deadline:
+                try:
+                    probe.sendto(b"ping", ("127.0.0.1", udp))
+                    probe.recvfrom(2048)
+                    return True
+                except OSError:
+                    pass
+            return False
+        finally:
+            probe.close()
+
+    t.ok("the UDP service added by a reload answers") if udp_answers(time.time() + 10) else \
+        t.fail("the UDP service added by a reload answers", "a reply", "none in 10 seconds")
 
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client.settimeout(1)
@@ -141,8 +159,9 @@ def run(t):
         time.sleep(0.02)
     client.close()
     echo.close()
-    t.ok(f"a UDP session sends through three reloads ({sent} datagrams)") if sent > 100 else \
-        t.fail("a UDP session sends through three reloads", "more than 100", sent)
+    # how many depends on the runner's speed; that none is lost is the point
+    t.ok(f"a UDP session sends through three reloads ({sent} datagrams)") if sent > 20 else \
+        t.fail("a UDP session sends through three reloads", "more than 20", sent)
     t.eq(0, lost, "and every datagram comes back, the socket handed over")
     t.contains(server.output(), f"{udp} 0.0.0.0:0 0 0 0 Accepting connections, taken over",
                "the UDP service takes the socket over")

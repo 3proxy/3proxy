@@ -13,6 +13,7 @@ positive and negative scenarios expected from them.
 import argparse
 import importlib.util
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -119,6 +120,14 @@ def main():
                     if not lines:
                         continue
                     print(f"    --- {name} said ---")
+                    # why connections ended: the lines with a result code,
+                    # wherever they are, then the last few
+                    ended = [line for line in lines
+                             if re.match(r"\d+\.\d+ \S+ (?!00000 )\d{5} ", line)]
+                    for line in ended[-20:]:
+                        print(f"      {line}")
+                    if ended:
+                        print("      ...")
                     for line in lines[-12:]:
                         print(f"      {line}")
 

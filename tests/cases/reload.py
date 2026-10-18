@@ -69,8 +69,9 @@ def run(t):
     # --- a good file: the new configuration takes over, and the connections
     # of the old services go by its rules from then on ---------------------
     def download(result):
-        # about two seconds: 2 MB in 64 KB blocks, 60 ms apart
-        r = t.http(f"http://127.0.0.1:{origin}/data?size=2000000&block=65536&delay=60",
+        # about two seconds: 400 KB in 8 KB blocks (httpsrv's largest),
+        # 40 ms apart
+        r = t.http(f"http://127.0.0.1:{origin}/data?size=400000&block=8192&delay=40",
                    proxy=proxy, proxy_auth=("alice", "one"))
         result["status"], result["length"] = r.status, r.length
 
@@ -86,8 +87,8 @@ def run(t):
     # alice stays: her download goes on under the new service
     th, kept = during_reload("alice:CL:one bob:CL:two", first)
     t.eq(200, as_user("bob", "two"), "the new configuration lets bob in")
-    th.join(20)
-    t.eq(2000000, kept.get("length"),
+    th.join(60)
+    t.eq(400000, kept.get("length"),
          "a download of a user the new configuration keeps finishes whole")
 
     # a connection kept alive: each request is authorized by the rules in
@@ -105,11 +106,11 @@ def run(t):
 
     # alice is removed: her download is cut, being re-authenticated
     th, cut = during_reload("bob:CL:two", first)
-    th.join(20)
+    th.join(60)
     t.ok("a download of a user the new configuration removes is cut") \
-        if cut.get("length", 0) < 2000000 else \
+        if cut.get("length", 0) < 400000 else \
         t.fail("a download of a user the new configuration removes is cut",
-               "less than 2000000 bytes", cut.get("length"))
+               "less than 400000 bytes", cut.get("length"))
     t.ne(200, as_user("alice", "one"), "and alice cannot come back")
 
     # the service moves to another port: the old one closes

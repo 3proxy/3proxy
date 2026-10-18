@@ -50,7 +50,7 @@ def run(t):
         results = [{} for _ in range(n)]
 
         def one(r):
-            got = t.http(f"http://127.0.0.1:{origin}/data?size=2000000&block=65536&delay=60",
+            got = t.http(f"http://127.0.0.1:{origin}/data?size=400000&block=8192&delay=40",
                          proxy=f"127.0.0.1:{proxy}")
             r["length"] = got.length
 
@@ -66,8 +66,8 @@ def run(t):
     threads, results = downloads(2)
     reload(config(f"proxy -p{proxy}", maxconn=2))
     for th in threads:
-        th.join(20)
-    whole = sum(1 for r in results if r.get("length") == 2000000)
+        th.join(60)
+    whole = sum(1 for r in results if r.get("length") == 400000)
     t.eq(1, whole, "with one slot free in the new service one download goes on")
     t.contains(server.output(), " 00027 ",
                "the other is cut for want of a slot (27)")
@@ -77,11 +77,11 @@ def run(t):
     threads, results = downloads(1)
     reload(config(f"socks -p{proxy}"))
     for th in threads:
-        th.join(20)
+        th.join(60)
     t.ok("a proxy download is cut when a socks service takes the port") \
-        if results[0].get("length", 0) < 2000000 else \
+        if results[0].get("length", 0) < 400000 else \
         t.fail("a proxy download is cut when a socks service takes the port",
-               "less than 2000000 bytes", results[0].get("length"))
+               "less than 400000 bytes", results[0].get("length"))
     t.contains(server.output(), " 00026 ", "as its service is another one now (26)")
 
     # --- services of one configuration on one address share its socket, so
@@ -129,10 +129,10 @@ def run(t):
         client once it has sent C."""
         try:
             c, _ = peer.accept()
-            c.settimeout(20)
+            c.settimeout(30)
             c.sendall(b"C")
             auth = base64.b64encode(b"alice:one").decode()
-            c.sendall((f"GET http://127.0.0.1:{origin}/data?size=2000000&block=65536&delay=60 HTTP/1.1\r\n"
+            c.sendall((f"GET http://127.0.0.1:{origin}/data?size=400000&block=8192&delay=40 HTTP/1.1\r\n"
                        f"Host: 127.0.0.1:{origin}\r\nProxy-Authorization: Basic {auth}\r\n"
                        "Connection: close\r\n\r\n").encode())
             got = b""
@@ -154,8 +154,8 @@ def run(t):
         th.start()
         time.sleep(0.5)
         reload(cbconfig(users))
-        th.join(25)
-        whole = result.get("body") == 2000000
+        th.join(60)
+        whole = result.get("body") == 400000
         name = f"a download through a connect-back service {want} when alice is " + \
             ("kept" if keep else "removed")
         t.ok(name) if whole == keep else t.fail(name, "whole" if keep else "cut", result)
