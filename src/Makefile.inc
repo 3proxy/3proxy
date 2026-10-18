@@ -1,3 +1,6 @@
+# proxymain.c and the parts it includes
+PROXYMAIN = proxymain.c mainconf.c mainlisten.c mainclient.c maintcp.c mainudp.c
+
 #
 # 3 proxy common Makefile
 #
@@ -28,32 +31,32 @@ ftp$(OBJSUFFICS): ftp.c proxy.h structures.h
 sockgetchar$(OBJSUFFICS): sockgetchar.c proxy.h structures.h
 	$(CC) $(CFLAGS) sockgetchar.c
 
-proxy$(OBJSUFFICS): proxy.c proxy.h structures.h proxymain.c
+proxy$(OBJSUFFICS): proxy.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP $(DEFINEOPTION)ANONYMOUS $(DEFINEOPTION)NOUDPMAIN proxy.c
 
-pop3p$(OBJSUFFICS): pop3p.c proxy.h structures.h proxymain.c
+pop3p$(OBJSUFFICS): pop3p.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP $(DEFINEOPTION)NOUDPMAIN pop3p.c
 
-imapp$(OBJSUFFICS): imapp.c proxy.h structures.h proxymain.c
+imapp$(OBJSUFFICS): imapp.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP $(DEFINEOPTION)NOUDPMAIN imapp.c
 
-smtpp$(OBJSUFFICS): smtpp.c proxy.h structures.h proxymain.c
+smtpp$(OBJSUFFICS): smtpp.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP $(DEFINEOPTION)NOUDPMAIN smtpp.c
 
-ftppr$(OBJSUFFICS): ftppr.c proxy.h structures.h proxymain.c
+ftppr$(OBJSUFFICS): ftppr.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP $(DEFINEOPTION)NOUDPMAIN ftppr.c
 
-tcppm$(OBJSUFFICS): tcppm.c proxy.h structures.h proxymain.c
+tcppm$(OBJSUFFICS): tcppm.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOUDPMAIN tcppm.c
 
-udppm$(OBJSUFFICS): udppm.c proxy.h structures.h proxymain.c
+udppm$(OBJSUFFICS): udppm.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOTCPMAIN udppm.c
 
-tlspr$(OBJSUFFICS): tlspr.c proxy.h structures.h proxymain.c
+tlspr$(OBJSUFFICS): tlspr.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOUDPMAIN tlspr.c
 
 
-socks$(OBJSUFFICS): socks.c proxy.h structures.h proxymain.c
+socks$(OBJSUFFICS): socks.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)NOPORTMAP $(DEFINEOPTION)NOUDPMAIN socks.c
 
 3proxy$(OBJSUFFICS): 3proxy.c proxy.h structures.h
@@ -86,7 +89,7 @@ $(BUILDDIR)$(PREFIX)udppm$(EXESUFFICS): sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFF
 $(BUILDDIR)$(PREFIX)tlspr$(EXESUFFICS): sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tlspr$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) log$(OBJSUFFICS)
 	$(LN) $(LNOUT)$(BUILDDIR)$(PREFIX)tlspr$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tlspr$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) $(LIBS)
 
-mainfunc$(OBJSUFFICS): proxy.h structures.h proxymain.c
+mainfunc$(OBJSUFFICS): proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(COUT)mainfunc$(OBJSUFFICS) $(CFLAGS) $(DEFINEOPTION)MODULEMAINFUNC=mainfunc proxymain.c
 
 srvproxy$(OBJSUFFICS): proxy.c proxy.h structures.h
