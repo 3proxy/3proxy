@@ -456,11 +456,18 @@ FILTER_ACTION handleconnectflt(struct clientparam *cparam){
 /* A buffer filter given a buffer too small for what it makes of it hands
    back one of its own, allocated with malloc, and leaves the one it was given
    alone: nothing refers to that one any more, so it is freed here, unless it
-   is one of the connection's own buffers. The caller owns whatever *buf_p
-   points to on return. */
+   is, or is in, one of the connection's own buffers: headers are worked on
+   in clibuf or srvbuf, which may have been grown to a bigger one of
+   malloc's. The caller owns whatever *buf_p points to on return. */
+static int connbuf(struct clientparam *param, unsigned char *p){
+	return (p >= param->clibuf && p < param->clibuf + param->clibufsize) ||
+		(p >= param->srvbuf && p < param->srvbuf + param->srvbufsize) ||
+		p == param->clibufdata || p == param->srvbufdata || p == param->tmpbuf;
+}
+
 static void filterswap(struct clientparam *param, unsigned char **cur, unsigned char *now){
 	if(now != *cur){
-		if(*cur != param->clibufdata && *cur != param->srvbufdata && *cur != param->tmpbuf) free(*cur);
+		if(!connbuf(param, *cur)) free(*cur);
 		*cur = now;
 	}
 }

@@ -140,8 +140,6 @@ char * proxy_stringtable[] = {
 #define HDRRESERVE 2048
 #define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
-/* seconds a connection waits for its next request before its buffer is freed */
-#define IDLEBUF 1
 
 #define PST_COUNT (sizeof(proxy_stringtable)/sizeof(proxy_stringtable[0]) - 1)
 static int proxy_stringtable_len[PST_COUNT];
@@ -159,21 +157,166 @@ static int send_st(struct clientparam *param, int idx){
 	return socksend(param, param->clisock, (unsigned char *)proxy_stringtable[idx], pst_len(idx), param->srv->timeouts[STRING_S]);
 }
 
-#ifndef WITHMAIN
-/* Makes room in a buffer whose size is tracked. A filter may hand back one
-   holding exactly what it produced, so nothing may be added to it without
-   asking for the room first; without filters, as in a proxy built on its
-   own, there is nothing to ask. Returns 1 when the room cannot be had. */
-static int growbuf(unsigned char **buf, int *bufsize, int need){
+/* The headers of a request or of an answer are read whole into the side's
+   own buffer, the connection's clibuf or srvbuf, and worked on there (see
+   hdrread()); a buffer of their own is had only when they do not fit, when
+   a filter hands back one, or when what follows them is to be read into
+   the side's buffer while they are still needed. */
+
+/* *own says whether *buf is the headers' own buffer, to be freed, rather
+   than the side's buffer they were read into. It is known when buf is
+   set, not later from where buf points: the side's buffer may have been a
+   bigger one since let go of, and buf would point into nothing. */
+static void hdrfree(unsigned char **buf, int *own){
+	if(*own) free(*buf);
+	*buf = NULL;
+	*own = 0;
+}
+
+/* Room for need bytes from *buf, which holds *bufsize: in the side's
+   buffer the headers have HDRRESERVE after them; past that they are copied
+   into a buffer of their own. A filter may hand back one holding exactly
+   what it produced, so nothing may be added to it without asking for the
+   room first. Returns 1 when the room cannot be had. */
+static int hdrroom(unsigned char **buf, int *own, int *bufsize, int need){
 	unsigned char *newbuf;
 
 	if(need <= *bufsize) return 0;
 	need += BUFSIZE;		/* for what follows too, not just this */
-	if(!(newbuf = realloc(*buf, need))) return 1;
+	if(*own){
+		if(!(newbuf = realloc(*buf, need))) return 1;
+	}
+	else {
+		if(!(newbuf = malloc(need))) return 1;
+		memcpy(newbuf, *buf, *bufsize);
+	}
 	*buf = newbuf;
+	*own = 1;
 	*bufsize = need;
 	return 0;
 }
+
+/* Grows the side's buffer to want bytes, everything in it kept. */
+static int hdrgrow(struct clientparam *param, DIRECTION which, unsigned want){
+	unsigned char **bufp = which? &param->srvbuf : &param->clibuf;
+	unsigned char *own = which? param->srvbufdata : param->clibufdata;
+	unsigned *in = which? &param->srvinbuf : &param->cliinbuf;
+	unsigned *size = which? &param->srvbufsize : &param->clibufsize;
+	unsigned char *nb;
+
+	if(want <= *size) return 0;
+	if(!(nb = malloc(want))) return 1;
+	memcpy(nb, *bufp, *in);
+	if(*bufp != own) free(*bufp);
+	*bufp = nb;
+	*size = want;
+	return 0;
+}
+
+/* Reads the header block of a request (CLIENT) or an answer (SERVER), up
+   to the empty line that ends it, whole into the side's buffer, reading
+   more as long as it is not there, the first time waiting firstto
+   seconds, then to. A request may be preceded by empty lines, which are
+   skipped. The block, without the empty line, is put one byte into the
+   buffer, and *buf points at that byte: its lines are moved down to *buf
+   as they are kept, so the line being worked on, and a 0 written after it,
+   never reach the next one. After it HDRRESERVE is left free, for the
+   headers added, before whatever came after it, a body or another
+   request, from where the side is read on. *room is what may be written
+   from *buf. Returns the length of the block, 0 if nothing came, -1 if
+   the block is longer than maxsize, -2 for want of memory. If the end of
+   the stream comes first, what came is the block. */
+static int hdrread(struct clientparam *param, DIRECTION which, unsigned maxsize, int firstto, int to, unsigned char **buf, int *room){
+	unsigned char **bufp = which? &param->srvbuf : &param->clibuf;
+	unsigned *in = which? &param->srvinbuf : &param->cliinbuf;
+	unsigned *off = which? &param->srvoffset : &param->clioffset;
+	unsigned *size = which? &param->srvbufsize : &param->clibufsize;
+	SOCKET s = which? param->remsock : param->clisock;
+	unsigned char *b, *nl;
+	unsigned lo, start, pos, hend = 0, tail = 0, rest, linelen;
+	int mark = -1, len;
+
+	/* what was read and not taken yet moves to one byte into the buffer;
+	   a request marked earlier (handed over by httpsrv) is kept from the
+	   mark, which moves with it */
+	lo = *off;
+	if(!which && param->climark >= 0 && (unsigned)param->climark < lo){
+		mark = (int)(*off - (unsigned)param->climark);
+		lo = (unsigned)param->climark;
+	}
+	if(*in - lo + 1 > *size && hdrgrow(param, which, *in - lo + 1 + LINESIZE)) return -2;
+	b = *bufp;
+	memmove(b + 1, b + lo, *in - lo);
+	*in = *in - lo + 1;
+	start = 1 + (mark >= 0? (unsigned)mark : 0);
+	if(mark >= 0) param->climark = 1;
+	*off = start;
+	pos = start;
+	for(;;){
+		while(pos < *in && (nl = (unsigned char *)memchr(b + pos, '\n', *in - pos))){
+			linelen = (unsigned)(nl - (b + pos)) + 1;
+			/* an empty line before a request is skipped */
+			if(!which && pos == start && linelen == 2 && b[pos] == '\r'){
+				start = pos = pos + linelen;
+				*off = start;
+				continue;
+			}
+			/* a line this short ends the block, as it did read line by
+			   line: the first one only for an answer, which then has none */
+			if(linelen <= 2 && (pos > start || which)){
+				hend = pos;
+				tail = pos + linelen;
+				goto found;
+			}
+			pos += linelen;
+		}
+		if(*in - start > maxsize) return -1;
+		if(*in >= *size){
+			if(hdrgrow(param, which, *size + LINESIZE)) return -2;
+			b = *bufp;
+		}
+		len = sockrecvfrom(param, s, NULL, b + *in, *size - *in, ((*in > start)? to : firstto) * 1000);
+		if(len <= 0){
+			if(*in <= start) return 0;
+			hend = tail = *in;
+			goto found;
+		}
+		if(which){
+			param->nreads++;
+			param->statssrv64 += len;
+		}
+		*in += len;
+	}
+found:
+	/* HDRRESERVE between the block and what follows it */
+	rest = *in - tail;
+	if(hend + HDRRESERVE + rest > *size){
+		if(hdrgrow(param, which, hend + HDRRESERVE + rest)) return -2;
+		b = *bufp;
+	}
+	memmove(b + hend + HDRRESERVE, b + tail, rest);
+	*in = hend + HDRRESERVE + rest;
+	*off = hend + HDRRESERVE;
+	*buf = b + start - 1;
+	*room = (int)(hend + HDRRESERVE - (start - 1));
+	return (int)(hend - start);
+}
+
+/* The next line of a header block from hdrread(), moved down to dest:
+   its length with its line end, 0 at the end of the block. */
+static int hdrline(unsigned char **src, unsigned char *end, unsigned char *dest){
+	unsigned char *nl;
+	int len;
+
+	if(*src >= end) return 0;
+	nl = (unsigned char *)memchr(*src, '\n', (size_t)(end - *src));
+	len = nl? (int)(nl - *src) + 1 : (int)(end - *src);
+	memmove(dest, *src, len);
+	*src += len;
+	return len;
+}
+
+#ifndef WITHMAIN
 
 /* Reads a body of a known length into one buffer, to be filtered whole.
    One bigger than the connection's own is had for it, up to filtermaxsize;
@@ -224,29 +367,30 @@ static unsigned char * reqpath(unsigned char *line, unsigned char **host, int *h
 }
 #endif
 
-static void logurl(struct clientparam * param, char * buf, char * req, int ftp){
+/* Logs the request: its line, as a copy, cut at its line end and without
+   the password of an ftp:// URL. */
+static void logurl(struct clientparam * param, char * req, int ftp){
  char *sb;
  char *se;
- int len;
- char *own = NULL;
+ char line[2048], *buf = NULL, *own = NULL;
+ size_t len;
 
  if(param->res == 555 || param->res == 508) return;
  if(req) {
-	len = (int)strlen(req);
-	if(len > (LINESIZE - 1)) len = LINESIZE - 1;
-	/* a tunnel gave its buffer back before it was relayed */
-	if(!buf && !(buf = own = malloc(LINESIZE))) req = NULL;
+	len = strlen(req);
+	if(len > LINESIZE - 1) len = LINESIZE - 1;
+	buf = (len < sizeof(line))? line : (own = malloc(len + 1));
  }
- if(req) {
-	memcpy(buf, req, len + 1);
-	buf[LINESIZE - 1] = 0;
+ if(buf) {
+	memcpy(buf, req, len);
+	buf[len] = 0;
 	sb = strchr(buf, '\r');
 	if(sb)*sb = 0;
-	if(ftp && (se = strchr(buf + 10, ':')) && (sb = strchr(se, '@')) ) {
+	if(ftp && strlen(buf) > 10 && (se = strchr(buf + 10, ':')) && (sb = strchr(se, '@')) ) {
 		memmove(se, sb, strlen(sb)+1);
 	}
  }
- dolog(param, (unsigned char *)(req?buf:NULL));
+ dolog(param, (unsigned char *)buf);
  free(own);
 }
 
@@ -336,6 +480,11 @@ void * proxychild(struct clientparam* param) {
  char ftpbuf[FTPBUFSIZE];
  int inftpbuf = 0;
  int haveconnection = 0;
+ /* the request's header block, read whole: where its next line is, its end */
+ unsigned char *hsrc, *hend;
+ int hlen0, hdrsdone = 0;
+ /* buf is the headers' own buffer, not the side's they were read into */
+ int bufown = 0;
 #ifndef WITHMAIN
  FILTER_ACTION action;
 #endif
@@ -352,15 +501,10 @@ for(;;){
  clhdrofs_req = -1;
  param->nolongdatfilter = 0;
 
- /* A connection waiting a while for its next request, or a tunnel, holds
-    no buffer: it is taken again once a request starts coming. */
- if(buf && param->cliinbuf == param->clioffset){
-	memset(fds, 0, sizeof(fds));
-	fds[0].fd = param->clisock;
-	fds[0].events = POLLIN;
-	if(param->srv->so._poll(param->sostate, fds, 1, IDLEBUF * 1000) == 0) freeptr(&buf);
- }
- if(buf) memset(buf, 0, bufsize);
+ /* the headers are read into the connection's buffer: one of their own
+    from the last request is let go */
+ hdrfree(&buf, &bufown);
+ hdrsdone = 0;
 
  if(keepalive && (param->cliinbuf == param->clioffset) && (param->remsock != INVALID_SOCKET)){
 	memset(fds, 0, sizeof(fds));
@@ -386,18 +530,17 @@ for(;;){
 	}
  }
 
- if(!buf){
-	if(sockgetcharcli(param, param->srv->timeouts[STRING_L], 0) == EOF) RETURN((keepalive)?555:508);
-	param->clioffset--;
-	if(!(buf = malloc(BUFSIZE))) {RETURN(21);}
-	bufsize = BUFSIZE;
-	memset(buf, 0, bufsize);
- }
- i = sockgetlinebuf(param, CLIENT, buf, LINESIZE - 1, '\n', param->srv->timeouts[STRING_L]);
+ hlen0 = hdrread(param, CLIENT, LINESIZE * 16, param->srv->timeouts[STRING_L], param->srv->timeouts[STRING_S], &buf, &bufsize);
+ if(hlen0 == -1) {RETURN(516);}
+ if(hlen0 == -2) {RETURN(21);}
+ if(hlen0 <= 0) {RETURN((keepalive)?555:508);}
+ hdrsdone = 1;
+ hsrc = buf + 1;
+ hend = buf + 1 + hlen0;
+ i = hdrline(&hsrc, hend, buf);
  if(i<=0) {
-	RETURN((keepalive)?555:(i)?507:508);
+	RETURN((keepalive)?555:508);
  }
- if (i==2 && buf[0]=='\r' && buf[1]=='\n') continue;
  buf[i] = 0;
  
  if(req) {
@@ -621,15 +764,7 @@ for(;;){
 		}
 	}
 	inbuf += i;
-	if((bufsize - inbuf) < LINESIZE){
-		if (bufsize > (LINESIZE * 16)){
-			RETURN (516);
-		}
-		if(!(newbuf = realloc(buf, bufsize + BUFSIZE))){RETURN (21);}
-		buf = newbuf;
-		bufsize += BUFSIZE;
-	}
- } while( (i = sockgetlinebuf(param, CLIENT, buf + inbuf, LINESIZE - 2, '\n', param->srv->timeouts[STRING_S])) > 2);
+ } while( (i = hdrline(&hsrc, hend, buf + inbuf)) > 2);
 
 
  buf[inbuf] = 0;
@@ -700,7 +835,9 @@ for(;;){
 	}
  }
  freeptr(&origreq);
+ newbuf = buf;
  action = handlehdrfilterscli(param, &buf, &bufsize, 0, &inbuf);
+ if(buf != newbuf) bufown = 1;
  if(action == HANDLED){
 	RETURN(0);
  }
@@ -708,7 +845,7 @@ for(;;){
  /* A filter may have returned a buffer sized to exactly what it produced.
     The headers this proxy adds of its own go in after it, so the room for
     them is taken back before anything is written. */
- if(growbuf(&buf, &bufsize, inbuf + HDRRESERVE)) RETURN(21);
+ if(hdrroom(&buf, &bufown, &bufsize, inbuf + HDRRESERVE)) RETURN(21);
  param->nolongdatfilter = 0;
 
 #endif
@@ -732,6 +869,8 @@ for(;;){
  }
  else if(param->ndatfilterscli > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64){
   uint64_t newlen64;
+  /* the body comes into clibuf, where the headers are: out with them */
+  if(!bufown && hdrroom(&buf, &bufown, &bufsize, bufsize + 1)) RETURN(21);
   newlen64 = fillwhole(param, CLIENT, contentlength64);
   if(newlen64 == contentlength64) {
 	action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, 0, (int *)&param->cliinbuf);
@@ -742,7 +881,7 @@ for(;;){
 	contentlength64 = param->cliinbuf;
 	param->nolongdatfilter = 1;
   }
-  if(growbuf(&buf, &bufsize, (int)strlen((char *)buf) + CLHDRSIZE)) RETURN(21);
+  if(hdrroom(&buf, &bufown, &bufsize, (int)strlen((char *)buf) + CLHDRSIZE)) RETURN(21);
   sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"\r\n", contentlength64);
  }
 
@@ -755,6 +894,10 @@ for(;;){
 	int mode = 0;
 	int i=0;
 
+	/* a directory listing is written into buf, which grows with it: one
+	   of its own, as big as the listing code expects */
+	if((!bufown && hdrroom(&buf, &bufown, &bufsize, bufsize + 1)) ||
+	   hdrroom(&buf, &bufown, &bufsize, BUFSIZE)) RETURN(21);
 	inftpbuf = 0;
 	if(!ckeepalive){
 		inftpbuf = FTPBUFSIZE - 20;
@@ -1005,10 +1148,10 @@ for(;;){
 
  if(isconnect && param->redirtype != R_HTTP) {
 	if(param->redirectfunc) {
-		freeptr(&req); freeptr(&buf); freeptr(&ftpbase);
+		freeptr(&req); hdrfree(&buf, &bufown); freeptr(&ftpbase);
 		return (void *)param->redirectfunc;
 	}
-	freeptr(&buf);
+	hdrfree(&buf, &bufown);
 	param->res =  mapsocket(param, param->srv->timeouts[CONNECTION_L]);
 	RETURN(param->res);
  }
@@ -1135,7 +1278,16 @@ for(;;){
  hascontent = 0;
  clhdrofs = -1;
  
- while( (i = sockgetlinebuf(param, SERVER, buf + inbuf, LINESIZE - 1, '\n', param->srv->timeouts[(res)?STRING_S:STRING_L])) > 2) {
+ /* the answer's headers, read whole into srvbuf: the request's are done */
+ hdrfree(&buf, &bufown);
+ hlen0 = hdrread(param, SERVER, BUFSIZE, param->srv->timeouts[STRING_L], param->srv->timeouts[STRING_S], &buf, &bufsize);
+ if(hlen0 == -1) {RETURN(516);}
+ if(hlen0 == -2) {RETURN(21);}
+ if(hlen0 <= 0) {RETURN(522);}
+ hsrc = buf + 1;
+ hend = buf + 1 + hlen0;
+ while( (i = hdrline(&hsrc, hend, buf + inbuf)) > 2) {
+	buf[inbuf+i] = 0;
 	if(!res && i>9)param->status = res = atoi((char *)buf + inbuf + 9);
 	if(((i >= 25 && !strncasecmp((char *)(buf+inbuf), "proxy-connection:", 17))
 	   ||
@@ -1189,14 +1341,6 @@ for(;;){
 		}
 	}
 	inbuf += i;
-	if((bufsize - inbuf) < LINESIZE){
-		if (bufsize > 20000){
-			RETURN (516);
-		}
-		if(!(newbuf = realloc(buf, bufsize + BUFSIZE))){RETURN (21);}
-		buf = newbuf;
-		bufsize += BUFSIZE;
-	}
  }
  if(res < 200 || res > 499) {
 	ckeepalive = 0;
@@ -1218,12 +1362,14 @@ for(;;){
  buf[inbuf] = 0;
  if(inbuf < 9) {RETURN (522);}
 #ifndef WITHMAIN
+ newbuf = buf;
  action = handlehdrfilterssrv(param, &buf, &bufsize, 0, &inbuf);
+ if(buf != newbuf) bufown = 1;
  if(action == HANDLED){
 	RETURN(0);
  }
  if(action != PASS) RETURN(517);
- if(growbuf(&buf, &bufsize, inbuf + HDRRESERVE)) RETURN(21);
+ if(hdrroom(&buf, &bufown, &bufsize, inbuf + HDRRESERVE)) RETURN(21);
 
  param->nolongdatfilter = 0;
 
@@ -1233,6 +1379,8 @@ for(;;){
  }
  else if(param->ndatfilterssrv > 0 && contentlength64 > 0 && contentlength64 == (uint64_t)(unsigned long)contentlength64 && param->operation != HTTP_HEAD && res != 204 && res != 304){
   uint64_t newlen;
+  /* the body comes into srvbuf, where the headers are: out with them */
+  if(!bufown && hdrroom(&buf, &bufown, &bufsize, bufsize + 1)) RETURN(21);
   newlen = fillwhole(param, SERVER, contentlength64);
   if(newlen == contentlength64) {
 	action = handlepredatflt(param);
@@ -1247,7 +1395,7 @@ for(;;){
 	}
 	if(action != PASS) RETURN(517);
 	contentlength64 = param->srvinbuf;
-	if(growbuf(&buf, &bufsize, (int)strlen((char *)buf) + CLHDRSIZE)) RETURN(21);
+	if(hdrroom(&buf, &bufown, &bufsize, (int)strlen((char *)buf) + CLHDRSIZE)) RETURN(21);
 	sprintf((char*)buf+strlen((char *)buf), "Content-Length: %"PRIu64"\r\n", contentlength64);
 	hascontent = 1;
   }
@@ -1320,7 +1468,7 @@ for(;;){
         } while(param->chunked);
  }
  if(isconnect && res == 200 && param->operation){
-	freeptr(&buf);
+	hdrfree(&buf, &bufown);
 	RETURN (mapsocket(param, param->srv->timeouts[CONNECTION_S]));
  }
  else if(isconnect){
@@ -1349,7 +1497,7 @@ REQUESTEND:
 	param->onerequest = (ckeepalive && keepalive)? 2 : 1;
 	RETURN(0);
  }
- logurl(param, (char *)buf, (char *)req, ftp);
+ logurl(param, (char *)req, ftp);
  param->status = 0;
 
 }
@@ -1360,8 +1508,15 @@ CLEANRET:
 	int stidx = -1;
 	int r = param->res;
 
-	if((r >= 509 && r < 517) || r > 900) {
-		if(buf) while( (i = sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, '\n', param->srv->timeouts[STRING_S])) > 2);
+	/* the rest of a request whose headers were not all read */
+	if(!hdrsdone && ((r >= 509 && r < 517) || r > 900)) {
+		unsigned char small[256];
+		int atstart = 1;
+
+		while((i = sockgetlinebuf(param, CLIENT, small, sizeof(small) - 1, '\n', param->srv->timeouts[STRING_S])) > 0){
+			if(atstart && i <= 2 && small[i-1] == '\n') break;
+			atstart = (small[i-1] == '\n');
+		}
 	}
 	if(r == 10) stidx = 2;
 	else if(r == 700 || r == 701) stidx = 16;
@@ -1381,8 +1536,8 @@ CLEANRET:
 		if(r == 700 || r == 701) socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, param->srv->timeouts[STRING_S]);
 	}
  }
- logurl(param, (char *)buf, (char *)req, ftp);
- freeptr(&req); freeptr(&buf); freeptr(&ftpbase);
+ logurl(param, (char *)req, ftp);
+ freeptr(&req); hdrfree(&buf, &bufown); freeptr(&ftpbase);
  return (NULL);
 }
 
