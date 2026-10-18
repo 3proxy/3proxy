@@ -64,8 +64,9 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
 	if (res<1) return 0;
 	sasize = sizeof(PROXYSOCKADDRTYPE);
+	/* sin NULL for a stream socket: nothing to learn the address into */
 	do {
-		res = param?param->srv->so._recvfrom(param->sostate, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, &sasize):so._recvfrom(so.state, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, &sasize);
+		res = param?param->srv->so._recvfrom(param->sostate, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, sin? &sasize : NULL):so._recvfrom(so.state, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, sin? &sasize : NULL);
 	} while (res < 0 && (errno == EAGAIN || errno == EINTR));
 	return res;
 }

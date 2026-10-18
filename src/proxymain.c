@@ -77,7 +77,7 @@ static void serveparam(struct clientparam *param){
 			continue;
 		}
 #endif
-		if(socksendto(param, param->remsock, (struct sockaddr*)&param->sinsr, (unsigned char *)"C", 1, CONNBACK_TO*1000) != 1){
+		if(socksend(param, param->remsock, (unsigned char *)"C", 1, CONNBACK_TO) != 1){
 			dolog(param, (unsigned char *)"Connect back sending command failed");
 			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
@@ -802,7 +802,12 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
  else {
 #endif
 #ifndef NOPORTMAP
-	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv->intsa) = htons((uint16_t)atoi(argv[i])))==0 || (srv->targetport = htons((uint16_t)atoi(argv[i+2])))==0) {
+	/* the port of a Unix socket target is ignored, 0 as the manual has it */
+	if (error || argc != i+3 || *argv[i]=='-'|| (*SAPORT(&srv->intsa) = htons((uint16_t)atoi(argv[i])))==0 || ((srv->targetport = htons((uint16_t)atoi(argv[i+2])))==0
+#ifdef WITH_UN
+	    && strncmp(argv[i+1], "unix:", 5)
+#endif
+	    )) {
 		fprintf(stderr, "%s of %s\n"
 			"Usage: %s options"
 			" [-e<external_ip>] <port_to_bind>"
@@ -1175,7 +1180,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 		return NEXT_RETRY;
 	}
 
-	if(sockrecvfrom(NULL, new_sock,(struct sockaddr*)&defparam->sincr,buf,1,60*1000) != 1 || *buf!='C') {
+	if(sockrecvfrom(NULL, new_sock, NULL, buf, 1, 60*1000) != 1 || *buf!='C') {
 		so._closesocket(so.state, new_sock);
 		usleep(SLEEPTIME);
 		return NEXT_RETRY;

@@ -125,7 +125,6 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  int sleeptime = 0;
  FILTER_ACTION action;
  int res = 0;
- SASIZETYPE sasize;
  int needaction = 0;
  int graceclinum=0, gracesrvnum=0, graceclitraf=0, gracesrvtraf=0;
  time_t gracetime = 0;
@@ -294,8 +293,9 @@ log("send to server from buf");
 			param->clioffset = param->cliinbuf = 0;
 			if(fromclient) TOCLIENTBUF = 1;
 		}
-		sasize = SASIZE(&param->sinsr);
-		res = param->srv->so._sendto(param->sostate, param->remsock, (char *)param->clibuf + param->clioffset, (int)MIN(inclientbuf, fromclient), 0, (struct sockaddr*)&param->sinsr, sasize);
+		/* a connected stream: no address, which a Unix socket on Linux
+		   would refuse */
+		res = param->srv->so._sendto(param->sostate, param->remsock, (char *)param->clibuf + param->clioffset, (int)MIN(inclientbuf, fromclient), 0, NULL, 0);
 		if(res <= 0) {
 			TOSERVER = 0;
 			if(errno && errno != EAGAIN && errno != EINTR){
@@ -341,8 +341,7 @@ log("send to client from buf");
 			if(fromserver) TOSERVERBUF = 1;
 			continue;
 		}
-		sasize = SASIZE(&param->sincr);
-		res = param->srv->so._sendto(param->sostate, param->clisock, (char *)param->srvbuf + param->srvoffset, (int)MIN(inserverbuf,fromserver), 0, (struct sockaddr*)&param->sincr, sasize);
+		res = param->srv->so._sendto(param->sostate, param->clisock, (char *)param->srvbuf + param->srvoffset, (int)MIN(inserverbuf,fromserver), 0, NULL, 0);
 		if(res <= 0) {
 			TOCLIENT = 0;
 			if(errno && errno != EAGAIN && errno != EINTR){
@@ -590,8 +589,9 @@ log("done read from server to pipe\n");
 #ifdef WITHLOG
 log("read from client to buf");
 #endif
-			sasize = sizeof(param->sincr);
-			res = param->srv->so._recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)CLIROOM - param->cliinbuf, fromclient-inclientbuf), 0, (struct sockaddr *)&param->sincr, &sasize);
+			/* no address: it would overwrite the client's with what a
+			   stream socket gives, an empty one for a Unix socket */
+			res = param->srv->so._recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)CLIROOM - param->cliinbuf, fromclient-inclientbuf), 0, NULL, NULL);
 			if(res <= 0) {
 				FROMCLIENT = 0;
 				if(res == 0) {
@@ -646,8 +646,7 @@ log("done read from client to buf");
 #ifdef WITHLOG
 log("read from server to buf");
 #endif
-			sasize = sizeof(param->sinsr);
-			res = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)SRVROOM - param->srvinbuf, fromserver-inserverbuf), 0, (struct sockaddr *)&param->sinsr, &sasize);
+			res = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)SRVROOM - param->srvinbuf, fromserver-inserverbuf), 0, NULL, NULL);
 			if(res <= 0) {
 				FROMSERVER = 0;
 				if(res == 0) {

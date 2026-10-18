@@ -131,7 +131,7 @@ int udpbind(struct clientparam *param)
 			return 12;
 		}
 	}
-	sasize = SASIZE(&param->sinsl);
+	sasize = sizeof(param->sinsl);
 	param->srv->so._getsockname(param->sostate, param->remsock,
 			(struct sockaddr *)&param->sinsl, &sasize);
 	return 0;
