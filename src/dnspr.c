@@ -156,6 +156,8 @@ static int dnsforward(struct udploop *u, struct udpsession *ss){
 			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 		}
+		/* another socket for the loop to watch */
+		ss->regsock = INVALID_SOCKET;
 		q->tcp = c->nservers[q->server].usetcp;
 		q->got = 0;
 		{

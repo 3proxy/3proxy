@@ -14,17 +14,75 @@
    clients come on the service's socket, those of their destinations on the
    sockets of their sessions, and every answer to a client leaves from the
    service's socket. No thread for a client. */
+/* On Linux the sockets are watched with epoll, registered once and changed
+   as the sessions change; elsewhere poll() is given them all each time.
+   NOEPOLL keeps poll() on Linux too. */
+#if defined(__linux__) && !defined(NOEPOLL)
+#define UDPEPOLL
+#include <sys/epoll.h>
+#endif
+
 struct udpstate {
  struct udploop u;
  const struct udpservice *svc;
  struct udpsession *head;
  int count;
  struct hashtable keys;	/* a session by its client's address */
+#ifdef UDPEPOLL
+ int ep;
+ struct epoll_event *evs;
+ short srvevents;	/* the service's socket as registered */
+#else
  struct pollfd *fds;
  struct udpsession **of;	/* the session of each of fds, NULL: the service */
+#endif
  int nalloc;
  int nfull;
 };
+
+#ifdef UDPEPOLL
+/* A socket in the epoll set; its data the session, its lowest bit set for
+   a parent's control connection, or NULL for the service's socket. */
+static int udpwatch(struct udpstate *st, int op, SOCKET s, short events, void *tag){
+ struct epoll_event e;
+
+ memset(&e, 0, sizeof(e));
+ e.events = ((events & POLLIN)? EPOLLIN : 0) | ((events & POLLOUT)? EPOLLOUT : 0);
+ e.data.ptr = tag;
+ return epoll_ctl(st->ep, op, s, &e);
+}
+
+/* The session's sockets registered as they are now. */
+static void udpsync(struct udpstate *st, struct udpsession *ss){
+ SOCKET rem = ss->param->remsock, ctrl = ss->param->ctrlsocksrv;
+ short want = ss->events? ss->events : POLLIN;
+
+ if(ctrl == rem) ctrl = INVALID_SOCKET;
+ if(ss->regsock != rem){
+	if(ss->regsock != INVALID_SOCKET) udpwatch(st, EPOLL_CTL_DEL, ss->regsock, 0, NULL);
+	if(rem != INVALID_SOCKET) udpwatch(st, EPOLL_CTL_ADD, rem, want, ss);
+	ss->regsock = rem;
+	ss->regevents = want;
+ }
+ else if(rem != INVALID_SOCKET && ss->regevents != want){
+	udpwatch(st, EPOLL_CTL_MOD, rem, want, ss);
+	ss->regevents = want;
+ }
+ if(ss->regctrl != ctrl){
+	if(ss->regctrl != INVALID_SOCKET) udpwatch(st, EPOLL_CTL_DEL, ss->regctrl, 0, NULL);
+	if(ctrl != INVALID_SOCKET) udpwatch(st, EPOLL_CTL_ADD, ctrl, POLLIN, (char *)ss + 1);
+	ss->regctrl = ctrl;
+ }
+}
+
+/* Out of the set, before its sockets are closed or it goes to another
+   loop. */
+static void udpunwatch(struct udpstate *st, struct udpsession *ss){
+ if(ss->regsock != INVALID_SOCKET) udpwatch(st, EPOLL_CTL_DEL, ss->regsock, 0, NULL);
+ if(ss->regctrl != INVALID_SOCKET) udpwatch(st, EPOLL_CTL_DEL, ss->regctrl, 0, NULL);
+ ss->regsock = ss->regctrl = INVALID_SOCKET;
+}
+#endif
 
 static void udpkey2hash(const struct hashtable *ht, void *index, uint8_t *hash){
  PROXYSOCKADDRTYPE *sa = (PROXYSOCKADDRTYPE *)index;
@@ -91,6 +149,7 @@ static struct udpsession *udpnew(struct udpstate *st){
  udpjoin(srv, param, 1);
  ss->param = param;
  ss->svc = st->svc;
+ ss->regsock = ss->regctrl = INVALID_SOCKET;
 #ifdef MODULEMAINFUNC
  if(makefilters(srv, param) > CONTINUE){
 	freeparam(param);
@@ -155,6 +214,9 @@ static void udphandover(struct udpstate *st){
  for(ss = st->head; ss; ss = ss->next){
 	if(ss->keyed) hashdelete(&st->keys, &ss->param->sincr);
 	ss->keyed = 0;
+#ifdef UDPEPOLL
+	udpunwatch(st, ss);
+#endif
 	last = ss;
  }
  if(!last) return;
@@ -190,6 +252,8 @@ static void udpadopt(struct udpstate *st){
  while((ss = list)){
 	list = ss->next;
 	ss->next = ss->prev = NULL;
+	/* watched by the old service's loop, not by this one yet */
+	ss->regsock = ss->regctrl = INVALID_SOCKET;
 	param = ss->param;
 	old = param->srv;
 	if(old == srv) { udpadd(st, ss); continue; }
@@ -303,7 +367,10 @@ static int udploop(struct srvstart *s){
  struct srvparam *srv = &s->srv;
  struct udpsession *ss, *next;
  time_t now;
- int i, n, nfds, timeo, res = 0, wait = 0;
+ int i, n, timeo, res = 0, wait = 0, srvready;
+#ifndef UDPEPOLL
+ int nfds;
+#endif
 
  memset(&st, 0, sizeof(st));
  st.u.srv = srv;
@@ -315,18 +382,35 @@ static int udploop(struct srvstart *s){
  st.keys.recsize = sizeof(struct udpsession *);
  st.keys.hash_size = 8;
  if(st.svc->keyed && inithashtable(&st.keys, 64, 256, 1048576)) return 21;
+#ifdef UDPEPOLL
+ if((st.ep = epoll_create1(EPOLL_CLOEXEC)) < 0 || udpwatch(&st, EPOLL_CTL_ADD, srv->srvsock, POLLIN, NULL)){
+	if(st.ep >= 0) close(st.ep);
+	if(st.svc->keyed) destroyhashtable(&st.keys);
+	return 21;
+ }
+ st.srvevents = POLLIN;
+#endif
  for(;;){
 	if(srv->config->paused != srv->paused) break;
 #ifndef STDMAIN
 	udpadopt(&st);
 #endif
+	/* room for every socket: a session has its socket and maybe a
+	   parent's control connection */
 	if(st.nalloc < 2 * st.count + 1){
 		int want = 2 * st.count + 64;
+#ifdef UDPEPOLL
+		struct epoll_event *e = realloc(st.evs, want * sizeof(*e));
+
+		if(!e) { res = 21; break; }
+		st.evs = e;
+#else
 		struct pollfd *f = realloc(st.fds, want * sizeof(*f));
 
 		if(f) st.fds = f;
-		if(f && (st.of = realloc(st.of, want * sizeof(*st.of)))) st.nalloc = want;
-		else { res = 21; break; }
+		if(!f || !(st.of = realloc(st.of, want * sizeof(*st.of)))) { res = 21; break; }
+#endif
+		st.nalloc = want;
 	}
 	now = time(NULL);
 	timeo = 1000;
@@ -334,6 +418,40 @@ static int udploop(struct srvstart *s){
 	/* waiting for an older service's sessions: soon looked for again */
 	if((wait = udpolder(srv))) timeo = 20;
 #endif
+	srvready = 0;
+#ifdef UDPEPOLL
+	if(st.srvevents != (wait? 0 : POLLIN)){
+		st.srvevents = wait? 0 : POLLIN;
+		udpwatch(&st, EPOLL_CTL_MOD, srv->srvsock, st.srvevents, NULL);
+	}
+	for(ss = st.head; ss; ss = ss->next){
+		if(ss->deadline && (ss->deadline - now) * 1000 < timeo)
+			timeo = ss->deadline > now? (int)(ss->deadline - now) * 1000 : 0;
+		udpsync(&st, ss);
+	}
+	n = epoll_wait(st.ep, st.evs, st.nalloc, timeo);
+	if(n < 0 && errno != EINTR){
+		res = 91;
+		break;
+	}
+	now = time(NULL);
+	for(i = 0; i < n; i++){
+		uintptr_t tag = (uintptr_t)st.evs[i].data.ptr;
+
+		if(!tag){
+			srvready = 1;
+			continue;
+		}
+		ss = (struct udpsession *)(tag & ~(uintptr_t)1);
+		if(ss->done) continue;
+		/* a parent's control connection: its end ends the session */
+		if(tag & 1) ss->done = 1;
+		else {
+			udprefresh(ss, now);
+			if((*st.svc->server)(&st.u, ss)) ss->done = 1;
+		}
+	}
+#else
 	nfds = 0;
 	st.fds[nfds].fd = srv->srvsock;
 	st.fds[nfds].events = wait? 0 : POLLIN;
@@ -371,7 +489,9 @@ static int udploop(struct srvstart *s){
 		}
 		else ss->done = 1;
 	}
-	if(n > 0 && !wait && st.fds[0].revents) udpclients(&st, now);
+	srvready = n > 0 && st.fds[0].revents;
+#endif
+	if(srvready && !wait) udpclients(&st, now);
 	for(ss = st.head; ss; ss = next){
 		next = ss->next;
 		if(!ss->done && ss->deadline && ss->deadline <= now){
@@ -383,6 +503,9 @@ static int udploop(struct srvstart *s){
 		}
 		if(ss->done){
 			udpremove(&st, ss);
+#ifdef UDPEPOLL
+			udpunwatch(&st, ss);
+#endif
 			udpend(ss);
 		}
 	}
@@ -392,8 +515,13 @@ static int udploop(struct srvstart *s){
 #endif
  udpendall(st.head, 26);
  if(st.svc->keyed) destroyhashtable(&st.keys);
+#ifdef UDPEPOLL
+ close(st.ep);
+ free(st.evs);
+#else
  free(st.fds);
  free(st.of);
+#endif
  return res;
 }
 #endif
