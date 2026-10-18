@@ -43,7 +43,7 @@ def dns_reply(data, answer):
     return bytes(reply)
 
 
-def fake_name_server(answer, tcp=False):
+def fake_name_server(answer, tcp=False, wrongid=False):
     """A name server answering every query (see dns_reply), over UDP or
     TCP; with answer None, one which answers nothing."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM if tcp else socket.SOCK_DGRAM)
@@ -78,7 +78,10 @@ def fake_name_server(answer, tcp=False):
             except OSError:
                 return
             if answer is not None:
-                sock.sendto(dns_reply(data, answer), peer)
+                reply = dns_reply(data, answer)
+                if wrongid:
+                    reply = bytes([reply[0] ^ 0x55, reply[1]]) + reply[2:]
+                sock.sendto(reply, peer)
 
     if tcp:
         sock.listen(8)
@@ -298,5 +301,46 @@ def run(t):
     t.ok("the first name server silent, the second is asked after DNS_TO") \
         if got and b"the-second" in got else \
         t.fail("the first name server silent, the second is asked after DNS_TO", "the TXT", got)
-    for x in (s, pending, mute, tcpns, second):
+
+    # an answer with another id is not the answer: neither relayed nor kept
+    liar, lport = fake_name_server(b"forged", wrongid=True)
+    guarded = t.free_port()
+    t.start("udploop_liar", f"""
+        log
+        timeouts 1 5 30 60 180 1800 2 60 15 5 5
+        nserver 127.0.0.1:{lport}
+        nscache 256
+        nsrecord local.test 10.1.2.3
+        auth iponly
+        allow *
+        dnspr -p{guarded}
+    """)
+    t.wait_udp(guarded, payload=dns_raw("local.test", 1))
+    t.eq(None, exchange(s, guarded, dns_raw("forged.test", 1), timeout=3),
+         "an answer with another transaction id is not relayed")
+    t.eq(None, exchange(s, guarded, dns_raw("forged.test", 1), timeout=3),
+         "nor kept in the name cache")
+    # a label with a '.' in it is another name than its text reads: answered,
+    # but not kept under that text
+    caching, cport2 = fake_name_server(b"x")
+    dotted = t.free_port()
+    t.start("udploop_dotted", f"""
+        log
+        nserver 127.0.0.1:{cport2}
+        nscache 256
+        nsrecord local.test 10.1.2.3
+        auth iponly
+        allow *
+        dnspr -p{dotted}
+    """)
+    t.wait_udp(dotted, payload=dns_raw("local.test", 1))
+    odd = struct.pack("!HHHHHH", 0x4C4C, 0x0100, 1, 0, 0, 0) + b"\x08evil.dot\x04test\x00" + struct.pack("!HH", 1, 1)
+    got = exchange(s, dotted, odd)
+    t.ok("a name with a '.' inside a label is answered") \
+        if got and bytes([10, 9, 8, 7]) in got else t.fail("a name with a '.' inside a label is answered", "10.9.8.7", got)
+    caching.close()
+    time.sleep(0.2)
+    t.eq(None, exchange(s, dotted, dns_raw("evil.dot.test", 1), timeout=3),
+         "and the name its text reads as was not cached from it")
+    for x in (s, pending, mute, tcpns, second, liar):
         x.close()

@@ -30,9 +30,16 @@ struct dnsquery {
 	   TCP */
 	unsigned char *query;
 	int len;
+	/* the client's id, replaced in what goes to a name server by one of
+	   our own, and the length of the question section */
+	unsigned char cid[2];
+	int qend;
 	/* the name server asked, and over TCP what of its answer came */
 	int server;
 	int tcp, connecting;
+	/* a name with a label not of a host's characters, a '.' in one
+	   among them: it reads as another name, so its answer is not kept */
+	int nocache;
 	unsigned char *answer;
 	int got;
 };
@@ -74,22 +81,29 @@ static void dnscache(struct clientparam *param, struct dnsquery *q, unsigned cha
 	unsigned type;
 	uint32_t ttl;
 
-	if((q->type != 0x01 && q->type != 0x1c) || !q->host) return;
+	if((q->type != 0x01 && q->type != 0x1c) || !q->host || q->nocache) return;
 	while(k < len && buf[k]) k += buf[k] + 1;
 	k += 5;
 	n = buf[7] + (((unsigned)buf[6])<<8);
 	for(j = 0; j < n && k < len; j++){
-		/* the name: a pointer, or labels to the end */
-		if((buf[k] & 0xc0) == 0xc0) k += 2;
+		/* the owner name: only a record of the question's name itself, a
+		   pointer to it, is kept; any other is skipped */
+		int own = 0;
+
+		if(k + 1 < len && buf[k] == 0xc0 && buf[k+1] == 0x0c){
+			own = 1;
+			k += 2;
+		}
+		else if((buf[k] & 0xc0) == 0xc0) k += 2;
 		else {
-			while(k < len && buf[k]) k += buf[k] + 1;
-			k++;
+			while(k < len && buf[k] && !(buf[k] & 0xc0)) k += buf[k] + 1;
+			k += (k < len && (buf[k] & 0xc0))? 2 : 1;
 		}
 		if(k + 10 > len) return;
 		type = buf[k+1] + (((unsigned)buf[k])<<8);
 		rlen = buf[k+9] + (((unsigned)buf[k+8])<<8);
 		if(k + 10 + rlen > len) return;
-		if(type == q->type && rlen == (q->type == 0x01? 4 : 16)){
+		if(own && type == q->type && rlen == (q->type == 0x01? 4 : 16)){
 			ttl = ntohl(*(uint32_t *)(buf + k + 4));
 			if(ttl > 3600*12) ttl = 3600*12;
 			if(!ttl) ttl = 1;
@@ -109,6 +123,12 @@ static int dnsreply(struct udploop *u, struct udpsession *ss, unsigned char *buf
 	struct clientparam *param = ss->param;
 	struct dnsquery *q = ss->data;
 
+	/* an answer to this query: our id, and the question asked */
+	if(len < q->qend || buf[0] != q->query[2] || buf[1] != q->query[3] || !(buf[2] & 0x80) ||
+	   memcmp(buf + 4, q->query + 2 + 4, 2) || memcmp(buf + 12, q->query + 2 + 12, q->qend - 12))
+		return 0;
+	buf[0] = q->cid[0];
+	buf[1] = q->cid[1];
 	param->statssrv64 += len;
 	param->nreads++;
 	if(buf[6] || buf[7]){
@@ -138,6 +158,12 @@ static int dnsforward(struct udploop *u, struct udpsession *ss){
 		}
 		q->tcp = c->nservers[q->server].usetcp;
 		q->got = 0;
+		{
+			unsigned short id = (unsigned short)myrand();
+
+			q->query[2] = (unsigned char)(id >> 8);
+			q->query[3] = (unsigned char)(id & 0xff);
+		}
 		if((param->remsock = param->srv->so._socket(param->sostate, SASOCK(&c->nservers[q->server].addr),
 			q->tcp? SOCK_STREAM : SOCK_DGRAM, q->tcp? IPPROTO_TCP : IPPROTO_UDP)) == INVALID_SOCKET) continue;
 #ifdef _WIN32
@@ -201,8 +227,12 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 
 	if(buf[4]!=0 || buf[5]!=1) { free(buf); return (param->res = 816); }
 	for(len = 12; len<i; len+=(c+1)){
+		int k;
+
 		c = buf[len];
 		if(!c)break;
+		for(k = 1; k <= c && len + k < i; k++)
+			if(!isalnum(buf[len+k]) && buf[len+k] != '-' && buf[len+k] != '_') q->nocache = 1;
 		buf[len] = '.';
 	}
 	if(len > (i-4)) { free(buf); return (param->res = 817); }
@@ -211,6 +241,10 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 	*s2 = (len - (int)(s2 - buf)) - 1;
 
 	q->type = ((unsigned)buf[len+1])*256 + (unsigned)buf[len+2];
+	/* the question: the name, its type and class */
+	q->qend = len + 5;
+	q->cid[0] = q->query[2];
+	q->cid[1] = q->query[3];
 	q->ttl = 3600;
 	if(q->type==0x01 && param->srv->fakeip){
 		ip = 1;
@@ -304,12 +338,23 @@ static int dnsprserver(struct udploop *u, struct udpsession *ss){
 		us = (unsigned short)((q->answer[0] << 8) | q->answer[1]);
 		if(us > 4096 || us <= 13) return (param->res = 833);
 		if(q->got < us + 2) return 0;
-		return dnsreply(u, ss, q->answer + 2, us);
+		if(dnsreply(u, ss, q->answer + 2, us)) return 1;
+		/* not the answer asked for: the next name server */
+		q->server++;
+		return dnsforward(u, ss)? (param->res = 821) : 0;
 	}
-	len = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)u->buf, UDPBUFSIZE, 0, NULL, NULL);
-	if(len < 0 && (errno == EAGAIN || errno == EINTR)) return 0;
-	/* an answer to another query, or none at all */
-	if(len <= 13 || u->buf[0] != q->query[2] || u->buf[1] != q->query[3]) return 0;
+	{
+		PROXYSOCKADDRTYPE from;
+		SASIZETYPE size = sizeof(from);
+
+		len = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)u->buf, UDPBUFSIZE, 0,
+			(struct sockaddr *)&from, &size);
+		if(len < 0 && (errno == EAGAIN || errno == EINTR)) return 0;
+		/* none at all, or not from the name server asked */
+		if(len <= 13 || *SAFAMILY(&from) != *SAFAMILY(&param->sinsr) ||
+		   memcmp(SAADDR(&from), SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr)) ||
+		   *SAPORT(&from) != *SAPORT(&param->sinsr)) return 0;
+	}
 	return dnsreply(u, ss, u->buf, len);
 }
 
