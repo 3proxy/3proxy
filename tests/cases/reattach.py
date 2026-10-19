@@ -3,6 +3,7 @@ the rules of the newest service on its listener, taking one of its maxconn
 slots, and is dropped where that cannot be."""
 
 import base64
+import select
 import socket
 import threading
 import time
@@ -128,7 +129,13 @@ def run(t):
         """A request over a connection the -r service made: the peer is its
         client once it has sent C."""
         try:
-            c, _ = peer.accept()
+            # as the far side of a connect-back service does: a connection
+            # closed by a service which stopped waiting is passed over
+            while True:
+                c, _ = peer.accept()
+                if not select.select([c], [], [], 0)[0]:
+                    break
+                c.close()
             c.settimeout(30)
             c.sendall(b"C")
             auth = base64.b64encode(b"alice:one").decode()

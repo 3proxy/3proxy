@@ -41,6 +41,8 @@ static void serveparam(struct clientparam *param){
  if(param->srv->cbsock != INVALID_SOCKET){
 	SASIZETYPE size = sizeof(param->sinsr);
 	struct pollfd fds;
+	/* closed connections passed over free: the listen queue's length */
+	int skips = 1 + (param->srv->maxchild>>4);
 	fds.fd = param->srv->cbsock;
 	fds.events = POLLIN;
 	fds.revents = 0;
@@ -73,6 +75,24 @@ static void serveparam(struct clientparam *param){
 			continue;
 		}
 #endif
+		{
+			/* the side connecting back sends nothing before the go-ahead:
+			   readable, the connection was closed there, by a service
+			   which stopped waiting (a reload, its time out); the next
+			   one is taken, and this one does not count as a try, for as
+			   many as the queue holds: past that it does */
+			struct pollfd rf;
+
+			rf.fd = param->remsock;
+			rf.events = POLLIN;
+			rf.revents = 0;
+			if(param->srv->so._poll(param->sostate, &rf, 1, 0) == 1){
+				param->srv->so._closesocket(param->sostate, param->remsock);
+				param->remsock = INVALID_SOCKET;
+				if(skips > 0){ skips--; i++; }
+				continue;
+			}
+		}
 		if(socksend(param, param->remsock, (unsigned char *)"C", 1, CONNBACK_TO) != 1){
 			dolog(param, (unsigned char *)"Connect back sending command failed");
 			param->srv->so._closesocket(param->sostate, param->remsock);

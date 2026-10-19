@@ -37,6 +37,9 @@ static int cblisten(struct srvstart *s){
 
 #endif
 
+/* How long, in seconds, a connection made back (-r) waits for its go-ahead */
+#define CBWAIT 60
+
 /* What getting the next client came to. */
 enum { NEXT_CLIENT, NEXT_RETRY, NEXT_STOP };
 
@@ -49,7 +52,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
  SOCKET new_sock;
  SASIZETYPE size;
  unsigned char buf[256];
- int error = 0, opt = 1;
+ int error = 0, opt = 1, res, waited;
 #ifndef _WIN32
  struct linger lg;
 #else
@@ -81,7 +84,18 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 		return NEXT_RETRY;
 	}
 
-	if(sockrecvfrom(NULL, new_sock, NULL, buf, 1, 60*1000) != 1 || *buf!='C') {
+	/* the far side's go-ahead, waited for a second at a time to notice
+	   a reload: a service paused then takes no more connections and
+	   closes this one, unless the go-ahead came already, and its client
+	   goes on in the service which took its place */
+	for(waited = 0; !(res = sockrecvfrom(NULL, new_sock, NULL, buf, 1, 1000)); ){
+		if(srv->config->paused != srv->paused){
+			res = sockrecvfrom(NULL, new_sock, NULL, buf, 1, 0);
+			break;
+		}
+		if(++waited >= CBWAIT) break;
+	}
+	if(res != 1 || *buf!='C') {
 		so._closesocket(so.state, new_sock);
 		usleep(SLEEPTIME);
 		return NEXT_RETRY;
