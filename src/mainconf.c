@@ -484,12 +484,12 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 					SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO) &
 					(SPLICE_DOWNLOAD|SPLICE_UPLOAD|SPLICE_AUTO);
 				if(heur){
-					int min = 0, streak = 0, small = 0;
+					int min = 0, streak = 0, smallsz = 0;
 
-					sscanf(heur+1, "%d,%d,%d", &min, &streak, &small);
+					sscanf(heur+1, "%d,%d,%d", &min, &streak, &smallsz);
 					if(min > 0) srv->splicemin = min;
 					if(streak > 0) srv->splicestreak = streak;
-					if(small > 0) srv->splicesmall = small;
+					if(smallsz > 0) srv->splicesmall = smallsz;
 				}
 			}
 #endif

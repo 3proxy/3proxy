@@ -1623,12 +1623,12 @@ CLEANRET:
 
 	/* the rest of a request whose headers were not all read */
 	if(!hdrsdone && ((r >= 509 && r < 517) || r > 900)) {
-		unsigned char small[256];
+		unsigned char rest[256];
 		int atstart = 1;
 
-		while((i = sockgetlinebuf(param, CLIENT, small, sizeof(small) - 1, '\n', param->srv->timeouts[STRING_S])) > 0){
-			if(atstart && i <= 2 && small[i-1] == '\n') break;
-			atstart = (small[i-1] == '\n');
+		while((i = sockgetlinebuf(param, CLIENT, rest, sizeof(rest) - 1, '\n', param->srv->timeouts[STRING_S])) > 0){
+			if(atstart && i <= 2 && rest[i-1] == '\n') break;
+			atstart = (rest[i-1] == '\n');
 		}
 	}
 	if(r == 10) stidx = 2;
