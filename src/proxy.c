@@ -139,17 +139,18 @@ char * proxy_stringtable[] = {
    Proxy-Authorization carrying an encoded user and password */
 /* what of a request line is logged, into a line of CLIENTTMPBUFSIZE (8 KB)
    with the rest of the log line; a longer one is cut there */
-#define REQMAX 6144
-/* the authority of a request, user:password@host:port, at most */
-#define AUTHMAX (USERNAMELEN * 2 + HOSTNAMELEN + 16)
-#define HDRRESERVE 1024
+#define REQMAX 4096
+/* a Host header put in a request line for a parent proxy, at most */
+#define AUTHMAX (HOSTNAMELEN + 16)
+#define HDRRESERVE 2048
 /* what a request keeps free before its header block, for its line to be
    put back into the absolute form a parent proxy is sent: http://, a host
    name of up to 256 characters and :port */
 #define HDRFRONT 300
-/* what the headers this proxy adds come to at most, built before they are
-   put after the header block */
-#define HDRADD 2048
+/* what the headers this proxy adds come to at most: what is asked to be
+   free after the header block before they are written there, which
+   HDRRESERVE leaves in the side's buffer */
+#define HDRADD HDRRESERVE
 #define BUFSIZE (LINESIZE*2)
 #define FTPBUFSIZE 1536
 
@@ -365,17 +366,14 @@ static unsigned char *logline(const unsigned char *line, size_t len){
 }
 
 /* The request line in absolute form into dst: of line, which has a path
-   only, its method and the space after it (sp bytes), then scheme and
-   authority, then the rest of it (len bytes in all). dst holds len +
-   strlen(scheme) + authlen bytes and does not overlap line. */
-static int absline(unsigned char *dst, const unsigned char *line, int len, int sp, const char *scheme, const unsigned char *auth, int authlen){
-	int sl = (int)strlen(scheme);
-
+   only, its method and the space after it (sp bytes), then the scheme and
+   authority in sa (salen bytes), then the rest of it (len bytes in all).
+   dst holds len + salen bytes and overlaps neither. */
+static int absline(unsigned char *dst, const unsigned char *line, int len, int sp, const unsigned char *sa, int salen){
 	memcpy(dst, line, sp);
-	memcpy(dst + sp, scheme, sl);
-	memcpy(dst + sp + sl, auth, authlen);
-	memcpy(dst + sp + sl + authlen, line + sp, len - sp);
-	return len + sl + authlen;
+	memcpy(dst + sp, sa, salen);
+	memcpy(dst + sp + salen, line + sp, len - sp);
+	return len + salen;
 }
 
 /* Whether a request line names the host the previous one did, whatever its
@@ -514,12 +512,11 @@ void * proxychild(struct clientparam* param) {
  int isconnect = 0;
  int redirect = 0;
  int ckeepalive=0;
- /* the request's scheme and authority, as its line had them (or the Host
-    header, for a request with a path only): put back for a parent proxy;
-    the authority of the last one is what the next one is compared with */
- unsigned char auth[AUTHMAX];
- int authlen = 0;
- const char *scheme = "http://";
+ /* where in req, the request line in absolute form as logged, its
+    authority begins and ends: what is put back for a parent proxy, from
+    ssoff (scheme and authority), and what the next request is compared
+    with; none (authend 0) for a line with a path only and no Host */
+ int authofs = 0, authend = 0;
  int ftp = 0;
  int ssoff = 0;
 #ifndef ANONYMOUS
@@ -541,9 +538,6 @@ void * proxychild(struct clientparam* param) {
  int hlen0, hdrsdone = 0;
  /* free before buf in the side's buffer, while buf is in it */
  int hfront = 0;
- /* the headers this proxy adds, built before they go after the block */
- char add[HDRADD];
- int alen;
  /* buf is the headers' own buffer, not the side's they were read into */
  int bufown = 0;
 #ifndef WITHMAIN
@@ -605,7 +599,7 @@ for(;;){
  buf[i] = 0;
  
  if(req) {
-	if(!param->transparent && !param->srv->transparent && !samehost(buf, i, auth, authlen)){
+	if(!param->transparent && !param->srv->transparent && !samehost(buf, i, req + authofs, authend - authofs)){
 		ckeepalive = 0;
 		if(param->remsock != INVALID_SOCKET){
 			param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);
@@ -623,8 +617,7 @@ for(;;){
  /* for the log only */
  req = logline(buf, (size_t)i);
  if(!req){RETURN(510);}
- authlen = 0;
- scheme = "http://";
+ authofs = authend = 0;
  if(i<10) {
 	RETURN(511);
  }
@@ -643,7 +636,6 @@ for(;;){
 	else if (!strncasecmp((char *)sb, "ftp://", 6)) {
 		if(!param->srv->allowftp) RETURN(513);
 		ftp = 1;
-		scheme = "ftp://";
 		sb += 6;
 	}
 #endif
@@ -666,10 +658,11 @@ for(;;){
 		if(se > sg) se=sg;
  		*se = 0;
 	}
-	/* the authority, before the line is made one with a path only */
-	if(se - sb >= AUTHMAX) RETURN(100);
-	authlen = (int)(se - sb);
-	memcpy(auth, sb, authlen);
+	/* where the authority is in req, the line as it came: it has to be
+	   in what is kept of it */
+	authofs = (int)(sb - buf);
+	authend = (int)(se - buf);
+	if(authend > REQMAX) RETURN(100);
 	su = (unsigned char*)strrchr((char *)sb, '@');
 	if(su) {
 		su = (unsigned char *)strdup((char *)sb);
@@ -776,22 +769,24 @@ for(;;){
 		/* the authority a parent proxy is given, and the line logged, in
 		   absolute form: method, http://, the host, the rest of the line */
 		if(strlen((char *)sb) >= AUTHMAX) RETURN(100);
-		authlen = (int)strlen((char *)sb);
-		memcpy(auth, sb, authlen);
 		{
-			size_t ll = (size_t)reqlen + 7 + (size_t)authlen;
+			int hl = (int)strlen((char *)sb);
+			size_t ll = (size_t)reqlen + 7 + (size_t)hl;
 			unsigned char *l = malloc(ll + 1);
 
-			if(l){
-				memcpy(l, buf, ssoff);
-				memcpy(l + ssoff, "http://", 7);
-				memcpy(l + ssoff + 7, auth, authlen);
-				memcpy(l + ssoff + 7 + authlen, buf + ssoff, reqlen - ssoff);
-				l[ll] = 0;
-				freeptr(&req);
-				req = logline(l, ll);
-				free(l);
-			}
+			if(!l) RETURN(21);
+			memcpy(l, buf, ssoff);
+			memcpy(l + ssoff, "http://", 7);
+			memcpy(l + ssoff + 7, sb, hl);
+			memcpy(l + ssoff + 7 + hl, buf + ssoff, reqlen - ssoff);
+			l[ll] = 0;
+			freeptr(&req);
+			req = logline(l, ll);
+			free(l);
+			if(!req) RETURN(21);
+			authofs = ssoff + 7;
+			authend = authofs + hl;
+			if(authend > REQMAX) RETURN(100);
 		}
 		if(se)*se = c;
 	}
@@ -869,11 +864,11 @@ for(;;){
  /* The request filters are given the line as the client sent it, in
     absolute form, in a buffer of its own: only when there are some. */
  if(param->nreqfilters){
-	int abs = (!isconnect && authlen > 0);
+	int abs = (!isconnect && authend > authofs);
 
-	reqbufsize = (int)reqlen + (abs? (int)strlen(scheme) + authlen : 0) + 1;
+	reqbufsize = (int)reqlen + (abs? authend - ssoff : 0) + 1;
 	if(!(fline = malloc(reqbufsize))) RETURN(21);
-	if(abs) reqsize = absline(fline, buf, (int)reqlen, ssoff, scheme, auth, authlen);
+	if(abs) reqsize = absline(fline, buf, (int)reqlen, ssoff, req + ssoff, authend - ssoff);
 	else {
 		memcpy(fline, buf, reqlen);
 		reqsize = (int)reqlen;
@@ -890,11 +885,6 @@ for(;;){
 		freeptr(&origreq);
 		freeptr(&fline);
 		RETURN(517);
-	}
-	/* the rewritten line is the one logged */
-	if(strcmp((char *)fline, (char *)origreq)){
-		freeptr(&req);
-		req = logline(fline, strlen((char *)fline));
 	}
  }
 
@@ -922,11 +912,22 @@ for(;;){
 		int delta = newlen - ((int)reqlen - ssoff);
 
 		if(ssoff > 0 && (int)reqlen >= ssoff && inbuf + delta < bufsize - 1){
+			unsigned char *nr;
+
 			memmove(buf + ssoff + newlen, buf + reqlen, inbuf - reqlen + 1);
 			memcpy(buf + ssoff, newpath, newlen);
 			inbuf += delta;
 			reqlen += delta;
 			buf[inbuf] = 0;
+			/* the rewritten line is the one logged, and put back for a
+			   parent proxy: its authority is the one it had */
+			if(newhost && (nr = logline(fline, strlen((char *)fline)))){
+				freeptr(&req);
+				req = nr;
+				authofs = (int)(newhost - fline);
+				authend = authofs + newhostlen;
+				if(authend > REQMAX) authofs = authend = 0;
+			}
 		}
 	}
  }
@@ -1262,67 +1263,63 @@ for(;;){
  unsigned char *out, *own = NULL;
  int outlen, al;
 
- alen = 0;
+ /* written after the header block, with HDRADD free there for them */
+ if(hdrroom(&buf, &bufown, &bufsize, hlen + HDRADD)) RETURN(21);
 #ifndef ANONYMOUS
  if(!anonymous){
-		alen += sprintf(add + alen, "Forwarded: for=");
-		if(*SAFAMILY(&param->sincr) == AF_INET6) alen += sprintf(add + alen, "\"[");
-		alen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), add + alen, 128);
-		if(*SAFAMILY(&param->sincr) == AF_INET6) alen += sprintf(add + alen, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
-		else alen += sprintf(add + alen, ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
-		gethostname(add + alen, 256);
-		add[alen + 255] = 0;
-		alen += (int)strlen(add + alen);
-		alen += sprintf(add + alen, ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
+		hlen += sprintf((char *)buf + hlen, "Forwarded: for=");
+		if(*SAFAMILY(&param->sincr) == AF_INET6) hlen += sprintf((char *)buf + hlen, "\"[");
+		hlen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + hlen, 128);
+		if(*SAFAMILY(&param->sincr) == AF_INET6) hlen += sprintf((char *)buf + hlen, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
+		else hlen += sprintf((char *)buf + hlen, ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
+		gethostname((char *)buf + hlen, 256);
+		buf[hlen + 255] = 0;
+		hlen += (int)strlen((char *)buf + hlen);
+		hlen += sprintf((char *)buf + hlen, ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
  }
  else if(anonymous>1){
-		alen += sprintf(add + alen, "Via: 1.1 ");
-		gethostname(add + alen, 256);
-		add[alen + 255] = 0;
-		alen += (int)strlen(add + alen);
-		alen += snprintf(add + alen, 400, ":%d (%.100s %.100s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), runconf->stringtable?(char *)runconf->stringtable[2]:"", runconf->stringtable?(char *)runconf->stringtable[3]:"");
-		if(anonymous != 2)alen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), add + alen, 128);
+		hlen += sprintf((char *)buf + hlen, "Via: 1.1 ");
+		gethostname((char *)buf + hlen, 256);
+		buf[hlen + 255] = 0;
+		hlen += (int)strlen((char *)buf + hlen);
+		hlen += snprintf((char *)buf + hlen, 400, ":%d (%.100s %.100s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), runconf->stringtable?(char *)runconf->stringtable[2]:"", runconf->stringtable?(char *)runconf->stringtable[3]:"");
+		if(anonymous != 2)hlen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + hlen, 128);
 		else {
 			uint32_t tmp = myrand();
-			alen += myinet_ntop(AF_INET, &tmp, add + alen, 64);
+			hlen += myinet_ntop(AF_INET, &tmp, (char *)buf + hlen, 64);
 		}
-		alen += sprintf(add + alen, "\r\n");
+		hlen += sprintf((char *)buf + hlen, "\r\n");
  }
 #endif
  if(keepalive <= 1) {
-	alen += sprintf(add + alen, "Connection: %s\r\n", keepalive? "keep-alive":"close");
+	hlen += sprintf((char *)buf + hlen, "Connection: %s\r\n", keepalive? "keep-alive":"close");
  }
  if(*param->extusername){
-	alen += sprintf(add + alen, "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
+	hlen += sprintf((char *)buf + hlen, "%s: Basic ", (redirect)?"Proxy-Authorization":"Authorization");
 	sprintf((char*)username, "%.128s:%.128s", param->extusername, param->extpassword);
 	/* room kept for the line end, the empty line and the 0 after it */
-	if(!(sb = en64(username, (unsigned char *)add + alen, (int)strlen((char *)username), HDRADD - 5 - alen))) {RETURN(21);}
-	alen = (int)((char *)sb - add);
-	alen += sprintf(add + alen, "\r\n");
+	if(!(sb = en64(username, buf + hlen, (int)strlen((char *)username), bufsize - 5 - hlen))) {RETURN(21);}
+	hlen = (int)(sb - buf);
+	hlen += sprintf((char *)buf + hlen, "\r\n");
  }
- alen += sprintf(add + alen, "\r\n");
- /* after the block, in the room left there, or in a buffer of its own */
- if(hdrroom(&buf, &bufown, &bufsize, hlen + alen + 1)) RETURN(21);
- memcpy(buf + hlen, add, alen);
- hlen += alen;
- buf[hlen] = 0;
+ hlen += sprintf((char *)buf + hlen, "\r\n");
  out = buf;
  outlen = hlen;
- if(redirect && !isconnect && authlen > 0){
-	/* scheme and authority put back after the method: in the room before
-	   the headers in the side's buffer, the method moved down into it,
-	   else in one buffer of their own; sent in one piece either way */
-	al = (int)strlen(scheme) + authlen;
+ if(redirect && !isconnect && authend > authofs){
+	/* scheme and authority, from req, put back after the method: in the
+	   room before the headers in the side's buffer, the method moved down
+	   into it, else in one buffer of their own; sent in one piece either
+	   way */
+	al = authend - ssoff;
 	if(!bufown && al <= hfront){
 		out = buf - al;
 		/* method and space move down by al: the regions may overlap */
 		memmove(out, buf, ssoff);
-		memcpy(out + ssoff, scheme, strlen(scheme));
-		memcpy(out + ssoff + strlen(scheme), auth, authlen);
+		memcpy(out + ssoff, req + ssoff, al);
 	}
 	else {
 		if(!(own = malloc(hlen + al))) RETURN(21);
-		absline(own, buf, hlen, ssoff, scheme, auth, authlen);
+		absline(own, buf, hlen, ssoff, req + ssoff, al);
 		out = own;
 	}
 	outlen = hlen + al;
@@ -1519,21 +1516,17 @@ for(;;){
  if(!isconnect || param->operation){
 	 int hlen = (int)strlen((char *)buf);
 
-	 alen = 0;
-	 if(authenticate && !param->transparent) alen += sprintf(add + alen,
+	 /* written after the header block, with HDRADD free there for them */
+	 if(hdrroom(&buf, &bufown, &bufsize, hlen + HDRADD)) RETURN(21);
+	 if(authenticate && !param->transparent) hlen += sprintf((char *)buf + hlen,
 		"Proxy-support: Session-Based-Authentication\r\n"
 		"Connection: Proxy-support\r\n"
 	 );
 	 if(!param->srv->transparent && res>=200){
-		if(ckeepalive <= 1) alen += sprintf(add + alen, "Connection: %s\r\n",
+		if(ckeepalive <= 1) hlen += sprintf((char *)buf + hlen, "Connection: %s\r\n",
 		(hascontent && ckeepalive)?"keep-alive":"close");
 	 }
-	 alen += sprintf(add + alen, "\r\n");
-	 /* after the block, in the room left there, or in a buffer of its own */
-	 if(hdrroom(&buf, &bufown, &bufsize, hlen + alen + 1)) RETURN(21);
-	 memcpy(buf + hlen, add, alen);
-	 hlen += alen;
-	 buf[hlen] = 0;
+	 hlen += sprintf((char *)buf + hlen, "\r\n");
 	 if(socksend(param, param->clisock, buf, hlen, param->srv->timeouts[STRING_S]) != hlen) {
 		RETURN(521);
 	 }

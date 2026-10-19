@@ -203,7 +203,7 @@ def run(t):
         t.fail("its line is in absolute form, put together with the headers", want, head[:120])
     t.eq(body, rbody, "and its body whole")
 
-    # --- a long request line: served whole, logged up to REQMAX (6 KB) ----
+    # --- a long request line: served whole, logged cut at REQMAX (4 KB) ---
     origin.answer = ok
     origin.requests.clear()
     got = session(proxy, request(b"/" + b"q" * 7000), 1)
@@ -214,10 +214,19 @@ def run(t):
     deadline = time.time() + 3
     while time.time() < deadline and "q" * 3000 not in server.output():
         time.sleep(0.1)
-    # the log line holds 4000 characters (log.c): cut there before REQMAX
     logged = [l for l in server.output().splitlines() if "qqqq" in l]
-    t.ok("and it is logged, cut") if logged and "q" * 7000 not in logged[-1] else \
+    t.ok("and it is logged, cut") if logged and "q" * 4100 not in logged[-1] else \
         t.fail("and it is logged, cut", "a log line", logged[-1][-60:] if logged else None)
+
+    # through a parent: authority put back from the log copy, a path long
+    # enough for that copy to be cut
+    origin.requests.clear()
+    got = session(viaparent, request(b"/" + b"r" * 5000), 1)
+    t.contains(got.decode("latin-1"), "200 OK", "a 5 KB line through a parent is answered")
+    head = origin.requests[0][0] if origin.requests else b""
+    want = b"GET " + base.encode() + b"/" + b"r" * 5000 + b" HTTP/1.1\r\n"
+    t.ok("in absolute form, whole") if head.startswith(want) else \
+        t.fail("in absolute form, whole", "GET http://.../rrr", head[:80])
 
     # --- a request too big for any buffer is refused, and the proxy stays --
     huge = b"".join(b"X-Huge-%d: %s\r\n" % (i, b"H" * 30000) for i in range(20))
