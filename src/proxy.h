@@ -435,7 +435,7 @@ int nscacheresolv(int af, unsigned char *name, unsigned char *value, uint32_t *t
 void setnservers(const struct nserver *ns, int n);
 void sysdnsinit(void);
 int sysdnscount(void);
-void sysdnsapply(struct extparam *c, const struct nserver *ns, int n);
+void sysdnsapply(struct extparam *c, const struct nserver *ns, int n, int sysresolve);
 void sysdnscheck(void);
 void confdnscommit(struct extparam *c);
 uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth);

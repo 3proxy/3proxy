@@ -555,7 +555,7 @@ An IPv6 address has to be enclosed in square brackets:
 .br
  \fBnserver [2001:4860:4860::8844]:5353/tcp\fR
 .br
- If none is specified (and there is no \fBfakeresolve\fR), the system's name
+ If none is specified (and there is no \fBfakeresolve\fR or \fBsysresolve\fR), the system's name
 servers are used: up to 3 from \fI/etc/resolv.conf\fR, on Windows from the
 registry (those set for the system, those set for an interface, then those
 DHCP gave). Names in the hosts file (\fI/etc/hosts\fR, on Windows
@@ -599,6 +599,15 @@ ones by default): with the system routines for name resolution static records
 are never consulted. A static record takes precedence over the hosts file. If 0.0.0.0
 is used as a hostaddr host will never resolve, it can be used to
 blacklist something.
+
+.br
+.B sysresolve
+.br
+ Names are resolved by the system routines for name resolution (the C
+library), as without \fBnserver\fR before the system's name servers became
+the default; the hosts file is not imported. \fBnserver\fR lines, if any, are
+still used by \fBdnspr\fR to forward queries. Of \fBsysresolve\fR and
+\fBfakeresolve\fR the last one given applies.
 
 .br
 .B fakeresolve

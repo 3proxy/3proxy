@@ -498,6 +498,15 @@ user), Reply-Message. Use <b>authcache</b> to speedup
 authentication. RADIUS feature is currently
 experimental.</p>
 
+<p style="margin-left:9%; margin-top: 1em"><b>sysresolve</b>
+<br>
+Names are resolved by the system routines for name
+resolution (the C library), as without <b>nserver</b> before
+the system's name servers became the default; the hosts file
+is not imported. <b>nserver</b> lines, if any, are still used
+by <b>dnspr</b> to forward queries. Of <b>sysresolve</b> and
+<b>fakeresolve</b> the last one given applies.</p>
+
 <p style="margin-left:9%; margin-top: 1em"><b>nserver</b>
 <i>&lt;ipaddr&gt;</i>[:<i>port</i>][/<i>tcp</i>] <br>
 Nameserver to use for name resolutions; up to 3, asked in
@@ -507,7 +516,8 @@ has to be enclosed in square brackets: <br>
 <b>nserver 1.1.1.1</b> <br>
 <b>nserver [2001:4860:4860::8844]</b> <br>
 <b>nserver [2001:4860:4860::8844]:5353/tcp</b> <br>
-If none is specified (and there is no <b>fakeresolve</b>),
+If none is specified (and there is no <b>fakeresolve</b> or
+<b>sysresolve</b>),
 the system's name servers are used: up to 3 from
 <i>/etc/resolv.conf</i>, on Windows from the registry (those
 set for the system, those set for an interface, then those

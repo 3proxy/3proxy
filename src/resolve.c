@@ -585,9 +585,16 @@ int sysdnscount(void){
 
 /* A configuration committed: the name servers of its nserver lines, else,
    with nothing else to resolve names, the system's and its hosts file, read
-   again. Until then those in force stay. */
-void sysdnsapply(struct extparam *c, const struct nserver *ns, int n){
+   again. Until then those in force stay. With sysresolve the system
+   routines resolve names, nserver lines left to dnspr. */
+void sysdnsapply(struct extparam *c, const struct nserver *ns, int n, int sysresolve){
     sysdns.active = 0;
+    if(sysresolve){
+	c->resolvfunc = NULL;
+	setnservers(ns, n);
+	hostsremove();
+	return;
+    }
     if(n){
 	setnservers(ns, n);
 	hostsremove();

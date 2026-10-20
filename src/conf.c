@@ -741,6 +741,8 @@ static int h_flushusers(int argc, unsigned char **argv){
    force (the process has one list) once it is committed */
 static struct nserver cfgns[MAXNSERVERS];
 static int cfgnsn = 0;
+/* sysresolve: names resolved by the system routines */
+static int cfgsysresolve = 0;
 
 static int h_nserver(int argc, unsigned char **argv){
   char *str;
@@ -764,13 +766,13 @@ static int h_nserver(int argc, unsigned char **argv){
 
 /* The configuration's name servers, or the system's in their place */
 void confdnscommit(struct extparam *c){
-	sysdnsapply(c, cfgns, cfgnsn);
+	sysdnsapply(c, cfgns, cfgnsn, cfgsysresolve);
 }
 
 /* Whether names would be resolved slowly: by the C library, or by name
    servers, the system's taken by default, without a cache */
 static int noresolver(void){
-	if(!conf->resolvfunc && !sysdnscount()) return 1;
+	if(cfgsysresolve || (!conf->resolvfunc && !sysdnscount())) return 1;
 	return (!conf->resolvfunc || conf->resolvfunc == myresolver) && !dns_table.poolsize;
 }
 
@@ -790,6 +792,12 @@ static int h_authnserver(int argc, unsigned char **argv){
 
 static int h_fakeresolve(int argc, unsigned char **argv){
 	conf->resolvfunc = fakeresolver;
+	cfgsysresolve = 0;
+	return 0;
+}
+
+static int h_sysresolve(int argc, unsigned char **argv){
+	cfgsysresolve = 1;
 	return 0;
 }
 
@@ -2146,6 +2154,7 @@ struct commands commandhandlers[]={
 	{NULL, "flush", h_flush, 1, 1},
 	{NULL, "nserver", h_nserver, 2, 2},
 	{NULL, "fakeresolve", h_fakeresolve, 1, 1},
+	{NULL, "sysresolve", h_sysresolve, 1, 1},
 	{NULL, "nscache", h_nscache, 2, 2},
 	{NULL, "nscache6", h_nscache6, 2, 2},
 	{NULL, "nsrecord", h_nsrecord, 3, 3},
@@ -2534,6 +2543,7 @@ void confbegin(void){
 	char * args[] = {"auth", "iponly", NULL};
 
 	cfgnsn = 0;
+	cfgsysresolve = 0;
 
 	h_auth(2, (unsigned char **)args);
 }

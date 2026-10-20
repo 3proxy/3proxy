@@ -1,6 +1,6 @@
 """The system's name servers and hosts file as the default resolver: with
 no nserver in a configuration, names in the hosts file are answered from
-it, through the name cache; with nserver lines, the file is not used."""
+it; with nserver lines, or sysresolve (the system routines), it is not."""
 
 import os
 import re
@@ -81,3 +81,26 @@ def run(t):
     wait(t, other, "localhost")
     t.ne(["127.0.0.1"], t.dns_query(other, "localhost") or [],
          "with nserver, the hosts file is not used")
+
+    # sysresolve: the system routines resolve names, and nothing is imported
+    # for dnspr to answer from
+    sysport, proxy, srv = t.free_port(), t.free_port(), t.free_port()
+    t.start("sysdns_sysresolve", f"""
+        log
+        flush
+        sysresolve
+        auth iponly
+        allow *
+        dnspr -p{sysport}
+        proxy -p{proxy}
+        flush
+        auth iponly
+        allow *
+        http echo * /echo**
+        httpsrv -p{srv}
+    """, ports=[proxy, srv])
+    wait(t, sysport, "localhost")
+    t.ne(["127.0.0.1"], t.dns_query(sysport, "localhost") or [],
+         "with sysresolve, dnspr has no hosts file names")
+    t.eq(200, t.http(f"http://localhost:{srv}/echo", proxy=f"127.0.0.1:{proxy}").status,
+         "and names resolve through the system routines")
