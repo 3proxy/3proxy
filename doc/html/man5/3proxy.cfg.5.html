@@ -500,14 +500,28 @@ experimental.</p>
 
 <p style="margin-left:9%; margin-top: 1em"><b>nserver</b>
 <i>&lt;ipaddr&gt;</i>[:<i>port</i>][/<i>tcp</i>] <br>
-Nameserver to use for name resolutions. If none specified
-system routines for name resolution is used. Optional port
-number may be specified. If optional /tcp is added to IP
+Nameserver to use for name resolutions; up to 3, asked in
+order. Optional port number may be specified. If optional /tcp is added to IP
 address, name resolution is performed over TCP. An IPv6 address
 has to be enclosed in square brackets: <br>
 <b>nserver 1.1.1.1</b> <br>
 <b>nserver [2001:4860:4860::8844]</b> <br>
-<b>nserver [2001:4860:4860::8844]:5353/tcp</b></p>
+<b>nserver [2001:4860:4860::8844]:5353/tcp</b> <br>
+If none is specified (and there is no <b>fakeresolve</b>),
+the system's name servers are used: up to 3 from
+<i>/etc/resolv.conf</i>, on Windows from the registry (those
+set for the system, those set for an interface, then those
+DHCP gave). Names in the hosts file (<i>/etc/hosts</i>, on
+Windows <i>%SystemRoot%\System32\drivers\etc\hosts</i>)
+are answered from it, before them, and names in the
+configuration are resolved this way too. Both are read
+before the configuration, so before a <b>chroot</b>, and
+checked for changes every 5 seconds; what cannot be read
+later (within a <b>chroot</b>) stays as last read. If no
+name server is found, the system routines for name
+resolution are used. The <b>nserver</b> lines of a
+configuration take effect when it is loaded: during a
+reload the name servers in force are used.</p>
 
 
 <p style="margin-left:9%; margin-top: 1em"><b>authnserver</b>
@@ -533,9 +547,11 @@ rather than per-service.</p>
 Adds static record to nscache. <b>nscache</b> must be
 enabled and must come first, because the record is placed in
 the table it allocates - <b>nscache6</b> for a record naming
-an IPv6 address - and <b>nserver</b> must be set as well:
-without it the system resolver is used and static records
-are never consulted. If 0.0.0.0 is used as a hostaddr host
+an IPv6 address - and names must be resolved by name servers
+(<b>nserver</b>, or the system's ones by default): with the
+system routines for name resolution static records are never
+consulted. A static record takes precedence over the hosts
+file. If 0.0.0.0 is used as a hostaddr host
 will never resolve, it can be used to blacklist something or
 together with <b>dialer</b> command to set up UDL for
 dialing.</p>

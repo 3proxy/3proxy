@@ -502,7 +502,7 @@ struct nserver {
 	int usetcp;
 };
 
-#define MAXNSERVERS 5
+#define MAXNSERVERS 3
 #define MAXRADIUS 5
 
 struct radserver {
@@ -919,8 +919,7 @@ struct extparam {
 	time_t logtime;
 	unsigned logdumpsrv, logdumpcli;
 	char delimchar;
-	struct nserver nservers[MAXNSERVERS], authnserver;
-	int numservers;
+	struct nserver authnserver;
 	struct radserver radiuslist[MAXRADIUS];
 	int nradservers;
 	char radiussecret[64];
@@ -999,6 +998,8 @@ struct child {
 
 extern struct hashtable dns_table;
 extern struct hashtable dns6_table;
+extern struct hashtable hosts_table;
+extern struct hashtable hosts6_table;
 extern struct hashtable auth_table;
 extern const struct hashtable pwl_template;
 

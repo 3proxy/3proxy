@@ -45,7 +45,7 @@ struct symbol symbols[] = {
 	{symbols+18, "ipauth", (void *) ipauth},
 	{symbols+19, "strongauth", (void *) strongauth},
 	{symbols+20, "checkACL", (void *) checkACL},
-	{symbols+21, "nservers", (void *) confboot.nservers},
+	{symbols+21, "nservers", (void *) nservers},
 	{symbols+22, "udpresolve", (void *) udpresolve},
 	{symbols+23, "bandlim_mutex", (void *) &bandlim_mutex},
 	{symbols+24, "tc_mutex", (void *) &tc_mutex},
@@ -87,7 +87,7 @@ static void * findbyname(const char *name){
 struct pluginlink pluginlink = {
 	{symbols, "", NULL},
 	&confboot,
-	confboot.nservers,
+	nservers,
 	&linenum,
 	authfuncs,
 	commandhandlers,

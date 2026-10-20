@@ -19,6 +19,19 @@ static void char_index2hash(const struct hashtable *ht, void *index, uint8_t *ha
     }
 }
 
+/* A host name, whose case does not matter: hashed as lower case */
+static void dns_index2hash(const struct hashtable *ht, void *index, uint8_t *hash){
+    char low[1024];
+    size_t i, len = strlen((const char *)index);
+
+    if(len >= sizeof(low)) {
+	char_index2hash(ht, index, hash);
+	return;
+    }
+    for(i = 0; i <= len; i++) low[i] = (char)tolower(((unsigned char *)index)[i]);
+    char_index2hash(ht, low, hash);
+}
+
 static void param2hash_add(const struct hashtable *ht, void *index, uint8_t *hash){
     struct clientparam *param = (struct clientparam *)index;
 
@@ -76,8 +89,11 @@ void param2hash_search(const struct hashtable *ht, void *index, uint8_t *hash){
     memcpy(param->hash, hash, ht->hash_size);
 }
 
-struct hashtable dns_table = {char_index2hash, char_index2hash, 4, 32};
-struct hashtable dns6_table = {char_index2hash, char_index2hash, 16, 32};
+struct hashtable dns_table = {dns_index2hash, dns_index2hash, 4, 32};
+struct hashtable dns6_table = {dns_index2hash, dns_index2hash, 16, 32};
+/* the hosts file, while the system's resolver is the default */
+struct hashtable hosts_table = {dns_index2hash, dns_index2hash, 4, 32};
+struct hashtable hosts6_table = {dns_index2hash, dns_index2hash, 16, 32};
 struct hashtable auth_table = {param2hash_add, param2hash_search, sizeof(struct authcache), 64};
 /* users: each configuration has a table of its own, made from this one */
 const struct hashtable pwl_template = {char_index2hash, char_index2hash, 64, 64};

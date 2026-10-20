@@ -293,6 +293,7 @@ void cyclestep(void){
 		needreload = 0;
 	}
 	doschedule();
+	sysdnscheck();
 	if(conf->stdlog)fflush(conf->stdlog);
 	if(timechanged(minutecounter, curtime, MINUTELY)) {
 		struct filemon *fm;
@@ -555,6 +556,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #ifdef __linux__
   nsopen();	/* before a chroot in the configuration takes /proc away */
 #endif
+  sysdnsinit();	/* the system's name servers and hosts, before a chroot too */
   _3proxy_mutex_init(&config_mutex);
   _3proxy_mutex_init(&confref_mutex);
   _3proxy_mutex_init(&listener_mutex);
@@ -592,6 +594,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   /* numbered before it is read, as a reload numbers the new one */
   conf->version++;
   res = readconfig(fp);
+  if(!res) confdnscommit(conf);
   resolvfunc = conf->resolvfunc;
 
   /* readconfig() names the failing line, which an exit status would cut

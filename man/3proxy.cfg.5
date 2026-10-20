@@ -543,9 +543,8 @@ Use \fBauthcache\fR to speedup authentication. RADIUS feature is currently exper
 .BR nserver
 \fI<ipaddr>\fR[:\fIport\fR][/\fItcp\fR]
 .br
- Nameserver to use for name resolutions. If none specified
-system routines for name resolution is
-used. Optional port number may be specified.
+ Nameserver to use for name resolutions; up to 3, asked in order.
+Optional port number may be specified.
 If optional /tcp is added to IP address, name resolution is
 performed over TCP.
 An IPv6 address has to be enclosed in square brackets:
@@ -555,6 +554,18 @@ An IPv6 address has to be enclosed in square brackets:
  \fBnserver [2001:4860:4860::8844]\fR
 .br
  \fBnserver [2001:4860:4860::8844]:5353/tcp\fR
+.br
+ If none is specified (and there is no \fBfakeresolve\fR), the system's name
+servers are used: up to 3 from \fI/etc/resolv.conf\fR, on Windows from the
+registry (those set for the system, those set for an interface, then those
+DHCP gave). Names in the hosts file (\fI/etc/hosts\fR, on Windows
+\fI%SystemRoot%\\System32\\drivers\\etc\\hosts\fR) are answered from it,
+before them, and names in the configuration are resolved this way too. Both
+are read before the configuration, so before a \fBchroot\fR, and checked for
+changes every 5 seconds; what cannot be read later (within a \fBchroot\fR)
+stays as last read. If no name server is found, the system routines for name
+resolution are used. The \fBnserver\fR lines of a configuration take effect
+when it is loaded: during a reload the name servers in force are used.
 
 .br
 .BR authnserver
@@ -583,8 +594,9 @@ caches are global rather than per-service.
  Adds static record to nscache. \fBnscache\fR must be enabled and must come
 first, because the record is placed in the table it allocates - \fBnscache6\fR
 for a record naming an IPv6 address - and
-\fBnserver\fR must be set as well: without it the system resolver is used and
-static records are never consulted. If 0.0.0.0
+names must be resolved by name servers (\fBnserver\fR, or the system's
+ones by default): with the system routines for name resolution static records
+are never consulted. A static record takes precedence over the hosts file. If 0.0.0.0
 is used as a hostaddr host will never resolve, it can be used to
 blacklist something.
 

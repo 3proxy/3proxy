@@ -146,19 +146,20 @@ static int dnsreply(struct udploop *u, struct udpsession *ss, unsigned char *buf
 static int dnsforward(struct udploop *u, struct udpsession *ss){
 	struct clientparam *param = ss->param;
 	struct dnsquery *q = ss->data;
-	struct extparam *c = param->srv->config;
+	struct nserver ns[MAXNSERVERS];
+	int n = getnservers(ns);
 #ifdef _WIN32
 	unsigned long ul = 1;
 #endif
 
-	for(; q->server < c->numservers; q->server++){
+	for(; q->server < n; q->server++){
 		if(param->remsock != INVALID_SOCKET){
 			param->srv->so._closesocket(param->sostate, param->remsock);
 			param->remsock = INVALID_SOCKET;
 		}
 		/* another socket for the loop to watch */
 		ss->regsock = INVALID_SOCKET;
-		q->tcp = c->nservers[q->server].usetcp;
+		q->tcp = ns[q->server].usetcp;
 		q->got = 0;
 		{
 			unsigned short id = (unsigned short)myrand();
@@ -166,7 +167,7 @@ static int dnsforward(struct udploop *u, struct udpsession *ss){
 			q->query[2] = (unsigned char)(id >> 8);
 			q->query[3] = (unsigned char)(id & 0xff);
 		}
-		if((param->remsock = param->srv->so._socket(param->sostate, SASOCK(&c->nservers[q->server].addr),
+		if((param->remsock = param->srv->so._socket(param->sostate, SASOCK(&ns[q->server].addr),
 			q->tcp? SOCK_STREAM : SOCK_DGRAM, q->tcp? IPPROTO_TCP : IPPROTO_UDP)) == INVALID_SOCKET) continue;
 #ifdef _WIN32
 		ioctlsocket(param->remsock, FIONBIO, &ul);
@@ -174,9 +175,9 @@ static int dnsforward(struct udploop *u, struct udpsession *ss){
 		fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
 #endif
 		memset(&param->sinsl, 0, sizeof(param->sinsl));
-		*SAFAMILY(&param->sinsl) = *SAFAMILY(&c->nservers[q->server].addr);
+		*SAFAMILY(&param->sinsl) = *SAFAMILY(&ns[q->server].addr);
 		if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) continue;
-		param->sinsr = c->nservers[q->server].addr;
+		param->sinsr = ns[q->server].addr;
 		ss->idle = 0;
 		ss->deadline = time(NULL) + param->srv->timeouts[DNS_TO];
 		if(q->tcp){
@@ -261,7 +262,7 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 	/* the name cache only: what it does not have the name servers are
 	   asked, without waiting here */
 	else if((q->type==0x01 || q->type==0x1c) && !param->srv->s_option){
-		ip = hashresolv(q->type==0x1c? &dns6_table : &dns_table, (unsigned char *)q->host, q->addr, &q->ttl);
+		ip = nscacheresolv(q->type==0x1c? AF_INET6 : AF_INET, (unsigned char *)q->host, q->addr, &q->ttl);
 	}
 	len += 5;
 
@@ -295,7 +296,7 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 		}
 	}
 	q->ip = ip;
-	if(ip || !param->srv->config->numservers){
+	if(ip || !numservers){
 		param->res = dnsanswer(u, param, q, buf, len);
 		free(buf);
 		return 1;

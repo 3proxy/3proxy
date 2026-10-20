@@ -251,6 +251,8 @@ static int startservice(void *service){
 	return 0;
 }
 
+static int noresolver(void);
+
 static int h_proxy(int argc, unsigned char ** argv){
   struct child ch;
 
@@ -267,7 +269,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.helpmessage = " -Xftp - fetch ftp:// URLs\n";
 #endif
 #ifdef NOIPV6
-		if(!conf->resolvfunc || (conf->resolvfunc == myresolver && !dns_table.poolsize)){
+		if(noresolver()){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, proxy may run very slow\n", linenum);
 		}
 #endif
@@ -306,7 +308,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 0;
 		childdef.service = S_SOCKS;
 #ifdef NOIPV6
-		if(!conf->resolvfunc || (conf->resolvfunc == myresolver && !dns_table.poolsize)){
+		if(noresolver()){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, socks may run very slow\n", linenum);
 		}
 #endif
@@ -374,7 +376,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_DNSPR;
 		childdef.helpmessage = " -s - simple DNS forwarding - do not use 3proxy resolver / name cache\n -Fip - fake: answer all A queries with this IP\n";
 #ifndef NOIPV6
-		if(!conf->resolvfunc || (conf->resolvfunc == myresolver && !dns_table.poolsize) || conf->resolvfunc == fakeresolver){
+		if(noresolver() || conf->resolvfunc == fakeresolver){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
 		}
 #endif
@@ -735,23 +737,41 @@ static int h_flushusers(int argc, unsigned char **argv){
 }
 */
 
+/* The name servers of the configuration being read: they replace those in
+   force (the process has one list) once it is committed */
+static struct nserver cfgns[MAXNSERVERS];
+static int cfgnsn = 0;
+
 static int h_nserver(int argc, unsigned char **argv){
   char *str;
 
-	if(conf->numservers < MAXNSERVERS) {
+	if(cfgnsn < MAXNSERVERS) {
+		memset(cfgns + cfgnsn, 0, sizeof(*cfgns));
 		if((str = strchr((char *)argv[1], '/')))
 			*str = 0;
-		*SAPORT(&conf->nservers[conf->numservers].addr) = htons(53);
-		if(parsehost(46, argv[1], (struct sockaddr *)&conf->nservers[conf->numservers].addr)) return 1;
+		*SAPORT(&cfgns[cfgnsn].addr) = htons(53);
+		if(parsehost(46, argv[1], (struct sockaddr *)&cfgns[cfgnsn].addr)) return 1;
 		if(str) {
-			conf->nservers[conf->numservers].usetcp = strstr(str + 1, "tcp")? 1:0;
+			cfgns[cfgnsn].usetcp = strstr(str + 1, "tcp")? 1:0;
 			*str = '/';
 		}
-		conf->numservers++;
-
+		cfgnsn++;
 	}
+	else fprintf(stderr, "[line %d] Warning: only %d name servers are used, nserver ignored\n", linenum, MAXNSERVERS);
 	conf->resolvfunc = myresolver;
 	return 0;
+}
+
+/* The configuration's name servers, or the system's in their place */
+void confdnscommit(struct extparam *c){
+	sysdnsapply(c, cfgns, cfgnsn);
+}
+
+/* Whether names would be resolved slowly: by the C library, or by name
+   servers, the system's taken by default, without a cache */
+static int noresolver(void){
+	if(!conf->resolvfunc && !sysdnscount()) return 1;
+	return (!conf->resolvfunc || conf->resolvfunc == myresolver) && !dns_table.poolsize;
 }
 
 static int h_authnserver(int argc, unsigned char **argv){
@@ -2513,6 +2533,8 @@ void freeconf(struct extparam *confp){
 void confbegin(void){
 	char * args[] = {"auth", "iponly", NULL};
 
+	cfgnsn = 0;
+
 	h_auth(2, (unsigned char **)args);
 }
 
@@ -2643,6 +2665,7 @@ int reload (void){
 	_3proxy_mutex_lock(&confref_mutex);
 	runconf = new;
 	_3proxy_mutex_unlock(&confref_mutex);
+	confdnscommit(new);
 	resolvfunc = new->resolvfunc;
 	/* the new services take over the listening sockets of the old ones on
 	   the same addresses, which then stop accepting, and start */

@@ -428,6 +428,16 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 int ACLmatches(struct ace* acentry, struct clientparam * param);
 int checkACL(struct clientparam * param);
 char * aceaction (int action);
+extern struct nserver nservers[MAXNSERVERS];
+extern int numservers;
+int getnservers(struct nserver *ns);
+int nscacheresolv(int af, unsigned char *name, unsigned char *value, uint32_t *ttl);
+void setnservers(const struct nserver *ns, int n);
+void sysdnsinit(void);
+int sysdnscount(void);
+void sysdnsapply(struct extparam *c, const struct nserver *ns, int n);
+void sysdnscheck(void);
+void confdnscommit(struct extparam *c);
 uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth);
 
 struct ace * copyacl (struct ace *ac);
