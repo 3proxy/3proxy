@@ -594,8 +594,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   /* numbered before it is read, as a reload numbers the new one */
   conf->version++;
   res = readconfig(fp);
-  if(!res) confdnscommit(conf);
-  resolvfunc = conf->resolvfunc;
+  if(!res) confdnscommit();
+  resolvmode = conf->resolvmode;
 
   /* readconfig() names the failing line, which an exit status would cut
      to 8 bits: a failed configuration exits with 1 */

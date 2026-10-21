@@ -376,7 +376,7 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.service = S_DNSPR;
 		childdef.helpmessage = " -s - simple DNS forwarding - do not use 3proxy resolver / name cache\n -Fip - fake: answer all A queries with this IP\n";
 #ifndef NOIPV6
-		if(noresolver() || conf->resolvfunc == fakeresolver){
+		if(noresolver() || conf->resolvmode == RESOLVE_FAKE){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
 		}
 #endif
@@ -741,8 +741,6 @@ static int h_flushusers(int argc, unsigned char **argv){
    force (the process has one list) once it is committed */
 static struct nserver cfgns[MAXNSERVERS];
 static int cfgnsn = 0;
-/* sysresolve: names resolved by the system routines */
-static int cfgsysresolve = 0;
 
 static int h_nserver(int argc, unsigned char **argv){
   char *str;
@@ -760,20 +758,20 @@ static int h_nserver(int argc, unsigned char **argv){
 		cfgnsn++;
 	}
 	else fprintf(stderr, "[line %d] Warning: only %d name servers are used, nserver ignored\n", linenum, MAXNSERVERS);
-	conf->resolvfunc = myresolver;
 	return 0;
 }
 
 /* The configuration's name servers, or the system's in their place */
-void confdnscommit(struct extparam *c){
-	sysdnsapply(c, cfgns, cfgnsn, cfgsysresolve);
+void confdnscommit(void){
+	sysdnsapply(cfgns, cfgnsn);
 }
 
 /* Whether names would be resolved slowly: by the C library, or by name
    servers, the system's taken by default, without a cache */
 static int noresolver(void){
-	if(cfgsysresolve || (!conf->resolvfunc && !sysdnscount())) return 1;
-	return (!conf->resolvfunc || conf->resolvfunc == myresolver) && !dns_table.poolsize;
+	if(conf->resolvmode == RESOLVE_FAKE) return 0;
+	if(conf->resolvmode == RESOLVE_SYSTEM || (!cfgnsn && !sysdnscount())) return 1;
+	return !dns_table.poolsize;
 }
 
 static int h_authnserver(int argc, unsigned char **argv){
@@ -790,14 +788,20 @@ static int h_authnserver(int argc, unsigned char **argv){
 	return 0;
 }
 
+/* defaultresolve, fakeresolve, sysresolve: for the services after it,
+   and, the last one, for names resolved outside a service */
+static int h_defaultresolve(int argc, unsigned char **argv){
+	conf->resolvmode = RESOLVE_DEFAULT;
+	return 0;
+}
+
 static int h_fakeresolve(int argc, unsigned char **argv){
-	conf->resolvfunc = fakeresolver;
-	cfgsysresolve = 0;
+	conf->resolvmode = RESOLVE_FAKE;
 	return 0;
 }
 
 static int h_sysresolve(int argc, unsigned char **argv){
-	cfgsysresolve = 1;
+	conf->resolvmode = RESOLVE_SYSTEM;
 	return 0;
 }
 
@@ -2153,6 +2157,7 @@ struct commands commandhandlers[]={
 	{NULL, "maxconn", h_maxconn, 2, 2},
 	{NULL, "flush", h_flush, 1, 1},
 	{NULL, "nserver", h_nserver, 2, 2},
+	{NULL, "defaultresolve", h_defaultresolve, 1, 1},
 	{NULL, "fakeresolve", h_fakeresolve, 1, 1},
 	{NULL, "sysresolve", h_sysresolve, 1, 1},
 	{NULL, "nscache", h_nscache, 2, 2},
@@ -2543,7 +2548,6 @@ void confbegin(void){
 	char * args[] = {"auth", "iponly", NULL};
 
 	cfgnsn = 0;
-	cfgsysresolve = 0;
 
 	h_auth(2, (unsigned char **)args);
 }
@@ -2675,8 +2679,8 @@ int reload (void){
 	_3proxy_mutex_lock(&confref_mutex);
 	runconf = new;
 	_3proxy_mutex_unlock(&confref_mutex);
-	confdnscommit(new);
-	resolvfunc = new->resolvfunc;
+	confdnscommit();
+	resolvmode = new->resolvmode;
 	/* the new services take over the listening sockets of the old ones on
 	   the same addresses, which then stop accepting, and start */
 	for(d = deferred; d; d = d->next) mainclaim(d->service);

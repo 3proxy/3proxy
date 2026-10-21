@@ -296,7 +296,7 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 		}
 	}
 	q->ip = ip;
-	if(ip || !numservers){
+	if(ip || !numservers || param->srv->resolvmode == RESOLVE_FAKE){
 		param->res = dnsanswer(u, param, q, buf, len);
 		free(buf);
 		return 1;

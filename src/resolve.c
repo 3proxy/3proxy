@@ -255,23 +255,8 @@ uint32_t myresolver(int af, unsigned char * name, unsigned char * value){
  return udpresolve(af, name, value, NULL, NULL, 0);
 }
 
-uint32_t fakeresolver (int af, unsigned char *name, unsigned char * value){
- memset(value, 0, af == AF_INET6? 16 : 4);
- if(af == AF_INET6){
-    memset(value, 0, 16);
-    value[15] = 2;
- }
- else {
-    value[0] = 127;
-    value[1] = 0;
-    value[2] = 0;
-    value[3] = 2;
- }
- return 1;
-}
-
 /* The system's name servers and hosts file, the default for a configuration
-   without nserver (or fakeresolve): read at start, before a chroot can hide
+   without nserver: read at start, before a chroot can hide
    them, and checked from the main loop for changes, which apply while the
    default is in force. Hosts entries have tables of their own, emptied when
    the default is not in force. Only the main thread works on this. */
@@ -583,34 +568,26 @@ int sysdnscount(void){
     return sysdns.n;
 }
 
-/* A configuration committed: the name servers of its nserver lines, else,
-   with nothing else to resolve names, the system's and its hosts file, read
-   again. Until then those in force stay. With sysresolve the system
-   routines resolve names, nserver lines left to dnspr. */
-void sysdnsapply(struct extparam *c, const struct nserver *ns, int n, int sysresolve){
+/* A configuration committed: the name servers of its nserver lines, else
+   the system's and its hosts file, read again; with none the system
+   routines are the default. Until then those in force stay. */
+void sysdnsapply(const struct nserver *ns, int n){
     sysdns.active = 0;
-    if(sysresolve){
-	c->resolvfunc = NULL;
-	setnservers(ns, n);
-	hostsremove();
-	return;
-    }
     if(n){
 	setnservers(ns, n);
 	hostsremove();
-	return;
-    }
-    if(c->resolvfunc){
-	setnservers(NULL, 0);
-	hostsremove();
+	resolvfunc = myresolver;
 	return;
     }
     sysdnsread();
     sysdns.checked = curtime;
     sysdns.active = 1;
     setnservers(sysdns.ns, sysdns.n);
-    if(!sysdns.n) return;	/* the C library, as before */
-    c->resolvfunc = myresolver;
+    if(!sysdns.n){	/* the C library, as before */
+	resolvfunc = NULL;
+	return;
+    }
+    resolvfunc = myresolver;
     hostsimport();
 }
 
@@ -627,7 +604,7 @@ void sysdnscheck(void){
 	setnservers(sysdns.ns, sysdns.n);
 	dolog(NULL, (unsigned char *)"System name servers changed");
 	/* none before: the C library resolved until now */
-	if(!was) conf->resolvfunc = resolvfunc = myresolver;
+	if(!was) resolvfunc = myresolver;
     }
     if(resolvfunc == myresolver && ((res & 2) || !was)) hostsimport();
     if(res & 2) dolog(NULL, (unsigned char *)"Hosts file changed");

@@ -712,6 +712,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->backlog = conf->backlog;
  srv->stacksize = conf->stacksize;
  srv->config = conf;
+ srv->resolvmode = conf->resolvmode;
  memcpy(srv->timeouts, conf->timeouts, sizeof(srv->timeouts));
  srv->filtermaxsize = conf->filtermaxsize;
  srv->parentretries = conf->parentretries;

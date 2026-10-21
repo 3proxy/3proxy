@@ -570,7 +570,7 @@ int parsehostname(char *hostname, struct clientparam *param, uint16_t port){
 	if(sp){
 		port = atoi(sp+1);
 	}
-	ret = !getip46(param->srv->family, param->hostname, (struct sockaddr *)&param->req);
+	ret = !getip46m(param->srv->resolvmode, param->srv->family, param->hostname, (struct sockaddr *)&param->req);
 	if(se) *se = ']';
 	if(sp) *sp = ':';
 	*SAPORT(&param->req) = htons(port);
@@ -863,7 +863,36 @@ int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask) {
 	return res;
 }
 
+/* The default resolver: name servers, configured or the system's, or NULL
+   for the system routines. resolvmode is the configuration's, for names
+   resolved outside a service; each service has its own. */
 RESOLVFUNC resolvfunc = NULL;
+int resolvmode = RESOLVE_DEFAULT;
+
+uint32_t fakeresolver (int af, unsigned char *name, unsigned char * value){
+ if(af == AF_INET6){
+    memset(value, 0, 16);
+    value[15] = 2;
+ }
+ else {
+    value[0] = 127;
+    value[1] = 0;
+    value[2] = 0;
+    value[3] = 2;
+ }
+ return 1;
+}
+
+/* The resolver of a mode, NULL for the system routines */
+static RESOLVFUNC moderesolver(int mode){
+	switch(mode){
+	case RESOLVE_FAKE:
+		return fakeresolver;
+	case RESOLVE_SYSTEM:
+		return NULL;
+	}
+	return resolvfunc;
+}
 #ifndef _WIN32
 _3proxy_mutex_t gethostbyname_mutex;
 int ghbn_init = 0;
@@ -887,7 +916,7 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 #endif
 
 #ifdef NOIPV6
-uint32_t getip(unsigned char *name){
+static uint32_t getipm(int mode, unsigned char *name){
 	uint32_t retval;
 	int i;
 	int ndots = 0;
@@ -913,7 +942,7 @@ uint32_t getip(unsigned char *name){
 			return retval;
 		}
 	}
-	if((tmpresolv=resolvfunc)){
+	if((tmpresolv=moderesolver(mode))){
 		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
 	}
 #ifndef NOSTDRESOLVE
@@ -936,6 +965,10 @@ uint32_t getip(unsigned char *name){
 	retval=0;
 #endif
 	return retval;
+}
+
+uint32_t getip(unsigned char *name){
+	return getipm(resolvmode, name);
 }
 #endif
 
@@ -971,7 +1004,8 @@ int afdetect(unsigned char *name){
 
 }
 
-uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
+/* A name resolved the way a mode says: a service's names with its own */
+uint32_t getip46m(int mode, int family, unsigned char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
 	int detect;
 #ifndef NOSTDRESOLVE
@@ -984,7 +1018,7 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 		family = 4;
 #else
 		((struct sockaddr_in *)sa)->sin_family = AF_INET;
-		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getip(name))? AF_INET:0;
+		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getipm(mode, name))? AF_INET:0;
 #endif
 #ifndef NOIPV6
 	}
@@ -996,7 +1030,7 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 		return inet_pton(*SAFAMILY(sa), (char *)name, SAADDR(sa))>0? *SAFAMILY(sa) : 0; 
 	}
 
-	if((tmpresolv = resolvfunc)){
+	if((tmpresolv = moderesolver(mode))){
 		int f = (family == 6 || family == 64)?AF_INET6:AF_INET;
 		*SAFAMILY(sa) = f;
 		if(tmpresolv(f, name, SAADDR(sa))) return f;
@@ -1028,6 +1062,10 @@ uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
 #endif
 	return 0;
 #endif
+}
+
+uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){
+	return getip46m(resolvmode, family, name, sa);
 }
 
 int hascap(const unsigned char *line, const char *cap){

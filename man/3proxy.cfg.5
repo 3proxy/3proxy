@@ -555,7 +555,7 @@ An IPv6 address has to be enclosed in square brackets:
 .br
  \fBnserver [2001:4860:4860::8844]:5353/tcp\fR
 .br
- If none is specified (and there is no \fBfakeresolve\fR or \fBsysresolve\fR), the system's name
+ If none is specified, the system's name
 servers are used: up to 3 from \fI/etc/resolv.conf\fR, on Windows from the
 registry (those set for the system, those set for an interface, then those
 DHCP gave). Names in the hosts file (\fI/etc/hosts\fR, on Windows
@@ -601,19 +601,42 @@ is used as a hostaddr host will never resolve, it can be used to
 blacklist something.
 
 .br
+.B defaultresolve
+.br
+ Names are resolved by the name servers in force: those of \fBnserver\fR
+lines, or the system's ones with the hosts file by default (see
+\fBnserver\fR). This is the default.
+
+.br
 .B sysresolve
 .br
  Names are resolved by the system routines for name resolution (the C
 library), as without \fBnserver\fR before the system's name servers became
-the default; the hosts file is not imported. \fBnserver\fR lines, if any, are
-still used by \fBdnspr\fR to forward queries. Of \fBsysresolve\fR and
-\fBfakeresolve\fR the last one given applies.
+the default: \fBnsrecord\fR is not consulted. \fBdnspr\fR still forwards
+queries to the name servers in force.
 
 .br
 .B fakeresolve
 .br
  All names are resolved to the 127.0.0.2 address. Useful if all requests are
 redirected to a parent proxy with \fBhttp\fR, \fBsocks4+\fR, \fBconnect+\fR or \fBsocks5+\fR.
+\fBdnspr\fR does not forward queries.
+
+.br
+ Of \fBdefaultresolve\fR, \fBsysresolve\fR and \fBfakeresolve\fR, the last
+one given before a service applies to it, so services can resolve names
+differently:
+.br
+ \fBfakeresolve\fR
+.br
+ \fBproxy -p3128\fR
+.br
+ \fBdefaultresolve\fR
+.br
+ \fBsocks -p1080\fR
+.br
+ The last one in the configuration also applies to names resolved outside
+a service, such as those in the configuration itself, once it is loaded.
 
 .br
 .BR dialer

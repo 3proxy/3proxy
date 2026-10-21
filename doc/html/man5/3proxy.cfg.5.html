@@ -498,14 +498,6 @@ user), Reply-Message. Use <b>authcache</b> to speedup
 authentication. RADIUS feature is currently
 experimental.</p>
 
-<p style="margin-left:9%; margin-top: 1em"><b>sysresolve</b>
-<br>
-Names are resolved by the system routines for name
-resolution (the C library), as without <b>nserver</b> before
-the system's name servers became the default; the hosts file
-is not imported. <b>nserver</b> lines, if any, are still used
-by <b>dnspr</b> to forward queries. Of <b>sysresolve</b> and
-<b>fakeresolve</b> the last one given applies.</p>
 
 <p style="margin-left:9%; margin-top: 1em"><b>nserver</b>
 <i>&lt;ipaddr&gt;</i>[:<i>port</i>][/<i>tcp</i>] <br>
@@ -516,9 +508,7 @@ has to be enclosed in square brackets: <br>
 <b>nserver 1.1.1.1</b> <br>
 <b>nserver [2001:4860:4860::8844]</b> <br>
 <b>nserver [2001:4860:4860::8844]:5353/tcp</b> <br>
-If none is specified (and there is no <b>fakeresolve</b> or
-<b>sysresolve</b>),
-the system's name servers are used: up to 3 from
+If none is specified, the system's name servers are used: up to 3 from
 <i>/etc/resolv.conf</i>, on Windows from the registry (those
 set for the system, those set for an interface, then those
 DHCP gave). Names in the hosts file (<i>/etc/hosts</i>, on
@@ -567,12 +557,39 @@ together with <b>dialer</b> command to set up UDL for
 dialing.</p>
 
 
+<p style="margin-left:9%; margin-top: 1em"><b>defaultresolve</b>
+<br>
+Names are resolved by the name servers in force: those of
+<b>nserver</b> lines, or the system's ones with the hosts file
+by default (see <b>nserver</b>). This is the default.</p>
+
+<p style="margin-left:9%; margin-top: 1em"><b>sysresolve</b>
+<br>
+Names are resolved by the system routines for name
+resolution (the C library), as without <b>nserver</b> before
+the system's name servers became the default: <b>nsrecord</b>
+is not consulted. <b>dnspr</b> still forwards queries to the
+name servers in force.</p>
+
 <p style="margin-left:9%; margin-top: 1em"><b>fakeresolve</b>
 <br>
 All names are resolved to the 127.0.0.2 address. Useful if
 all requests are redirected to a parent proxy with
 <b>http</b>, <b>socks4+</b>, <b>connect+</b> or
-<b>socks5+</b>.</p>
+<b>socks5+</b>. <b>dnspr</b> does not forward queries.</p>
+
+<p style="margin-left:9%; margin-top: 1em">Of
+<b>defaultresolve</b>, <b>sysresolve</b> and
+<b>fakeresolve</b>, the last one given before a service
+applies to it, so services can resolve names differently:
+<br>
+<b>fakeresolve</b> <br>
+<b>proxy -p3128</b> <br>
+<b>defaultresolve</b> <br>
+<b>socks -p1080</b> <br>
+The last one in the configuration also applies to names
+resolved outside a service, such as those in the
+configuration itself, once it is loaded.</p>
 
 <p style="margin-left:9%; margin-top: 1em"><b>dialer</b>
 <i>&lt;progname&gt;</i> <br>

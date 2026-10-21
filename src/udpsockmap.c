@@ -273,7 +273,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 				dstnamebuf[sz] = 0;
 				dstname = dstnamebuf;
 				i = 5 + sz;
-				if (!getip46(param->srv->family, (unsigned char *)dstnamebuf,
+				if (!getip46m(param->srv->resolvmode, param->srv->family, (unsigned char *)dstnamebuf,
 				             (struct sockaddr *)&dst)) {
 					if (!nhops) return 100;
 					memset(&dst, 0, sizeof(dst));

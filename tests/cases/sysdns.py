@@ -1,6 +1,7 @@
 """The system's name servers and hosts file as the default resolver: with
 no nserver in a configuration, names in the hosts file are answered from
-it; with nserver lines, or sysresolve (the system routines), it is not."""
+it; with nserver lines it is not. Each service resolves names the way the
+last of defaultresolve, sysresolve and fakeresolve before it says."""
 
 import os
 import re
@@ -82,25 +83,36 @@ def run(t):
     t.ne(["127.0.0.1"], t.dns_query(other, "localhost") or [],
          "with nserver, the hosts file is not used")
 
-    # sysresolve: the system routines resolve names, and nothing is imported
-    # for dnspr to answer from
-    sysport, proxy, srv = t.free_port(), t.free_port(), t.free_port()
-    t.start("sysdns_sysresolve", f"""
+    # each service resolves the way the command before it says: fake (to
+    # 127.0.0.2, where the server is not), the system routines (no
+    # nsrecord) or the default (the system's name servers, and nsrecord)
+    fake, system, default, srv = t.free_port(), t.free_port(), t.free_port(), t.free_port()
+    t.start("sysdns_modes", f"""
         log
+        nscache 1024
+        nsrecord only3proxy.test 127.0.0.1
         flush
-        sysresolve
         auth iponly
         allow *
-        dnspr -p{sysport}
-        proxy -p{proxy}
+        fakeresolve
+        proxy -p{fake}
+        sysresolve
+        proxy -p{system}
+        defaultresolve
+        proxy -p{default}
         flush
         auth iponly
         allow *
         http echo * /echo**
-        httpsrv -p{srv}
-    """, ports=[proxy, srv])
-    wait(t, sysport, "localhost")
-    t.ne(["127.0.0.1"], t.dns_query(sysport, "localhost") or [],
-         "with sysresolve, dnspr has no hosts file names")
-    t.eq(200, t.http(f"http://localhost:{srv}/echo", proxy=f"127.0.0.1:{proxy}").status,
-         "and names resolve through the system routines")
+        httpsrv -i127.0.0.1 -p{srv}
+    """, ports=[fake, system, default, srv])
+    t.eq(200, t.http(f"http://localhost:{srv}/echo", proxy=f"127.0.0.1:{default}").status,
+         "defaultresolve: a name of the hosts file resolves")
+    t.eq(200, t.http(f"http://only3proxy.test:{srv}/echo", proxy=f"127.0.0.1:{default}").status,
+         "and an nsrecord name")
+    t.eq(200, t.http(f"http://localhost:{srv}/echo", proxy=f"127.0.0.1:{system}").status,
+         "sysresolve: names resolve through the system routines")
+    t.ne(200, t.http(f"http://only3proxy.test:{srv}/echo", proxy=f"127.0.0.1:{system}").status,
+         "which know no nsrecord name")
+    t.ne(200, t.http(f"http://localhost:{srv}/echo", proxy=f"127.0.0.1:{fake}").status,
+         "fakeresolve: every name is 127.0.0.2, in a service before the others")

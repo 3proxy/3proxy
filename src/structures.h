@@ -503,6 +503,11 @@ struct nserver {
 };
 
 #define MAXNSERVERS 3
+/* how a service resolves names: defaultresolve (the name servers in force,
+   configured or the system's), fakeresolve, sysresolve (the C library) */
+#define RESOLVE_DEFAULT 0
+#define RESOLVE_FAKE 1
+#define RESOLVE_SYSTEM 2
 #define MAXRADIUS 5
 
 struct radserver {
@@ -644,6 +649,7 @@ struct srvparam {
 	int transparent;
 	int nfilters, nreqfilters, nconnectfilters, nafterauthfilters, nhdrfilterscli, nhdrfilterssrv, npredatfilters, ndatfilterscli, ndatfilterssrv;
 	int family;
+	int resolvmode;		/* RESOLVE_* */
 	int stacksize;
 	struct extparam *config;	/* the configuration it was started with */
 	int timeouts[12];	/* conf.timeouts as they were when the service started */
@@ -928,7 +934,7 @@ struct extparam {
 	int refs;
 	struct hashtable pwl_table;	/* users */
 	int havelog;		/* log was configured */
-	RESOLVFUNC resolvfunc;	/* nserver or fakeresolve, in force once committed */
+	int resolvmode;		/* RESOLVE_*: the last read, each service taking the one read before it */
 };
 
 struct property {

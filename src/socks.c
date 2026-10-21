@@ -132,7 +132,7 @@ void * sockschild(struct clientparam* param) {
 		}
 		buf[i] = 0;
 		if(command == 2 && param->srv->family != 6 && (!strcmp((char *)buf, "0.0.0.0") || !strcmp((char *)buf, "0"))) param->req = param->srv->extsa;
-		else if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
+		else if(!getip46m(param->srv->resolvmode, param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
 		param->sinsr = param->req;
 		break;
 	default:
@@ -158,7 +158,7 @@ void * sockschild(struct clientparam* param) {
 		if(sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, param->srv->timeouts[STRING_S]) < 0) {RETURN(441);}
 		buf[127] = 0;
 		if(PARAMSTR(param, hostname, buf)){RETURN(21);}
-		if(!getip46(param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
+		if(!getip46m(param->srv->resolvmode, param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
 		param->sinsr = param->req;
 	}
  }

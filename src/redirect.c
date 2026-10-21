@@ -268,18 +268,18 @@ void applyportranges(struct clientparam * param, struct ace * acentry){
 	}
 }
 
-static void chainaddr(struct chain * cur, PROXYSOCKADDRTYPE * sa){
+static void chainaddr(struct clientparam * param, struct chain * cur, PROXYSOCKADDRTYPE * sa){
 	PROXYSOCKADDRTYPE fresh;
 
 	*sa = cur->addr;
-	if(resolvfunc != myresolver) return;
+	if(param->srv->resolvmode != RESOLVE_DEFAULT || resolvfunc != myresolver) return;
 	if(!cur->exthost || SAISNULL(&cur->addr)) return;
 #ifdef WITH_UN
 	if(*SAFAMILY(&cur->addr) == AF_UNIX) return;
 #endif
 	if(afdetect(cur->exthost) != -1) return;
 	memset(&fresh, 0, sizeof(fresh));
-	if(!getip46(46, cur->exthost, (struct sockaddr *)&fresh)) return;
+	if(!getip46m(RESOLVE_DEFAULT, 46, cur->exthost, (struct sockaddr *)&fresh)) return;
 	*SAPORT(&fresh) = *SAPORT(&cur->addr);
 	*sa = fresh;
 }
@@ -430,12 +430,12 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			}
 			else if(!*SAPORT(&cur->addr) && !SAISNULL(&cur->addr)) {
 				uint16_t port = *SAPORT(&param->sinsr);
-				chainaddr(cur, &param->sinsr);
+				chainaddr(param, cur, &param->sinsr);
 				*SAPORT(&param->sinsr) = port;
 			}
 			else if(SAISNULL(&cur->addr) && *SAPORT(&cur->addr)) *SAPORT(&param->sinsr) = *SAPORT(&cur->addr);
 			else {
-				chainaddr(cur, &param->sinsr);
+				chainaddr(param, cur, &param->sinsr);
 			}
 			if(param->operation == UDPASSOC){
 			    SOCKET s;
@@ -468,7 +468,7 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		else {
 			PROXYSOCKADDRTYPE next;
 
-			chainaddr(cur, &next);
+			chainaddr(param, cur, &next);
 			res = (redir)?clientnegotiate(redir, param, (struct sockaddr *)&next, cur->exthost):0;
 			if(res) {
 				parentfail(param, cur);

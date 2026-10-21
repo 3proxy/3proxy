@@ -205,6 +205,7 @@ size_t threadstacksize(int extra);
 #endif
 
 extern RESOLVFUNC resolvfunc;
+extern int resolvmode;
 
 extern int wday;
 extern time_t basetime;
@@ -351,6 +352,7 @@ int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
 uint32_t getip(unsigned char *name);
 uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa);
+uint32_t getip46m(int mode, int family, unsigned char *name,  struct sockaddr *sa);
 int afdetect(unsigned char *name);
 uint32_t myresolver(int, unsigned char *, unsigned char *);
 uint32_t fakeresolver (int, unsigned char *, unsigned char*);
@@ -435,9 +437,9 @@ int nscacheresolv(int af, unsigned char *name, unsigned char *value, uint32_t *t
 void setnservers(const struct nserver *ns, int n);
 void sysdnsinit(void);
 int sysdnscount(void);
-void sysdnsapply(struct extparam *c, const struct nserver *ns, int n, int sysresolve);
+void sysdnsapply(const struct nserver *ns, int n);
 void sysdnscheck(void);
-void confdnscommit(struct extparam *c);
+void confdnscommit(void);
 uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_t *retttl, struct clientparam* param, int makeauth);
 
 struct ace * copyacl (struct ace *ac);
