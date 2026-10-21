@@ -273,3 +273,4 @@ bin/3proxy_udppm
 build*/*
 testcerts/
 /.claude
+bench/mix/mix-linux-*
