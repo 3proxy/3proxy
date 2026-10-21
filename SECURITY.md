@@ -2,10 +2,12 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.9.8   | :white_check_mark: |
-| < 0.9.8 | :x:                |
+| Version   | Supported          |
+| --------- | ------------------ |
+| 1.0.x     | :white_check_mark: |
+| 0.9.9.x   | :white_check_mark: |
+| 0.9.8     | :white_check_mark: |
+| < 0.9.8   | :x:                |
 
 ## Hardening a deployment
 
