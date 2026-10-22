@@ -78,6 +78,9 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 int ssl_read(SSL_CONN connection, void * buf, int bufsize);
 int ssl_write(SSL_CONN connection, void * buf, int bufsize);
 int ssl_pending(SSL_CONN connection);
+/* any data read from the socket and not handed out, a part of a record
+   too */
+int ssl_buffered(SSL_CONN connection);
 
 /* TLS records are read ahead, a buffer at a time rather than two reads for
    each record, where what is read ahead and not yet decrypted shows as

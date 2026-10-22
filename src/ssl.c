@@ -429,7 +429,7 @@ static int ssl_splicetls(struct clientparam *param, SOCKET s){
  struct SSLsock *sslq = searchSSL(param->sostate, s);
 
  if(!sslq) return 0;
- return ssl_pending(sslq->conn)? SPLICE_TLSPENDING : SPLICE_TLS;
+ return ssl_buffered(sslq->conn)? SPLICE_TLSPENDING : SPLICE_TLS;
 }
 #endif
 
