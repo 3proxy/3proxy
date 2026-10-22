@@ -249,8 +249,17 @@ struct udpsession {
 	struct udpsession *next, *prev;
 	struct clientparam *param;
 	const struct udpservice *svc;
-	time_t deadline;	/* when it ends unless refreshed */
+	/* when it ends unless refreshed, in ms of monotime() (u->now), 0:
+	   never; a handler may set it, later or earlier */
+	uint64_t deadline;
 	int idle;		/* seconds of silence it lasts, 0: deadline fixed */
+	/* the loop's timers: a heap ordered by hkey, where it is at hidx (-1:
+	   not in it). hkey is the deadline as it was when it last went in or
+	   up: a later deadline, as each datagram sets, leaves it where it is,
+	   to be looked at again only once its old one comes. */
+	uint64_t hkey;
+	int hidx;
+	struct udpsession *dnext;	/* the loop's list of those ended */
 	int keyed;		/* found by its client's address */
 	int done;		/* to be ended, param->res saying how */
 	short events;		/* polled for on remsock, 0: POLLIN */
@@ -285,8 +294,12 @@ struct udploop {
 	struct clientparam *defparam;
 	/* scratch of UDPBUFSIZE for a handler */
 	unsigned char *buf;
+	/* monotime() as the loop last read it, for the deadlines */
+	uint64_t now;
 };
 /* an answer to the session's client, from the service's socket */
+/* ms on a clock only going forward, whatever is done to the time of day */
+uint64_t monotime(void);
 int udpanswer(struct udploop *u, struct clientparam *param, unsigned char *buf, int len);
 
 extern const struct udpservice udppmservice, dnsprservice;

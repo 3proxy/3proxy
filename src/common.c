@@ -866,6 +866,30 @@ int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask) {
 /* The default resolver: name servers, configured or the system's, or NULL
    for the system routines. resolvmode is the configuration's, for names
    resolved outside a service; each service has its own. */
+/* Milliseconds on a clock which only goes forward, at the same pace as the
+   time of day but not moved with it: a deadline does not come at once, or
+   never, when the clock of the system is set. */
+uint64_t monotime(void){
+#ifdef _WIN32
+ LARGE_INTEGER c, f;
+
+ QueryPerformanceFrequency(&f);
+ QueryPerformanceCounter(&c);
+ return (uint64_t)(c.QuadPart / f.QuadPart) * 1000 +
+	(uint64_t)(c.QuadPart % f.QuadPart) * 1000 / (uint64_t)f.QuadPart;
+#elif defined(CLOCK_MONOTONIC)
+ struct timespec ts;
+
+ clock_gettime(CLOCK_MONOTONIC, &ts);
+ return (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
+#else
+ struct timeval tv;
+
+ gettimeofday(&tv, NULL);
+ return (uint64_t)tv.tv_sec * 1000 + (uint64_t)tv.tv_usec / 1000;
+#endif
+}
+
 RESOLVFUNC resolvfunc = NULL;
 int resolvmode = RESOLVE_DEFAULT;
 

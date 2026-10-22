@@ -38,6 +38,11 @@ struct udpstate {
 #endif
  int nalloc;
  int nfull;
+ /* the sessions with a deadline, the nearest first (a binary heap) */
+ struct udpsession **heap;
+ int nheap, hsize;
+ /* the sessions ended, to be let go once the loop is through with them */
+ struct udpsession *dead;
 };
 
 #ifdef UDPEPOLL
@@ -150,6 +155,7 @@ static struct udpsession *udpnew(struct udpstate *st){
  ss->param = param;
  ss->svc = st->svc;
  ss->regsock = ss->regctrl = INVALID_SOCKET;
+ ss->hidx = -1;
 #ifdef MODULEMAINFUNC
  if(makefilters(srv, param) > CONTINUE){
 	freeparam(param);
@@ -200,8 +206,154 @@ static void udpremove(struct udpstate *st, struct udpsession *ss){
  if(ss->keyed) hashdelete(&st->keys, &ss->param->sincr);
 }
 
-static void udprefresh(struct udpsession *ss, time_t now){
- if(ss->idle) ss->deadline = now + ss->idle;
+/* Its client or its destination was heard from: the deadline moves on,
+   where the heap does not see it yet (udpafter(), udpexpire()). */
+static void udprefresh(struct udpsession *ss, uint64_t now){
+ if(ss->idle) ss->deadline = now + (uint64_t)ss->idle * 1000;
+}
+
+/* The heap of the deadlines: at its top the nearest, so the loop learns
+   how long it may wait, and which have come, without going through every
+   session. */
+static void udpheapset(struct udpstate *st, int i, struct udpsession *ss){
+ st->heap[i] = ss;
+ ss->hidx = i;
+}
+
+static void udpheapup(struct udpstate *st, int i){
+ struct udpsession *ss = st->heap[i];
+
+ while(i > 0){
+	int p = (i - 1) / 2;
+
+	if(st->heap[p]->hkey <= ss->hkey) break;
+	udpheapset(st, i, st->heap[p]);
+	i = p;
+ }
+ udpheapset(st, i, ss);
+}
+
+static void udpheapdown(struct udpstate *st, int i){
+ struct udpsession *ss = st->heap[i];
+
+ for(;;){
+	int c = 2 * i + 1;
+
+	if(c >= st->nheap) break;
+	if(c + 1 < st->nheap && st->heap[c+1]->hkey < st->heap[c]->hkey) c++;
+	if(ss->hkey <= st->heap[c]->hkey) break;
+	udpheapset(st, i, st->heap[c]);
+	i = c;
+ }
+ udpheapset(st, i, ss);
+}
+
+/* 0, or 21 without memory */
+static int udpheapadd(struct udpstate *st, struct udpsession *ss){
+ if(st->nheap == st->hsize){
+	int want = st->hsize? 2 * st->hsize : 64;
+	struct udpsession **h = realloc(st->heap, want * sizeof(*h));
+
+	if(!h) return 21;
+	st->heap = h;
+	st->hsize = want;
+ }
+ udpheapset(st, st->nheap++, ss);
+ udpheapup(st, ss->hidx);
+ return 0;
+}
+
+static void udpheapdel(struct udpstate *st, struct udpsession *ss){
+ int i = ss->hidx;
+ struct udpsession *last;
+
+ if(i < 0) return;
+ ss->hidx = -1;
+ last = st->heap[--st->nheap];
+ if(last == ss) return;
+ udpheapset(st, i, last);
+ if(i > 0 && st->heap[(i - 1) / 2]->hkey > last->hkey) udpheapup(st, i);
+ else udpheapdown(st, i);
+}
+
+/* After the loop or a handler had the session: if it ends (end, or done),
+   on the list of those to let go; otherwise its sockets watched as they
+   are now and its deadline in the heap. A deadline moved later stays where
+   it was in the heap, only one moved earlier goes up. */
+static void udpafter(struct udpstate *st, struct udpsession *ss, int end){
+ if(end || ss->done){
+	/* done 2: on the list already */
+	if(ss->done != 2){
+		ss->done = 2;
+		ss->dnext = st->dead;
+		st->dead = ss;
+	}
+	return;
+ }
+#ifdef UDPEPOLL
+ udpsync(st, ss);
+#endif
+ /* none: if in the heap, it leaves once its old one comes */
+ if(!ss->deadline) return;
+ if(ss->hidx < 0){
+	ss->hkey = ss->deadline;
+	if(udpheapadd(st, ss)){
+		/* it would never time out */
+		ss->param->res = 21;
+		udpafter(st, ss, 1);
+	}
+ }
+ else if(ss->deadline < ss->hkey){
+	ss->hkey = ss->deadline;
+	udpheapup(st, ss->hidx);
+ }
+}
+
+/* The sessions whose deadline has come, from the top of the heap down to
+   the first not yet due. One refreshed since it went in is put back where
+   its deadline is now: each session costs a step of the heap once in its
+   timeout, however many datagrams it has. */
+static void udpexpire(struct udpstate *st){
+ struct udpsession *ss;
+ uint64_t now = st->u.now;
+
+ while(st->nheap && (ss = st->heap[0])->hkey <= now){
+	if(ss->done || !ss->deadline){
+		udpheapdel(st, ss);
+		continue;
+	}
+	if(ss->deadline > now){
+		ss->hkey = ss->deadline;
+		udpheapdown(st, 0);
+		continue;
+	}
+	if(!st->svc->timeout || (*st->svc->timeout)(&st->u, ss)){
+		if(!st->svc->timeout) ss->param->res = st->svc->timeoutres;
+		udpheapdel(st, ss);
+		udpafter(st, ss, 1);
+		continue;
+	}
+	/* it goes on: at its new deadline, or if it set none later, at the
+	   next turn of the loop, not again in this one */
+	if(ss->deadline && ss->deadline <= now) ss->deadline = now + 1;
+	udpafter(st, ss, 0);
+ }
+}
+
+/* The sessions ended in this turn of the loop let go. */
+static void udpreap(struct udpstate *st){
+ struct udpsession *ss;
+
+ while((ss = st->dead)){
+	st->dead = ss->dnext;
+	ss->dnext = NULL;
+	udpheapdel(st, ss);
+	udpremove(st, ss);
+#ifdef UDPEPOLL
+	udpunwatch(st, ss);
+#endif
+	udpend(ss);
+ }
 }
 
 #ifndef STDMAIN
@@ -217,8 +369,11 @@ static void udphandover(struct udpstate *st){
 #ifdef UDPEPOLL
 	udpunwatch(st, ss);
 #endif
+	/* the deadline, on the same clock, goes along; the heap does not */
+	ss->hidx = -1;
 	last = ss;
  }
+ st->nheap = 0;
  if(!last) return;
  if(!l){
 	udpendall(st->head, 26);
@@ -254,9 +409,14 @@ static void udpadopt(struct udpstate *st){
 	ss->next = ss->prev = NULL;
 	/* watched by the old service's loop, not by this one yet */
 	ss->regsock = ss->regctrl = INVALID_SOCKET;
+	ss->hidx = -1;
 	param = ss->param;
 	old = param->srv;
-	if(old == srv) { udpadd(st, ss); continue; }
+	if(old == srv) {
+		udpadd(st, ss);
+		udpafter(st, ss, 0);
+		continue;
+	}
 	if(param->service != srv->service){
 		param->res = 26;
 		udpend(ss);
@@ -303,6 +463,7 @@ static void udpadopt(struct udpstate *st){
 		continue;
 	}
 	udpadd(st, ss);
+	udpafter(st, ss, 0);
  }
 }
 #endif
@@ -326,7 +487,7 @@ static int udpolder(struct srvparam *srv){
 
 /* The datagrams waiting on the service's socket: to a session, or a new
    one. Some at a time, so that the sessions get their turn. */
-static void udpclients(struct udpstate *st, time_t now){
+static void udpclients(struct udpstate *st){
  struct srvparam *srv = st->u.srv;
  struct clientparam *defparam = st->u.defparam;
  struct udpsession *ss;
@@ -350,23 +511,26 @@ static void udpclients(struct udpstate *st, time_t now){
 	   !memcmp(SAADDR(&ss->param->sincr), SAADDR(&defparam->sincr), SAADDRLEN(&defparam->sincr)) &&
 	   *SAPORT(&ss->param->sincr) == *SAPORT(&defparam->sincr)){
 		if(ss->done) continue;
-		udprefresh(ss, now);
-		if(st->svc->client && (*st->svc->client)(&st->u, ss, srv->udpbuf, len)) ss->done = 1;
+		udprefresh(ss, st->u.now);
+		udpafter(st, ss, st->svc->client && (*st->svc->client)(&st->u, ss, srv->udpbuf, len));
 		continue;
 	}
 	if(!(ss = udpnew(st))) continue;
 	ss->param->sincr = defparam->sincr;
 	udpadd(st, ss);
-	if((*st->svc->first)(&st->u, ss, srv->udpbuf, len)) ss->done = 1;
-	else if(!ss->deadline || ss->idle) udprefresh(ss, now);
+	if((*st->svc->first)(&st->u, ss, srv->udpbuf, len)) {
+		udpafter(st, ss, 1);
+		continue;
+	}
+	if(!ss->deadline || ss->idle) udprefresh(ss, st->u.now);
+	udpafter(st, ss, 0);
  }
 }
 
 static int udploop(struct srvstart *s){
  struct udpstate st;
  struct srvparam *srv = &s->srv;
- struct udpsession *ss, *next;
- time_t now;
+ struct udpsession *ss;
  int i, n, timeo, res = 0, wait = 0, srvready;
 #ifndef UDPEPOLL
  int nfds;
@@ -412,29 +576,31 @@ static int udploop(struct srvstart *s){
 #endif
 		st.nalloc = want;
 	}
-	now = time(NULL);
+	st.u.now = monotime();
 	timeo = 1000;
 #ifndef STDMAIN
 	/* waiting for an older service's sessions: soon looked for again */
 	if((wait = udpolder(srv))) timeo = 20;
 #endif
+	/* until the nearest deadline at most */
+	if(st.nheap){
+		uint64_t first = st.heap[0]->hkey;
+
+		if(first <= st.u.now) timeo = 0;
+		else if(first - st.u.now < (uint64_t)timeo) timeo = (int)(first - st.u.now);
+	}
 	srvready = 0;
 #ifdef UDPEPOLL
 	if(st.srvevents != (wait? 0 : POLLIN)){
 		st.srvevents = wait? 0 : POLLIN;
 		udpwatch(&st, EPOLL_CTL_MOD, srv->srvsock, st.srvevents, NULL);
 	}
-	for(ss = st.head; ss; ss = ss->next){
-		if(ss->deadline && (ss->deadline - now) * 1000 < timeo)
-			timeo = ss->deadline > now? (int)(ss->deadline - now) * 1000 : 0;
-		udpsync(&st, ss);
-	}
 	n = epoll_wait(st.ep, st.evs, st.nalloc, timeo);
 	if(n < 0 && errno != EINTR){
 		res = 91;
 		break;
 	}
-	now = time(NULL);
+	st.u.now = monotime();
 	for(i = 0; i < n; i++){
 		uintptr_t tag = (uintptr_t)st.evs[i].data.ptr;
 
@@ -445,10 +611,10 @@ static int udploop(struct srvstart *s){
 		ss = (struct udpsession *)(tag & ~(uintptr_t)1);
 		if(ss->done) continue;
 		/* a parent's control connection: its end ends the session */
-		if(tag & 1) ss->done = 1;
+		if(tag & 1) udpafter(&st, ss, 1);
 		else {
-			udprefresh(ss, now);
-			if((*st.svc->server)(&st.u, ss)) ss->done = 1;
+			udprefresh(ss, st.u.now);
+			udpafter(&st, ss, (*st.svc->server)(&st.u, ss));
 		}
 	}
 #else
@@ -458,8 +624,6 @@ static int udploop(struct srvstart *s){
 	st.fds[nfds].revents = 0;
 	st.of[nfds++] = NULL;
 	for(ss = st.head; ss; ss = ss->next){
-		if(ss->deadline && (ss->deadline - now) * 1000 < timeo)
-			timeo = ss->deadline > now? (int)(ss->deadline - now) * 1000 : 0;
 		if(ss->param->remsock != INVALID_SOCKET){
 			st.fds[nfds].fd = ss->param->remsock;
 			st.fds[nfds].events = ss->events? ss->events : POLLIN;
@@ -479,41 +643,27 @@ static int udploop(struct srvstart *s){
 		res = 91;
 		break;
 	}
-	now = time(NULL);
+	st.u.now = monotime();
 	for(i = 1; n > 0 && i < nfds; i++){
 		ss = st.of[i];
 		if(!st.fds[i].revents || ss->done) continue;
 		if(st.fds[i].fd == ss->param->remsock){
-			udprefresh(ss, now);
-			if((*st.svc->server)(&st.u, ss)) ss->done = 1;
+			udprefresh(ss, st.u.now);
+			udpafter(&st, ss, (*st.svc->server)(&st.u, ss));
 		}
-		else ss->done = 1;
+		else udpafter(&st, ss, 1);
 	}
 	srvready = n > 0 && st.fds[0].revents;
 #endif
-	if(srvready && !wait) udpclients(&st, now);
-	for(ss = st.head; ss; ss = next){
-		next = ss->next;
-		if(!ss->done && ss->deadline && ss->deadline <= now){
-			if(st.svc->timeout) ss->done = (*st.svc->timeout)(&st.u, ss);
-			else {
-				ss->done = 1;
-				ss->param->res = st.svc->timeoutres;
-			}
-		}
-		if(ss->done){
-			udpremove(&st, ss);
-#ifdef UDPEPOLL
-			udpunwatch(&st, ss);
-#endif
-			udpend(ss);
-		}
-	}
+	if(srvready && !wait) udpclients(&st);
+	udpexpire(&st);
+	udpreap(&st);
  }
 #ifndef STDMAIN
  if(srv->config->paused != srv->paused) udphandover(&st);
 #endif
  udpendall(st.head, 26);
+ free(st.heap);
  if(st.svc->keyed) destroyhashtable(&st.keys);
 #ifdef UDPEPOLL
  close(st.ep);

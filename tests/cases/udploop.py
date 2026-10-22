@@ -172,6 +172,29 @@ def run(t):
         t.fail("two seconds of silence end it, logged with 92", "a 00092 line", "none")
     s.close()
 
+    # --- a session heard from lives on past its first deadline, and ends
+    # its idle time after the last datagram, neither sooner nor much later
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    answered = 0
+    for i in range(10):
+        if exchange(s, idle, f"k{i}".encode()) == f"echo:k{i}".encode():
+            answered += 1
+        time.sleep(0.5)
+    cport = s.getsockname()[1]
+    last = time.time()
+    t.eq(10, answered, "a datagram every half second for five seconds is answered")
+    t.ok("and the session lives on through them") if not idle_ended() else \
+        t.fail("and the session lives on through them", "no 00092 line", "ended")
+    while time.time() < last + 6 and not idle_ended():
+        time.sleep(0.1)
+    took = time.time() - last
+    if idle_ended() and 1.5 <= took <= 3.5:
+        t.ok("then two seconds of silence end it")
+    else:
+        t.fail("then two seconds of silence end it", "ended 1.5-3.5 s after the last",
+               f"{'ended' if idle_ended() else 'not ended'} after {took:.1f} s")
+    s.close()
+
     # --- maxconn: a client without a free slot is not answered -------------
     held = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in range(2)]
     t.eq([b"echo:a", b"echo:a"], [exchange(h, limited, b"a") for h in held],

@@ -179,7 +179,7 @@ static int dnsforward(struct udploop *u, struct udpsession *ss){
 		if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) continue;
 		param->sinsr = ns[q->server].addr;
 		ss->idle = 0;
-		ss->deadline = time(NULL) + param->srv->timeouts[DNS_TO];
+		ss->deadline = u->now + (uint64_t)param->srv->timeouts[DNS_TO] * 1000;
 		if(q->tcp){
 			/* connected, then written to, as the loop sees it writable */
 			if(param->srv->so._connect(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, SASIZE(&param->sinsr))
