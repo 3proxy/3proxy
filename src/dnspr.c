@@ -15,6 +15,12 @@
 
 #define BUFSIZE 16384
 
+/* An answer to the query asked: our id, a response, and the question
+   byte for byte. */
+static int dnsanswer(const unsigned char *buf, int len, const unsigned char *q, int qend){
+ return len >= qend && buf[0] == q[0] && buf[1] == q[1] && (buf[2] & 0x80) &&
+	buf[4] == q[4] && buf[5] == q[5] && !memcmp(buf + 12, q + 12, qend - 12);
+}
 
 void * dnsprchild(struct clientparam* param) {
  uint32_t ip = 0;
@@ -144,6 +150,20 @@ void * dnsprchild(struct clientparam* param) {
 	else ip = 0;
  }
  if(!ip && numservers){
+	/* the question, to check the answer against; the name server is
+	   asked under an id of our own, the client's put back in its answer */
+	unsigned char question[1024], cid[2];
+	int qend = (len < i)? len : i;
+	unsigned short id = (unsigned short)myrand();
+	PROXYSOCKADDRTYPE from;
+	time_t deadline;
+	int to;
+
+	cid[0] = buf[0];
+	cid[1] = buf[1];
+	buf[0] = (unsigned char)(id >> 8);
+	buf[1] = (unsigned char)(id & 0xff);
+	memcpy(question, buf, qend);
 	if((param->remsock=param->srv->so._socket(param->sostate, SASOCK(&nservers[0].addr), nservers[0].usetcp? SOCK_STREAM:SOCK_DGRAM, nservers[0].usetcp?IPPROTO_TCP:IPPROTO_UDP)) == INVALID_SOCKET) {
 		RETURN(818);
 	}
@@ -172,9 +192,21 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	param->statscli64 += i;
 	param->nwrites++;
-	len = sockrecvfrom(param, param->remsock, (struct sockaddr *)&param->sinsr, buf, BUFSIZE, conf.timeouts[DNS_TO]*1000);
-	if(len <= 13) {
-		RETURN(821);
+	/* over UDP only an answer from the name server asked is taken, any
+	   other read past while the time for it lasts */
+	deadline = time(NULL) + conf.timeouts[DNS_TO];
+	for(;;){
+		to = (int)(deadline - time(NULL));
+		if(to <= 0) RETURN(821);
+		len = sockrecvfrom(param, param->remsock, (struct sockaddr *)&from, buf, BUFSIZE, to*1000);
+		if(len <= 13) {
+			RETURN(821);
+		}
+		if(nservers[0].usetcp) break;
+		if(*SAFAMILY(&from) == *SAFAMILY(&param->sinsr) &&
+		   !memcmp(SAADDR(&from), SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr)) &&
+		   *SAPORT(&from) == *SAPORT(&param->sinsr) &&
+		   dnsanswer(buf, len, question, qend)) break;
 	}
 	param->statssrv64 += len;
 	param->nreads++;
@@ -186,7 +218,10 @@ void * dnsprchild(struct clientparam* param) {
 		len -= 2;
 		if(len < us) len += sockgetlinebuf(param, SERVER, buf+len, us - len, 0, conf.timeouts[SINGLEBYTE_L]);
 		if(len != us) RETURN(832);
+		if(!dnsanswer(buf, len, question, qend)) RETURN(834);
 	}
+	buf[0] = cid[0];
+	buf[1] = cid[1];
 	if(buf[6] || buf[7]){
 		if(socksendto(param, param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
 			RETURN(822);
