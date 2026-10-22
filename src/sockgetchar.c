@@ -60,15 +60,21 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 
 	fds.fd = sock;
 	fds.events = POLLIN;
-	if(timetoexit) return EOF;
-	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
-	if (res<1) return 0;
-	sasize = sizeof(PROXYSOCKADDRTYPE);
-	/* sin NULL for a stream socket: nothing to learn the address into */
-	do {
-		res = param?param->srv->so._recvfrom(param->sostate, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, sin? &sasize : NULL):so._recvfrom(so.state, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, sin? &sasize : NULL);
-	} while (res < 0 && (errno == EAGAIN || errno == EINTR));
-	return res;
+	for(;;){
+		if(timetoexit) return EOF;
+		res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
+		if (res<1) return 0;
+		sasize = sizeof(PROXYSOCKADDRTYPE);
+		/* sin NULL for a stream socket: nothing to learn the address into */
+		do {
+			res = param?param->srv->so._recvfrom(param->sostate, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, sin? &sasize : NULL):so._recvfrom(so.state, sock, (char *)buf, bufsize, 0, (struct sockaddr *)sin, sin? &sasize : NULL);
+		} while (res < 0 && errno == EINTR);
+		/* readable and still nothing to read: over TLS a record not yet
+		   whole. Read again, without polling, it would only be the same until
+		   the rest came, a loop taking all of a CPU and never timing out: the
+		   socket is polled for it instead. */
+		if(res >= 0 || errno != EAGAIN) return res;
+	}
 }
 
 /* Starts an empty buffer over from its beginning, and goes back to the
