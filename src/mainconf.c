@@ -145,12 +145,27 @@ void setopts(SOCKET s, const struct sockoptset *opts, int maxseg){
 	}
 }
 
-/* Releases what the preparation and the run took, s itself excepted. */
-static void srvdiscard(struct srvstart *s){
- srvfree(&s->srv);
+static void srvstrings(struct srvstart *s){
  if(s->cbc_string) free(s->cbc_string);
  if(s->cbl_string) free(s->cbl_string);
 }
+
+/* Releases what the preparation and the run took, s itself excepted. */
+static void srvdiscard(struct srvstart *s){
+ srvfree(&s->srv);
+ srvstrings(s);
+}
+
+#ifndef STDMAIN
+/* A service which ran, released once its lines are written, s with it. */
+static void srvlater(void *p){
+ struct srvstart *s = (struct srvstart *)p;
+
+ srvrelease(&s->srv);
+ srvstrings(s);
+ free(s);
+}
+#endif
 
 #ifndef STDMAIN
 static void srvunlink(struct srvparam *srv){
@@ -673,11 +688,9 @@ int mainprepare(int argc, char** argv, void **service){
  return 0;
 }
 
+/* service is freed once its lines are written */
 int mainrun(void *service){
- int res = srvrun((struct srvstart *)service);
-
- free(service);
- return res;
+ return srvrun((struct srvstart *)service);
 }
 
 #endif
@@ -782,7 +795,9 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
 	param->sinsr = srv->extsa;
 }
 
-void srvfree(struct srvparam * srv){
+/* A service ended: its sockets closed, its clients gone. What its lines
+   refer to is kept for srvrelease(). */
+void srvstop(struct srvparam * srv){
  int i;
 
 #ifndef STDMAIN
@@ -810,6 +825,11 @@ void srvfree(struct srvparam * srv){
  for(i = srv->maxchild; i; i--) _3proxy_sem_lock(srv->childslots);
  _3proxy_mutex_lock(&srv->counter_mutex);
  _3proxy_mutex_unlock(&srv->counter_mutex);
+}
+
+/* What a stopped service holds: once the lines logged for it, which refer
+   to it and to its configuration, are written. */
+void srvrelease(struct srvparam * srv){
 #ifndef STDMAIN
  if(srv->filter){
 	while(srv->nfilters){
@@ -859,6 +879,11 @@ void srvfree(struct srvparam * srv){
 	confput(c);
  }
 #endif
+}
+
+void srvfree(struct srvparam * srv){
+ srvstop(srv);
+ srvrelease(srv);
 }
 
 #ifndef STDMAIN

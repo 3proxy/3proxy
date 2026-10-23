@@ -44,6 +44,81 @@ def _opened(pid, path):
     return n
 
 
+def _stalled(t):
+    """A log nobody reads: a FIFO whose pipe is full. Clients are not held
+    up, the lines past the queue are dropped and counted, and lines queued
+    for a service a reload removed are still written as it formatted them."""
+    fifo = os.path.join(t.tmpdir, "logs-fifo")
+    os.mkfifo(fifo)
+    # opened for reading before 3proxy opens it for writing, then not read
+    rfd = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+    origin, port, adm = t.free_port(), t.free_port(), t.free_port()
+
+    # lines of 2 KB, made so by the service's format: the pipe's 64 KB fill
+    # before the requests are done
+    pad = "z" * 2000
+
+    def conf(proxyline):
+        return f"""
+            log
+            maxlogqueue 8
+            auth iponly
+            allow *
+            http data * /data
+            httpsrv -p{origin}
+            flush
+            admin -p{adm}
+            flush
+            logformat "LQ {pad} %T"
+            auth iponly
+            allow *
+            {proxyline}
+        """
+
+    server = t.start("logs_stall", conf(f'proxy -p{port} -l{fifo}'),
+                     ports=[origin, port, adm])
+    began = time.time()
+    ok = 0
+    for i in range(120):
+        r = t.http(f"http://127.0.0.1:{origin}/data?size=10&n{i:04d}",
+                   proxy=f"127.0.0.1:{port}")
+        ok += r.status == 200
+    t.eq(120, ok, "a log nobody reads holds no client up")
+    t.eq(True, time.time() - began < 60, "and they are not slowed to its pace")
+    # the service goes: its lines still queued are written as it made them
+    t.write_config("logs_stall", conf("flush"))
+    t.http(f"http://127.0.0.1:{adm}/R")
+    got = b""
+    deadline = time.time() + 15
+    while time.time() < deadline and "has its queue full" not in server.output():
+        try:
+            chunk = os.read(rfd, 65536)
+        except BlockingIOError:
+            chunk = b""
+        got += chunk
+        if not chunk:
+            time.sleep(0.05)
+    t.eq(True, "has its queue full" in server.output(),
+         "the lines past its queue are dropped, and said so")
+    # what is left in the pipe and the queue, read to the end
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        try:
+            chunk = os.read(rfd, 65536)
+        except BlockingIOError:
+            chunk = b""
+        if chunk:
+            got += chunk
+            deadline = time.time() + 1
+        else:
+            time.sleep(0.05)
+    os.close(rfd)
+    lines = got.decode("utf-8", "replace").splitlines()
+    t.eq(True, 0 < len(lines) < 120, "some lines are written, not all")
+    t.eq(True, all(l.startswith("Q " + pad) for l in lines),
+         "each as its service formats it, the service gone or not")
+
+
 def config(origin, p1, p2, p3, adm, main, shared=None):
     """p2 and p3 log to shared with -l, if it is given, or are not there."""
     lines = [f"log {main}", 'logformat "LLOG %N %T"', "auth iponly", "allow *",
@@ -108,7 +183,7 @@ def run(t):
     t.eq(True, _wait(lambda: _proxied(dated, "five")), "goes to the dated file")
     t.eq(False, _proxied(second, "five"), "not to the undated one")
 
-    # --- a log which fails ------------------------------------------------
+    # --- a log which fails: its lines dropped, and said so -----------------
     if os.path.exists("/dev/full"):
         o2, q = t.free_port(), t.free_port()
         full = t.start("logs_full", f"""
@@ -124,8 +199,14 @@ def run(t):
         for i in range(80):
             t.http(f"http://127.0.0.1:{o2}/data?size=10&{'x' * 40}{i}",
                    proxy=f"127.0.0.1:{q}")
-        t.eq(True, _wait(lambda: "LOG PROXY" in full.output()),
-             "the lines a full device refuses go to standard error")
+        t.eq(True, _wait(lambda: "Log /dev/full could not be written" in full.output()),
+             "a log a full device refuses says so on standard error")
+        t.eq(True, "records dropped" in full.output(), "with the records it dropped")
+        t.eq(False, "LOG PROXY" in full.output(), "its lines are not written elsewhere")
+
+    # --- a log which stalls: clients go on, the queue is bounded ----------
+    if hasattr(os, "mkfifo"):
+        _stalled(t)
 
     # --- a log which cannot be opened is an error in the configuration ---
     out = t.run_config("logs_bad", f"""

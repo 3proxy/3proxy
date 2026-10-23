@@ -204,6 +204,14 @@ int
 #define UDPBUFSIZE 16384
 #define CLIENTBUFSIZE (16384 + 64)
 #define CLIENTTMPBUFSIZE 8192
+/* The defaults of minlogqueue and maxlogqueue: the lines a log's queue
+   keeps slots for, and holds at most; -D at build time sets others. */
+#ifndef LOGQUEUEMIN
+#define LOGQUEUEMIN 64
+#endif
+#ifndef LOGQUEUEMAX
+#define LOGQUEUEMAX 4096
+#endif
 #define HOSTNAMELEN 256
 #define USERNAMELEN 128
 
@@ -638,20 +646,35 @@ struct logtype {
 	/* opens what it writes to, lg->data: 0, an error (an errno value), or
 	   < 0 if it cannot be reached now but is to be tried again */
 	int (*init)(struct logger *lg);
-	/* the line for a connection into buf, CLIENTTMPBUFSIZE: its length, -1
-	   for nothing to write; NULL if write() takes the connection itself */
-	int (*format)(struct logger *lg, struct clientparam *param, const unsigned char *s, unsigned char *buf);
+	/* the line for a connection, logged at sec and msec, into buf,
+	   CLIENTTMPBUFSIZE: its length, -1 for nothing to write; NULL if
+	   write() takes the connection itself */
+	int (*format)(struct logger *lg, struct clientparam *param, const unsigned char *s, time_t sec, unsigned msec, unsigned char *buf);
 	/* 0, or an error */
 	int (*write)(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len);
 	void (*close)(struct logger *lg);
 	/* every second or so: rotation, flushing */
 	void (*tick)(struct logger *lg, time_t t);
-	int stacksize;	/* the client thread stack its writing needs */
+	int stacksize;	/* the stack its writing needs */
 	int standard;	/* kept open for the life of the process */
 	int text;	/* writes a line of text: errors can go there */
 	int params;	/* the string after a comma is parameters */
 };
 
+/* What a log's queue holds: a line (log.c's struct logslot, of which this
+   is the head), or something to do once the lines before it are written,
+   such as freeing a service they refer to. */
+struct logevent {
+	struct logevent *next;
+	int kind;
+	unsigned dropped;	/* lines dropped after this one, the queue full */
+	void (*func)(void *arg);
+	void *arg;
+};
+
+/* Once 3proxy runs, a logger has a thread of its own, which writes what its
+   queue holds: the clients do not wait for a log. Until then, and in a
+   standalone service, lines are written as they come. */
 struct logger {
 	struct logger *next;
 	const struct logtype *type;
@@ -660,20 +683,38 @@ struct logger {
 	void *data;		/* the type's own */
 	int refs;
 	int errors;		/* writes failed in a row */
-	int failed;		/* could not be reopened: lines go to standard error */
+	int failed;		/* could not be reopened: its lines are dropped */
 	time_t failtime;
+	unsigned faildropped;	/* lines dropped as it failed, not yet told */
 	ROTATION rotation;
 	int rotate, archiverc;
 	unsigned char **archiver;
 	time_t rotated;		/* when the file in use was opened */
 	int reopen;		/* the rotation changed: the file name too */
-	_3proxy_mutex_t mutex;	/* writing, reopening */
+	_3proxy_mutex_t mutex;	/* the queue; writing, while there is no thread */
+	/* the queue: the lines in it counted against maxlogqueue, the slots
+	   allocated kept down to minlogqueue as they come back */
+	struct logevent *head, *tail;
+	void *free;
+	int lines, slots;
+	_3proxy_sem_t wake;
+	int running,		/* has its thread */
+		stop,		/* its thread is to end once the queue is empty */
+		more;		/* for its thread: lines follow the one written */
+	/* given while its thread runs, for the thread to take */
+	int newrot, newparams;
+	ROTATION nrotation;
+	int nrotate, narchiverc;
+	unsigned char **narchiver;
+	unsigned char *nparams;
 };
 
 struct srvparam {
 	struct sockfuncs so;
 	struct srvparam *next;
 	struct srvparam *prev;
+	/* freeing it, queued to its log behind the lines which refer to it */
+	struct logevent logrelease;
 	struct listener *listener;	/* its listening socket, which a newer
 					   service may take over on a reload */
 	struct srvparam *lisnext;	/* the next service on the listener */
@@ -941,6 +982,7 @@ struct extparam {
 	struct srvparam *services;
 	int stacksize,
 		counterd, rotate, paused, archiverc,
+		minlogqueue, maxlogqueue,
 		demon, maxchild, backlog, version, noforce, bandlimver, parentretries;
 	unsigned authcachetype, authcachetime;
 	int filtermaxsize;

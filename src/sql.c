@@ -105,8 +105,8 @@ static int odbcinit(struct logger *lg){
     return odbcconnect(lg)? 0 : -1;
 }
 
-static int odbcformat(struct logger *lg, struct clientparam *param, const unsigned char *s, unsigned char *buf){
-    return logbuf(param, buf, s, (unsigned char *)"\'");
+static int odbcformat(struct logger *lg, struct clientparam *param, const unsigned char *s, time_t sec, unsigned msec, unsigned char *buf){
+    return logbuft(param, buf, s, (unsigned char *)"\'", sec, msec);
 }
 
 static int odbcwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){

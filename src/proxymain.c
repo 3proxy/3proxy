@@ -50,6 +50,10 @@ struct udpstate;
    Their functions of file scope are declared here, so that they can be in
    any order. */
 static void srvdiscard(struct srvstart *s);
+static void srvstrings(struct srvstart *s);
+#ifndef STDMAIN
+static void srvlater(void *p);
+#endif
 static void srvunlink(struct srvparam *srv);
 static int srvprepare(struct srvstart *s, int argc, char **argv);
 static int samestr(const char *a, const char *b);
@@ -163,12 +167,19 @@ EXIT:
 #endif
 
  if(!srv->silent) srv->logfunc(defparam, (unsigned char *)"Exiting thread");
- /* srvfree() waits for every slot to come back, this one included */
+ /* srvstop() waits for every slot to come back, this one included */
  if(haveslot) _3proxy_sem_unlock(srv->childslots);
- srvdiscard(s);
+ srvstop(srv);
 
 #ifndef _WIN32
  pthread_attr_destroy(&s->pa);
+#endif
+#ifndef STDMAIN
+ /* freed, s with it, once its log has written the lines which refer to it */
+ logcall(srv->logger, &srv->logrelease, srvlater, s);
+#else
+ srvrelease(srv);
+ srvstrings(s);
 #endif
  return res;
 }

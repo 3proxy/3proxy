@@ -34,7 +34,22 @@
 
 #define MAXUSERNAME 128
 #define _PASSWORD_LEN 256
+/* Defaults, -D at build time sets others: maxconn; threadpool, the idle
+   workers kept (-1 automatic: POOLPERSERVICE for each service, no more than
+   their maxconn together) and how long one waits, in seconds. Each idle
+   worker keeps its thread and its struct clientparam. */
+#ifndef DEFAULT_MAXCHILD
 #define DEFAULT_MAXCHILD 500
+#endif
+#ifndef DEFAULT_POOLMAX
+#define DEFAULT_POOLMAX -1
+#endif
+#ifndef DEFAULT_POOLTIMEOUT
+#define DEFAULT_POOLTIMEOUT 60
+#endif
+#ifndef POOLPERSERVICE
+#define POOLPERSERVICE 32
+#endif
 
 /* How much of a connection's buffer is read into at once: all of it, or
    less if the service was told so with -b. */
@@ -342,6 +357,7 @@ void dolog(struct clientparam * param, const unsigned char *s);
 int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
 int logbuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
+int logbuft(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, time_t sec, unsigned msec);
 void logdo(struct clientparam * param, const unsigned char *s);
 void logerror(const unsigned char *s);
 void loginit(void);
@@ -355,6 +371,7 @@ void logstdclose(void);
 size_t logselen(const unsigned char *selector);
 void logtick(time_t t);
 void logfinish(void);
+void logcall(struct logger *lg, struct logevent *ev, void (*func)(void *), void *arg);
 int timechanged (time_t oldtime, time_t newtime, ROTATION lt);
 extern struct logger lognull;
 #ifdef WITH_ODBC
@@ -500,6 +517,8 @@ FILTER_ACTION handledatfltsrv(struct clientparam *param, unsigned char ** buf_p,
 void srvinit(struct srvparam * srv, struct clientparam *param);
 void srvinit2(struct srvparam * srv, struct clientparam *param);
 void srvfree(struct srvparam * srv);
+void srvstop(struct srvparam * srv);
+void srvrelease(struct srvparam * srv);
 unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t);
 int readconfig(FILE * fp);
 void initcommands(void);

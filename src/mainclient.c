@@ -159,14 +159,14 @@ static void freeworker(struct clientparam *param){
  free(param);
 }
 
-/* The automatic cap: 32 idle workers for each running service, but never
-   more than all of them could have connections. */
+/* The automatic cap: POOLPERSERVICE idle workers for each running service,
+   but never more than all of them could have connections. */
 static unsigned poollimit(void){
  unsigned limit;
 
  if(runconf->poolmax >= 0) limit = (unsigned)runconf->poolmax;
  else {
-	limit = 32 * tpool.services;
+	limit = POOLPERSERVICE * tpool.services;
 	if(limit > tpool.maxchild) limit = tpool.maxchild;
  }
  tpool.limit = limit;

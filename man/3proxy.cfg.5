@@ -353,9 +353,19 @@ alone is stdout.
  A log is opened once for the same argument, whether given by log or by -l, and shared by every service using it; it
 is kept open over a configuration reload while some service still uses it, and closed once none does. stdout,
 stderr and syslog are opened at startup and never closed. rotate and archiver apply to the file of the last log
-command. A log which fails to be written is reopened, and if it cannot be, its records go to stderr while it is
-retried every minute. Errors and warnings with no connection go to stderr; after daemon (or as a Windows service)
+command. Errors and warnings with no connection go to stderr; after daemon (or as a Windows service)
 nothing goes to stdout or stderr: logging to stdout is none, and errors go to the last log configured.
+.br
+ Once 3proxy runs, each log is written by a thread of its own from a queue (see
+.BR minlogqueue
+and
+.BR maxlogqueue ):
+a client never waits for a log, a slow one (ODBC, RADIUS, a full disk) included. A record which finds the
+queue full is dropped. A log which fails to be written is reopened; if it cannot be, its records are dropped
+while it is retried every minute. Each time records are dropped, how many is said where errors go: "Log
+\fIname\fR has its queue full, \fIN\fR records dropped", "could not be written, opened again", "failed",
+"is open again". A service a reload removed is freed only once the records logged for it are written.
+Standalone services write their log as each record comes.
 .br
  log command supports same format specifications for filename template
 as "logformat" (if filename contains \'%\' sign it\'s believed to be template).
@@ -366,6 +376,18 @@ Grinwitch time zone for all time-based format specificators.
 .BR rotate
 \fI<n>\fR
  how many archived log files to keep
+
+.br
+.BR minlogqueue
+\fI<n>\fR
+.br
+.BR maxlogqueue
+\fI<n>\fR
+.br
+ The records a log's queue keeps room for, allocated as its thread starts (64 by default), and holds at
+most, records past it being dropped (4096 by default). Room taken by a burst beyond minlogqueue is freed
+as the queue empties. A record takes about 2 KB. The values of the configuration in force apply to every
+log. Other defaults can be given at build time with -DLOGQUEUEMIN=\fIn\fR and -DLOGQUEUEMAX=\fIn\fR.
 
 .br
 .BR logformat
@@ -1478,7 +1500,11 @@ instead of ending, and keeps the memory it had for its connection: a new
 connection starts without creating a thread. At most \fImax_idle\fR threads
 wait, each at most \fIidle_seconds\fR (60 by default; 0 waits without a limit).
 By default up to 32 threads wait for each running service, but no more than
-the services' maxchild together. \fBthreadpool 0\fR ends every thread with its
+the services' maxchild together. Each waiting thread keeps its stack and
+its connection's structure, about 60 KB with the buffers. Other defaults can
+be given at build time: -DDEFAULT_POOLMAX=\fIn\fR (-1 is the automatic
+cap), -DPOOLPERSERVICE=\fIn\fR (the 32), -DDEFAULT_POOLTIMEOUT=\fIseconds\fR
+and, for maxconn, -DDEFAULT_MAXCHILD=\fIn\fR (500). \fBthreadpool 0\fR ends every thread with its
 connection. A thread serves a service only if its stack is at least as large as
 the service needs (see \fBstacksize\fR), otherwise a new one is created.
 The admin service shows how many threads wait, how many were created and how

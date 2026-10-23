@@ -401,6 +401,18 @@ static int h_log(int argc, unsigned char ** argv){
 	return 0;
 }
 
+static int h_minlogqueue(int argc, unsigned char **argv){
+	conf->minlogqueue = atoi((char *)argv[1]);
+	if(conf->minlogqueue < 0) conf->minlogqueue = 0;
+	return 0;
+}
+
+static int h_maxlogqueue(int argc, unsigned char **argv){
+	conf->maxlogqueue = atoi((char *)argv[1]);
+	if(conf->maxlogqueue < 1) conf->maxlogqueue = 1;
+	return 0;
+}
+
 static int h_stacksize(int argc, unsigned char **argv){
 	conf->stacksize = atoi((char *)argv[1]);
 	return 0;
@@ -2114,6 +2126,8 @@ struct commands commandhandlers[]={
 	{NULL, "delimchar",h_delimchar, 2, 2},
 	{NULL, "authnserver", h_authnserver, 2, 2},
 	{NULL, "stacksize", h_stacksize, 2, 2},
+	{NULL, "minlogqueue", h_minlogqueue, 2, 2},
+	{NULL, "maxlogqueue", h_maxlogqueue, 2, 2},
 	{NULL, "threadpool", h_threadpool, 2, 3},
 	{NULL, "force", h_force, 1, 1},
 	{NULL, "noforce", h_noforce, 1, 1},

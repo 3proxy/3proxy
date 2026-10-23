@@ -538,12 +538,17 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
         	{ (LPSTR)conf->stringtable[1], (LPSERVICE_MAIN_FUNCTION)ServiceMain},
 	        { NULL, NULL }
 	};	
- 	if(!StartServiceCtrlDispatcher( ste ))cyclestep();
+ 	if(!StartServiceCtrlDispatcher( ste )){
+		cyclestep();
+		logfinish();
+	}
   }
   else 
 #endif
   {
 	cyclestep();
+	/* what is queued to the logs written */
+	logfinish();
   }
   
 
@@ -552,6 +557,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	 signal(SIGTERM, mysigterm);
 	 signal(SIGUSR1, mysigusr1);
 	 cyclestep();
+	 /* what is queued to the logs written */
+	 logfinish();
 
 #endif
 
