@@ -10,17 +10,22 @@
 
 
 #include "proxy.h"
-_3proxy_mutex_t log_mutex;
+_3proxy_mutex_t log_mutex;	/* the list of loggers and what they are held by */
 
 
+/* the connection lines with no connection of their own are formatted for */
 struct clientparam logparam;
 struct srvparam logsrv;
 
+/* writes failed in a row before a log is closed and opened again, and how
+   long one that could not be opened again waits before the next attempt */
+#define LOGERRORS 3
+#define LOGRETRY 60
 
 
 void dolog(struct clientparam * param, const unsigned char *s){
 	if(param && param->srv)param->srv->logfunc(param, s);
-	else logstdout(NULL, s);
+	else logerror(s);
 }
 
 
@@ -71,12 +76,6 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 	struct timezone tz;
 #endif
 
-	if(!logparam.srv) {
-		srvinit(&logsrv, &logparam);
-		/* not a service: it holds no configuration, and the first one
-		   is never freed, only what it holds */
-		logsrv.config = &confboot;
-	}
 	if(!param) param = &logparam;
 
 
@@ -317,51 +316,622 @@ int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char 
 	return i;
 }
 
-int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec){
+int timechanged (time_t oldtime, time_t newtime, ROTATION lt){
+	struct tm tmold;
+	struct tm *tm;
+	tm = localtime(&oldtime);
+	if(!tm) return 0;
+	tmold = *tm;
+	tm = localtime(&newtime);
+	if(!tm) return 0;
+	switch(lt){
+		case MINUTELY:
+			if(tm->tm_min != tmold.tm_min)return 1;
+			break;
+		case HOURLY:
+			if(tm->tm_hour != tmold.tm_hour)return 1;
+			break;
+		case DAILY:
+			if(tm->tm_yday != tmold.tm_yday)return 1;
+			break;
+		case MONTHLY:
+			if(tm->tm_mon != tmold.tm_mon)return 1;
+			break;
+		case ANNUALLY:
+			if(tm->tm_year != tmold.tm_year)return 1;
+			break;
+		case WEEKLY:
+			if(((newtime - oldtime) > (60*60*24*7))
+				|| tm->tm_wday < tmold.tm_wday
+				|| (tm->tm_wday == tmold.tm_wday && (newtime - oldtime) > (60*60*24*6))
+				)return 1;
+			break;
+		default:
+			break;	
+	}
+	return 0;
+}
+
+unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
+	struct tm *ts;
+	static const char * const rot_fmt[] = {
+		[NONE]     = "%s",
+		[ANNUALLY] = "%s.%04d",
+		[MONTHLY]  = "%s.%04d.%02d",
+		[DAILY]    = "%s.%04d.%02d.%02d",
+		[HOURLY]   = "%s.%04d.%02d.%02d-%02d",
+		[MINUTELY] = "%s.%04d.%02d.%02d-%02d.%02d",
+	};
+
+	ts = localtime(&t);
+	if(strlen((char *)name) >= 4096){
+	    *buf = 0;
+	    return buf;
+	}
+	if(strchr((char *)name, '%')){
+		dobuf2(NULL, buf, NULL, NULL, ts, (char *)name);
+	}
+	else if(lt == WEEKLY){
+		t = t - (ts->tm_wday * (60*60*24));
+		ts = localtime(&t);
+		sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
+	}
+	else if((unsigned)lt < sizeof(rot_fmt)/sizeof(rot_fmt[0]) && rot_fmt[lt]){
+		sprintf((char *)buf, rot_fmt[lt], name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour, ts->tm_min);
+	}
+	if(ext){
+		strcat((char *)buf, ".");
+		strcat((char *)buf, (char *)ext);
+	}
+	return buf;
+}
+
+/* The line for a connection, its length: with nothing else done, as a log
+   formats it. */
+int logbuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec){
 	struct tm* tm;
-	int i;
 	char * format;
 	time_t t;
-	int has_srv;
 
 	time(&t);
-	has_srv = param && param->srv;
-	if(has_srv){
-		if(param->trafcountfunc)(*param->trafcountfunc)(param);
-		format = param->srv->logformat?(char *)param->srv->logformat : DEFLOGFORMAT;
-	}
-	else {
-		format = DEFLOGFORMAT;
-	}
+	format = (param && param->srv && param->srv->logformat)?(char *)param->srv->logformat : DEFLOGFORMAT;
 	tm = (*format == 'G' || *format == 'g')?
 		gmtime(&t) : localtime(&t);
-	i = dobuf2(param, buf, s, doublec, tm, format + 1);
+	return dobuf2(param, buf, s, doublec, tm, format + 1);
+}
+
+/* The line, with the traffic counted and the statistics cleared, as logging
+   it does; for plugins. */
+int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec){
+	int i;
+	int has_srv;
+
+	has_srv = param && param->srv;
+	if(has_srv && param->trafcountfunc)(*param->trafcountfunc)(param);
+	i = logbuf(param, buf, s, doublec);
 	if(has_srv) clearstat(param);
 	return i;
 }
 
-void lognone(struct clientparam * param, const unsigned char *s) {
+
+static int logstdoff = 0;	/* a daemon or a service: no standard output and error */
+static int logticking = 0;	/* logtick() runs, and flushes the files */
+static struct logger *loggers = NULL;
+/* the last log configured, where errors go with no standard error */
+static struct logger *logerrlast = NULL;
+static const struct logtype *logtypes[8];
+static int nlogtypes = 0;
+
+static int logtext(struct logger *lg, struct clientparam *param, const unsigned char *s, unsigned char *buf){
+	return logbuf(param, buf, s, NULL);
+}
+
+static int matchnull(const unsigned char *selector){
+	return !strcmp((char *)selector, "/dev/null");
+}
+
+static const struct logtype logtype_none = {
+	"none", matchnull, NULL, NULL, NULL, NULL, NULL, 0, 1, 0
+};
+
+static int matchstdout(const unsigned char *selector){
+	return !*selector;
+}
+
+static int stdwrite(FILE *fp, const unsigned char *buf){
+	if(logstdoff) return 0;
+	if(fprintf(fp, "%s\n", buf) < 0) return 1;
+	fflush(fp);
+	return 0;
+}
+
+static int stdoutwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
+	return stdwrite(stdout, buf);
+}
+
+static int stderrwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
+	return stdwrite(stderr, buf);
+}
+
+static const struct logtype logtype_stdout = {
+	"stdout", matchstdout, NULL, logtext, stdoutwrite, NULL, NULL, 0, 1, 1
+};
+
+/* errors and warnings, and the lines of a log which fails */
+static const struct logtype logtype_stderr = {
+	"stderr", NULL, NULL, logtext, stderrwrite, NULL, NULL, 0, 1, 1
+};
+
+struct logger lognull = {NULL, &logtype_none, (unsigned char *)"/dev/null"};
+static struct logger logstdout = {NULL, &logtype_stdout, (unsigned char *)""};
+static struct logger logstderr = {NULL, &logtype_stderr, (unsigned char *)"stderr"};
+
+#ifndef _WIN32
+/* openlog() is one for the process: each syslog logger sets its own ident
+   before it writes */
+static _3proxy_mutex_t syslog_mutex;
+static const char *syslogident = NULL;
+
+static int matchsyslog(const unsigned char *selector){
+	return *selector == '@';
+}
+
+static int sysloginit(struct logger *lg){
+	_3proxy_mutex_lock(&syslog_mutex);
+	/* connected now: after a chroot there is no /dev/log to find */
+	syslogident = (char *)lg->selector + 1;
+	openlog(syslogident, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+	_3proxy_mutex_unlock(&syslog_mutex);
+	return 0;
+}
+
+static int syslogwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
+	_3proxy_mutex_lock(&syslog_mutex);
+	if(syslogident != (char *)lg->selector + 1){
+		syslogident = (char *)lg->selector + 1;
+		openlog(syslogident, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+	}
+	syslog(LOG_INFO, "%s", buf);
+	_3proxy_mutex_unlock(&syslog_mutex);
+	return 0;
+}
+
+static const struct logtype logtype_syslog = {
+	"syslog", matchsyslog, sysloginit, logtext, syslogwrite, NULL, NULL, 0, 1, 1
+};
+#endif
+
+/* a file, named after the time it was opened if rotated */
+#define LOGNAMESIZE 8192
+
+static int matchfile(const unsigned char *selector){
+	return 1;
+}
+
+static int fileinit(struct logger *lg){
+	unsigned char *name;
+	FILE *fp;
+	int err;
+
+	if(!(name = malloc(LOGNAMESIZE))) return 21;
+	dologname(name, lg->selector, NULL, lg->rotation, lg->rotated);
+	errno = ENAMETOOLONG;
+	fp = *name? fopen((char *)name, "a") : NULL;
+	err = errno;
+	free(name);
+	errno = err;
+	if(!fp) return 1;
+	lg->data = fp;
+	return 0;
+}
+
+static int filewrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
+	FILE *fp = (FILE *)lg->data;
+
+	if(!fp) return 1;
+	if(fprintf(fp, "%s\n", buf) < 0) return 1;
+	/* with nobody to flush it later, a standalone service */
+	if(!logticking && fflush(fp)) return 1;
+	return 0;
+}
+
+static void fileclose(struct logger *lg){
+	if(lg->data) fclose((FILE *)lg->data);
+	lg->data = NULL;
+}
+
+/* the seconds in a period of rotation */
+static time_t rotperiod(ROTATION rt){
+	time_t t = 1;
+
+	switch(rt){
+		case ANNUALLY:
+			t = t * 12;
+		case MONTHLY:
+			t = t * 4;
+		case WEEKLY:
+			t = t * 7;
+		case DAILY:
+			t = t * 24;
+		case HOURLY:
+			t = t * 60;
+		case MINUTELY:
+			t = t * 60;
+		default:
+			break;
+	}
+	return t;
+}
+
+/* Once the period changes, the file is reopened under its new name, the
+   one rotate periods old removed, and the one just closed passed to the
+   archiver. */
+static void filetick(struct logger *lg, time_t t){
+	unsigned char *name, *cmd;
+	const unsigned char *ext;
+	FILE *fp;
+	time_t period;
+	size_t len, add;
+	int i;
+
+	if(lg->data) fflush((FILE *)lg->data);
+	if(!lg->reopen && !timechanged(lg->rotated, t, lg->rotation)) return;
+	if(!(name = malloc(LOGNAMESIZE))) return;
+	dologname(name, lg->selector, NULL, lg->rotation, t);
+	/* the old one kept if the new one cannot be opened */
+	if(*name && (fp = fopen((char *)name, "a"))){
+		if(lg->data) fclose((FILE *)lg->data);
+		lg->data = fp;
+		lg->failed = lg->errors = 0;
+	}
+	lg->rotated = t;
+	lg->reopen = 0;
+	ext = (lg->archiver && lg->archiverc > 1)? lg->archiver[1] : NULL;
+	/* a name is at most 4096 bytes, its rotation suffix and ext to come */
+	if(lg->rotation == NONE || !lg->rotate || (ext && strlen((char *)ext) > 255)){
+		free(name);
+		return;
+	}
+	period = rotperiod(lg->rotation);
+	dologname(name, lg->selector, ext, lg->rotation, (lg->rotated - period * lg->rotate));
+	remove((char *)name);
+	if(lg->archiver && (cmd = malloc(4 * LOGNAMESIZE))){
+		*cmd = 0;
+		len = 0;
+		for(i = 2; i < lg->archiverc && len < 512; i++){
+			cmd[len++] = ' ';
+			cmd[len] = 0;
+			if(!strcmp((char *)lg->archiver[i], "%A") || !strcmp((char *)lg->archiver[i], "%F")){
+				dologname(name, lg->selector, (lg->archiver[i][1] == 'A')? ext : NULL, lg->rotation, (lg->rotated - period));
+				add = strlen((char *)name);
+				if(len + add + 3 >= 4 * LOGNAMESIZE) break;
+				cmd[len++] = '\"';
+				memcpy(cmd + len, name, add);
+				len += add;
+				cmd[len++] = '\"';
+			}
+			else {
+				add = strlen((char *)lg->archiver[i]);
+				if(len + add + 1 >= 4 * LOGNAMESIZE) break;
+				memcpy(cmd + len, lg->archiver[i], add);
+				len += add;
+			}
+			cmd[len] = 0;
+		}
+		if(len > 1 && system((char *)cmd + 1)){}
+		free(cmd);
+	}
+	free(name);
+}
+
+static const struct logtype logtype_file = {
+	"file", matchfile, fileinit, logtext, filewrite, fileclose, filetick, 0, 0, 1
+};
+
+
+/* The types a selector is matched against, the file last: ODBC and RADIUS,
+   which only 3proxy itself has, are added by it. */
+void logtypeadd(const struct logtype *type){
+	if(nlogtypes < (int)(sizeof(logtypes)/sizeof(logtypes[0]))) logtypes[nlogtypes++] = type;
+}
+
+static const struct logtype *logmatch(const unsigned char *selector){
+	static const struct logtype * const builtin[] = {
+		&logtype_none, &logtype_stdout,
+#ifndef _WIN32
+		&logtype_syslog,
+#endif
+	};
+	int i;
+
+	for(i = 0; i < (int)(sizeof(builtin)/sizeof(builtin[0])); i++)
+		if(builtin[i]->match(selector)) return builtin[i];
+	for(i = 0; i < nlogtypes; i++)
+		if(logtypes[i]->match && logtypes[i]->match(selector)) return logtypes[i];
+	return &logtype_file;
+}
+
+/* The standard loggers, before anything is logged. */
+void loginit(void){
+	static int done = 0;
+
+	if(done) return;
+	done = 1;
+	_3proxy_mutex_init(&log_mutex);
+	_3proxy_mutex_init(&lognull.mutex);
+	_3proxy_mutex_init(&logstdout.mutex);
+	_3proxy_mutex_init(&logstderr.mutex);
+	lognull.next = &logstdout;
+	loggers = &lognull;
+	srvinit(&logsrv, &logparam);
+	/* not a service: it holds no configuration and no log, and the first
+	   configuration is never freed, only what it holds */
+	logsrv.config = &confboot;
+	logsrv.logger = NULL;
+#ifndef _WIN32
+	_3proxy_mutex_init(&syslog_mutex);
+	/* kept for the life of the process, as every syslog logger is */
+	(void)logget((const unsigned char *)"@3proxy", NONE);
+#endif
+}
+
+/* The logger named so, opened if none is: held until logput(). NULL, with
+   errno set, if it cannot be opened. */
+struct logger *logget(const unsigned char *selector, ROTATION rotation){
+	struct logger *lg;
+	int err = 0;
+
+	_3proxy_mutex_lock(&log_mutex);
+	for(lg = loggers; lg; lg = lg->next){
+		if(!strcmp((char *)lg->selector, (char *)selector)){
+			lg->refs++;
+			_3proxy_mutex_unlock(&log_mutex);
+			return lg;
+		}
+	}
+	if(!(lg = calloc(1, sizeof(*lg))) || !(lg->selector = (unsigned char *)strdup((char *)selector))){
+		if(lg) free(lg);
+		_3proxy_mutex_unlock(&log_mutex);
+		errno = ENOMEM;
+		return NULL;
+	}
+	lg->type = logmatch(selector);
+	lg->rotation = rotation;
+	lg->rotated = time(NULL);
+	_3proxy_mutex_init(&lg->mutex);
+	/* < 0: not to be reached now, and tried again later */
+	if(lg->type->init && (err = lg->type->init(lg)) < 0){
+		lg->failed = 1;
+		lg->failtime = lg->rotated;
+	}
+	else if(err){
+		err = errno;
+		_3proxy_mutex_unlock(&log_mutex);
+		_3proxy_mutex_destroy(&lg->mutex);
+		free(lg->selector);
+		free(lg);
+		errno = err;
+		return NULL;
+	}
+	lg->refs = 1;
+	lg->next = loggers;
+	loggers = lg;
+	_3proxy_mutex_unlock(&log_mutex);
+	return lg;
+}
+
+void logref(struct logger *lg){
+	if(!lg) return;
+	_3proxy_mutex_lock(&log_mutex);
+	lg->refs++;
+	_3proxy_mutex_unlock(&log_mutex);
+}
+
+static void logfreearchiver(struct logger *lg){
+	int i;
+
+	if(!lg->archiver) return;
+	for(i = 0; i < lg->archiverc; i++) if(lg->archiver[i]) free(lg->archiver[i]);
+	free(lg->archiver);
+	lg->archiver = NULL;
+	lg->archiverc = 0;
+}
+
+/* The last to let go of a logger closes it, unless it is a standard one. */
+void logput(struct logger *lg){
+	struct logger **lp;
+	int gone = 0;
+
+	if(!lg) return;
+	_3proxy_mutex_lock(&log_mutex);
+	if(--lg->refs <= 0 && !lg->type->standard){
+		for(lp = &loggers; *lp; lp = &(*lp)->next){
+			if(*lp == lg){
+				*lp = lg->next;
+				gone = 1;
+				break;
+			}
+		}
+	}
+	_3proxy_mutex_unlock(&log_mutex);
+	if(!gone) return;
+	if(lg->type->close) lg->type->close(lg);
+	_3proxy_mutex_destroy(&lg->mutex);
+	logfreearchiver(lg);
+	free(lg->selector);
+	free(lg);
+}
+
+/* Where errors go: standard error, or for a daemon the last log
+   configured, which a text one has to be. Held until logput(). */
+static struct logger *logerrget(void){
+	struct logger *lg;
+
+	_3proxy_mutex_lock(&log_mutex);
+	lg = logstdoff? logerrlast : &logstderr;
+	if(lg) lg->refs++;
+	_3proxy_mutex_unlock(&log_mutex);
+	return lg;
+}
+
+void logerrset(struct logger *lg){
+	struct logger *old;
+
+	if(lg && !lg->type->text) lg = NULL;
+	_3proxy_mutex_lock(&log_mutex);
+	if(lg) lg->refs++;
+	old = logerrlast;
+	logerrlast = lg;
+	_3proxy_mutex_unlock(&log_mutex);
+	logput(old);
+}
+
+/* For a daemon or a service: standard output is no log, and errors go to
+   the last log configured. */
+void logstdclose(void){
+	if(logstdoff) return;
+	fflush(stdout);
+	fflush(stderr);
+	logstdoff = 1;
+}
+
+static void logwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len);
+
+/* The line of a log which failed, to standard error, or to where errors go.
+   Not to another log of the same: once there it would come back. */
+static void logfallback(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
+	struct logger *to;
+
+	if(len < 0) return;
+	if(!(to = logerrget())) return;
+	if(to != lg && !to->failed) logwrite(to, param, buf, len);
+	logput(to);
+}
+
+static void logwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
+	int res = 0, failed, report = 0;
+	time_t t;
+
+	_3proxy_mutex_lock(&lg->mutex);
+	if(lg->failed && (t = time(NULL)) - lg->failtime >= LOGRETRY){
+		if(lg->type->init && lg->type->init(lg)) lg->failtime = t;
+		else lg->failed = lg->errors = 0;
+	}
+	if(!(failed = lg->failed) && lg->type->write){
+		if((res = lg->type->write(lg, param, buf, len))){
+			/* open again what keeps failing, and if it cannot be
+			   opened, write elsewhere for a while */
+			if(++lg->errors >= LOGERRORS){
+				lg->errors = 0;
+				if(lg->type->close) lg->type->close(lg);
+				if(lg->type->init && lg->type->init(lg)){
+					lg->failed = 1;
+					lg->failtime = time(NULL);
+					report = 1;
+				}
+			}
+		}
+		else lg->errors = 0;
+	}
+	_3proxy_mutex_unlock(&lg->mutex);
+	if(failed || res) logfallback(lg, param, buf, len);
+	if(report){
+		unsigned char msg[300];
+
+		sprintf((char *)msg, "Log %.200s failed, its lines go to the error log", lg->selector);
+		logerror(msg);
+	}
+}
+
+/* The log function of the services, unless a plugin puts its own before
+   it: the traffic counted, the line written to the service's log, the
+   statistics cleared. */
+void logdo(struct clientparam * param, const unsigned char *s){
+	struct logger *lg = param->srv? param->srv->logger : NULL;
+	int len = -1;
+
 	if(param->trafcountfunc)(*param->trafcountfunc)(param);
+	if(lg && !param->nolog && lg->type->write){
+		if(lg->type->format) len = lg->type->format(lg, param, s, param->tmpbuf);
+		if(len >= 0 || !lg->type->format) logwrite(lg, param, param->tmpbuf, len);
+	}
 	clearstat(param);
 }
 
-void logstdout(struct clientparam * param, const unsigned char *s) {
-	FILE *log;
-	unsigned char *tmpbuf;
+/* An error or a warning, with no connection: where errors go. */
+void logerror(const unsigned char *s){
+	struct logger *lg;
+	unsigned char *buf;
+	int len;
 
-	/* with no connection, an error from the main thread */
-	tmpbuf = param? param->tmpbuf : logparam.tmpbuf;
-	dobuf(param, tmpbuf, s, NULL);
-	log = (param && param->srv && param->srv->stdlog)?param->srv->stdlog:runconf->stdlog?runconf->stdlog:stdout;
-	if(!param || !param->nolog)if(fprintf(log, "%s\n", tmpbuf) < 0) {
-		perror("printf()");
-	};
-	if(log != runconf->stdlog)fflush(log);
+	if(!(lg = logerrget())) return;
+	if(lg->type->format && lg->type->write && (buf = malloc(CLIENTTMPBUFSIZE))){
+		len = lg->type->format(lg, &logparam, s, buf);
+		if(len >= 0) logwrite(lg, &logparam, buf, len);
+		free(buf);
+	}
+	logput(lg);
 }
-#ifndef _WIN32
-void logsyslog(struct clientparam * param, const unsigned char *s) {
-	dobuf(param, param->tmpbuf, s, NULL);
-	if(!param->nolog)syslog(LOG_INFO, "%s", param->tmpbuf);
-}
-#endif
 
+/* What a configuration says of its last log, once it is in force: the
+   rotation, and that errors go there for a daemon. */
+void logcommit(struct extparam *c){
+	struct logger *lg = c->logger;
+	unsigned char **archiver = NULL;
+	int i, archiverc = 0;
+
+	logerrset(lg);
+	if(!lg || lg->type != &logtype_file) return;
+	if(c->archiver && c->archiverc > 0 && (archiver = calloc(c->archiverc, sizeof(*archiver)))){
+		for(archiverc = 0; archiverc < c->archiverc; archiverc++){
+			if(!(archiver[archiverc] = (unsigned char *)strdup((char *)c->archiver[archiverc]))) break;
+		}
+		if(archiverc < c->archiverc){
+			for(i = 0; i < archiverc; i++) free(archiver[i]);
+			free(archiver);
+			archiver = NULL;
+			archiverc = 0;
+		}
+	}
+	_3proxy_mutex_lock(&log_mutex);
+	_3proxy_mutex_lock(&lg->mutex);
+	if(lg->rotation != c->logtype) lg->reopen = 1;
+	lg->rotation = c->logtype;
+	lg->rotate = c->rotate;
+	logfreearchiver(lg);
+	lg->archiver = archiver;
+	lg->archiverc = archiverc;
+	_3proxy_mutex_unlock(&lg->mutex);
+	_3proxy_mutex_unlock(&log_mutex);
+}
+
+/* Rotation and flushing, for every logger: from the main loop. */
+void logtick(time_t t){
+	struct logger *lg;
+
+	logticking = 1;
+	_3proxy_mutex_lock(&log_mutex);
+	for(lg = loggers; lg; lg = lg->next){
+		if(!lg->type->tick) continue;
+		_3proxy_mutex_lock(&lg->mutex);
+		lg->type->tick(lg, t);
+		_3proxy_mutex_unlock(&lg->mutex);
+	}
+	_3proxy_mutex_unlock(&log_mutex);
+}
+
+/* Closes every log as the process stops, its services done. */
+void logfinish(void){
+	struct logger *lg;
+
+	_3proxy_mutex_lock(&log_mutex);
+	for(lg = loggers; lg; lg = lg->next){
+		if(!lg->type->close) continue;
+		_3proxy_mutex_lock(&lg->mutex);
+		lg->type->close(lg);
+		lg->failed = 1;
+		lg->failtime = time(NULL);
+		_3proxy_mutex_unlock(&lg->mutex);
+	}
+	_3proxy_mutex_unlock(&log_mutex);
+}

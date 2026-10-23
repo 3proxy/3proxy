@@ -341,16 +341,25 @@ int hascap(const unsigned char *line, const char *cap);
 void dolog(struct clientparam * param, const unsigned char *s);
 int dobuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
 int dobuf2(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec, struct tm* tm, char * format);
-void logstdout(struct clientparam * param, const unsigned char *s);
-void logsyslog(struct clientparam * param, const unsigned char *s);
-void lognone(struct clientparam * param, const unsigned char *s);
-void logradius(struct clientparam * param, const unsigned char *s);
-
-#ifndef NOSQL
-void logsql(struct clientparam * param, const unsigned char *s);
-int init_sql(char * s);
-void close_sql();
+int logbuf(struct clientparam * param, unsigned char * buf, const unsigned char *s, const unsigned char * doublec);
+void logdo(struct clientparam * param, const unsigned char *s);
+void logerror(const unsigned char *s);
+void loginit(void);
+void logtypeadd(const struct logtype *type);
+struct logger *logget(const unsigned char *selector, ROTATION rotation);
+void logref(struct logger *lg);
+void logput(struct logger *lg);
+void logcommit(struct extparam *c);
+void logerrset(struct logger *lg);
+void logstdclose(void);
+void logtick(time_t t);
+void logfinish(void);
+int timechanged (time_t oldtime, time_t newtime, ROTATION lt);
+extern struct logger lognull;
+#ifdef WITH_ODBC
+extern const struct logtype logtype_odbc;
 #endif
+extern const struct logtype logtype_radius;
 int doconnect(struct clientparam * param);
 int alwaysauth(struct clientparam * param);
 int ipauth(struct clientparam * param);

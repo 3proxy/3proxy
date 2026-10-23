@@ -337,7 +337,20 @@ M</b> Monthly <b><br>
 Y</b> Annually <br>
 if logfile is not specified logging goes to stdout. You can
 specify individual logging options for gateway by using -l
-option in gateway configuration. <br>
+option in gateway configuration: -l takes the same arguments,
+-l@ident, -l&amp;odbc_string, -lradius or -lfilename, and -l
+alone is stdout. <br>
+A log is opened once for the same argument, whether given by
+log or by -l, and shared by every service using it; it is kept
+open over a configuration reload while some service still uses
+it, and closed once none does. stdout, stderr and syslog are
+opened at startup and never closed. rotate and archiver apply
+to the file of the last log command. A log which fails to be
+written is reopened, and if it cannot be, its records go to
+stderr while it is retried every minute. Errors and warnings
+with no connection go to stderr; after daemon (or as a Windows
+service) nothing goes to stdout or stderr: logging to stdout is
+none, and errors go to the last log configured. <br>
 log command supports same format specifications for filename
 template as &quot;logformat&quot; (if filename contains
 &acute;%&acute; sign it&acute;s believed to be template). As

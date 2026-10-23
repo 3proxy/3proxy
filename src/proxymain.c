@@ -25,7 +25,6 @@ struct srvstart {
 	struct srvparam srv;
 	struct clientparam defparam;
 	unsigned char *cbc_string, *cbl_string;
-	FILE *fp;
 	int isudp, iscbc, iscbl;
 	const struct udpservice *udp;
 #ifndef _WIN32
@@ -220,8 +219,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
 #endif
  _3proxy_mutex_init(&tpool.mutex);
+ loginit();
 
  if((res = srvprepare(&s, argc, argv))) return res;
+ /* errors go to the service's log once there is no standard error */
+ logerrset(s.srv.logger);
 #ifndef _WIN32
  if(s.inetd) {
 	fcntl(0,F_SETFL,O_NONBLOCK | fcntl(0,F_GETFL));

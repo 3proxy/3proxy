@@ -244,6 +244,7 @@ struct symbol;
 struct pluginlink;
 struct srvparam;
 struct listener;
+struct logger;
 
 typedef void (*LOGFUNC)(struct clientparam * param, const unsigned char *);
 typedef int (*AUTHFUNC)(struct clientparam * param);
@@ -624,6 +625,47 @@ struct hashtable {
 	uint32_t entropy;
 };
 
+/* A log, named by the string the log command or -l gives it: "" standard
+   output, "/dev/null" none, "@IDENT" syslog, "&DSN" ODBC, "radius" RADIUS
+   accounting, anything else a file. One logger serves every service and
+   configuration naming it the same way, and is closed once none uses it,
+   the standard ones (none, standard output and error, syslog) excepted. */
+struct logtype {
+	const char *name;
+	int (*match)(const unsigned char *selector);
+	/* opens what it writes to, lg->data: 0, an error, or < 0 if it cannot
+	   be reached now but is to be tried again */
+	int (*init)(struct logger *lg);
+	/* the line for a connection into buf, CLIENTTMPBUFSIZE: its length, -1
+	   for nothing to write; NULL if write() takes the connection itself */
+	int (*format)(struct logger *lg, struct clientparam *param, const unsigned char *s, unsigned char *buf);
+	/* 0, or an error */
+	int (*write)(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len);
+	void (*close)(struct logger *lg);
+	/* every second or so: rotation, flushing */
+	void (*tick)(struct logger *lg, time_t t);
+	int stacksize;	/* the client thread stack its writing needs */
+	int standard;	/* kept open for the life of the process */
+	int text;	/* writes a line of text: errors can go there */
+};
+
+struct logger {
+	struct logger *next;
+	const struct logtype *type;
+	unsigned char *selector;
+	void *data;		/* the type's own */
+	int refs;
+	int errors;		/* writes failed in a row */
+	int failed;		/* could not be reopened: lines go to standard error */
+	time_t failtime;
+	ROTATION rotation;
+	int rotate, archiverc;
+	unsigned char **archiver;
+	time_t rotated;		/* when the file in use was opened */
+	int reopen;		/* the rotation changed: the file name too */
+	_3proxy_mutex_t mutex;	/* writing, reopening */
+};
+
 struct srvparam {
 	struct sockfuncs so;
 	struct srvparam *next;
@@ -684,7 +726,7 @@ struct srvparam {
 	_3proxy_mutex_t counter_mutex;
 	_3proxy_sem_t childslots;	/* maxchild of them, one held by each child */
 	struct pollfd fds;
-	FILE *stdlog;
+	struct logger *logger;	/* the log it writes to, held until srvfree() */
 	unsigned char * target;
 #if defined SO_BINDTODEVICE || defined IP_BOUND_IF
 	char * ibindtodevice;
@@ -705,7 +747,6 @@ struct srvparam {
 	struct auth *authfuncs;
 	struct filter *filter;
 	unsigned char * logformat;
-	unsigned char * logtarget;
 	unsigned char * nonprintable;
 	uint16_t targetport;
 	unsigned char replace;
@@ -902,8 +943,8 @@ struct extparam {
 	int poolmax, pooltimeout;	/* threadpool: idle workers kept, -1 automatic */
 	int gracetraf, gracenum, gracedelay;
 	int maxseg;
-	unsigned char *logname, **archiver;
-	ROTATION logtype, countertype;
+	unsigned char **archiver;
+	ROTATION logtype, countertype;	/* logtype: the rotation of the last log */
 	char * counterfile;
 	PROXYSOCKADDRTYPE intsa;
 #ifndef NOIPV6
@@ -916,13 +957,12 @@ struct extparam {
 	LOGFUNC logfunc;
 	BANDLIMFUNC bandlimfunc;
 	TRAFCOUNTFUNC trafcountfunc;
-	unsigned char *logtarget, *logformat;
+	unsigned char *logformat;
+	struct logger *logger;	/* the last log, the services' default */
 	struct filemon * fmon;
 	struct filter * filters;
 	struct auth *authfuncs;
-	FILE *stdlog;
 	unsigned char **stringtable;
-	time_t logtime;
 	unsigned logdumpsrv, logdumpcli;
 	char delimchar;
 	struct nserver authnserver;
@@ -933,7 +973,6 @@ struct extparam {
 	   freed when none does and it is no longer the one in force */
 	int refs;
 	struct hashtable pwl_table;	/* users */
-	int havelog;		/* log was configured */
 	int resolvmode;		/* RESOLVE_*: the last read, each service taking the one read before it */
 };
 

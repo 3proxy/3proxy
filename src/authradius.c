@@ -655,15 +655,23 @@ int radauth(struct clientparam * param){
 	int res;
 	/*radsend(param, 0, 0);*/
 	res = radsend(param, 1, 0);
-	if(!res && param->srv->logfunc == logradius)radsend(param, 0, 0);
+	if(!res && param->srv->logger && param->srv->logger->type == &logtype_radius)radsend(param, 0, 0);
 	return res;
 }
 
-void logradius(struct clientparam * param, const unsigned char *s) {
-	radsend(param, 0, 1);
-	if(param->trafcountfunc)(*param->trafcountfunc)(param);
-	clearstat(param);
+/* Accounting: what is sent is taken from the connection, not a line. */
+static int radmatch(const unsigned char *selector){
+	return !strcmp((char *)selector, "radius");
 }
+
+static int radwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len) {
+	radsend(param, 0, 1);
+	return 0;
+}
+
+const struct logtype logtype_radius = {
+	"radius", radmatch, NULL, NULL, radwrite, NULL, NULL, 0, 0, 0
+};
 
 
 

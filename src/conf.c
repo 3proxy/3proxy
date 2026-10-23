@@ -153,40 +153,6 @@ int getrotate(char c){
 }
 
 
-unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsigned char *ext, ROTATION lt, time_t t) {
-	struct tm *ts;
-	static const char * const rot_fmt[] = {
-		[NONE]     = "%s",
-		[ANNUALLY] = "%s.%04d",
-		[MONTHLY]  = "%s.%04d.%02d",
-		[DAILY]    = "%s.%04d.%02d.%02d",
-		[HOURLY]   = "%s.%04d.%02d.%02d-%02d",
-		[MINUTELY] = "%s.%04d.%02d.%02d-%02d.%02d",
-	};
-
-	ts = localtime(&t);
-	if(strlen((char *)name) >= 4096){
-	    *buf = 0;
-	    return buf;
-	}
-	if(strchr((char *)name, '%')){
-		dobuf2(NULL, buf, NULL, NULL, ts, (char *)name);
-	}
-	else if(lt == WEEKLY){
-		t = t - (ts->tm_wday * (60*60*24));
-		ts = localtime(&t);
-		sprintf((char *)buf, "%s.%04d.%02d.%02d", name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday);
-	}
-	else if((unsigned)lt < sizeof(rot_fmt)/sizeof(rot_fmt[0]) && rot_fmt[lt]){
-		sprintf((char *)buf, rot_fmt[lt], name, ts->tm_year+1900, ts->tm_mon+1, ts->tm_mday, ts->tm_hour, ts->tm_min);
-	}
-	if(ext){
-		strcat((char *)buf, ".");
-		strcat((char *)buf, (char *)ext);
-	}
-	return buf;
-}
-
 static int deferred_add(void *service);
 static int startservice(void *service);
 
@@ -412,74 +378,23 @@ static int h_external(int argc, unsigned char ** argv){
 }
 
 
-/* ODBC drivers require noticeably more stack than the file logger, raise
-   the client thread stack size unless a larger one is configured
-   explicitly. An explicit stacksize placed after the log command still wins.
- */
-#define LOGSTACKSIZE 32768
-
+/* A log whose writing needs more stack, ODBC, raises the client thread
+   stack size unless a larger one is configured; an explicit stacksize placed
+   after the log command still wins. */
 static int h_log(int argc, unsigned char ** argv){
-	unsigned char tmpbuf[8192];
-	int notchanged = 0;
+	struct logger *lg;
+	ROTATION rotation = (argc > 2)? getrotate(*argv[2]) : NONE;
 
-
-	conf->havelog = 1;
-	if(argc > 1 && conf->logtarget && !strcmp((char *)conf->logtarget, (char *)argv[1])) {
-		notchanged = 1;
+	/* the same log as before is not opened again */
+	lg = logget((argc > 1)? argv[1] : (unsigned char *)"", rotation);
+	if(!lg){
+		perror((argc > 1)? (char *)argv[1] : "log");
+		return 1;
 	}
-	if(!notchanged && conf->logtarget){
-		free(conf->logtarget);
-		conf->logtarget = NULL;
-	}
-	if(argc > 1) {
-		if(!strcmp((char *) argv[1], "/dev/null")) {
-			conf->logfunc = lognone;
-			return 0;
-		}
-		if(!notchanged) conf->logtarget = (unsigned char *)strdup((char *)argv[1]);
-		if(*argv[1]=='@'){
-#ifndef _WIN32
-			conf->logfunc = logsyslog;
-			if(notchanged) return 0;
-			/* connected now: after a chroot there is no /dev/log to find */
-			openlog((char *)conf->logtarget+1, LOG_PID | LOG_NDELAY, LOG_DAEMON);
-#endif
-		}
-#ifdef WITH_ODBC
-		else if(*argv[1]=='&'){
-			conf->logfunc = logsql;
-			if(conf->stacksize < LOGSTACKSIZE) conf->stacksize = LOGSTACKSIZE;
-			if(notchanged) return 0;
-			_3proxy_mutex_lock(&log_mutex);
-			close_sql();
-			init_sql((char *)argv[1]+1);
-			_3proxy_mutex_unlock(&log_mutex);
-		}
-#endif
-#ifndef NORADIUS
-		else if(!strcmp((char *)argv[1],"radius")){
-			conf->logfunc = logradius;
-		}
-#endif
-		else {
-			if(argc > 2) {
-				conf->logtype = getrotate(*argv[2]);
-			}
-			conf->logfunc = logstdout;
-			if(notchanged) return 0;
-			conf->logtime = time(0);
-			if(conf->logname)free(conf->logname);
-			conf->logname = (unsigned char *)strdup((char *)argv[1]);
-			if(conf->stdlog) conf->stdlog = freopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, conf->logtime), "a", conf->stdlog);
-			else conf->stdlog = fopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, conf->logtime), "a");
-			if(!conf->stdlog){
-				perror((char *)tmpbuf);
-				return 1;
-			}
-
-		}
-	}
-	else conf->logfunc = logstdout;
+	if(conf->stacksize < lg->type->stacksize) conf->stacksize = lg->type->stacksize;
+	logput(conf->logger);
+	conf->logger = lg;
+	conf->logtype = rotation;
 	return 0;
 }
 
@@ -510,7 +425,10 @@ static int h_service(int argc, unsigned char **argv){
 }
 
 static int h_daemon(int argc, unsigned char **argv){
-	if(!conf->demon)daemonize();
+	if(!conf->demon){
+		daemonize();
+		logstdclose();
+	}
 	conf->demon = 1;
 	return 0;
 }
@@ -2490,7 +2408,9 @@ void freeconf(struct extparam *confp){
  _3proxy_mutex_unlock(&connlim_mutex);
 
  if(confp->pwl_table.ihashtable) destroyhashtable(&confp->pwl_table);
- confp->logfunc = lognone;
+ confp->logfunc = logdo;
+ logput(confp->logger);
+ confp->logger = NULL;
  logformat = confp->logformat;
  confp->logformat = NULL;
  archiverc = confp->archiverc;
@@ -2533,10 +2453,6 @@ void freeconf(struct extparam *confp){
  if(confp->httprules) freehttprules(confp->httprules);
  confp->httprules = NULL;
 #endif
- if(confp->logname) free(confp->logname);
- confp->logname = NULL;
- if(confp->logtarget) free(confp->logtarget);
- confp->logtarget = NULL;
  if(confp->counterfile) free(confp->counterfile);
  confp->counterfile = NULL;
  if(confp->conffile) free(confp->conffile);
@@ -2618,12 +2534,11 @@ int reload (void){
 	if(!(new = malloc(sizeof(*new)))) return -1;
 	*new = confdefaults;
 	/* what belongs to the process rather than to one reading of the file:
-	   the open log, which a log command reopens, and the filters, a list
-	   of static entries the TLS, PCRE and transparent code link in once */
+	   the filters, a list of static entries the TLS, PCRE and transparent
+	   code link in once */
 	new->conffile = old->conffile;
 	new->stringtable = old->stringtable;
 	new->demon = old->demon;
-	new->stdlog = old->stdlog;
 	new->filters = old->filters;
 	new->version = old->version + 1;
 	new->refs = 1;	/* this reload's, until it is done with it */
@@ -2658,10 +2573,8 @@ int reload (void){
 			free(d);
 		}
 		old->conffile = new->conffile;
-		old->stdlog = new->stdlog;
 		old->filters = new->filters;
 		new->conffile = NULL;
-		new->stdlog = NULL;
 		new->filters = NULL;
 		new->stringtable = NULL;
 		conf = old;
@@ -2672,7 +2585,6 @@ int reload (void){
 	}
 
 	old->conffile = NULL;
-	old->stdlog = NULL;
 	old->filters = NULL;
 	old->stringtable = NULL;
 	confhold(old);
@@ -2680,6 +2592,7 @@ int reload (void){
 	runconf = new;
 	_3proxy_mutex_unlock(&confref_mutex);
 	confdnscommit();
+	logcommit(new);
 	resolvmode = new->resolvmode;
 	/* the new services take over the listening sockets of the old ones on
 	   the same addresses, which then stop accepting, and start */

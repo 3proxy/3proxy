@@ -579,19 +579,9 @@ static void * ef_server_backlog(struct node * node){
 }
 
 static void * ef_server_log(struct node * node){
-	if(((struct srvparam *)node->value) -> logfunc == lognone)	return "none";
-#ifndef NORADIUS
-	else if(((struct srvparam *)node->value) -> logfunc == logradius)	return "radius";
-#endif
-	else if(((struct srvparam *)node->value) -> logfunc == logstdout)
-		return (((struct srvparam *)node->value) -> logtarget)?"file":"stdout";
-#ifndef _WIN32
-	else if(((struct srvparam *)node->value) -> logfunc == logsyslog)	return "syslog";
-#endif
-#ifdef WITH_ODBC
-	else if(((struct srvparam *)node->value) -> logfunc == logsql)	return "odbc";
-#endif
-	return NULL;
+	struct logger *lg = ((struct srvparam *)node->value) -> logger;
+
+	return lg? (void *)lg->type->name : NULL;
 }
 
 static void * ef_server_logformat(struct node * node){
@@ -608,7 +598,9 @@ static void * ef_server_replacement(struct node * node){
 }
 
 static void * ef_server_logtarget(struct node * node){
-	return ((struct srvparam *)node->value) -> logtarget;
+	struct logger *lg = ((struct srvparam *)node->value) -> logger;
+
+	return (lg && *lg->selector)? lg->selector : NULL;
 }
 
 

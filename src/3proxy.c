@@ -101,11 +101,7 @@ void __stdcall ServiceMain(int argc, unsigned char* argv[] )
     SetStatus( SERVICE_START_PENDING, 0, 1 );
     SetStatus( SERVICE_RUNNING, 0, 0 );
     cyclestep();
-#ifdef WITH_ODBC
-    _3proxy_mutex_lock(&log_mutex);
-    close_sql();
-    _3proxy_mutex_unlock(&log_mutex);
-#endif
+    logfinish();
     /* the last thing: the process may be ended once this is reported */
     SetStatus( SERVICE_STOPPED, 0, 0 );
 }
@@ -144,42 +140,6 @@ struct schedule *schedule;
 
 
 int wday = 0;
-
-int timechanged (time_t oldtime, time_t newtime, ROTATION lt){
-	struct tm tmold;
-	struct tm *tm;
-	tm = localtime(&oldtime);
-	if(!tm) return 0;
-	tmold = *tm;
-	tm = localtime(&newtime);
-	if(!tm) return 0;
-	switch(lt){
-		case MINUTELY:
-			if(tm->tm_min != tmold.tm_min)return 1;
-			break;
-		case HOURLY:
-			if(tm->tm_hour != tmold.tm_hour)return 1;
-			break;
-		case DAILY:
-			if(tm->tm_yday != tmold.tm_yday)return 1;
-			break;
-		case MONTHLY:
-			if(tm->tm_mon != tmold.tm_mon)return 1;
-			break;
-		case ANNUALLY:
-			if(tm->tm_year != tmold.tm_year)return 1;
-			break;
-		case WEEKLY:
-			if(((newtime - oldtime) > (60*60*24*7))
-				|| tm->tm_wday < tmold.tm_wday
-				|| (tm->tm_wday == tmold.tm_wday && (newtime - oldtime) > (60*60*24*6))
-				)return 1;
-			break;
-		default:
-			break;	
-	}
-	return 0;
-}
 
 void doschedule(void){
 	struct schedule *sched, *prevsched = NULL, *nextsched;
@@ -280,7 +240,6 @@ static void waitservices(void){
 void cyclestep(void){
  struct tm *tm;
  time_t minutecounter;
- unsigned char tmpbuf[8192];
 
  minutecounter = time(0);
  for(;;){
@@ -294,7 +253,6 @@ void cyclestep(void){
 	}
 	doschedule();
 	sysdnscheck();
-	if(conf->stdlog)fflush(conf->stdlog);
 	if(timechanged(minutecounter, curtime, MINUTELY)) {
 		struct filemon *fm;
 		struct stat sb;
@@ -317,55 +275,7 @@ void cyclestep(void){
 			basetime = mktime(tm);
 		}
 	}
-	if(conf->logname) {
-		if(timechanged(conf->logtime, curtime, conf->logtype)) {
-			if(conf->stdlog) conf->stdlog = freopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, curtime), "a", conf->stdlog);
-			else conf->stdlog = fopen((char *)dologname (tmpbuf, conf->logname, NULL, conf->logtype, curtime), "a");
-			conf->logtime = curtime;
-			if(conf->logtype != NONE && conf->rotate) {
-				int t;
-				t = 1;
-				switch(conf->logtype){
-					case ANNUALLY:
-						t = t * 12;
-					case MONTHLY:
-						t = t * 4;
-					case WEEKLY:
-						t = t * 7;
-					case DAILY:
-						t = t * 24;
-					case HOURLY:
-						t = t * 60;
-					case MINUTELY:
-						t = t * 60;
-					default:
-						break;
-				}
-				dologname (tmpbuf, conf->logname, (conf->archiver)?conf->archiver[1]:NULL, conf->logtype, (conf->logtime - (time_t)t * conf->rotate));
-				remove ((char *) tmpbuf);
-				if(conf->archiver) {
-					int i;
-					*tmpbuf = 0;
-					for(i = 2; i < conf->archiverc && strlen((char *)tmpbuf) < 512; i++){
-						strcat((char *)tmpbuf, " ");
-						if(!strcmp((char *)conf->archiver[i], "%A")){
-							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf + strlen((char *)tmpbuf), conf->logname, conf->archiver[1], conf->logtype, (conf->logtime - t));
-							strcat((char *)tmpbuf, "\"");
-						}
-						else if(!strcmp((char *)conf->archiver[i], "%F")){
-							strcat((char *)tmpbuf, "\"");
-							dologname (tmpbuf+strlen((char *)tmpbuf), conf->logname, NULL, conf->logtype, (conf->logtime-t));
-							strcat((char *)tmpbuf, "\"");
-						}
-						else
-							strcat((char *)tmpbuf, (char *)conf->archiver[i]);
-					}
-					if(system((char *)tmpbuf+1)){}
-				}
-			}
-		}
-	}
+	logtick(curtime);
 	if(conf->counterd >= 0 && conf->trafcounter) {
 		if(timechanged(cheader.updated, curtime, MINUTELY)){
 			dumpcounters(conf->trafcounter, conf->counterd);
@@ -556,7 +466,17 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #ifdef __linux__
   nsopen();	/* before a chroot in the configuration takes /proc away */
 #endif
+  loginit();	/* standard output and error, syslog, before a chroot too */
+#if defined _WIN32 && !defined _WINCE
+  if(service) logstdclose();
+#endif
   sysdnsinit();	/* the system's name servers and hosts, before a chroot too */
+#ifdef WITH_ODBC
+  logtypeadd(&logtype_odbc);
+#endif
+#ifndef NORADIUS
+  logtypeadd(&logtype_radius);
+#endif
   _3proxy_mutex_init(&config_mutex);
   _3proxy_mutex_init(&confref_mutex);
   _3proxy_mutex_init(&listener_mutex);
@@ -566,7 +486,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   _3proxy_mutex_init(&bandlim_mutex);
   _3proxy_mutex_init(&connlim_mutex);
   _3proxy_mutex_init(&tc_mutex);
-  _3proxy_mutex_init(&log_mutex);
   _3proxy_mutex_init(&tpool.mutex);
 #ifndef NORADIUS
   _3proxy_mutex_init(&rad_mutex);
@@ -594,7 +513,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   /* numbered before it is read, as a reload numbers the new one */
   conf->version++;
   res = readconfig(fp);
-  if(!res) confdnscommit();
+  if(!res) {
+	confdnscommit();
+	logcommit(conf);
+  }
   resolvmode = conf->resolvmode;
 
   /* readconfig() names the failing line, which an exit status would cut

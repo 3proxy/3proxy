@@ -1,152 +1,131 @@
 #include "proxy.h"
 #ifdef WITH_ODBC
 
-SQLHENV  henv = NULL;
-SQLHSTMT hstmt = NULL;
-SQLHDBC hdbc = NULL;
-char * sqlstring = NULL;
+/* ODBC drivers require noticeably more stack than the file logger */
+#define LOGSTACKSIZE 32768
 
+struct logodbc {
+    SQLHENV  henv;
+    SQLHDBC hdbc;
+    SQLHSTMT hstmt;
+};
 
-void close_sql(){
-    if(hstmt) {
-	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
-	hstmt = NULL;
+static void odbcdisconnect(struct logodbc *d){
+    if(d->hstmt) {
+	SQLFreeHandle(SQL_HANDLE_STMT, d->hstmt);
+	d->hstmt = NULL;
     }
-    if(hdbc){
-	SQLDisconnect(hdbc);
-	SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
-	hdbc = NULL;
+    if(d->hdbc){
+	SQLDisconnect(d->hdbc);
+	SQLFreeHandle(SQL_HANDLE_DBC, d->hdbc);
+	d->hdbc = NULL;
     }
-    if(henv) {
-	SQLFreeHandle(SQL_HANDLE_ENV, henv);
-	henv = NULL;
+    if(d->henv) {
+	SQLFreeHandle(SQL_HANDLE_ENV, d->henv);
+	d->henv = NULL;
     }
 }
 
-int attempt = 0;
-time_t attempt_time = 0;
-
-int init_sql(char * s){
+/* &DATASOURCE,USERNAME,PASSWORD */
+static int odbcconnect(struct logger *lg){
+    struct logodbc *d = (struct logodbc *)lg->data;
     SQLRETURN  retcode;
     char * datasource;
     char * username;
     char * password;
     char * string;
 
-    if(!s) return 0;
-    if(!sqlstring || strcmp(sqlstring, s)){
-	string = sqlstring;
-	sqlstring=strdup(s);
-	if(string)free(string);
-    }
-
-    if(hstmt || hdbc || henv) close_sql();
-    attempt++;
-    attempt_time = time(0);
-    if(!henv){
-	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
-	if (!henv || (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)){
-	    henv = NULL;
+    if(d->hstmt || d->hdbc || d->henv) odbcdisconnect(d);
+    if(!d->henv){
+	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &d->henv);
+	if (!d->henv || (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)){
+	    d->henv = NULL;
 	    return 0;
 	}
-	retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (void*)SQL_OV_ODBC3, 0); 
+	retcode = SQLSetEnvAttr(d->henv, SQL_ATTR_ODBC_VERSION, (void*)SQL_OV_ODBC3, 0); 
 
 	if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
 	    return 0;
 	}
     }
-    if(!hdbc){
-	retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc); 
-	if (!hdbc || (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)) {
-	    hdbc = NULL;
-	    SQLFreeHandle(SQL_HANDLE_ENV, henv);
-	    henv = NULL;
+    if(!d->hdbc){
+	retcode = SQLAllocHandle(SQL_HANDLE_DBC, d->henv, &d->hdbc); 
+	if (!d->hdbc || (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)) {
+	    d->hdbc = NULL;
+	    SQLFreeHandle(SQL_HANDLE_ENV, d->henv);
+	    d->henv = NULL;
 	    return 0;
 	}
-            SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (void*)15, 0);
+            SQLSetConnectAttr(d->hdbc, SQL_LOGIN_TIMEOUT, (void*)15, 0);
     }
-    string = strdup(sqlstring);
+    string = strdup((char *)lg->selector + 1);
     if(!string) return 0;
     datasource = strtok(string, ",");
     username = strtok(NULL, ",");
     password = strtok(NULL, ",");
+    if(!datasource) datasource = "";
     
 
          /* Connect to data source */
-        retcode = SQLConnect(hdbc, (SQLCHAR*) datasource, (SQLSMALLINT)strlen(datasource),
+        retcode = SQLConnect(d->hdbc, (SQLCHAR*) datasource, (SQLSMALLINT)strlen(datasource),
                 (SQLCHAR*) username, (SQLSMALLINT)((username)?strlen(username):0),
                 (SQLCHAR*) password, (SQLSMALLINT)((password)?strlen(password):0));
 
     free(string);
     if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO){
-	SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
-	hdbc = NULL;
-	SQLFreeHandle(SQL_HANDLE_ENV, henv);
-	henv = NULL;
+	SQLFreeHandle(SQL_HANDLE_DBC, d->hdbc);
+	d->hdbc = NULL;
+	SQLFreeHandle(SQL_HANDLE_ENV, d->henv);
+	d->henv = NULL;
 	return 0;
     }
-        retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt); 
+        retcode = SQLAllocHandle(SQL_HANDLE_STMT, d->hdbc, &d->hstmt); 
         if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO){
-	close_sql();
+	odbcdisconnect(d);
 	return 0;
     }
     return 1;
 }
 
-void sqlerr (char *buf){
-    if(conf->stdlog){
-	fprintf(conf->stdlog, "%s\n", buf);
-	fflush(conf->stdlog);
-    }
-    _3proxy_mutex_unlock(&log_mutex);
+static int odbcmatch(const unsigned char *selector){
+    return *selector == '&';
 }
 
-unsigned char statbuf[8192];
+/* A data source down is not an error of the configuration: the log
+   connects again later. */
+static int odbcinit(struct logger *lg){
+    if(!lg->data && !(lg->data = calloc(1, sizeof(struct logodbc)))) return 21;
+    return odbcconnect(lg)? 0 : -1;
+}
 
-void logsql(struct clientparam * param, const unsigned char *s) {
+static int odbcformat(struct logger *lg, struct clientparam *param, const unsigned char *s, unsigned char *buf){
+    return logbuf(param, buf, s, (unsigned char *)"\'");
+}
+
+static int odbcwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
+    struct logodbc *d = (struct logodbc *)lg->data;
     SQLRETURN ret;
-    int len;
 
-
-    if(param->nolog) return;
-    _3proxy_mutex_lock(&log_mutex);
-    len = dobuf(param, statbuf, s, (unsigned char *)"\'");
-
-    if(attempt > 5){
-	time_t t;
-
-	t = time(0);
-	if (t - attempt_time < 180){
-	    sqlerr((char *)statbuf);
-	    return;
-	}
+    if(!d || !d->hstmt) return 1;
+    ret = SQLExecDirect(d->hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+    if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
+	/* the connection may be gone: once more on a new one */
+	if(!odbcconnect(lg)) return 1;
+	ret = SQLExecDirect(d->hstmt, (SQLCHAR *)buf, (SQLINTEGER)len);
+	if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) return 1;
     }
-    if(!hstmt){
-	if(!init_sql(sqlstring)) {
-	    sqlerr((char *)statbuf);
-	    return;
-	}
-    }
-    if(hstmt){
-	ret = SQLExecDirect(hstmt, (SQLCHAR *)statbuf, (SQLINTEGER)len);
-	if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
-	    close_sql();
-	    if(!init_sql(sqlstring)){
-		sqlerr((char *)statbuf);
-		return;
-	    }
-	    if(hstmt) {
-		ret = SQLExecDirect(hstmt, (SQLCHAR *)statbuf, (SQLINTEGER)len);
-		if(ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO){
-		    sqlerr((char *)statbuf);
-		    return;
-		}
-		attempt = 0;
-	    }
-	}
-	attempt = 0;
-    }
-    _3proxy_mutex_unlock(&log_mutex);
+    return 0;
 }
+
+static void odbcclose(struct logger *lg){
+    if(!lg->data) return;
+    odbcdisconnect((struct logodbc *)lg->data);
+    free(lg->data);
+    lg->data = NULL;
+}
+
+const struct logtype logtype_odbc = {
+    "odbc", odbcmatch, odbcinit, odbcformat, odbcwrite, odbcclose, NULL, LOGSTACKSIZE, 0, 0
+};
 
 #endif

@@ -150,7 +150,6 @@ static void srvdiscard(struct srvstart *s){
  srvfree(&s->srv);
  if(s->cbc_string) free(s->cbc_string);
  if(s->cbl_string) free(s->cbl_string);
- if(s->fp) fclose(s->fp);
 }
 
 #ifndef STDMAIN
@@ -178,7 +177,6 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #ifdef STDMAIN
 #ifndef _WIN32
 	" -I inetd mode (requires real socket, doesn't work with TTY)\n"
-	" -l@IDENT log to syslog IDENT\n"
 #endif
 	" -d go to background (daemon)\n"
 #else
@@ -205,8 +203,11 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 	"-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY) - delay GRACE_DELAY milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second to minimize polling\n"
 	" -fFORMAT logging format (see documentation)\n"
-	" -l log to stderr\n"
+	" -l log to stdout\n"
 	" -lFILENAME log to FILENAME\n"
+#ifndef _WIN32
+	" -l@IDENT log to syslog IDENT\n"
+#endif
 	" -b(BUFSIZE) size of network buffer, at most and by default 16384\n"
 	" -S(STACKSIZE) value to add to default client thread stack size\n"
 	" -t be silent (do not log service start/stop)\n"
@@ -228,7 +229,6 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 
  s->cbc_string = s->cbl_string = NULL;
- s->fp = NULL;
  s->iscbc = s->iscbl = 0;
 #ifdef STDMAIN
 #ifndef _WIN32
@@ -236,6 +236,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 #endif
  srvinit(srv, defparam);
+ logref(srv->logger);	/* until srvfree() */
 #ifndef STDMAIN
  confhold(srv->config);	/* until srvfree() */
 #endif
@@ -296,14 +297,16 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
  }
 #else
  srv->needuser = 0;
- _3proxy_mutex_init(&log_mutex);
 #endif
 
  for (i=1; i<argc; i++) {
 	if(*argv[i]=='-') {
 		switch(argv[i][1]) {
 		 case 'd': 
-			if(!conf->demon)daemonize();
+			if(!conf->demon){
+				daemonize();
+				logstdclose();
+			}
 			conf->demon = 1;
 			break;
 #if defined SO_BINDTODEVICE || defined IP_BOUND_IF
@@ -313,27 +316,18 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			break;
 #endif
 		 case 'l':
-			srv->logfunc = logstdout;
-			if(srv->logtarget) free(srv->logtarget);
-			srv->logtarget = (unsigned char *)strdup(argv[i] + 2);
-			if(argv[i][2]) {
-				if(argv[i][2]=='@'){
+			{
+				struct logger *lg;
 
-#ifdef STDMAIN
-#ifndef _WIN32
-					openlog(argv[i]+3, LOG_PID, LOG_DAEMON);
-					srv->logfunc = logsyslog;
-#endif
-#endif
-
+				/* the same log the log command, or another service,
+				   opened is shared with it */
+				if(!(lg = logget((unsigned char *)argv[i] + 2, NONE))){
+					perror(argv[i] + 2);
+					return 1;
 				}
-				else {
-					s->fp = fopen(argv[i] + 2, "a");
-					if (s->fp) {
-						srv->stdlog = s->fp;
-					}
-				}
-
+				logput(srv->logger);
+				srv->logger = lg;
+				if(srv->stacksize < lg->type->stacksize) srv->stacksize = lg->type->stacksize;
 			}
 			break;
 		 case 'i':
@@ -704,7 +698,9 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  memset(srv, 0, sizeof(struct srvparam));
  srv->version = conf->version;
  srv->paused = conf->paused;
- srv->logfunc = conf->havelog?conf->logfunc:lognone;
+ srv->logfunc = conf->logfunc;
+ /* not held yet: srvprepare() takes it */
+ srv->logger = conf->logger? conf->logger : &lognull;
  srv->noforce = conf->noforce;
  srv->logformat = conf->logformat? (unsigned char *)strdup((char *)conf->logformat) : NULL;
  srv->authfunc = conf->authfunc;
@@ -719,9 +715,6 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->maxseg = conf->maxseg;
  srv->delimchar = conf->delimchar;
  srv->time_start = time(NULL);
- if(conf->havelog && conf->logtarget){
-	 srv->logtarget = (unsigned char *)strdup((char *)conf->logtarget);
- }
  srv->srvsock = INVALID_SOCKET;
  srv->logdumpsrv = conf->logdumpsrv;
  srv->logdumpcli = conf->logdumpcli;
@@ -835,7 +828,8 @@ void srvfree(struct srvparam * srv){
  _3proxy_mutex_destroy(&srv->counter_mutex);
  _3proxy_sem_destroy(srv->childslots);
  if(srv->target) free(srv->target);
- if(srv->logtarget) free(srv->logtarget);
+ logput(srv->logger);
+ srv->logger = NULL;
  if(srv->logformat) free(srv->logformat);
  if(srv->nonprintable) free(srv->nonprintable);
 #if defined  SO_BINDTODEVICE || defined IP_BOUND_IF
