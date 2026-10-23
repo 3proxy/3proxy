@@ -1,0 +1,46 @@
+name: Release kind
+
+# Whether a release is one of the development branch: its tree has DEVEL
+# and no RELEASE. Such a release gets the minimal set of packages (Windows
+# x64, deb x86_64 and arm64, rpm for EL 9 and 10), no Docker images, and is
+# made a prerelease: neither "Latest" nor taken into the package repository
+# of 3proxy.github.io, which takes releases only.
+
+on:
+  workflow_call:
+    inputs:
+      mark-prerelease:
+        description: "make a release of the development branch a prerelease"
+        type: boolean
+        default: false
+    outputs:
+      devel:
+        description: "true for a release of the development branch"
+        value: ${{ jobs.kind.outputs.devel }}
+
+permissions:
+  contents: read
+
+jobs:
+  kind:
+    runs-on: ubuntu-latest
+    outputs:
+      devel: ${{ steps.kind.outputs.devel }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        sparse-checkout: |
+          RELEASE
+          DEVEL
+        sparse-checkout-cone-mode: false
+    - id: kind
+      run: |
+       if [ ! -f RELEASE ] && [ -f DEVEL ]; then devel=true; else devel=false; fi
+       echo "devel=$devel" >> "$GITHUB_OUTPUT"
+       echo "release of the development branch: $devel"
+    - name: Make it a prerelease
+      if: inputs.mark-prerelease && github.event_name == 'release' && steps.kind.outputs.devel == 'true' && !github.event.release.prerelease
+      env:
+       GH_TOKEN: ${{ github.token }}
+       TAG: ${{ github.event.release.tag_name }}
+      run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --prerelease --latest=false

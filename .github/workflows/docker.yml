@@ -13,7 +13,17 @@ env:
   GHCR_IMAGE: ghcr.io/3proxy/3proxy
 
 jobs:
+  kind:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-kind.yml
+    with:
+      mark-prerelease: true
+
   build:
+    # not for a release of the development branch
+    needs: kind
+    if: github.event_name != 'release' || needs.kind.outputs.devel != 'true'
     name: ${{ matrix.image }} ${{ matrix.platform }}
     permissions:
       contents: read

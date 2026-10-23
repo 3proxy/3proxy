@@ -9,7 +9,13 @@ permissions:
   contents: read
 
 jobs:
+  kind:
+    uses: ./.github/workflows/release-kind.yml
+
   ci:
+    # not for a release of the development branch
+    needs: kind
+    if: github.event_name != 'release' || needs.kind.outputs.devel != 'true'
     permissions:
       contents: write
       id-token: write

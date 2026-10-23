@@ -25,7 +25,19 @@ jobs:
     - name: env
       run: |
        pwd
-       echo "RELEASE=$(cat RELEASE)" >> $GITHUB_ENV
+       # a release branch has RELEASE; the development one DEVEL, such as
+       # 2.0.0-devel, built for fewer EL releases
+       if [ -f RELEASE ]; then
+         RELEASE=$(tr -d ' \t\r\n' < RELEASE)
+         echo "ELS=8 9 10" >> $GITHUB_ENV
+       else
+         RELEASE=$(tr -d ' \t\r\n' < DEVEL)
+         echo "ELS=9 10" >> $GITHUB_ENV
+       fi
+       echo "RELEASE=$RELEASE" >> $GITHUB_ENV
+       # rpm's Version, with a tilde for a hyphen (2.0.0~devel): the source
+       # archive and its directory are named after it
+       echo "RPMVERSION=$(sed -n 's/^Version:[[:space:]]*//p' scripts/rh/3proxy.spec)" >> $GITHUB_ENV
        BUILDDATE=$(sed -n 's/^#define BUILDDATE "\(.*\)"$/\1/p' src/version.h)
        [ -n "$BUILDDATE" ] || BUILDDATE=$(date -u +%y%m%d%H%M%S)
        echo "VERSION=$BUILDDATE" >> $GITHUB_ENV
@@ -41,19 +53,19 @@ jobs:
       run: |
        mkdir ~/debian
        mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-       tar -czf ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz --transform "s,^,3proxy-$RELEASE/," .
-       ln -s ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/rpmbuild/SOURCES/$RELEASE.tar.gz
-       cp scripts/rh/3proxy.spec ~/rpmbuild/SPECS/3proxy-$RELEASE.spec
-       cp ~/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz ~/debian/3proxy_$RELEASE.orig.tar.gz
+       tar -czf ~/rpmbuild/SOURCES/3proxy-$RPMVERSION.tar.gz --transform "s,^,3proxy-$RPMVERSION/," .
+       ln -s ~/rpmbuild/SOURCES/3proxy-$RPMVERSION.tar.gz ~/rpmbuild/SOURCES/$RPMVERSION.tar.gz
+       cp scripts/rh/3proxy.spec ~/rpmbuild/SPECS/3proxy-$RPMVERSION.spec
+       tar -czf ~/debian/3proxy_$RELEASE.orig.tar.gz --transform "s,^,3proxy-$RELEASE/," .
     - name: rpmbuild
       run: |
        mkdir -p rpmout
-       for EL in 8 9 10; do
+       for EL in $ELS; do
          docker run --rm \
-           -v "$HOME/rpmbuild/SOURCES/3proxy-$RELEASE.tar.gz:/src.tar.gz:ro" \
+           -v "$HOME/rpmbuild/SOURCES/3proxy-$RPMVERSION.tar.gz:/src.tar.gz:ro" \
            -v "$PWD/scripts/rh/3proxy.spec:/3proxy.spec:ro" \
            -v "$PWD/rpmout:/out" \
-           -e RELEASE="$RELEASE" -e HOSTUID="$(id -u)" -e HOSTGID="$(id -g)" \
+           -e RELEASE="$RPMVERSION" -e HOSTUID="$(id -u)" -e HOSTGID="$(id -g)" \
            -e SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" \
            "almalinux:$EL" bash -c '
              set -e

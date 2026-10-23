@@ -12,7 +12,13 @@ env:
   OPENWRT_RELEASE: 24.10.0
 
 jobs:
+  kind:
+    uses: ./.github/workflows/release-kind.yml
+
   ipk:
+    # not for a release of the development branch
+    needs: kind
+    if: github.event_name != 'release' || needs.kind.outputs.devel != 'true'
     permissions:
       contents: write
       id-token: write
