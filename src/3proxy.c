@@ -467,6 +467,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   nsopen();	/* before a chroot in the configuration takes /proc away */
 #endif
   loginit();	/* standard output and error, syslog, before a chroot too */
+#ifndef _WIN32
+  /* before readconfig() starts the services: a client gone while it is
+     written to is an error, not the end */
+  signal(SIGPIPE, SIG_IGN);
+#endif
 #if defined _WIN32 && !defined _WINCE
   if(service) logstdclose();
 #endif
@@ -546,7 +551,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	 signal(SIGCONT, mysigpause);
 	 signal(SIGTERM, mysigterm);
 	 signal(SIGUSR1, mysigusr1);
-	 signal(SIGPIPE, SIG_IGN);
 	 cyclestep();
 
 #endif

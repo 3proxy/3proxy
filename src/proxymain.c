@@ -220,6 +220,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #endif
  _3proxy_mutex_init(&tpool.mutex);
  loginit();
+#ifndef _WIN32
+ /* a client gone while it is written to is an error, not the end */
+ signal(SIGPIPE, SIG_IGN);
+#endif
 
  if((res = srvprepare(&s, argc, argv))) return res;
  /* errors go to the service's log once there is no standard error */
