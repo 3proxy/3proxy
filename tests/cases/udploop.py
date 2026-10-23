@@ -81,7 +81,11 @@ def fake_name_server(answer, tcp=False, wrongid=False):
                 reply = dns_reply(data, answer)
                 if wrongid:
                     reply = bytes([reply[0] ^ 0x55, reply[1]]) + reply[2:]
-                sock.sendto(reply, peer)
+                try:
+                    sock.sendto(reply, peer)
+                except OSError:
+                    # closed once the case is done with it
+                    return
 
     if tcp:
         sock.listen(8)
@@ -177,11 +181,13 @@ def run(t):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     answered = 0
     for i in range(10):
+        if i:
+            time.sleep(0.5)
         if exchange(s, idle, f"k{i}".encode()) == f"echo:k{i}".encode():
             answered += 1
-        time.sleep(0.5)
+        # the silence counts from the last answer, not a sleep after it
+        last = time.time()
     cport = s.getsockname()[1]
-    last = time.time()
     t.eq(10, answered, "a datagram every half second for five seconds is answered")
     t.ok("and the session lives on through them") if not idle_ended() else \
         t.fail("and the session lives on through them", "no 00092 line", "ended")
