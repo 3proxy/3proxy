@@ -374,6 +374,11 @@ void mainclaim(void *service){
  struct srvparam *srv = &s->srv;
  struct listener *l, *found = NULL, *newl;
 
+ /* The slot it keeps for its next client taken first: once on the
+    listener, it is where the clients of older services move after a reload
+    (reattach()), which must find that slot taken, as it is once the service
+    accepts, and not take more than the others of its maxconn. */
+ if(!s->isudp && !s->haveslot && !_3proxy_sem_timedlock(srv->childslots, 0)) s->haveslot = 1;
  /* made beforehand, as the mutex is held from finding a listener to
     joining it, lest its last service let go of it meanwhile */
  if((newl = malloc(sizeof(*newl)))){

@@ -152,6 +152,11 @@ static void srvstrings(struct srvstart *s){
 
 /* Releases what the preparation and the run took, s itself excepted. */
 static void srvdiscard(struct srvstart *s){
+ /* a slot taken for a service which never ran: srvfree() waits for all */
+ if(s->haveslot){
+	_3proxy_sem_unlock(s->srv.childslots);
+	s->haveslot = 0;
+ }
  srvfree(&s->srv);
  srvstrings(s);
 }
@@ -245,6 +250,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 
  s->cbc_string = s->cbl_string = NULL;
  s->iscbc = s->iscbl = 0;
+ s->haveslot = 0;
 #ifdef STDMAIN
 #ifndef _WIN32
  s->inetd = 0;

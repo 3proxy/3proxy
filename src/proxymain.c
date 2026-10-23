@@ -26,6 +26,9 @@ struct srvstart {
 	struct clientparam defparam;
 	unsigned char *cbc_string, *cbl_string;
 	int isudp, iscbc, iscbl;
+	/* the slot a TCP service keeps for its next client, taken before it can
+	   be found on its listener: srvrun() takes it over */
+	int haveslot;
 	const struct udpservice *udp;
 #ifndef _WIN32
 	pthread_attr_t pa;
@@ -121,9 +124,11 @@ static int srvrun(struct srvstart *s);
 static int srvrun(struct srvstart *s){
  struct srvparam *srv = &s->srv;
  struct clientparam *defparam = &s->defparam;
- int res = 0, haveslot = 0;
+ int res = 0, haveslot = s->haveslot;
  /* -r: a TCP service connects out for each client instead of listening */
  int connectback = !s->isudp && s->iscbc;
+
+ s->haveslot = 0;
 #ifndef _WIN32
  pthread_attr_init(&s->pa);
  pthread_attr_setstacksize(&s->pa,threadstacksize(srv->stacksize));
