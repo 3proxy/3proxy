@@ -635,8 +635,8 @@ struct hashtable {
 struct logtype {
 	const char *name;
 	int (*match)(const unsigned char *selector);
-	/* opens what it writes to, lg->data: 0, an error, or < 0 if it cannot
-	   be reached now but is to be tried again */
+	/* opens what it writes to, lg->data: 0, an error (an errno value), or
+	   < 0 if it cannot be reached now but is to be tried again */
 	int (*init)(struct logger *lg);
 	/* the line for a connection into buf, CLIENTTMPBUFSIZE: its length, -1
 	   for nothing to write; NULL if write() takes the connection itself */

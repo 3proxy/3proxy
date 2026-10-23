@@ -508,19 +508,29 @@ static int matchfile(const unsigned char *selector){
 	return 1;
 }
 
+/* errno of the C library: on Windows proxy.h makes errno the socket error */
+#ifdef _WIN32
+static int crterrno(void){
+	int e = 0;
+
+	_get_errno(&e);
+	return e;
+}
+#else
+#define crterrno() (errno)
+#endif
+
 static int fileinit(struct logger *lg){
 	unsigned char *name;
-	FILE *fp;
-	int err;
+	FILE *fp = NULL;
+	int err = 0;
 
-	if(!(name = malloc(LOGNAMESIZE))) return 21;
+	if(!(name = malloc(LOGNAMESIZE))) return ENOMEM;
 	dologname(name, lg->selector, NULL, lg->rotation, lg->rotated);
-	errno = ENAMETOOLONG;
-	fp = *name? fopen((char *)name, "a") : NULL;
-	err = errno;
+	if(!*name) err = ENAMETOOLONG;
+	else if(!(fp = fopen((char *)name, "a")) && !(err = crterrno())) err = EIO;
 	free(name);
-	errno = err;
-	if(!fp) return 1;
+	if(err) return err;
 	lg->data = fp;
 	return 0;
 }
@@ -671,7 +681,7 @@ void loginit(void){
 #ifndef _WIN32
 	_3proxy_mutex_init(&syslog_mutex);
 	/* kept for the life of the process, as every syslog logger is */
-	(void)logget((const unsigned char *)"@3proxy", NONE);
+	(void)logget((const unsigned char *)"@3proxy", NONE, NULL);
 #endif
 }
 
@@ -701,9 +711,9 @@ static void logsetparams(struct logger *lg, const unsigned char *params){
 }
 
 /* The logger named so, opened if none is: held until logput(). NULL, with
-   errno set, if it cannot be opened. A logger found with other parameters
-   takes the new ones. */
-struct logger *logget(const unsigned char *selector, ROTATION rotation){
+   the error in *errp (an errno value) unless it is NULL, if it cannot be
+   opened. A logger found with other parameters takes the new ones. */
+struct logger *logget(const unsigned char *selector, ROTATION rotation, int *errp){
 	struct logger *lg;
 	const struct logtype *type;
 	const unsigned char *params;
@@ -730,7 +740,7 @@ struct logger *logget(const unsigned char *selector, ROTATION rotation){
 			free(lg);
 		}
 		_3proxy_mutex_unlock(&log_mutex);
-		errno = ENOMEM;
+		if(errp) *errp = ENOMEM;
 		return NULL;
 	}
 	memcpy(lg->selector, selector, len);
@@ -745,13 +755,12 @@ struct logger *logget(const unsigned char *selector, ROTATION rotation){
 		lg->failtime = lg->rotated;
 	}
 	else if(err){
-		err = errno;
 		_3proxy_mutex_unlock(&log_mutex);
 		_3proxy_mutex_destroy(&lg->mutex);
 		if(lg->params) free(lg->params);
 		free(lg->selector);
 		free(lg);
-		errno = err;
+		if(errp) *errp = err;
 		return NULL;
 	}
 	lg->refs = 1;

@@ -318,12 +318,13 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 		 case 'l':
 			{
 				struct logger *lg;
+				int err = 0;
 
 				/* the same log the log command, or another service,
 				   opened is shared with it */
-				if(!(lg = logget((unsigned char *)argv[i] + 2, NONE))){
+				if(!(lg = logget((unsigned char *)argv[i] + 2, NONE, &err))){
 					fprintf(stderr, "Unable to open log %.*s: %s\n",
-						(int)logselen((unsigned char *)argv[i] + 2), argv[i] + 2, strerror(errno));
+						(int)logselen((unsigned char *)argv[i] + 2), argv[i] + 2, strerror(err));
 					return 1;
 				}
 				logput(srv->logger);

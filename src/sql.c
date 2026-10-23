@@ -101,7 +101,7 @@ static int odbcmatch(const unsigned char *selector){
 /* A data source down is not an error of the configuration: the log
    connects again later. */
 static int odbcinit(struct logger *lg){
-    if(!lg->data && !(lg->data = calloc(1, sizeof(struct logodbc)))) return 21;
+    if(!lg->data && !(lg->data = calloc(1, sizeof(struct logodbc)))) return ENOMEM;
     return odbcconnect(lg)? 0 : -1;
 }
 

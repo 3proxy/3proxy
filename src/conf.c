@@ -384,13 +384,14 @@ static int h_external(int argc, unsigned char ** argv){
 static int h_log(int argc, unsigned char ** argv){
 	struct logger *lg;
 	ROTATION rotation = (argc > 2)? getrotate(*argv[2]) : NONE;
+	int err = 0;
 
 	/* the same log as before is not opened again */
-	lg = logget((argc > 1)? argv[1] : (unsigned char *)"", rotation);
+	lg = logget((argc > 1)? argv[1] : (unsigned char *)"", rotation, &err);
 	if(!lg){
 		fprintf(stderr, "Unable to open log %.*s: %s, line %d\n",
 			(int)logselen((argc > 1)? argv[1] : (unsigned char *)""),
-			(argc > 1)? (char *)argv[1] : "", strerror(errno), linenum);
+			(argc > 1)? (char *)argv[1] : "", strerror(err), linenum);
 		return 1;
 	}
 	if(conf->stacksize < lg->type->stacksize) conf->stacksize = lg->type->stacksize;

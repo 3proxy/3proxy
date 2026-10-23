@@ -346,7 +346,7 @@ void logdo(struct clientparam * param, const unsigned char *s);
 void logerror(const unsigned char *s);
 void loginit(void);
 void logtypeadd(const struct logtype *type);
-struct logger *logget(const unsigned char *selector, ROTATION rotation);
+struct logger *logget(const unsigned char *selector, ROTATION rotation, int *errp);
 void logref(struct logger *lg);
 void logput(struct logger *lg);
 void logcommit(struct extparam *c);
