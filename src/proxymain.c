@@ -418,6 +418,9 @@ int MODULEMAINFUNC (int argc, char** argv){
  WSADATA wd;
  WSAStartup(MAKEWORD( 1, 1 ), &wd);
 
+#else
+ /* a client gone while it is written to is an error, not the end */
+ signal(SIGPIPE, SIG_IGN);
 #endif
 
 #endif
