@@ -627,7 +627,9 @@ struct hashtable {
 
 /* A log, named by the string the log command or -l gives it: "" standard
    output, "/dev/null" none, "@IDENT" syslog, "&DSN" ODBC, "radius" RADIUS
-   accounting, anything else a file. One logger serves every service and
+   accounting, anything else a file. For a type with parameters, ODBC, the
+   string up to its first comma names the log and the rest, user and
+   password, are its parameters, neither shown nor telling logs apart. One logger serves every service and
    configuration naming it the same way, and is closed once none uses it,
    the standard ones (none, standard output and error, syslog) excepted. */
 struct logtype {
@@ -647,12 +649,14 @@ struct logtype {
 	int stacksize;	/* the client thread stack its writing needs */
 	int standard;	/* kept open for the life of the process */
 	int text;	/* writes a line of text: errors can go there */
+	int params;	/* the string after a comma is parameters */
 };
 
 struct logger {
 	struct logger *next;
 	const struct logtype *type;
-	unsigned char *selector;
+	unsigned char *selector;	/* the name, without parameters */
+	unsigned char *params;	/* what follows the name's comma, or NULL */
 	void *data;		/* the type's own */
 	int refs;
 	int errors;		/* writes failed in a row */

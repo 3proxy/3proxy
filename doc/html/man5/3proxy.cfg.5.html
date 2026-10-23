@@ -326,7 +326,11 @@ sets logfile for all gateways <br>
 @ (for Unix) use syslog, filename is used as ident name <br>
 &amp; use ODBC, filename consists of comma-delimited
 datasource,username,password (username and password are
-optional) <br>
+optional; the password is everything after the second comma).
+The datasource alone names the log: the username and password
+are its parameters, never shown in messages, and a later log
+or -l with the same datasource and other parameters reconnects
+the log with them <br>
 radius - use RADIUS for logging <br>
 LOGTYPE is one of: <b><br>
 c</b> Minutely <b><br>

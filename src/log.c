@@ -675,27 +675,67 @@ void loginit(void){
 #endif
 }
 
+/* The length of the name in a log string: for a type with parameters up to
+   the comma they follow. */
+static size_t lognamelen(const struct logtype *type, const unsigned char *selector){
+	return type->params? strcspn((char *)selector, ",") : strlen((char *)selector);
+}
+
+/* Parameters which differ from those a logger has: given to it, and the
+   logger opened again with them. Called holding a reference. */
+static void logsetparams(struct logger *lg, const unsigned char *params){
+	unsigned char *p = NULL;
+
+	if(params && !(p = (unsigned char *)strdup((char *)params))) return;
+	_3proxy_mutex_lock(&lg->mutex);
+	if(lg->params) free(lg->params);
+	lg->params = p;
+	if(lg->type->close) lg->type->close(lg);
+	lg->errors = 0;
+	lg->failed = 0;
+	if(lg->type->init && lg->type->init(lg)){
+		lg->failed = 1;
+		lg->failtime = time(NULL);
+	}
+	_3proxy_mutex_unlock(&lg->mutex);
+}
+
 /* The logger named so, opened if none is: held until logput(). NULL, with
-   errno set, if it cannot be opened. */
+   errno set, if it cannot be opened. A logger found with other parameters
+   takes the new ones. */
 struct logger *logget(const unsigned char *selector, ROTATION rotation){
 	struct logger *lg;
-	int err = 0;
+	const struct logtype *type;
+	const unsigned char *params;
+	size_t len;
+	int err = 0, changed;
 
 	_3proxy_mutex_lock(&log_mutex);
+	type = logmatch(selector);
+	len = lognamelen(type, selector);
+	params = selector[len]? selector + len + 1 : NULL;
 	for(lg = loggers; lg; lg = lg->next){
-		if(!strcmp((char *)lg->selector, (char *)selector)){
+		if(lg->type == type && !strncmp((char *)lg->selector, (char *)selector, len) && !lg->selector[len]){
 			lg->refs++;
+			changed = (params && lg->params)? strcmp((char *)params, (char *)lg->params) : (params != NULL || lg->params != NULL);
 			_3proxy_mutex_unlock(&log_mutex);
+			if(changed) logsetparams(lg, params);
 			return lg;
 		}
 	}
-	if(!(lg = calloc(1, sizeof(*lg))) || !(lg->selector = (unsigned char *)strdup((char *)selector))){
-		if(lg) free(lg);
+	if(!(lg = calloc(1, sizeof(*lg))) || !(lg->selector = malloc(len + 1)) ||
+	    (params && !(lg->params = (unsigned char *)strdup((char *)params)))){
+		if(lg){
+			if(lg->selector) free(lg->selector);
+			free(lg);
+		}
 		_3proxy_mutex_unlock(&log_mutex);
 		errno = ENOMEM;
 		return NULL;
 	}
-	lg->type = logmatch(selector);
+	memcpy(lg->selector, selector, len);
+	lg->selector[len] = 0;
+	lg->type = type;
 	lg->rotation = rotation;
 	lg->rotated = time(NULL);
 	_3proxy_mutex_init(&lg->mutex);
@@ -708,6 +748,7 @@ struct logger *logget(const unsigned char *selector, ROTATION rotation){
 		err = errno;
 		_3proxy_mutex_unlock(&log_mutex);
 		_3proxy_mutex_destroy(&lg->mutex);
+		if(lg->params) free(lg->params);
 		free(lg->selector);
 		free(lg);
 		errno = err;
@@ -758,6 +799,7 @@ void logput(struct logger *lg){
 	if(lg->type->close) lg->type->close(lg);
 	_3proxy_mutex_destroy(&lg->mutex);
 	logfreearchiver(lg);
+	if(lg->params) free(lg->params);
 	free(lg->selector);
 	free(lg);
 }
@@ -808,10 +850,10 @@ static void logfallback(struct logger *lg, struct clientparam *param, const unsi
 	logput(to);
 }
 
-/* The part of a log string fit to be shown: up to a comma, an ODBC string
-   going on with the user and the password, and at most 200 bytes. */
+/* The part of a log string fit to be shown: its name, without parameters
+   (an ODBC user and password), and at most 200 bytes. */
 size_t logselen(const unsigned char *selector){
-	size_t len = strcspn((char *)selector, ",");
+	size_t len = lognamelen(logmatch(selector), selector);
 
 	return len > 200? 200 : len;
 }
@@ -846,8 +888,7 @@ static void logwrite(struct logger *lg, struct clientparam *param, const unsigne
 	if(report){
 		unsigned char msg[300];
 
-		/* up to a comma: an ODBC string goes on with user and password */
-		sprintf((char *)msg, "Log %.*s failed, its lines go to the error log", (int)logselen(lg->selector), lg->selector);
+		sprintf((char *)msg, "Log %.200s failed, its lines go to the error log", lg->selector);
 		logerror(msg);
 	}
 }

@@ -26,14 +26,17 @@ static void odbcdisconnect(struct logodbc *d){
     }
 }
 
-/* &DATASOURCE,USERNAME,PASSWORD */
+/* The log string is &DATASOURCE,USERNAME,PASSWORD. The data source
+   alone names the log; user and password are its parameters, the
+   password being whatever follows the comma after the user. */
 static int odbcconnect(struct logger *lg){
     struct logodbc *d = (struct logodbc *)lg->data;
     SQLRETURN  retcode;
     char * datasource;
-    char * username;
-    char * password;
-    char * string;
+    char * username = NULL;
+    char * password = NULL;
+    char * string = NULL;
+    size_t slen = 0;
 
     if(d->hstmt || d->hdbc || d->henv) odbcdisconnect(d);
     if(!d->henv){
@@ -58,20 +61,24 @@ static int odbcconnect(struct logger *lg){
 	}
             SQLSetConnectAttr(d->hdbc, SQL_LOGIN_TIMEOUT, (void*)15, 0);
     }
-    string = strdup((char *)lg->selector + 1);
-    if(!string) return 0;
-    datasource = strtok(string, ",");
-    username = strtok(NULL, ",");
-    password = strtok(NULL, ",");
-    if(!datasource) datasource = "";
-    
+    datasource = (char *)lg->selector + 1;
+    if(lg->params){
+	if(!(string = strdup((char *)lg->params))) return 0;
+	slen = strlen(string);
+	username = string;
+	if((password = strchr(string, ','))) *password++ = 0;
+    }
 
          /* Connect to data source */
         retcode = SQLConnect(d->hdbc, (SQLCHAR*) datasource, (SQLSMALLINT)strlen(datasource),
                 (SQLCHAR*) username, (SQLSMALLINT)((username)?strlen(username):0),
                 (SQLCHAR*) password, (SQLSMALLINT)((password)?strlen(password):0));
 
-    free(string);
+    if(string) {
+	/* no copy of the password left behind */
+	memset(string, 0, slen);
+	free(string);
+    }
     if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO){
 	SQLFreeHandle(SQL_HANDLE_DBC, d->hdbc);
 	d->hdbc = NULL;
@@ -125,7 +132,7 @@ static void odbcclose(struct logger *lg){
 }
 
 const struct logtype logtype_odbc = {
-    "odbc", odbcmatch, odbcinit, odbcformat, odbcwrite, odbcclose, NULL, LOGSTACKSIZE, 0, 0
+    "odbc", odbcmatch, odbcinit, odbcformat, odbcwrite, odbcclose, NULL, LOGSTACKSIZE, 0, 0, 1
 };
 
 #endif
