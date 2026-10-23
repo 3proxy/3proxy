@@ -549,6 +549,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	return 1;
   }
 
+#ifndef _WIN32
+  /* before readconfig() starts the services: a client gone while it is
+     written to is an error, not the end */
+  signal(SIGPIPE, SIG_IGN);
+#endif
   _3proxy_mutex_init(&config_mutex);
   _3proxy_mutex_init(&runningservices_mutex);
   _3proxy_mutex_init(&bandlim_mutex);
@@ -608,7 +613,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	 signal(SIGCONT, mysigpause);
 	 signal(SIGTERM, mysigterm);
 	 signal(SIGUSR1, mysigusr1);
-	 signal(SIGPIPE, SIG_IGN);
 	 cyclestep();
 
 #endif

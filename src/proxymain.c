@@ -1336,6 +1336,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
  WSADATA wd;
  WSAStartup(MAKEWORD( 1, 1 ), &wd);
 
+#else
+ /* a client gone while it is written to is an error, not the end */
+ signal(SIGPIPE, SIG_IGN);
 #endif
 
  if((res = srvprepare(&s, argc, argv))) return res;
