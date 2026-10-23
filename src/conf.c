@@ -388,7 +388,9 @@ static int h_log(int argc, unsigned char ** argv){
 	/* the same log as before is not opened again */
 	lg = logget((argc > 1)? argv[1] : (unsigned char *)"", rotation);
 	if(!lg){
-		perror((argc > 1)? (char *)argv[1] : "log");
+		fprintf(stderr, "Unable to open log %.*s: %s, line %d\n",
+			(int)logselen((argc > 1)? argv[1] : (unsigned char *)""),
+			(argc > 1)? (char *)argv[1] : "", strerror(errno), linenum);
 		return 1;
 	}
 	if(conf->stacksize < lg->type->stacksize) conf->stacksize = lg->type->stacksize;

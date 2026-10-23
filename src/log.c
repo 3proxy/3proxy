@@ -808,6 +808,14 @@ static void logfallback(struct logger *lg, struct clientparam *param, const unsi
 	logput(to);
 }
 
+/* The part of a log string fit to be shown: up to a comma, an ODBC string
+   going on with the user and the password, and at most 200 bytes. */
+size_t logselen(const unsigned char *selector){
+	size_t len = strcspn((char *)selector, ",");
+
+	return len > 200? 200 : len;
+}
+
 static void logwrite(struct logger *lg, struct clientparam *param, const unsigned char *buf, int len){
 	int res = 0, failed, report = 0;
 	time_t t;
@@ -838,7 +846,8 @@ static void logwrite(struct logger *lg, struct clientparam *param, const unsigne
 	if(report){
 		unsigned char msg[300];
 
-		sprintf((char *)msg, "Log %.200s failed, its lines go to the error log", lg->selector);
+		/* up to a comma: an ODBC string goes on with user and password */
+		sprintf((char *)msg, "Log %.*s failed, its lines go to the error log", (int)logselen(lg->selector), lg->selector);
 		logerror(msg);
 	}
 }

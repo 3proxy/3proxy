@@ -322,7 +322,8 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 				/* the same log the log command, or another service,
 				   opened is shared with it */
 				if(!(lg = logget((unsigned char *)argv[i] + 2, NONE))){
-					perror(argv[i] + 2);
+					fprintf(stderr, "Unable to open log %.*s: %s\n",
+						(int)logselen((unsigned char *)argv[i] + 2), argv[i] + 2, strerror(errno));
 					return 1;
 				}
 				logput(srv->logger);

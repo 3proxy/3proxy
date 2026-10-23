@@ -352,6 +352,7 @@ void logput(struct logger *lg);
 void logcommit(struct extparam *c);
 void logerrset(struct logger *lg);
 void logstdclose(void);
+size_t logselen(const unsigned char *selector);
 void logtick(time_t t);
 void logfinish(void);
 int timechanged (time_t oldtime, time_t newtime, ROTATION lt);
