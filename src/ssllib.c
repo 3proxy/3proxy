@@ -22,6 +22,7 @@
 #include <wolfssl/openssl/pem.h>
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/bn.h>
 #else
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
@@ -29,6 +30,7 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/bn.h>
 #endif
 
 #include "proxy.h"
@@ -115,6 +117,31 @@ static int add_ext(X509 *cert, int nid, const char *value)
 }
 #endif
 
+/* A serial number of the copy's own, when the source's cannot be set back:
+ * positive, from the hash of the source certificate, so the same for the
+ * same certificate and different for another. wolfSSL built with
+ * WOLFSSL_QT, as Ubuntu 26.04 has it, returns a serial number without the
+ * ASN.1 header its own X509_set_serialNumber() requires.
+ */
+static int set_serial_hash(X509 *cert, const unsigned char *hash)
+{
+	unsigned char serial[16];
+	BIGNUM *bn;
+	ASN1_INTEGER *ai;
+	int res = 0;
+
+	memcpy(serial, hash, sizeof(serial));
+	serial[0] &= 0x7f;
+	if(!serial[0]) serial[0] = 1;
+	if(!(bn = BN_bin2bn(serial, sizeof(serial), NULL))) return 0;
+	if((ai = BN_to_ASN1_INTEGER(bn, NULL))){
+		res = X509_set_serialNumber(cert, ai);
+		ASN1_INTEGER_free(ai);
+	}
+	BN_free(bn);
+	return res;
+}
+
 SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 {
 	int err = -1;
@@ -162,7 +189,8 @@ SSL_CERT ssl_copy_cert(SSL_CERT cert, SSL_CONFIG *config)
 	}
 	/* v3 is required, extensions are added below */
 	X509_set_version(dst_cert, 2);
-	if(!X509_set_serialNumber(dst_cert, X509_get_serialNumber(src_cert))
+	if((!X509_set_serialNumber(dst_cert, X509_get_serialNumber(src_cert))
+	   && !set_serial_hash(dst_cert, hash_sha256))
 	|| !X509_set_subject_name(dst_cert, X509_get_subject_name(src_cert))
 	|| !X509_set_issuer_name(dst_cert, X509_get_subject_name(config->CA_cert))){
 		X509_free(dst_cert);
