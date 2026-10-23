@@ -427,11 +427,18 @@ int
 #endif
     }
 
+/* a peer gone is an error of the send, not SIGPIPE, where the system can
+   say so for a call: SIGPIPE is ignored too, for TLS and splice() */
+#ifdef MSG_NOSIGNAL
+#define SENDFLAGS MSG_NOSIGNAL
+#else
+#define SENDFLAGS 0
+#endif
     ssize_t def_send(void* state, SOCKET s, const void *msg, size_t len, int flags){
-	return send(s, msg, len, flags);
+	return send(s, msg, len, flags | SENDFLAGS);
     }
     ssize_t def_sendto(void* state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-	return sendto(s, msg, len, flags, to, tolen);
+	return sendto(s, msg, len, flags | SENDFLAGS, to, tolen);
     }
     ssize_t def_recv(void* state, SOCKET s, void *buf, size_t len, int flags){
 	return recv(s, buf, len, flags);
