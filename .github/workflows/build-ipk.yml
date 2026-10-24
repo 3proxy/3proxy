@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      sign:
+        description: "sign the packages, as for a release (nothing is uploaded)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -41,13 +46,26 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: env
-      run: echo "RELEASE=$(tr -d ' \t\r\n' < RELEASE)" >> $GITHUB_ENV
+      run: |
+       # a release branch has RELEASE, the development one DEVEL
+       if [ -f RELEASE ]; then V=RELEASE; else V=DEVEL; fi
+       echo "RELEASE=$(tr -d ' \t\r\n' < $V)" >> $GITHUB_ENV
 
     - name: Install build dependencies
       run: |
        sudo apt-get update
        sudo apt-get install -y build-essential libncurses-dev zlib1g-dev gawk git \
          gettext libssl-dev xsltproc wget unzip python3 rsync file zstd
+       # The SDK wants GNU install. Ubuntu 26.04 has the Rust coreutils and
+       # GNU's under gnu names (switching back conflicts): link gnuinstall
+       if ! install --version 2>/dev/null | grep -q GNU; then
+         G=$(command -v gnuinstall || true)
+         if [ -z "$G" ]; then echo "no GNU install"; exit 1; fi
+         mkdir -p "$HOME/gnubin"
+         ln -sf "$G" "$HOME/gnubin/install"
+         echo "$HOME/gnubin" >> "$GITHUB_PATH"
+         "$HOME/gnubin/install" --version | head -1
+       fi
 
     - name: Fetch SDK
       run: |
@@ -95,7 +113,7 @@ jobs:
        path: "*.ipk"
 
     - name: Import signing key
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || inputs.sign
       env:
        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -113,7 +131,7 @@ jobs:
        rm -f /tmp/prime.txt
 
     - name: Checksums and detached signatures
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || inputs.sign
       env:
        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |

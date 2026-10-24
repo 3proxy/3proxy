@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      sign:
+        description: "sign the packages, as for a release (nothing is uploaded)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -125,7 +130,7 @@ jobs:
        path: "*.deb"
 
     - name: Import signing key
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || inputs.sign
       env:
        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -142,7 +147,7 @@ jobs:
            -u "$KEYID" --detach-sign -o /dev/null /tmp/prime.txt
        rm -f /tmp/prime.txt
     - name: Sign rpm
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || inputs.sign
       env:
        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |
@@ -154,9 +159,13 @@ jobs:
        gpg --batch --yes --pinentry-mode loopback --passphrase-file /tmp/gpgpass \
            -u "$GPG_KEYID" --detach-sign -o /tmp/signtest.sig /tmp/signtest
        echo "key can sign"
+       # rpm's own signing command, given what it needs: rpm 4 takes the
+       # word after %{__gpg} in it for argv[0], rpm 6 does not, so one of our
+       # own breaks on one of them
        { echo "%_gpg_name $GPG_KEYID"
          echo "%__gpg $GPGBIN"
-         echo '%__gpg_sign_cmd %{__gpg} gpg --batch --no-armor --pinentry-mode loopback --passphrase-file /tmp/gpgpass --no-secmem-warning --digest-algo sha256 -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}'
+         echo "%_gpg_digest_algo sha256"
+         echo "%_gpg_sign_cmd_extra_args --batch --pinentry-mode loopback --passphrase-file /tmp/gpgpass"
        } > ~/.rpmmacros
        rpm --addsign *.rpm
        rm -f /tmp/gpgpass /tmp/signtest /tmp/signtest.sig
@@ -174,8 +183,23 @@ jobs:
          esac
          echo "$f: $sig"
        done
+    - name: Verify rpm signatures
+      if: github.event_name == 'release' || inputs.sign
+      run: |
+       # checked by the rpm of the system each package is for, with the
+       # published release key
+       for EL in $ELS; do
+         for f in *.el$EL.*.rpm; do
+           docker run --rm -v "$PWD:/w:ro" "almalinux:$EL" bash -c '
+             set -e
+             rpm --import /w/3proxy-release-key.asc
+             out=$(rpm -K "/w/$1")
+             echo "$out"
+             case "$out" in *"signatures OK"*) ;; *) exit 1 ;; esac' sh "$f"
+         done
+       done
     - name: Checksums and detached signatures
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' || inputs.sign
       env:
        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |
