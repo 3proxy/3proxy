@@ -18,7 +18,8 @@ jobs:
     strategy:
       matrix:
         target:
-          - ubuntu-latest
+          # 26.04: rpm 6 runs %__gpg_sign_cmd differently, signing fails
+          - ubuntu-24.04
     runs-on: ${{ matrix.target }}
     steps:
     - uses: actions/checkout@v7
