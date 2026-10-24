@@ -1,0 +1,3 @@
+! Fix: a TLS connection was closed when a read needed to write or a write needed to read, as when TLS 1.3 answers a key update while the socket cannot take more data
+! Fix: FilePlugin could crash on a TLS connection
+- Plugins have to be built with the same version of 3proxy they are loaded by: the structures shared with them are not kept compatible. The socket functions a plugin may replace no longer wait: _poll is replaced by _prepoll, which only tells what the plugin knows to be ready or how the socket is to be waited for, the wait itself being done by 3proxy
