@@ -68,10 +68,13 @@ Note that access rules accumulate until `flush`, so a service section that
 means to stand on its own should start with one - otherwise an earlier
 `allow *` matches first and the rule under test is never reached.
 
-The event loop (`src/loop.c`) is tested on its own by `tests/looptest.c`,
-which CMake builds next to the 3proxy binary and the `loop` case runs: timers
-on a clock of its own, through several turns of the wheel, sockets, and
-other threads. Where it was not built the case is skipped.
+The event loop (`src/loop.c`) and fibers (`src/fiber.c`) are tested on their
+own by `tests/looptest.c` and `tests/fibertest.c`, which CMake builds next to
+the 3proxy binary and the `units` case runs: timers on a clock of their own,
+through several turns of the wheel, sockets, other threads; fibers yielding
+and resumed, the registers a function keeps, a thousand stacks, fibers
+waiting on the loop's timers. Where they were not built the case is
+skipped.
 
 ## What is not covered yet
 

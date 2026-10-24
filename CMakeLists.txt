@@ -391,6 +391,7 @@ endif()
 set(3PROXY_CORE_SOURCES
     src/3proxy.c
     src/loop.c
+    src/fiber.c
     src/auth.c
     src/acl.c
     src/limiter.c
@@ -628,13 +629,17 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(3proxy PRIVATE dl)
 endif()
 
-# The event loop on its own, for tests/cases/loop.py: not installed
+# The event loop and fibers on their own, for tests/cases/units.py: not
+# installed
 add_executable(looptest tests/looptest.c src/loop.c)
-target_include_directories(looptest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(looptest PRIVATE Threads::Threads)
-if(WIN32)
-    target_link_libraries(looptest PRIVATE ${WINDOWS_LIBS})
-endif()
+add_executable(fibertest tests/fibertest.c src/fiber.c src/loop.c)
+foreach(unit looptest fibertest)
+    target_include_directories(${unit} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(${unit} PRIVATE Threads::Threads)
+    if(WIN32)
+        target_link_libraries(${unit} PRIVATE ${WINDOWS_LIBS})
+    endif()
+endforeach()
 
 # Build 3proxy_crypt utility
 add_executable(3proxy_crypt
