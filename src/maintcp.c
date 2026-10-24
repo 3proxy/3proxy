@@ -23,6 +23,8 @@ static int cblisten(struct srvstart *s){
 	return -6;
  }
  setopts(srv->cbsock, &srv->cbssockopts, srv->maxseg);
+ /* the clients of the service all wait for it: one accepts what comes */
+ nonblock(srv->cbsock);
 
  if(srv->so._bind(srv->so.state, srv->cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 	dolog(defparam, (unsigned char *)"Failed to bind connect back socket");
