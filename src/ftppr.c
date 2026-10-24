@@ -138,6 +138,7 @@ void * ftpprchild(struct clientparam* param) {
 		if(bindwithrange(param, clidatasock, &param->sincl, param->intport)){RETURN(822);}
 		if (pasv) {
 			if(param->srv->so._listen(param->sostate, clidatasock, 1)) {RETURN(823);}
+			nonblock(clidatasock);
 			sasize = sizeof(param->sincl);
 			if(param->srv->so._getsockname(param->sostate, clidatasock, (struct sockaddr *)&param->sincl, &sasize)){RETURN(824);}
 			if(pasv == 1){
@@ -222,12 +223,14 @@ void * ftpprchild(struct clientparam* param) {
 			fds.fd = clidatasock;
 			fds.events = POLLIN;
 
-			res = sockpoll(&param->srv->so, param->sostate, &fds, 1, param->srv->timeouts[STRING_L]*1000);
-			if(res != 1) {
-				RETURN(857);
-			}
-			sasize = sizeof(param->sincr);
-			ss = param->srv->so._accept(param->sostate, clidatasock, (struct sockaddr *)&param->sincr, &sasize);
+			do {
+				res = sockpoll(&param->srv->so, param->sostate, &fds, 1, param->srv->timeouts[STRING_L]*1000);
+				if(res != 1) {
+					RETURN(857);
+				}
+				sasize = sizeof(param->sincr);
+				ss = param->srv->so._accept(param->sostate, clidatasock, (struct sockaddr *)&param->sincr, &sasize);
+			} while (ss == INVALID_SOCKET && acceptagain());
 			if (ss == INVALID_SOCKET) { RETURN (858);}
 #ifdef _WIN32
 			{ unsigned long ul = 1; ioctlsocket(ss, FIONBIO, &ul); }

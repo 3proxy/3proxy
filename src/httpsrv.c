@@ -1189,6 +1189,7 @@ static void httpsrv_linger(struct clientparam *param)
 		if(sockpoll(&param->srv->so, param->sostate, &fd, 1, timeo * 1000) <= 0) break;
 		got = (int)param->srv->so._recv(param->sostate, param->clisock, buf,
 			(left > HTTPSRV_BLOCK)? (int)HTTPSRV_BLOCK : (int)left, 0);
+		if(got < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 		if(got <= 0) break;
 		left -= (uint64_t)got;
 	}

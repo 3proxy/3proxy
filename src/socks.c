@@ -351,17 +351,21 @@ fflush(stderr);
 				break;
 			case 2:
 				param->srv->so._listen (param->sostate, param->remsock, 1);
+				nonblock(param->remsock);
 				
 				fds[0].fd = param->remsock;
 				fds[1].fd = param->clisock;
 				fds[0].events = fds[1].events = POLLIN;
-				res = sockpoll(&param->srv->so, param->sostate, fds, 2, param->srv->timeouts[CONNECTION_L] * 1000);
+				do {
+					res = sockpoll(&param->srv->so, param->sostate, fds, 2, param->srv->timeouts[CONNECTION_L] * 1000);
+					if (res < 1 || fds[1].revents) break;
+					sasize = sizeof(param->sinsr);
+					s = param->srv->so._accept(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &sasize);
+				} while (s == INVALID_SOCKET && acceptagain());
 				if (res < 1 || fds[1].revents) {
 					res = 460;
 					break;
 				}
-				sasize = sizeof(param->sinsr);
-				s = param->srv->so._accept(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &sasize);
 				param->srv->so._closesocket(param->sostate, param->remsock);
 				param->remsock = s;
 				if(s == INVALID_SOCKET) {

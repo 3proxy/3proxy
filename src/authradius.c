@@ -294,10 +294,8 @@ int radsend(struct clientparam * param, int auth, int stop){
 	int total_length;
 	int len;
 	PROXYSOCKADDRTYPE     saremote;
-	struct pollfd fds[1];
 	char vector[AUTH_VECTOR_LEN];
 	radius_packet_t packet, rpacket;
-	SASIZETYPE salen;
 	int data_len;
 	int count=0;
 	uint8_t *attr;
@@ -545,6 +543,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 			if ((sockfd = so._socket(so.state, SASOCK(&saremote), SOCK_DGRAM, 0)) < 0) {
 			    return 4;
 			}
+			nonblock(sockfd);
 			remsock = sockfd;
 /*
 		}
@@ -557,17 +556,8 @@ int radsend(struct clientparam * param, int auth, int stop){
 			continue;
 		}
 
-	        memset(fds, 0, sizeof(fds));
-	        fds[0].fd = remsock;
-	        fds[0].events = POLLIN;
-		if(sockpoll(&so, so.state, fds, 1, param->srv->config->timeouts[SINGLEBYTE_L]*1000) <= 0) {
-			continue;
-		}
-
-		salen = sizeof(saremote);
-				
-		data_len = so._recvfrom(so.state, remsock, (char *)&rpacket, sizeof(packet)-16,
-			0, (struct sockaddr *)&saremote, &salen);
+		data_len = sockrecvfrom(NULL, remsock, (struct sockaddr *)&saremote, (unsigned char *)&rpacket,
+			sizeof(packet)-16, param->srv->config->timeouts[SINGLEBYTE_L]*1000);
 
 
 		if (data_len < 20) {
