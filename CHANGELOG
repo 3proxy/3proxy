@@ -1,25 +1,25 @@
-3proxy-1.0.1 Released October, 10 2026
+3proxy-1.0.2 Released October, 24 2026
 
-! Fix: crash (segmentation fault) on configuration reload (SIGUSR1) on a busy server: a closing session could still use its service after the reload had freed it; the race existed since 0.9.7, the 5 second linger added in 0.9.9 made it much more likely (#1278)
-! Fix: -Di and -De (bind to interface) were not applied to SOCKSv5 UDP ASSOCIATE and BIND sockets, the FTP proxy data connection and connect back (#1277)
-! Fix: SOCKSv5 UDP ASSOCIATE over IPv6: the source address of a datagram was truncated and the reply was sent to the wrong address (#1279)
-! Fix: SOCKSv5 UDP ASSOCIATE: an access rule with host names matched any datagram sent to a literal address; the address is used as the host name now, as it is for TCP requests
-! Fix: a request rewritten with pcre_rewrite was only logged and was sent unchanged to the server on a direct connection; the rewritten path and query are what the server receives now
-! Fix: buffer could be insufficient for the headers the HTTP proxy adds after a pcre_rewrite had grown the request
-! Fix: heap buffer overflow in pcre_rewrite: a $N reference to a group which did not match was written out as its digits, which the space allocated for the result did not count
-! Fix: pcre_extend did nothing, the rules it appended were never consulted; the manual described an argument the command does not take
-! Fix: certificates generated for TLS MitM (openssl) carried no subject and authority key identifiers and were refused by strict verifiers, including macOS clients, OpenSSL with x509_strict and Python 3.13
-! Fix: null pointer dereference in ftppr on PASS without USER and in smtpp on a user name without a host
-! Fix: no service started with wolfSSL on glibc: the default thread stack was too small for wolfSSL thread-local storage, pthread_create() failed and the failure was not reported
-! Fix: dnspr did not work on Windows; Windows builds answer UDP from a socket of their own again
-+ Built-in HTTP server: httpsrv service with http rules to serve files (cached or with sendfile / TransmitFile), redirects, rewrites, fixed replies and proxypass to forward requests as the proxy does, so one port can serve both a site and a proxy; admin is httpsrv with the administration pages
-+ Host names in access rules may be regular expressions with a pcre: (or regex:) prefix
-+ transparent / notransparent commands: transparent proxying is built in (netfilter on Linux, pf on BSD, socket for divert-to and ipfw fwd), TransparentPlugin is removed and a configuration loading it keeps working
-+ parent: weight may be written as a fraction (.5) or a percentage (50%); weight 0 is a fallback parent used only when every weighted parent of its group has failed; a failed parent is left out of the next attempt of the same connection
-+ parent extport / intport: range of local ports for outgoing connections and for sockets facing the client (UDP ASSOCIATE, FTP data)
-+ A parent given by host name is resolved for each connection when nserver is used, instead of once on configuration load
-+ $$ in the configuration stands for a single dollar sign, a dollar inside quotes is ordinary text
-+ OpenWrt package (procd init script, UCI configuration) and OpenWrt builds for mipsel_24kc, mips_24kc, arm_cortex-a7_neon-vfpv4 and aarch64_cortex-a53
-- pop3p, imapp, smtpp and ftppr are not in a default build: build with MAILPROXY=true and FTP=true (CMake: 3PROXY_USE_MAILPROXY, 3PROXY_USE_FTP); without them the mail proxies run as tlspr negotiating STARTTLS, and ftppr refuses clients
-- FTP over HTTP proxy (ftp:// URLs) is not in a default build either and has to be enabled explicitly: build with FTP=true (CMake: 3PROXY_USE_FTP), without it the HTTP proxy does not fetch ftp:// URLs
-- Windows binaries are no longer signed with a self-signed Authenticode certificate, it gave no trust and triggered antivirus false positives
+! Fix: dnspr relayed to the client whatever came first to the socket it asked the name server from, from any address and under any id, so a forged answer could be passed on; the query now goes out under a random id, and only an answer from the name server asked, with that id and the same question, is relayed
+! Fix: a client sending a part of a TLS record and then nothing kept a thread taking all of a CPU, and the read never timed out
+! Fix: without -Ne, the reply to SOCKS CONNECT and BIND gave the address of the client's connection to the proxy instead of the socket towards the destination: a BIND client was told the proxy's own port and the peer could never reach it (since 0.9.6)
+! Fix: a client which shut down its sending side (half-close) could get the answer cut short, megabytes short with large answers; likewise an upload after the server half-closed
+! Fix: with chroot every local time was UTC and every syslog message was lost: the time zone is loaded and syslog connected before chroot; the chroot entry of 3proxy.cfg(5) lists what PAM, LDAP and ODBC still need inside the chroot
+! Fix: the HTTP proxy closed the server connection of a kept-alive client and opened another one when only the request method changed (a POST after a GET to the same host)
+! Fix: the last ssl_client_mode in the configuration applied to every service, and a reload changed it for the services still running
+! Fix: memory leaks: on every refused configuration reload, on every failed TLS handshake, the server CA paths of every TLS service, compiled pcre: / regex: host names of access rules and patterns of httpsrv rules
+! Fix: Unix sockets: on Linux a proxy listening on a Unix socket relayed only the first bytes of an answer (result 95); an abstract socket (unix:@NAME) was bound under a name padded with zeros, which clients did not reach; tcppm refused port 0 for a unix: target, as given in the manual's example; on a reload the socket file of a listening service was removed
+! Fix: SIGPIPE could kill 3proxy when a client was gone while services were starting, and standalone services (proxy, socks, ...) at any time; sends use MSG_NOSIGNAL where the system has it
+! Fix: TLS MitM failed for every connection with wolfSSL built with WOLFSSL_QT (wolfSSL 5.9.1 of Ubuntu 26.04): the source certificate's serial number could not be copied; a serial number made from the hash of the source certificate is used then
+! Fix: Windows: closing a connection could leave its socket open (SO_LINGER on a non-blocking socket) or reset it while the peer still sent, so the end of an answer could be lost
+! Fix: httpsrv: the body of a request answered without being read (for example when authentication is required) was read as the next request; a client still sending when a connection without keep-alive closed could get a reset instead of the answer
+! Fix: httpsrv on Windows: UNC paths (\\server\share) did not work
+! Fix: httpsrv and admin services and their clients were named ZOMBIE on the admin services page, in %N of logs and in RADIUS
+! Fix: the Watcom (lite) build did not compile, 1.0.1 had no binaries for it
++ -s (splice) per direction: -s1 splices what the server sends (downloads), -s2 what the client sends (uploads), -s3 both; -s alone splices only where it pays (large bodies, long streams); pipes are kept with the connection for its next requests. splice() is built by default on Linux again and is used only by services given -s
++ Socket options (-oc, -os, -ol, -or, -oR) take NAME=VALUE; NAME=0 turns an option off, also one set by default; an unknown name or a value which is not a number is an error
++ The HTTP proxy frees its 64 KB request buffer while a CONNECT tunnel relays data and while a kept-alive connection waits for its next request: 2000 tunnels take 213 MB instead of 339 MB
++ TLS records are read ahead with OpenSSL 1.1.0 and later: decrypting takes 9-14% less CPU
++ Faster service stop and configuration reload, no fixed delays; a connection waiting for a free maxconn slot gets it at once
+- TCP_NODELAY is set by default on proxy-to-client and proxy-to-server sockets; -ocTCP_NODELAY=0 / -osTCP_NODELAY=0 turns it off
+- The HTTP proxy fetches ftp:// URLs only when the service is given the new -Xftp option (in a build with FTP=true)
