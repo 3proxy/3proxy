@@ -12,7 +12,22 @@
 #include "../src/proxy.h"
 #include "../src/loop.h"
 
-static int failures;
+static int failures, waitfails, lasterr;
+
+/* looponce(), a failure to wait counted, with its error */
+static int turn(struct loop *l, int maxwait){
+	int n = looponce(l, maxwait);
+
+	if(n < 0){
+		waitfails++;
+#ifdef _WIN32
+		lasterr = WSAGetLastError();
+#else
+		lasterr = errno;
+#endif
+	}
+	return n;
+}
 
 static void check(int cond, const char *label, const char *what){
 	if(cond) printf("ok %s\n", label);
@@ -134,7 +149,7 @@ static void timertest(void){
 		/* steps of a few ms to a second, and now and then a long stall */
 		if(rand_upto(500) == 0) fakenow += 1 + rand_upto(300000);
 		else fakenow += 1 + rand_upto(rand_upto(4) ? 1500 : 20);
-		looponce(&l, 0);
+		turn(&l, 0);
 		steps++;
 	}
 	pending = 0;
@@ -231,25 +246,25 @@ static void iotest(void){
 	a.io.func = iocall;
 	check(!loopadd(&l, &a.io), "sockets: a socket is added", "loopadd() failed");
 
-	looponce(&l, 100);
+	turn(&l, 100);
 	check(a.calls == 0, "sockets: nothing to read, no call", "called");
 
 	send(s2, "x", 1, 0);
-	for(i = 0; i < 10 && !a.calls; i++) looponce(&l, 200);
+	for(i = 0; i < 10 && !a.calls; i++) turn(&l, 200);
 	check(a.calls >= 1 && (a.revents & POLLIN), "sockets: what comes is readable", "no POLLIN");
 	recv(s1, buf, sizeof(buf), 0);
 
 	a.calls = 0;
 	a.revents = 0;
 	loopmod(&l, &a.io, POLLOUT);
-	for(i = 0; i < 10 && !a.calls; i++) looponce(&l, 200);
+	for(i = 0; i < 10 && !a.calls; i++) turn(&l, 200);
 	check(a.calls >= 1 && (a.revents & POLLOUT) && !(a.revents & POLLIN),
 	      "sockets: waited for writing, writable", "no POLLOUT");
 
 	loopmod(&l, &a.io, 0);
 	a.calls = 0;
 	send(s2, "y", 1, 0);
-	looponce(&l, 200);
+	turn(&l, 200);
 	check(a.calls == 0, "sockets: waited for nothing, not called", "called");
 
 	/* both ready: whichever is called first deletes the other */
@@ -262,7 +277,7 @@ static void iotest(void){
 	c.other = &a;
 	send(s4, "z", 1, 0);
 	a.calls = c.calls = 0;
-	for(i = 0; i < 10 && a.calls + c.calls == 0; i++) looponce(&l, 200);
+	for(i = 0; i < 10 && a.calls + c.calls == 0; i++) turn(&l, 200);
 	check(a.calls + c.calls == 1, "sockets: one deleted in this turn is not called", "both called");
 
 	/* the one deleted can be added again; the far side closing it is
@@ -275,7 +290,7 @@ static void iotest(void){
 	a.calls = 0;
 	a.revents = 0;
 	closesock(s2);
-	for(i = 0; i < 10 && !a.calls; i++) looponce(&l, 200);
+	for(i = 0; i < 10 && !a.calls; i++) turn(&l, 200);
 	check(a.calls >= 1 && (a.revents & (POLLIN | POLLHUP)) && recv(s1, buf, sizeof(buf), 0) == 0,
 	      "sockets: the far side closing is readable", "not reported");
 
@@ -349,7 +364,7 @@ static void realtest(void){
 	t.func = realfire;
 	start = looptime();
 	looptimerset(&tl, &t, start + 150);
-	while(!timerfired) looponce(&tl, -1);
+	while(!timerfired) turn(&tl, -1);
 	took = looptime() - start;
 	sprintf(what, "fired after %u ms", (unsigned)took);
 	check(took >= 150 && took < 1100, "real time: a timer fires when it is due", what);
@@ -357,7 +372,7 @@ static void realtest(void){
 	start = looptime();
 	if(startposter()) check(0, "real time: a thread is started", "failed");
 	else {
-		looponce(&tl, 5000);
+		turn(&tl, 5000);
 		took = looptime() - start;
 		sprintf(what, "after %u ms", (unsigned)took);
 		check(posted && took < 2000, "real time: a message from another thread wakes the loop", what);
@@ -386,5 +401,11 @@ int main(int argc, char **argv){
 	timertest();
 	iotest();
 	realtest();
+	{
+		char what[64];
+
+		sprintf(what, "%d failed, the last with error %d", waitfails, lasterr);
+		check(!waitfails, "waiting for sockets never fails", what);
+	}
 	return failures;
 }

@@ -18,8 +18,10 @@ def run(t):
             try:
                 done = subprocess.run([path, seed], stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT, timeout=120)
-            except subprocess.TimeoutExpired:
-                t.fail(f"{unit} {seed} finishes")
+            except subprocess.TimeoutExpired as exc:
+                out = (exc.output or b"").decode(errors="replace")
+                t.fail(f"{unit} {seed} finishes",
+                       actual="last: " + (out.splitlines() or ["nothing"])[-1])
                 continue
             out = done.stdout.decode(errors="replace")
             for line in out.splitlines():

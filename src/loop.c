@@ -660,7 +660,13 @@ int looponce(struct loop *l, int maxwait){
 			if(l->pfds[j].revents) readyadd(l, l->pios[j], l->pfds[j].revents);
 	}
 #endif
-	if(n < 0 && errno != EINTR) return -1;
+	/* failing, what is due is still called: the caller decides whether to
+	   go on */
+#ifdef _WIN32
+	if(n < 0 && WSAGetLastError() == WSAEINTR) n = 0;
+#else
+	if(n < 0 && errno == EINTR) n = 0;
+#endif
 	l->now = l->clock();
 	if(woken){
 		wakedrain(l);
@@ -671,7 +677,7 @@ int looponce(struct loop *l, int maxwait){
 
 		if(io) io->func(l, io, l->readyev[i]);
 	}
-	n = l->nready;
+	if(n >= 0) n = l->nready;
 	l->nready = 0;
 	timersturn(l);
 	timersfire(l);

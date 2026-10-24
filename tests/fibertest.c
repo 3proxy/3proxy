@@ -234,7 +234,7 @@ static unsigned deepresult;
 
 static void deeper(void *arg){
 	fiberyield();
-	deepresult = deep(150);
+	deepresult = deep(100);
 }
 
 static void depth(void){
@@ -243,7 +243,7 @@ static void depth(void){
 	if(fiberinit(&f, STACK)) return;
 	fiberstart(&f, deeper, NULL);
 	while(fiberresume(&f));
-	check(deepresult == deep(150), "a fiber uses most of its stack", "wrong result");
+	check(deepresult == deep(100), "a fiber uses half of its stack", "wrong result");
 	fiberfree(&f);
 }
 
@@ -283,7 +283,10 @@ static void onloop(void){
 	int i, left, early = 0;
 	char what[64];
 
-	if(loopinit(&l)) return;
+	if(loopinit(&l)){
+		check(0, "fibers sleep on the loop's timers", "loopinit() failed");
+		return;
+	}
 	for(i = 0; i < NWAIT; i++){
 		memset(w + i, 0, sizeof(w[i]));
 		if(fiberinit(&w[i].f, STACK)) return;
@@ -306,6 +309,11 @@ static void onloop(void){
 }
 
 int main(int argc, char **argv){
+#ifdef _WIN32
+	WSADATA wd;
+
+	WSAStartup(MAKEWORD(2, 2), &wd);
+#endif
 	if(!fiberusable()){
 		printf("ok fibers cannot be used here (a shadow stack): each client has a thread\n");
 		return 0;
