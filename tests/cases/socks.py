@@ -1,5 +1,7 @@
 """The SOCKS proxy, reaching the built-in server."""
 
+import socket
+
 
 def run(t):
     srv = t.free_port()
@@ -84,6 +86,39 @@ def run(t):
     reply, _ = t.socks_udp(f"127.0.0.1:{sallow}", "127.0.0.1", echo, b"ip")
     t.eq(None, reply,
          "an allow by host name does not let datagrams to an address through")
+
+    # --- BIND: the proxy accepts a connection for the client --------------
+    # The far side connects to where the first reply says, the second reply
+    # names it, and the two are then joined both ways.
+    ctrl, where = t.socks_bind(plain, "127.0.0.1")
+    peer = None
+    try:
+        peer = socket.create_connection(where, t.timeout)
+        peer.settimeout(t.timeout)
+        t.ne(None, t.socks_bind_peer(ctrl), "BIND takes the connection expected")
+        peer.sendall(b"from the far side")
+        t.eq(b"from the far side", t._recvall(ctrl, 17),
+             "what the far side sends reaches the client")
+        ctrl.sendall(b"from the client")
+        t.eq(b"from the client", t._recvall(peer, 15),
+             "what the client sends reaches the far side")
+    finally:
+        ctrl.close()
+        if peer:
+            peer.close()
+
+    # A connection from elsewhere than the address given is not the one
+    # waited for.
+    ctrl, where = t.socks_bind(plain, "192.0.2.1")
+    peer = None
+    try:
+        peer = socket.create_connection(where, t.timeout)
+        t.eq(None, t.socks_bind_peer(ctrl),
+             "BIND refuses a connection from another address")
+    finally:
+        ctrl.close()
+        if peer:
+            peer.close()
 
     # --- authentication ----------------------------------------------------
     t.eq(200, t.socks_http(guarded, origin + "/echo",

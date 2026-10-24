@@ -45,7 +45,8 @@ Servers are stopped for you when the case ends, whether or not it passed.
 
 `t` offers `http()` (direct, through an HTTP proxy, or over a CONNECT
 tunnel), `socks_http()` and `socks_connect()` for SOCKS4 and SOCKS5,
-`socks_udp_associate()`, `raw()` for bytes a real client would never send,
+`socks_udp_associate()`, `socks_bind()` and `socks_bind_peer()` for a SOCKS5
+BIND, `raw()` for bytes a real client would never send,
 and `run_config()` for configurations that are meant to be rejected.
 Assertions are `eq`, `ne`, `contains`, `not_contains`, `in_range`,
 `not_in_range`, plus `ok`, `fail` and `skip`. `harness.field()` and

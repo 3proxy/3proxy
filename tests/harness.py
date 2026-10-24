@@ -677,6 +677,44 @@ class Tester:
         finally:
             conn.close()
 
+    def socks_bind(self, socks, host, port=0):
+        """Ask a SOCKS5 proxy to accept a connection from host for us.
+
+        Returns the control connection and the address the proxy listens
+        on, where the far side is to connect; socks_bind_peer() then reads
+        whether that connection was taken. Raises OSError if refused.
+        """
+        shost, sport = self._hostport(socks)
+        sock = socket.create_connection((shost, sport), self.timeout)
+        sock.settimeout(self.timeout)
+        try:
+            sock.sendall(b"\x05\x01\x00")
+            if self._recvall(sock, 2) != b"\x05\x00":
+                raise OSError("SOCKS5 handshake failed")
+            sock.sendall(b"\x05\x02\x00\x01" + socket.inet_aton(host) +
+                         struct.pack("!H", port))
+            reply = self._recvall(sock, 4)
+            if len(reply) < 4 or reply[1] != 0:
+                raise OSError("SOCKS5 BIND refused")
+            addr, bport = self._read_socks_addr(sock, reply[3])
+            if addr == "0.0.0.0":
+                addr = shost
+            return sock, (addr, bport)
+        except Exception:
+            sock.close()
+            raise
+
+    def socks_bind_peer(self, sock):
+        """The second reply to BIND: the address of the connection the
+        proxy took, or None if it refused it or gave up."""
+        try:
+            reply = self._recvall(sock, 4)
+            if len(reply) < 4 or reply[1] != 0:
+                return None
+            return self._read_socks_addr(sock, reply[3])
+        except OSError:
+            return None
+
     def socks_udp_associate(self, port, host="127.0.0.1"):
         """Ask for a UDP association and report the port handed back.
 
