@@ -56,22 +56,31 @@ static int wakeinit(struct loop *l){
 	if(fd < 0) return 1;
 	l->wakerd = l->wakewr = fd;
 #elif defined _WIN32
-	/* no pipe to poll: a UDP socket sending to itself */
+	/* no pipe to poll: a TCP connection over the loopback, which WSAPoll()
+	   reports as it does not a UDP socket sending to itself */
 	struct sockaddr_in sa;
-	int len = sizeof(sa);
-	SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int len = sizeof(sa), one = 1;
+	SOCKET ls = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP), a = INVALID_SOCKET, b = INVALID_SOCKET;
 
-	if(s == INVALID_SOCKET) return 1;
+	if(ls == INVALID_SOCKET) return 1;
 	memset(&sa, 0, sizeof(sa));
 	sa.sin_family = AF_INET;
 	sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	if(bind(s, (struct sockaddr *)&sa, sizeof(sa)) || getsockname(s, (struct sockaddr *)&sa, &len) ||
-	   connect(s, (struct sockaddr *)&sa, sizeof(sa))){
-		closesocket(s);
+	if(bind(ls, (struct sockaddr *)&sa, sizeof(sa)) || listen(ls, 1) ||
+	   getsockname(ls, (struct sockaddr *)&sa, &len) ||
+	   (a = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET ||
+	   connect(a, (struct sockaddr *)&sa, sizeof(sa)) ||
+	   (b = accept(ls, NULL, NULL)) == INVALID_SOCKET){
+		if(a != INVALID_SOCKET) closesocket(a);
+		closesocket(ls);
 		return 1;
 	}
-	setnonblock(s);
-	l->wakerd = l->wakewr = s;
+	closesocket(ls);
+	setsockopt(a, IPPROTO_TCP, TCP_NODELAY, (char *)&one, sizeof(one));
+	setnonblock(a);
+	setnonblock(b);
+	l->wakewr = a;
+	l->wakerd = b;
 #else
 	int p[2];
 
@@ -89,6 +98,7 @@ static int wakeinit(struct loop *l){
 static void wakefree(struct loop *l){
 #ifdef _WIN32
 	closesocket(l->wakerd);
+	closesocket(l->wakewr);
 #else
 	close(l->wakerd);
 	if(l->wakewr != l->wakerd) close(l->wakewr);
