@@ -61,6 +61,8 @@ static int wakeinit(struct loop *l){
 	struct sockaddr_in sa;
 	int len = sizeof(sa), one = 1;
 	SOCKET ls = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP), a = INVALID_SOCKET, b = INVALID_SOCKET;
+	struct sockaddr_in mine, peer;
+	int tries;
 
 	if(ls == INVALID_SOCKET) return 1;
 	memset(&sa, 0, sizeof(sa));
@@ -70,12 +72,25 @@ static int wakeinit(struct loop *l){
 	   getsockname(ls, (struct sockaddr *)&sa, &len) ||
 	   (a = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET ||
 	   connect(a, (struct sockaddr *)&sa, sizeof(sa)) ||
-	   (b = accept(ls, NULL, NULL)) == INVALID_SOCKET){
+	   (len = sizeof(mine), getsockname(a, (struct sockaddr *)&mine, &len))){
 		if(a != INVALID_SOCKET) closesocket(a);
 		closesocket(ls);
 		return 1;
 	}
+	/* only our own connection: another process may have connected to the
+	   listening socket first */
+	for(tries = 0; tries < 8; tries++){
+		len = sizeof(peer);
+		if((b = accept(ls, (struct sockaddr *)&peer, &len)) == INVALID_SOCKET) break;
+		if(peer.sin_port == mine.sin_port && peer.sin_addr.s_addr == mine.sin_addr.s_addr) break;
+		closesocket(b);
+		b = INVALID_SOCKET;
+	}
 	closesocket(ls);
+	if(b == INVALID_SOCKET){
+		closesocket(a);
+		return 1;
+	}
 	setsockopt(a, IPPROTO_TCP, TCP_NODELAY, (char *)&one, sizeof(one));
 	setnonblock(a);
 	setnonblock(b);
