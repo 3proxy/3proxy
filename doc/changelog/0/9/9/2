@@ -1,0 +1,14 @@
+! Fix: dnspr relayed to the client whatever came first to the socket it asked the name server from, from any address and under any id, so a forged answer could be passed on; the query now goes out under a random id, and only an answer from the name server asked, with that id and the same question, is relayed
+! Fix: a client sending a part of a TLS record and then nothing kept a thread taking all of a CPU, and the read never timed out
+! Fix: without -Ne, the reply to SOCKS CONNECT and BIND gave the address of the client's connection to the proxy instead of the socket towards the destination: a BIND client was told the proxy's own port and the peer could never reach it (since 0.9.6)
+! Fix: a client which shut down its sending side (half-close) could get the answer cut short, megabytes short with large answers; likewise an upload after the server half-closed
+! Fix: with chroot every local time was UTC and every syslog message was lost: the time zone is loaded and syslog connected before chroot; the chroot entry of 3proxy.cfg(5) lists what PAM, LDAP and ODBC still need inside the chroot
+! Fix: the HTTP proxy closed the server connection of a kept-alive client and opened another one when only the request method changed (a POST after a GET to the same host)
+! Fix: the last ssl_client_mode in the configuration applied to every service, and a reload changed it for the services still running
+! Fix: memory leaks: on every refused configuration reload, on every failed TLS handshake, the server CA paths of every TLS service
+! Fix: Unix sockets: on Linux a proxy listening on a Unix socket relayed only the first bytes of an answer (result 95); an abstract socket (unix:@NAME) was bound under a name padded with zeros, which clients did not reach; tcppm refused port 0 for a unix: target, as given in the manual's example; on a reload the socket file of a listening service was removed
+! Fix: SIGPIPE could kill 3proxy when a client was gone while services were starting, and standalone services (proxy, socks, ...) at any time; sends use MSG_NOSIGNAL where the system has it
+! Fix: TLS MitM failed for every connection with wolfSSL built with WOLFSSL_QT (wolfSSL 5.9.1 of Ubuntu 26.04): the source certificate's serial number could not be copied; a serial number made from the hash of the source certificate is used then
+! Fix: Windows: closing a connection could leave its socket open (SO_LINGER on a non-blocking socket) or reset it while the peer still sent, so the end of an answer could be lost
+! Fix: standalone port mappers (tcppm, udppm, tlspr) built with CMake were built as if they were not port mappers
+- splice() is built by default on Linux again and is used only by services given -s
