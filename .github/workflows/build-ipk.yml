@@ -30,7 +30,8 @@ jobs:
             arch: arm_cortex-a7_neon-vfpv4
           - target: mediatek/filogic
             arch: aarch64_cortex-a53
-    runs-on: ubuntu-latest
+    # 26.04: the OpenWrt SDK refuses its non-GNU install
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v7
 
