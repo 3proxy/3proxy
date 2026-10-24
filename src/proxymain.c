@@ -50,6 +50,7 @@ struct udpstate;
    mainclient.c	threads for the clients of TCP services, and filters
    maintcp.c	the main loop of a TCP service
    mainudp.c	the main loop of a UDP service, in its one thread
+   mainloop.c	clients of TCP services served on event loops, by fibers
    Their functions of file scope are declared here, so that they can be in
    any order. */
 static void srvdiscard(struct srvstart *s);
@@ -81,6 +82,11 @@ static void freeworker(struct clientparam *param);
 static unsigned poollimit(void);
 static int poolpark(struct clientparam *param);
 static int srvspawn(struct srvstart *s, SOCKET client_sock);
+struct loopjob;
+static int loopwanted(struct srvparam *srv);
+static struct loopjob *loopjobnew(size_t stacksize);
+static void loopspawn(struct loopjob *job, struct clientparam *param);
+static int onlooper(void);
 static void filterswap(struct clientparam *param, unsigned char **cur, unsigned char *now);
 static int cblisten(struct srvstart *s);
 static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog);
@@ -117,6 +123,7 @@ static int srvrun(struct srvstart *s);
 #include "mainconf.c"
 #include "mainlisten.c"
 #include "mainclient.c"
+#include "mainloop.c"
 #include "maintcp.c"
 #include "mainudp.c"
 

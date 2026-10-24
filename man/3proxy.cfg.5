@@ -246,6 +246,11 @@ authorization and to drop the per-destination log records only.
 .br
  (for udppm) singlepacket, expect only one packet from both client and server
 .br
+.B -L
+ (for TCP services) serve the clients on event loops (see \fBloopmode\fR): a
+few threads each serve many clients, instead of a thread for each.
+\fB-L0\fR gives each client a thread of its own whatever \fBloopmode\fR says.
+.br
 .B -u
 Never ask for username/password
 .br
@@ -1509,6 +1514,38 @@ connection. A thread serves a service only if its stack is at least as large as
 the service needs (see \fBstacksize\fR), otherwise a new one is created.
 The admin service shows how many threads wait, how many were created and how
 many connections were given to a waiting one on its Running Services page.
+
+.br
+.BR loopmode
+\fIon\fR|\fIoff\fR
+.br
+ Whether the clients of the TCP services which follow (until the next
+\fBloopmode\fR) are served on event loops: a few threads (see \fBloops\fR)
+each wait for the sockets and timers of many clients and switch between
+them, each client running on a stack of its own as large as its thread's
+would be. A client costs a stack and no thread, and waking it costs no
+switch of threads, so many connections take less memory and CPU. Off by
+default; the \fB-L\fR option of a service overrides it, \fB-L0\fR for a
+thread for each client.
+.br
+ Clients keep a thread each, whatever is asked, where something they use
+would hold up the others sharing their thread: a service with FilePlugin,
+with PAM, LDAP or Windows authentication, resolving names through the
+system (\fBsysresolve\fR, or no name server given or found), logging
+through ODBC, using a \fB-ne\fR network namespace, or listening for
+connections back (\fB-R\fR); and where there are no event loops: on a
+processor other than x86, x86-64, ARM, AArch64 and MIPS (on Windows, any),
+where the system checks returns against a shadow stack, or in the
+standalone services (\fBproxy\fR(8) and others).
+
+.br
+.BR loops
+\fI<number>\fR
+.br
+ The number of threads running event loops for the services of
+\fBloopmode\fR, by default (0) one for each CPU. The loops start with the
+first client served on one and run as long as 3proxy does: a change takes
+effect only on a restart. Clients are given to the loops in turn.
 
 .br
 .BR stacksize

@@ -751,6 +751,7 @@ struct srvparam {
 	/* a thread for each client: what serves them waits other than in
 	   sockpoll(), or must not be left by a thread to serve another */
 	int threadperclient;
+	int loopmode;		/* its clients served on event loops */
 	struct extparam *config;	/* the configuration it was started with */
 	int timeouts[12];	/* conf.timeouts as they were when the service started */
 	int filtermaxsize, parentretries, maxseg;	/* and these */
@@ -1000,6 +1001,8 @@ struct extparam {
 	unsigned authcachetype, authcachetime;
 	int filtermaxsize;
 	int poolmax, pooltimeout;	/* threadpool: idle workers kept, -1 automatic */
+	int loops;		/* threads serving clients on event loops, 0: a CPU each */
+	int loopmode;		/* services from here on serve clients on loops */
 	int gracetraf, gracenum, gracedelay;
 	int maxseg;
 	unsigned char **archiver;

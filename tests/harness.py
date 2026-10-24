@@ -179,7 +179,9 @@ class Tester:
 
     def write_config(self, name, config):
         path = os.path.join(self.tmpdir, name + ".cfg")
-        text = textwrap.dedent(config).strip() + "\n"
+        # run.py --loopmode: every configuration starts with what it gives
+        text = os.environ.get("THREEPROXY_TESTCONFIG", "") + \
+            textwrap.dedent(config).strip() + "\n"
         # newline="" keeps the line endings as written, rather than letting
         # Windows turn them into CRLF behind the parser's back
         with open(path, "w", newline="") as fp:

@@ -113,9 +113,12 @@ static void serveparam(struct clientparam *param){
 
 #ifndef WITHMAIN
 #ifndef _WIN32
-	sigset_t mask;
-	sigfillset(&mask);
-	pthread_sigmask(SIG_SETMASK, &mask, NULL);
+	/* a loop's thread blocked them all as it started */
+	if(!onlooper()){
+		sigset_t mask;
+		sigfillset(&mask);
+		pthread_sigmask(SIG_SETMASK, &mask, NULL);
+	}
 #endif
 #endif
 
@@ -246,8 +249,8 @@ void * threadfunc (void *p) {
 #endif
 }
 
-/* A thread for the client, client_sock for TCP. 0 once it runs, the slot
-   in hand going with it. */
+/* A thread for the client, client_sock for TCP, or a fiber of an event
+   loop. 0 once it runs, the slot in hand going with it. */
 static int srvspawn(struct srvstart *s, SOCKET client_sock){
  struct srvparam *srv = &s->srv;
  struct clientparam *defparam = &s->defparam;
@@ -256,6 +259,7 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
  unsigned char buf[256];
  int error = 0, reused;
  size_t need;
+ struct loopjob *job = NULL;
 #ifdef _WIN32
  HANDLE h;
 
@@ -264,9 +268,13 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
  need = threadstacksize(srv->stacksize);
 #endif
 
+ /* on a loop: what is posted to it made now, so that posting it, done
+    once the client is counted, cannot fail */
+ if(loopwanted(srv)) job = loopjobnew(need);
+
  /* an idle worker if one has the stack this service needs */
  _3proxy_mutex_lock(&tpool.mutex);
- for(pp = &tpool.idle; *pp; pp = &(*pp)->poolnext){
+ for(pp = job? NULL : &tpool.idle; pp && *pp; pp = &(*pp)->poolnext){
 	if((*pp)->stacksize >= need){
 		newparam = *pp;
 		*pp = newparam->poolnext;
@@ -278,8 +286,9 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
  }
  _3proxy_mutex_unlock(&tpool.mutex);
  reused = newparam != NULL;
- if(!reused && (!(newparam = malloc (sizeof(*defparam))) || _3proxy_sem_init_timed(newparam->wake, 0, 1))){
+ if(!reused && (!(newparam = malloc (sizeof(*defparam))) || (!job && _3proxy_sem_init_timed(newparam->wake, 0, 1)))){
 	if(newparam) free(newparam);
+	if(job) free(job);
 	srv->so._closesocket(srv->so.state, client_sock);
 	defparam->res = 21;
 	if(!srv->silent)dolog(defparam, (unsigned char *)"Memory Allocation Failed");
@@ -306,8 +315,9 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 	newparam->next = srv->child;
 	srv->child = srv->child->prev = newparam;
  }
- /* a worker from the pool is woken below, once it is one of the children */
- if(!reused){
+ /* a worker from the pool is woken below, once it is one of the children,
+    a loop given its client once counted */
+ if(!reused && !job){
 #ifdef _WIN32
 #ifndef _WINCE
  h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv->stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
@@ -346,13 +356,21 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 #ifndef STDMAIN
 	listenercount(srv, 1);
 #endif
-	if(!reused){
-		newparam->workerid = (uint64_t)thread;
-		_3proxy_mutex_lock(&tpool.mutex);
-		tpool.created++;
-		_3proxy_mutex_unlock(&tpool.mutex);
+	if(job){
+		/* the loop's thread is its thread: the loop sets it. Posted last,
+		   the client may run at once */
+		newparam->workerid = newparam->threadid = 0;
+		loopspawn(job, newparam);
 	}
-	newparam->threadid = newparam->workerid;
+	else {
+		if(!reused){
+			newparam->workerid = (uint64_t)thread;
+			_3proxy_mutex_lock(&tpool.mutex);
+			tpool.created++;
+			_3proxy_mutex_unlock(&tpool.mutex);
+		}
+		newparam->threadid = newparam->workerid;
+	}
  }
  _3proxy_mutex_unlock(&srv->counter_mutex);
  if(reused) _3proxy_sem_unlock(newparam->wake);

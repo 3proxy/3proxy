@@ -333,6 +333,7 @@ int nsbroken(void);
    lines among its arguments */
 SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int side, int domain, int type, int protocol);
 int sockpoll(struct sockfuncs *sf, void *state, struct pollfd *fds, unsigned nfds, int timeout);
+extern int (*fiberpollfunc)(struct pollfd *fds, unsigned nfds, int timeout);
 void nonblock(SOCKET sock);
 int sysresolves(int mode);
 int acceptagain(void);

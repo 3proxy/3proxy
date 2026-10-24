@@ -230,6 +230,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 #endif
 	" -b(BUFSIZE) size of network buffer, at most and by default 16384\n"
 	" -S(STACKSIZE) value to add to default client thread stack size\n"
+	" -L serve clients on event loops, a thread serving many; -L0 a thread each\n"
 	" -t be silent (do not log service start/stop)\n"
 	"\n"
 	" -iIP ip address or internal interface (clients are expected to connect)\n"
@@ -476,6 +477,9 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			break;
 		 case 'S':
 			srv->stacksize = atoi(argv[i]+2);
+			break;
+		 case 'L':
+			srv->loopmode = argv[i][2] != '0';
 			break;
 		case 'a':
 			srv->anonymous = 1 + atoi(argv[i]+2);
@@ -738,6 +742,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  srv->maxchild = conf->maxchild;
  srv->backlog = conf->backlog;
  srv->stacksize = conf->stacksize;
+ srv->loopmode = conf->loopmode;
  srv->config = conf;
  srv->resolvmode = conf->resolvmode;
  memcpy(srv->timeouts, conf->timeouts, sizeof(srv->timeouts));

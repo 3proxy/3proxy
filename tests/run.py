@@ -58,7 +58,11 @@ def main():
                         help="keep the temporary directory")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="print every check, not just the failures")
+    parser.add_argument("--loopmode", action="store_true",
+                        help="serve the clients of every service on event loops")
     args = parser.parse_args()
+    if args.loopmode:
+        os.environ["THREEPROXY_TESTCONFIG"] = "loops 2\nloopmode on\n"
 
     binary = args.binary or os.environ.get("BIN") or default_binary()
     binary = os.path.abspath(binary)

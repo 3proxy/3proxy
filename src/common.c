@@ -470,27 +470,35 @@ struct sockfuncs so = {
    for, and events are given back as they were. With no fds it only
    sleeps. */
 #define POLLFAIL (POLLERR|POLLHUP|POLLNVAL)
+/* set once clients are served by fibers on event loops: the wait of a
+   fiber, -2 for anything else */
+int (*fiberpollfunc)(struct pollfd *fds, unsigned nfds, int timeout) = NULL;
+
 int sockpoll(struct sockfuncs *sf, void *state, struct pollfd *fds, unsigned nfds, int timeout){
 	short own[64], *events = own;
 	unsigned i;
 	int res;
 
 	if(!nfds){
-		if(timeout > 0) usleep(timeout * SLEEPTIME);
+		if(timeout > 0 && (!fiberpollfunc || fiberpollfunc(NULL, 0, timeout) == -2))
+			usleep(timeout * SLEEPTIME);
 		return 0;
 	}
 	if(nfds > sizeof(own)/sizeof(own[0]) && !(events = malloc(nfds * sizeof(*events)))) return -1;
 	for(i = 0; i < nfds; i++) events[i] = fds[i].events;
 	if(!(res = sf->_prepoll(state, fds, nfds))){
+		/* a fiber waits in its loop */
+		if(!fiberpollfunc || (res = fiberpollfunc(fds, nfds, timeout)) == -2){
 #ifndef WITH_POLL
 #ifndef WITH_WSAPOLL
-		res = mypoll(fds, nfds, timeout);
+			res = mypoll(fds, nfds, timeout);
 #else
-		res = WSAPoll(fds, nfds, timeout);
+			res = WSAPoll(fds, nfds, timeout);
 #endif
 #else
-		res = poll(fds, (nfds_t)nfds, timeout);
+			res = poll(fds, (nfds_t)nfds, timeout);
 #endif
+		}
 		for(i = 0; res > 0 && i < nfds; i++)
 			if(fds[i].events != events[i] && (fds[i].revents & ~POLLFAIL))
 				fds[i].revents = events[i] | (fds[i].revents & POLLFAIL);

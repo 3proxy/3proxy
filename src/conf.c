@@ -418,6 +418,19 @@ static int h_stacksize(int argc, unsigned char **argv){
 	return 0;
 }
 
+static int h_loops(int argc, unsigned char **argv){
+	conf->loops = atoi((char *)argv[1]);
+	if(conf->loops < 0) conf->loops = 0;
+	return 0;
+}
+
+static int h_loopmode(int argc, unsigned char **argv){
+	if(!strcmp((char *)argv[1], "on")) conf->loopmode = 1;
+	else if(!strcmp((char *)argv[1], "off")) conf->loopmode = 0;
+	else return 1;
+	return 0;
+}
+
 static int h_threadpool(int argc, unsigned char **argv){
 	conf->poolmax = atoi((char *)argv[1]);
 	if(argc > 2) conf->pooltimeout = atoi((char *)argv[2]);
@@ -2133,6 +2146,8 @@ struct commands commandhandlers[]={
 	{NULL, "delimchar",h_delimchar, 2, 2},
 	{NULL, "authnserver", h_authnserver, 2, 2},
 	{NULL, "stacksize", h_stacksize, 2, 2},
+	{NULL, "loops", h_loops, 2, 2},
+	{NULL, "loopmode", h_loopmode, 2, 2},
 	{NULL, "minlogqueue", h_minlogqueue, 2, 2},
 	{NULL, "maxlogqueue", h_maxlogqueue, 2, 2},
 	{NULL, "threadpool", h_threadpool, 2, 3},
