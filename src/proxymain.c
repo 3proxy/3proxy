@@ -88,6 +88,8 @@ void * threadfunc (void *p) {
 		}
 		param->remsock = param->srv->so._accept(param->sostate, param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
+			/* another client of the service took it: not a try */
+			if(acceptagain()) { i++; continue; }
 			dolog(param, (unsigned char *)"Connect back accept() failed");
 			continue;
 		}
@@ -984,6 +986,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 #endif
 
 	setopts(srv.cbsock, srv.cbssockopts);
+	/* the clients of the service all wait for it: one accepts what comes */
+	nonblock(srv.cbsock);
 
 	if(srv.so._bind(srv.so.state, srv.cbsock, (struct sockaddr*)&cbsa, SASIZE(&cbsa))==-1) {
 		dolog(&defparam, (unsigned char *)"Failed to bind connect back socket");

@@ -661,6 +661,26 @@ int parseconnusername(char *username, struct clientparam *param, int extpasswd, 
 }
 
 
+/* What waits for a socket waits in poll(): a call on it never does. */
+void nonblock(SOCKET sock){
+#ifdef _WIN32
+	unsigned long ul = 1;
+	ioctlsocket(sock, FIONBIO, &ul);
+#else
+	fcntl(sock, F_SETFL, O_NONBLOCK | fcntl(sock, F_GETFL));
+#endif
+}
+
+/* accept() with nothing to accept: another took it, or it was gone */
+int acceptagain(void){
+#ifdef _WIN32
+	int err = WSAGetLastError();
+	return err == WSAEWOULDBLOCK || err == WSAECONNRESET || err == WSAEINTR;
+#else
+	return errno == EAGAIN || errno == EWOULDBLOCK || errno == ECONNABORTED || errno == EINTR;
+#endif
+}
+
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to){
 		struct pollfd fds[1];
 #ifdef _WIN32
