@@ -284,6 +284,7 @@ struct auth {
 	AUTHFUNC authenticate;
 	AUTHFUNC authorize;
 	char * desc;
+	int blocks;	/* waits other than in sockpoll(): PAM, LDAP */
 };
 
 struct iplist {

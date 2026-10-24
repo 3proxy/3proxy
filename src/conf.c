@@ -558,6 +558,7 @@ static int h_auth(int argc, unsigned char **argv){
 			conf->authfuncs->desc = au->desc;
 			conf->authfuncs->authenticate = au->authenticate;
 			conf->authfuncs->authorize = au->authorize;
+			conf->authfuncs->blocks = au->blocks;
 			break;
 		}
 	  }

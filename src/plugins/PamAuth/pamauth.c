@@ -141,6 +141,7 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, int argc, unsigne
  pamauth.authenticate = pamfunc;
  pamauth.authorize = pluginlink->checkACL;
  pamauth.desc = "pam";
+ pamauth.blocks = 1;
  pamauth.next = pluginlink->authfuncs->next;
  pluginlink->authfuncs->next = &pamauth;
   

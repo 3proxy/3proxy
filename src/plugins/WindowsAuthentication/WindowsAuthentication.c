@@ -80,6 +80,7 @@ PLUGINAPI int PLUGINCALL WindowsAuthentication(struct pluginlink * pluginlink, i
 		alwaysauth.authenticate = windowsfunc;
 		alwaysauth.authorize = pluginlink->checkACL;
 		alwaysauth.desc = "windows";
+		alwaysauth.blocks = 1;
 		alwaysauth.next = pluginlink->authfuncs->next;
 		pluginlink->authfuncs->next = &alwaysauth;
 		loaded = 1;

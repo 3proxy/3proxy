@@ -551,6 +551,7 @@ PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink,
     myalwaysauth.authenticate = ldapfunc;
     myalwaysauth.authorize = pluginlink->checkACL;
     myalwaysauth.desc = "ldap";
+    myalwaysauth.blocks = 1;
     myalwaysauth.next = pluginlink->authfuncs->next;
     pluginlink->authfuncs->next = &myalwaysauth;
 

@@ -313,8 +313,11 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
  }
 
  if(conf->authfuncs){
+	struct auth *au;
+
 	srv->authfuncs = copyauth(conf->authfuncs);
 	if(!srv->authfuncs) return 2;
+	for(au = srv->authfuncs; au; au = au->next) if(au->blocks) srv->threadperclient = 1;
  }
 #else
  srv->needuser = 0;
