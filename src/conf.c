@@ -700,6 +700,12 @@ void confdnscommit(void){
 	sysdnsapply(cfgns, cfgnsn);
 }
 
+/* Whether names are resolved by the C library for a service of the mode:
+   waiting for it other than in sockpoll() */
+int sysresolves(int mode){
+	return mode == RESOLVE_SYSTEM || (mode == RESOLVE_DEFAULT && !cfgnsn && !sysdnscount());
+}
+
 /* Whether names would be resolved slowly: by the C library, or by name
    servers, the system's taken by default, without a cache */
 static int noresolver(void){

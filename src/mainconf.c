@@ -640,6 +640,9 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
  if(srv->o_nsfd >= 0) srv->threadperclient = 1;
 #endif
  if(srv->logger && srv->logger->type && srv->logger->type->blocks) srv->threadperclient = 1;
+#ifndef STDMAIN
+ if(sysresolves(srv->resolvmode)) srv->threadperclient = 1;
+#endif
 
 #ifndef STDMAIN
  if((error = copyfilter(conf->filters, srv))) return error;
