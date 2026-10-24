@@ -68,6 +68,11 @@ Note that access rules accumulate until `flush`, so a service section that
 means to stand on its own should start with one - otherwise an earlier
 `allow *` matches first and the rule under test is never reached.
 
+The event loop (`src/loop.c`) is tested on its own by `tests/looptest.c`,
+which CMake builds next to the 3proxy binary and the `loop` case runs: timers
+on a clock of its own, through several turns of the wheel, sockets, and
+other threads. Where it was not built the case is skipped.
+
 ## What is not covered yet
 
 42 of the 112 configuration commands appear in a test, and the count says

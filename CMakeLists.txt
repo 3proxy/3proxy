@@ -390,6 +390,7 @@ endif()
 # Source files for 3proxy core
 set(3PROXY_CORE_SOURCES
     src/3proxy.c
+    src/loop.c
     src/auth.c
     src/acl.c
     src/limiter.c
@@ -625,6 +626,14 @@ if(WIN32)
     endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(3proxy PRIVATE dl)
+endif()
+
+# The event loop on its own, for tests/cases/loop.py: not installed
+add_executable(looptest tests/looptest.c src/loop.c)
+target_include_directories(looptest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(looptest PRIVATE Threads::Threads)
+if(WIN32)
+    target_link_libraries(looptest PRIVATE ${WINDOWS_LIBS})
 endif()
 
 # Build 3proxy_crypt utility
