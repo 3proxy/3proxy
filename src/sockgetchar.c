@@ -23,7 +23,7 @@ int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bu
 		continue;
 	}
 	if(res < 0 && errno != EAGAIN && errno != EINTR) break;
-	res = param?param->srv->so._poll(param->sostate, &fds, 1, to*1000):so._poll(so.state, &fds, 1, to*1000);
+	res = param?sockpoll(&param->srv->so, param->sostate, &fds, 1, to*1000):sockpoll(&so, so.state, &fds, 1, to*1000);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 	if(res < 1) break;
  } while (sent < bufsize);
@@ -40,7 +40,7 @@ int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, un
  do {
 	if(timetoexit) return 0;
 	fds.events = POLLOUT;
-	res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
+	res = param?sockpoll(&param->srv->so, param->sostate, &fds, 1, to):sockpoll(&so, so.state, &fds, 1, to);
 	if(res < 0 && (errno == EAGAIN || errno == EINTR)) continue;
 	if(res < 1) break;
 	res = param?param->srv->so._sendto(param->sostate, sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin)):so._sendto(so.state, sock, (char *)buf + sent, bufsize - sent, 0, sin, SASIZE(sin)); 
@@ -62,7 +62,7 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 	fds.events = POLLIN;
 	for(;;){
 		if(timetoexit) return EOF;
-		res = param?param->srv->so._poll(param->sostate, &fds, 1, to):so._poll(so.state, &fds, 1, to);
+		res = param?sockpoll(&param->srv->so, param->sostate, &fds, 1, to):sockpoll(&so, so.state, &fds, 1, to);
 		if (res<1) return 0;
 		sasize = sizeof(PROXYSOCKADDRTYPE);
 		/* sin NULL for a stream socket: nothing to learn the address into */

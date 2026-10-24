@@ -573,6 +573,14 @@ struct sockoptset {
 };
 
 
+/* _prepoll never waits: it tells what a layer over the socket knows to be
+   ready without asking the system, data a TLS connection has already
+   decrypted, and what the system is to be asked instead of what the caller
+   asked, events rewritten: a TLS read waiting for its socket to be
+   writable. It returns the number of fds it has set revents of, the rest
+   to be ignored and events left as they are; 0 when the sockets have to be
+   polled, for their events as it leaves them, revents left to the poll;
+   or -1. The wait itself is sockpoll()'s, which calls it first. */
 struct sockfuncs {
 	void * state;
 	void (*freefunc)(void* state);
@@ -586,7 +594,7 @@ struct sockfuncs {
 	int (WINAPI *_getsockname)(void* state, SOCKET s, struct sockaddr * name, int * namelen);
    	int (WINAPI *_getsockopt)(void* state, SOCKET s, int level, int optname, char * optval, int * optlen);
 	int (WINAPI *_setsockopt)(void* state, SOCKET s, int level, int optname, const char *optval, int optlen);
-	int (WINAPI *_poll)(void* state, struct pollfd *fds, unsigned int nfds, int timeout);
+	int (WINAPI *_prepoll)(void* state, struct pollfd *fds, unsigned int nfds);
 	int (WINAPI *_send)(void* state, SOCKET s, const char *msg, int len, int flags);
 	int  (WINAPI *_sendto)(void* state, SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen);
 	int  (WINAPI *_recv)(void* state, SOCKET s, char *buf, int len, int flags);
@@ -603,7 +611,7 @@ struct sockfuncs {
 	int (*_getsockname)(void* state, SOCKET s, struct sockaddr * name, socklen_t * namelen);
    	int (*_getsockopt)(void* state, SOCKET s, int level, int optname, void * optval, socklen_t * optlen);
 	int (*_setsockopt)(void* state, int s, int level, int optname, const void *optval, socklen_t optlen);
-	int (*_poll)(void* state, struct pollfd *fds, nfds_t nfds, int timeout);
+	int (*_prepoll)(void* state, struct pollfd *fds, nfds_t nfds);
 	ssize_t (*_send)(void* state, SOCKET s, const void *msg, size_t len, int flags);
 	ssize_t (*_sendto)(void* state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, SASIZETYPE tolen);
 	ssize_t (*_recv)(void* state, SOCKET s, void *buf, size_t len, int flags);

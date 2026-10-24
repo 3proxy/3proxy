@@ -1190,7 +1190,7 @@ static void httpsrv_linger(struct clientparam *param)
 		memset(&fd, 0, sizeof(fd));
 		fd.fd = param->clisock;
 		fd.events = POLLIN;
-		if(param->srv->so._poll(param->sostate, &fd, 1, timeo * 1000) <= 0) break;
+		if(sockpoll(&param->srv->so, param->sostate, &fd, 1, timeo * 1000) <= 0) break;
 		got = (int)param->srv->so._recv(param->sostate, param->clisock, buf,
 			(left > HTTPSRV_BLOCK)? (int)HTTPSRV_BLOCK : (int)left, 0);
 		if(got <= 0) break;
@@ -1225,7 +1225,7 @@ static int proxypass(struct clientparam *param, struct httpreq *r)
 		memset(&fd, 0, sizeof(fd));
 		fd.fd = param->remsock;
 		fd.events = POLLIN;
-		if(param->srv->so._poll(param->sostate, &fd, 1, 0) > 0
+		if(sockpoll(&param->srv->so, param->sostate, &fd, 1, 0) > 0
 		   && (fd.revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL))){
 			/* anything arriving now belongs to no request */
 			stale = 1;

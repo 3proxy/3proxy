@@ -360,16 +360,8 @@ int
     int WINAPI def_setsockopt(void* state, SOCKET s, int level, int optname, const char *optval, int optlen){
 	return setsockopt(s, level, optname, optval, optlen);
     }
-    int WINAPI def_poll(void* state, struct pollfd *fds, unsigned int nfds, int timeout){
-#ifndef WITH_POLL
-#ifndef WITH_WSAPOLL
-	return mypoll(fds, nfds, timeout);
-#else
-	return WSAPoll(fds, nfds, timeout);
-#endif
-#else
-	return poll(fds, nfds, timeout);
-#endif
+    int WINAPI def_prepoll(void* state, struct pollfd *fds, unsigned int nfds){
+	return 0;
     }
     int WINAPI def_send(void* state, SOCKET s, const char *msg, int len, int flags){
 	return send(s, msg, len, flags);
@@ -419,12 +411,8 @@ int
 	return setsockopt(s, level, optname, optval, optlen);
     }
 
-    int def_poll(void* state, struct pollfd *fds, nfds_t nfds, int timeout){
-#ifndef WITH_POLL
-	return mypoll(fds, nfds, timeout);
-#else
-	return poll(fds, nfds, timeout);
-#endif
+    int def_prepoll(void* state, struct pollfd *fds, nfds_t nfds){
+	return 0;
     }
 
 /* a peer gone is an error of the send, not SIGPIPE, where the system can
@@ -466,7 +454,7 @@ struct sockfuncs so = {
 	def_getsockname,
 	def_getsockopt,
 	def_setsockopt,
-	def_poll,
+	def_prepoll,
 	def_send,
 	def_sendto,
 	def_recv,
@@ -474,6 +462,43 @@ struct sockfuncs so = {
 	def_shutdown,
 	def_closesocket
 };
+
+/* Waits as poll() does for fds of sockets made with sf, once their layers
+   know of nothing ready already. A layer may have a socket waited for
+   other than as asked, a TLS read for it to be writable: whatever it gets
+   is then the caller's chance to try again, revents what the caller asked
+   for, and events are given back as they were. With no fds it only
+   sleeps. */
+#define POLLFAIL (POLLERR|POLLHUP|POLLNVAL)
+int sockpoll(struct sockfuncs *sf, void *state, struct pollfd *fds, unsigned nfds, int timeout){
+	short own[64], *events = own;
+	unsigned i;
+	int res;
+
+	if(!nfds){
+		if(timeout > 0) usleep(timeout * SLEEPTIME);
+		return 0;
+	}
+	if(nfds > sizeof(own)/sizeof(own[0]) && !(events = malloc(nfds * sizeof(*events)))) return -1;
+	for(i = 0; i < nfds; i++) events[i] = fds[i].events;
+	if(!(res = sf->_prepoll(state, fds, nfds))){
+#ifndef WITH_POLL
+#ifndef WITH_WSAPOLL
+		res = mypoll(fds, nfds, timeout);
+#else
+		res = WSAPoll(fds, nfds, timeout);
+#endif
+#else
+		res = poll(fds, (nfds_t)nfds, timeout);
+#endif
+		for(i = 0; res > 0 && i < nfds; i++)
+			if(fds[i].events != events[i] && (fds[i].revents & ~POLLFAIL))
+				fds[i].revents = events[i] | (fds[i].revents & POLLFAIL);
+	}
+	for(i = 0; i < nfds; i++) fds[i].events = events[i];
+	if(events != own) free(events);
+	return res;
+}
 
 #ifdef _WINCE
 
@@ -664,7 +689,7 @@ int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa,
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = sock;
 	        fds[0].events = POLLOUT;
-		if((param?param->srv->so._poll(param->sostate, fds, 1, to*1000):so._poll(so.state, fds, 1, to*1000)) <= 0 || !(fds[0].revents & POLLOUT) || (fds[0].revents & (POLLERR|POLLHUP))) {
+		if((param?sockpoll(&param->srv->so, param->sostate, fds, 1, to*1000):sockpoll(&so, so.state, fds, 1, to*1000)) <= 0 || !(fds[0].revents & POLLOUT) || (fds[0].revents & (POLLERR|POLLHUP))) {
 			return 13;
 		}
 		return 0;

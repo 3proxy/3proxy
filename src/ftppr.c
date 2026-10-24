@@ -222,7 +222,7 @@ void * ftpprchild(struct clientparam* param) {
 			fds.fd = clidatasock;
 			fds.events = POLLIN;
 
-			res = param->srv->so._poll (param->sostate, &fds, 1, param->srv->timeouts[STRING_L]*1000);
+			res = sockpoll(&param->srv->so, param->sostate, &fds, 1, param->srv->timeouts[STRING_L]*1000);
 			if(res != 1) {
 				RETURN(857);
 			}

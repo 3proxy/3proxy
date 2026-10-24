@@ -47,7 +47,7 @@ static void serveparam(struct clientparam *param){
 	fds.events = POLLIN;
 	fds.revents = 0;
 	for(i=5+(param->srv->maxchild>>10); i; i--){
-		if(param->srv->so._poll(param->sostate, &fds, 1, 1000*CONNBACK_TO)!=1){
+		if(sockpoll(&param->srv->so, param->sostate, &fds, 1, 1000*CONNBACK_TO)!=1){
 			dolog(param, (unsigned char *)"Connect back not received, check connback client");
 			i = 0;
 			break;
@@ -86,7 +86,7 @@ static void serveparam(struct clientparam *param){
 			rf.fd = param->remsock;
 			rf.events = POLLIN;
 			rf.revents = 0;
-			if(param->srv->so._poll(param->sostate, &rf, 1, 0) == 1){
+			if(sockpoll(&param->srv->so, param->sostate, &rf, 1, 0) == 1){
 				param->srv->so._closesocket(param->sostate, param->remsock);
 				param->remsock = INVALID_SOCKET;
 				if(skips > 0){ skips--; i++; }

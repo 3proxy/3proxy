@@ -355,7 +355,7 @@ fflush(stderr);
 				fds[0].fd = param->remsock;
 				fds[1].fd = param->clisock;
 				fds[0].events = fds[1].events = POLLIN;
-				res = param->srv->so._poll(param->sostate, fds, 2, param->srv->timeouts[CONNECTION_L] * 1000);
+				res = sockpoll(&param->srv->so, param->sostate, fds, 2, param->srv->timeouts[CONNECTION_L] * 1000);
 				if (res < 1 || fds[1].revents) {
 					res = 460;
 					break;

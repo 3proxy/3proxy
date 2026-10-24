@@ -209,7 +209,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 	udpfds(param, &p);
 
 	for (;;) {
-		res = param->srv->so._poll(param->sostate, p.fds, p.nfds, timeo * 1000);
+		res = sockpoll(&param->srv->so, param->sostate, p.fds, p.nfds, timeo * 1000);
 		if (res < 0) return 481;
 		if (res == 0) return 92;
 

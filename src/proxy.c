@@ -567,7 +567,7 @@ for(;;){
 	fds[0].events = POLLIN;
 	fds[1].fd = param->remsock;
 	fds[1].events = POLLIN;
-	res = param->srv->so._poll(param->sostate, fds, 2, param->srv->timeouts[STRING_S]*1000);
+	res = sockpoll(&param->srv->so, param->sostate, fds, 2, param->srv->timeouts[STRING_S]*1000);
 	if(res<=0) {
 		RETURN(555);
 	}

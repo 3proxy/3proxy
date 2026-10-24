@@ -638,7 +638,7 @@ static int udploop(struct srvstart *s){
 			st.of[nfds++] = ss;
 		}
 	}
-	n = srv->so._poll(srv->so.state, st.fds, nfds, timeo);
+	n = sockpoll(&srv->so, srv->so.state, st.fds, nfds, timeo);
 	if(n < 0 && errno != EINTR && errno != EAGAIN){
 		res = 91;
 		break;

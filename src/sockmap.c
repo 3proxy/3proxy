@@ -260,7 +260,7 @@ log(logbuf);
 		memset(fds, 0, sizeof(fds));
 		fds[0].fd = param->clisock;
 		fds[1].fd = param->remsock;
-		param->srv->so._poll(param->sostate, fds, 2, sleeptime);
+		sockpoll(&param->srv->so, param->sostate, fds, 2, sleeptime);
 		sleeptime = 0;
 	}
 	if((param->srv->logdumpsrv && (param->statssrv64 > param->srv->logdumpsrv)) ||
@@ -966,7 +966,7 @@ log("ready reading from server pipe");
 #ifdef WITHLOG
 log("entering poll");
 #endif
-			res = param->srv->so._poll(param->sostate, fds, fdsc,
+			res = sockpoll(&param->srv->so, param->sostate, fds, fdsc,
 				((CLIENTTERMREAD || SERVERTERMREAD)?
 					MIN(timeo, param->srv->timeouts[LINGER_TO]) : timeo) * 1000);
 #ifdef WITHLOG

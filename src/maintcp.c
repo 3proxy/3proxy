@@ -210,7 +210,7 @@ static int tcploop(struct srvstart *s, int *haveslot){
 		}
 		if (connectback) break;
 		if (srv->config->paused != srv->paused) break;
-		error = srv->so._poll(srv->so.state, &srv->fds, 1, 1000);
+		error = sockpoll(&srv->so, srv->so.state, &srv->fds, 1, 1000);
 		if (error >= 1) break;
 		if (error == 0) continue;
 		if (errno != EAGAIN &&	errno != EINTR) {

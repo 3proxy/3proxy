@@ -560,7 +560,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	        memset(fds, 0, sizeof(fds));
 	        fds[0].fd = remsock;
 	        fds[0].events = POLLIN;
-		if(so._poll(so.state, fds, 1, param->srv->config->timeouts[SINGLEBYTE_L]*1000) <= 0) {
+		if(sockpoll(&so, so.state, fds, 1, param->srv->config->timeouts[SINGLEBYTE_L]*1000) <= 0) {
 			continue;
 		}
 

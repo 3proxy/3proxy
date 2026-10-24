@@ -411,9 +411,9 @@ static int copyfdtosock(struct fp_stream * fps, DIRECTION which, long len){
 }
 
 #ifdef _WIN32
-static int WINAPI fp_poll(void *state, struct pollfd *fds, unsigned int nfds, int timeout){
+static int WINAPI fp_prepoll(void *state, struct pollfd *fds, unsigned int nfds){
 #else
-static int fp_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
+static int fp_prepoll(void *state, struct pollfd *fds, nfds_t nfds){
 #endif
  struct fp_stream *fps = NULL;
  int res;
@@ -458,7 +458,7 @@ static int fp_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
 	}
 	
  }
- return sso._poll(sso.state, fds, nfds, timeout);
+ return sso._prepoll(sso.state, fds, nfds);
 }
 
 #ifdef _WIN32
@@ -916,7 +916,7 @@ static int file_loaded=0;
 		file_loaded = 1;
 		pl = pluginlink;
 		memcpy(&sso, pl->so, sizeof(struct sockfuncs));
-		pl->so->_poll = fp_poll;
+		pl->so->_prepoll = fp_prepoll;
 		pl->so->_send = fp_send;
 		pl->so->_sendto = fp_sendto;
 		pl->so->_recv = fp_recv;

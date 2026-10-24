@@ -75,6 +75,9 @@ static int ktls = 0;
 struct SSLsock {
 	SOCKET s;
 	SSL_CONN conn;
+	/* what a read and a write which could not be done wait for, POLLIN
+	   or POLLOUT, 0 once one is: TLS may have to write to read */
+	short rwant, wwant;
 };
 
 struct SSLstate {
@@ -103,10 +106,12 @@ static void addSSL(
 	if (cli_s != INVALID_SOCKET){
 	    SOSTATE->cli.s = cli_s;
 	    SOSTATE->cli.conn = cli_conn;
+	    SOSTATE->cli.rwant = SOSTATE->cli.wwant = 0;
 	}
 	if (srv_s != INVALID_SOCKET){
 	    SOSTATE->srv.s = srv_s;
 	    SOSTATE->srv.conn = srv_conn;
+	    SOSTATE->srv.rwant = SOSTATE->srv.wwant = 0;
 	}
 }
 
@@ -137,12 +142,14 @@ static ssize_t  ssl_send(void *state, SOCKET s, const void *msg, size_t len, int
 		int res, err;
 		if((res = ssl_write(sslq->conn, (void *)msg, len)) <= 0){
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-			if (err == SSL_ERROR_WANT_WRITE){
+			if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ){
+				sslq->wwant = (err == SSL_ERROR_WANT_READ)? POLLIN : POLLOUT;
 				seterrno3(EAGAIN);
 				return -1;
 			}
 			else seterrno3(err);
 		}
+		else sslq->wwant = 0;
 		return res;
 	}
 
@@ -159,14 +166,16 @@ static ssize_t ssl_sendto(void *state, SOCKET s, const void *msg, size_t len, in
 
 	if ((sslq = searchSSL(state, s))){
 		int res, err;
-		if((res = ssl_write(sslq->conn, (void *)msg, len)) <= 0) {
+		if((res = ssl_write(sslq->conn, (void *)msg, len)) <= 0){
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-			if (err == SSL_ERROR_WANT_WRITE){
+			if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ){
+				sslq->wwant = (err == SSL_ERROR_WANT_READ)? POLLIN : POLLOUT;
 				seterrno3(EAGAIN);
 				return -1;
 			}
 			else seterrno3(err);
 		}
+		else sslq->wwant = 0;
 		return res;
 	}
 
@@ -184,12 +193,14 @@ static ssize_t  ssl_recvfrom(void *state, SOCKET s, void *msg, size_t len, int f
 		int res, err;
 		if((res = ssl_read(sslq->conn, (void *)msg, len)) <= 0) {
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-			if (err == SSL_ERROR_WANT_READ) {
+			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+				sslq->rwant = (err == SSL_ERROR_WANT_WRITE)? POLLOUT : POLLIN;
 				seterrno3(EAGAIN);
 				return -1;
 			}
 			else seterrno3(err);
 		}
+		else sslq->rwant = 0;
 		return res;
 	}
 	return sso._recvfrom(sso.state, s, msg, len, flags, from, fromlen);
@@ -206,12 +217,14 @@ static ssize_t ssl_recv(void *state, SOCKET s, void *msg, size_t len, int flags)
 		int res, err;
 		if((res = ssl_read(sslq->conn, (void *)msg, len)) <= 0) {
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
-			if (err == SSL_ERROR_WANT_READ) {
+			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+				sslq->rwant = (err == SSL_ERROR_WANT_WRITE)? POLLOUT : POLLIN;
 				seterrno3(EAGAIN);
 				return -1;
 			}
 			else seterrno3(err);
 		}
+		else sslq->rwant = 0;
 		return res;
 	}
 
@@ -228,14 +241,18 @@ static int WINAPI ssl_closesocket(void *state, SOCKET s){
 	return sso._closesocket(sso.state, s);
 }
 
+/* Data already decrypted makes its socket readable. A read or a write TLS
+   could not do has its socket waited for as TLS needs it. */
 #ifdef _WIN32
-static int WINAPI ssl_poll(void *state, struct pollfd *fds, unsigned int nfds, int timeout){
+static int WINAPI ssl_prepoll(void *state, struct pollfd *fds, unsigned int nfds){
 #else
-static int ssl_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
+static int ssl_prepoll(void *state, struct pollfd *fds, nfds_t nfds){
 #endif
 	struct SSLsock *sslq = NULL;
 	unsigned int i;
 	int ret = 0;
+	short events;
+
 	for(i = 0; i < nfds; i++){
 		if((fds[i].events & POLLIN) && (sslq = searchSSL(state, fds[i].fd)) && ssl_pending(sslq->conn)){
 			fds[i].revents = POLLIN;
@@ -244,9 +261,14 @@ static int ssl_poll(void *state, struct pollfd *fds, nfds_t nfds, int timeout){
 		else fds[i].revents = 0;
 	}
 	if(ret) return ret;
-
-	ret = sso._poll(state, fds, nfds, timeout);
-	return ret;
+	for(i = 0; i < nfds; i++){
+		if(!(sslq = searchSSL(state, fds[i].fd))) continue;
+		events = fds[i].events & ~(POLLIN|POLLOUT);
+		if(fds[i].events & POLLIN) events |= sslq->rwant? sslq->rwant : POLLIN;
+		if(fds[i].events & POLLOUT) events |= sslq->wwant? sslq->wwant : POLLOUT;
+		fds[i].events = events;
+	}
+	return sso._prepoll(sso.state, fds, nfds);
 }
 
 SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, SSL_CERT *server_cert, char **errSSL)
@@ -298,7 +320,7 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 	    fds[0].events = POLLOUT;
 	}
 	else break;
-	if(sso._poll(sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+	if(sockpoll(&sso, sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
     } while (err == -1);
 
     if ( err != 1 ) {
@@ -373,7 +395,7 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	    fds[0].events = POLLOUT;
 	}
 	else break;
-	if(sso._poll(sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
+	if(sockpoll(&sso, sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
     } while (err == -1);
 
 
@@ -737,7 +759,7 @@ static void* ssl_filter_open(void * idata, struct srvparam * srv){
 	    srv->so._recvfrom = ssl_recvfrom;
 	    srv->so._shutdown = ssl_shutdown;
 	    srv->so._closesocket = ssl_closesocket;
-	    srv->so._poll = ssl_poll;
+	    srv->so._prepoll = ssl_prepoll;
 	}
 	if(sc && (sc->mitm || sc->cli)){
 #if !defined(WITH_WOLFSSL) && OPENSSL_VERSION_NUMBER < 0x10100000L
