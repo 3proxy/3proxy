@@ -8,7 +8,8 @@
 
 - **Master** (current/latest) branch - 3proxy 1.0
 - **0.9** (LTS) branch - 3proxy 0.9.9.x
-- **Devel** branch - 3proxy 2.0-devel (don't use it)
+- **Devel** branch - 3proxy 1.1 (development, don't use it in production)
+- **Experimental** branch - 3proxy 2.0 (experimental, don't use it)
 
 ### Binaries (deb / rpm / Windows zip)
 
