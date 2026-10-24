@@ -405,6 +405,8 @@ unsigned char * dologname (unsigned char *buf, unsigned char *name, const unsign
 int readconfig(FILE * fp);
 void initcommands(void);
 int connectwithpoll(struct clientparam *param, SOCKET sock, struct sockaddr *sa, SASIZETYPE size, int to);
+void nonblock(SOCKET sock);
+int acceptagain(void);
 int bindwithrange(struct clientparam *param, SOCKET sock, PROXYSOCKADDRTYPE *sa, uint32_t range);
 int bindtodevice(struct sockfuncs *sf, void *state, SOCKET sock, const char *device, int family);
 int extbindtodevice(struct clientparam *param, SOCKET sock);
