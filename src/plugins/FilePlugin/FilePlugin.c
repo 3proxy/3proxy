@@ -767,7 +767,10 @@ static int fp_registercallback (int what, int max_size, int preview_size, struct
 }
 
 
+/* Its _prepoll writes the files and sends them: the service's clients each
+   have a thread. */
 static void * fp_open(void * idata, struct srvparam * param){
+	param->threadperclient = 1;
 	return idata;
 }
 

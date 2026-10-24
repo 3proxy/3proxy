@@ -632,7 +632,11 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 	if(srv->i_nsfd >= 0 && (setns(srv->i_nsfd, CLONE_NEWNET) || setns(mainnsfd, CLONE_NEWNET))) return 4;
 	if(srv->o_nsfd >= 0 && (setns(srv->o_nsfd, CLONE_NEWNET) || setns(mainnsfd, CLONE_NEWNET))) return 4;
  }
+ /* a thread which could not come back from the -ne namespace serves no
+    other client */
+ if(srv->o_nsfd >= 0) srv->threadperclient = 1;
 #endif
+ if(srv->logger && srv->logger->type && srv->logger->type->blocks) srv->threadperclient = 1;
 
 #ifndef STDMAIN
  if((error = copyfilter(conf->filters, srv))) return error;

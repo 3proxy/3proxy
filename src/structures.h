@@ -667,6 +667,7 @@ struct logtype {
 	int standard;	/* kept open for the life of the process */
 	int text;	/* writes a line of text: errors can go there */
 	int params;	/* the string after a comma is parameters */
+	int blocks;	/* waits for its writes other than in sockpoll() */
 };
 
 /* What a log's queue holds: a line (log.c's struct logslot, of which this
@@ -746,6 +747,9 @@ struct srvparam {
 	int family;
 	int resolvmode;		/* RESOLVE_* */
 	int stacksize;
+	/* a thread for each client: what serves them waits other than in
+	   sockpoll(), or must not be left by a thread to serve another */
+	int threadperclient;
 	struct extparam *config;	/* the configuration it was started with */
 	int timeouts[12];	/* conf.timeouts as they were when the service started */
 	int filtermaxsize, parentretries, maxseg;	/* and these */
