@@ -1466,7 +1466,7 @@ for(;;){
 	if(st1 > sleeptime) sleeptime = st1;
 	if(sleeptime > 0){
 /*		if(sleeptime > 30) sleeptime = 30; */
-		usleep(sleeptime * SLEEPTIME);
+		sockpoll(&param->srv->so, param->sostate, NULL, 0, sleeptime);
 	}
  }
  buf[inbuf] = 0;

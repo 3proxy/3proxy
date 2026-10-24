@@ -17,6 +17,7 @@
 */
 
 #include "proxy.h"
+#include <limits.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -1022,13 +1023,8 @@ static int op_data(struct httpreq *r, const unsigned char *params)
 
 		httpsrv_fill(buf, len, sent);
 
-		if(delay > 0){
-#ifdef _WIN32
-			usleep(delay);
-#else
-			usleep(delay * 1000);
-#endif
-		}
+		if(delay > 0) sockpoll(&r->param->srv->so, r->param->sostate, NULL, 0,
+			(delay > INT_MAX)? INT_MAX : (int)delay);
 
 		if(chunked){
 			if(httpchunk(r->param, buf, len)) return 1;
