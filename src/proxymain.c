@@ -215,7 +215,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
  int res;
 #ifndef _WIN32
  int opt = 1;
- struct linger lg;
  struct clientparam *newparam;
 #endif
 
@@ -255,9 +254,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
  if(s.inetd) {
 	fcntl(0,F_SETFL,O_NONBLOCK | fcntl(0,F_GETFL));
 	if(!s.isudp){
-		lg.l_onoff = 1;
-		lg.l_linger = s.srv.timeouts[STRING_L];
-		s.srv.so._setsockopt(s.srv.so.state, 0, SOL_SOCKET, SO_LINGER, (unsigned char *)&lg, sizeof(lg));
 		s.srv.so._setsockopt(s.srv.so.state, 0, SOL_SOCKET, SO_OOBINLINE, (unsigned char *)&opt, sizeof(int));
 	}
 	s.defparam.clisock = 0;

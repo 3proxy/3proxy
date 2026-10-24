@@ -55,9 +55,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
  SASIZETYPE size;
  unsigned char buf[256];
  int error = 0, opt = 1, res, waited;
-#ifndef _WIN32
- struct linger lg;
-#else
+#ifdef _WIN32
  unsigned long ul = 1;
 #endif
 
@@ -166,14 +164,10 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 #else
  fcntl(new_sock,F_SETFL,O_NONBLOCK | fcntl(new_sock,F_GETFL));
 #endif
-#ifndef _WIN32
- /* Not on Windows: there closesocket() on a non-blocking socket with a linger
-    timeout fails with WSAEWOULDBLOCK while data is queued, leaving the socket
-    open. Without it the close completes in the background, data first. */
- lg.l_onoff = 1;
- lg.l_linger = srv->timeouts[STRING_L];
- srv->so._setsockopt(srv->so.state, new_sock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
-#endif
+/* No linger: a close completes in the background, what is queued sent
+   first; waiting for the peer to acknowledge it would only hold the thread
+   (or the event loop) and the slot, and its time running out would reset
+   the connection, losing what was still queued. */
  srv->so._setsockopt(srv->so.state, new_sock, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
  *client = new_sock;
  return NEXT_CLIENT;

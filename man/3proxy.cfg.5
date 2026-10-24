@@ -526,9 +526,11 @@ can use %A as produced archive name and %F as filename.
  \fBCHAIN\fR timeout for reading data from chained connection
 .br
  \fBLINGER\fR timeout to deliver buffered data after one of the sides has closed
-its sending side, also used as SO_LINGER value on outgoing connections. Too small
-value may cause the tail of the data to be lost on slow connections, too large one
-delays release of the sockets.
+its sending side, and for httpsrv to read what is left of a request before it
+closes the connection. Too small value may cause the tail of the data to be
+lost on slow connections, too large one delays release of the sockets.
+Sockets are closed without SO_LINGER: the system sends what is queued after
+the close, the connection's thread and slot freed at once.
 .br
  default timeouts 1 5 30 60 180 1800 15 60 15 5 5
 .br

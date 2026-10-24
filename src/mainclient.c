@@ -447,8 +447,7 @@ void releaseparam(struct clientparam * param) {
 	/* the sockets were closed and the filters cleared with it */
 	param->sostate = NULL;
 	/* Leaving the service comes last. Once its last child is gone, srvfree()
-	   frees the service along with its socket functions, filters and mutex,
-	   and a close above may have lingered for seconds before getting here. */
+	   frees the service along with its socket functions, filters and mutex. */
 	if(param->srv){
 		_3proxy_mutex_lock(&param->srv->counter_mutex);
 		if(param->prev || param->next || param->srv->child == param){
