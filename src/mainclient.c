@@ -54,6 +54,8 @@ static void serveparam(struct clientparam *param){
 		}
 		param->remsock = param->srv->so._accept(param->sostate, param->srv->cbsock, (struct sockaddr*)&param->sinsr, &size);
 		if(param->remsock == INVALID_SOCKET) {
+			/* another client of the service took it: not a try */
+			if(acceptagain()) { i++; continue; }
 			dolog(param, (unsigned char *)"Connect back accept() failed");
 			continue;
 		}

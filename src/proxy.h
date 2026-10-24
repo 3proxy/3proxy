@@ -333,6 +333,8 @@ int nsbroken(void);
    lines among its arguments */
 SOCKET nssocket(struct srvparam *srv, struct sockfuncs *sf, void *state, int side, int domain, int type, int protocol);
 int sockpoll(struct sockfuncs *sf, void *state, struct pollfd *fds, unsigned nfds, int timeout);
+void nonblock(SOCKET sock);
+int acceptagain(void);
 int socksend(struct clientparam *param, SOCKET sock, unsigned char * buf, int bufsize, int to);
 int socksendto(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
 int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, unsigned char * buf, int bufsize, int to);
