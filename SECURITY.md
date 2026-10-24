@@ -4,8 +4,9 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.9.8   | :white_check_mark: |
-| < 0.9.8 | :x:                |
+| 0.9.9.x (LTS)  | :white_check_mark: |
+| 1.0.x (Main)  | :white_check_mark: |
+| <= 0.9.8 | :x:                |
 
 ## Hardening a deployment
 
