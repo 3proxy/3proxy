@@ -40,11 +40,32 @@ struct fiberslot {
 	struct fiberslot *next;
 };
 
+/* With epoll and kqueue a socket a fiber waits on is registered once, for
+   as long as it is open, and the loop remembers what it was reported ready
+   for until an operation finds it not to be: a wait for what a socket is
+   ready for costs nothing, as a read or write which can go on is not
+   preceded by any. */
+#if defined LOOP_EPOLL || defined LOOP_KQUEUE
+#define SOCKREGS
+#endif
+
+struct fiberwait;
+
+struct sockreg {
+	struct loopio io;	/* edge-triggered, for reading and writing */
+	short ready;		/* reported ready for, not found not to be since */
+	short want;		/* what the fiber waiting on it waits for */
+	unsigned char spins;	/* waits answered at once since it was reported */
+	struct fiberwait *w;	/* the wait of the fiber waiting on it */
+};
+
 struct looper {
 	struct loop l;
 	uint64_t threadid;
 	struct fiberslot *idle;		/* the loop's thread only */
 	unsigned nidle;
+	struct sockreg **regs;		/* by descriptor, the loop's thread only */
+	unsigned nregs;
 };
 
 /* what srvspawn() posts to a loop */
@@ -185,6 +206,143 @@ static void fiberwaittimer(struct loop *l, struct looptimer *t){
 	}
 }
 
+#ifdef SOCKREGS
+#define READYBITS (POLLIN | POLLOUT | POLLERR | POLLHUP)
+
+static void sockregio(struct loop *l, struct loopio *io, short revents){
+	struct sockreg *r = (struct sockreg *)io;
+	struct fiberwait *w = r->w;
+
+	r->ready |= revents;
+	r->spins = 0;
+	/* nothing of r is touched after the fiber runs: it may close it */
+	if(w && !w->woken && (revents & (r->want | POLLERR | POLLHUP))){
+		w->woken = 1;
+		fiberrun(w->lp, w->f);
+	}
+}
+
+/* The registration of a socket of this loop, made the first time. */
+static struct sockreg *sockreg(struct looper *lp, SOCKET s){
+	struct sockreg *r;
+
+	if((unsigned)s >= lp->nregs){
+		unsigned n = lp->nregs? lp->nregs : 1024;
+		struct sockreg **regs;
+
+		while(n <= (unsigned)s) n *= 2;
+		if(!(regs = realloc(lp->regs, n * sizeof(*regs)))) return NULL;
+		memset(regs + lp->nregs, 0, (n - lp->nregs) * sizeof(*regs));
+		lp->regs = regs;
+		lp->nregs = n;
+	}
+	if((r = lp->regs[s])) return r;
+	if(!(r = malloc(sizeof(*r)))) return NULL;
+	memset(r, 0, sizeof(*r));
+	r->io.fd = s;
+	r->io.events = POLLIN | POLLOUT;
+	r->io.edge = 1;
+	r->io.func = sockregio;
+	r->io.data = r;
+	if(loopadd(&lp->l, &r->io)){
+		free(r);
+		return NULL;
+	}
+	return lp->regs[s] = r;
+}
+
+/* fiberblockfunc: an operation found s not ready for events */
+static void fiberblocked(SOCKET s, short events){
+	struct looper *lp = curlooper;
+
+	if(lp && (unsigned)s < lp->nregs && lp->regs[s]){
+		lp->regs[s]->ready &= ~events;
+		lp->regs[s]->spins = 0;
+	}
+}
+
+/* fiberclosefunc: s is closed, a socket of the same number another */
+static void fiberclosed(SOCKET s){
+	struct looper *lp = curlooper;
+	struct sockreg *r;
+
+	if(lp && (unsigned)s < lp->nregs && (r = lp->regs[s])){
+		int e = errno;
+
+		loopdel(&lp->l, &r->io);
+		lp->regs[s] = NULL;
+		free(r);
+		errno = e;
+	}
+}
+
+/* fiberpoll() with the sockets registered: answered at once with what they
+   are known to be ready for; otherwise the fiber waits until they are, or
+   the time is out. What a socket was reported ready for is trusted once:
+   answered at once again with nothing reported or found since, what was
+   there may have been taken without its end being found, or by an
+   operation past the socket functions, and the system is asked. */
+static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, int timeout){
+	struct sockreg *ownregs[FIBERWAITS], **regs = ownregs;
+	struct fiberwait w;
+	unsigned i;
+	int res = 0;
+
+	if(nfds > FIBERWAITS && !(regs = malloc(nfds * sizeof(*regs)))) return -1;
+	for(i = 0; i < nfds; i++){
+		short want = fds[i].events & (POLLIN | POLLOUT), have;
+
+		fds[i].revents = 0;
+		regs[i] = NULL;
+		if(fds[i].fd == INVALID_SOCKET || (int)fds[i].fd < 0) continue;
+		if(!(regs[i] = sockreg(lp, fds[i].fd))){
+			res = -1;
+			goto DONE;
+		}
+		have = regs[i]->ready & (want | POLLERR | POLLHUP);
+		if(have && regs[i]->spins){
+			struct pollfd p;
+
+			p.fd = fds[i].fd;
+			p.events = POLLIN | POLLOUT;
+			p.revents = 0;
+			if(poll(&p, 1, 0) >= 0) regs[i]->ready = p.revents & READYBITS;
+			regs[i]->spins = 0;
+			have = regs[i]->ready & (want | POLLERR | POLLHUP);
+		}
+		fds[i].revents = have;
+		if(have) res++;
+	}
+	if(res){
+		for(i = 0; i < nfds; i++) if(fds[i].revents) regs[i]->spins++;
+		goto DONE;
+	}
+	memset(&w, 0, sizeof(w));
+	w.lp = lp;
+	w.f = fibercurrent();
+	for(i = 0; i < nfds; i++) if(regs[i]){
+		regs[i]->w = &w;
+		regs[i]->want = fds[i].events & (POLLIN | POLLOUT);
+	}
+	if(timeout > 0){
+		w.t.func = fiberwaittimer;
+		w.t.data = &w;
+		looptimerset(&lp->l, &w.t, looptime() + (uint64_t)timeout);
+	}
+	if(nfds || timeout > 0) fiberyield();
+	if(timeout > 0) looptimerdel(&lp->l, &w.t);
+	for(i = 0; i < nfds; i++) if(regs[i]){
+		regs[i]->w = NULL;
+		regs[i]->spins = 0;
+		fds[i].revents = regs[i]->ready & (fds[i].events & (POLLIN | POLLOUT) | POLLERR | POLLHUP);
+		if(fds[i].revents) res++;
+	}
+DONE:
+	if(regs != ownregs) free(regs);
+	return res;
+}
+#endif
+
 /* sockpoll() in a fiber of a loop: what poll() would return, waiting in the
    loop. -2 elsewhere, or for no wait at all, for sockpoll() to poll. */
 static int fiberpoll(struct pollfd *fds, unsigned nfds, int timeout){
@@ -196,6 +354,9 @@ static int fiberpoll(struct pollfd *fds, unsigned nfds, int timeout){
 	int res = 0;
 
 	if(!lp || !fibercurrent() || !timeout) return -2;
+#ifdef SOCKREGS
+	return fiberpollregs(lp, fds, nfds, timeout);
+#endif
 	memset(&w, 0, sizeof(w));
 	w.lp = lp;
 	w.f = fibercurrent();
@@ -313,7 +474,13 @@ static int loopsstart(void){
 	}
 	if(!i) loopsfailed = 1;
 	nloopers = i;
-	if(i) fiberpollfunc = fiberpoll;
+	if(i){
+#ifdef SOCKREGS
+		fiberblockfunc = fiberblocked;
+		fiberclosefunc = fiberclosed;
+#endif
+		fiberpollfunc = fiberpoll;
+	}
 	_3proxy_mutex_unlock(&loopers_mutex);
 	return !i;
 }

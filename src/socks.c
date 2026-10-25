@@ -356,13 +356,23 @@ fflush(stderr);
 				fds[0].fd = param->remsock;
 				fds[1].fd = param->clisock;
 				fds[0].events = fds[1].events = POLLIN;
+				s = INVALID_SOCKET;
 				do {
 					res = sockpoll(&param->srv->so, param->sostate, fds, 2, param->srv->timeouts[CONNECTION_L] * 1000);
-					if (res < 1 || fds[1].revents) break;
+					if (res < 1) break;
+					/* the client sending or closing ends the wait */
+					if (fds[1].revents && sockreadable(param->clisock)) {
+						res = 0;
+						break;
+					}
+					if (!fds[0].revents) {
+						errno = EAGAIN;
+						continue;
+					}
 					sasize = sizeof(param->sinsr);
 					s = param->srv->so._accept(param->sostate, param->remsock, (struct sockaddr *)&param->sinsr, &sasize);
 				} while (s == INVALID_SOCKET && acceptagain());
-				if (res < 1 || fds[1].revents) {
+				if (res < 1) {
 					res = 460;
 					break;
 				}

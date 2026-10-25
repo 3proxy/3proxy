@@ -412,8 +412,8 @@ int udpsockmap(struct clientparam *param, int timeo)
 					   (struct sockaddr *)&sin, SASIZE(&sin));
 		}
 
-		if ((p.ctrl >= 0 && p.fds[p.ctrl].revents) ||
-		    (p.ctrlsrv >= 0 && p.fds[p.ctrlsrv].revents)) return 0;
+		if ((p.ctrl >= 0 && p.fds[p.ctrl].revents && sockreadable(param->ctrlsock)) ||
+		    (p.ctrlsrv >= 0 && p.fds[p.ctrlsrv].revents && sockreadable(param->ctrlsocksrv))) return 0;
 	}
 	return 0;
 }

@@ -59,6 +59,8 @@ struct loopio {
 	SOCKET fd;
 	short events;		/* POLLIN, POLLOUT */
 	short armed;		/* what the system waits for */
+	int edge;		/* called when it becomes ready, not while it is:
+				   epoll and kqueue only */
 	int idx;		/* poll(): its place in the array, -1 if none */
 	void (*func)(struct loop *l, struct loopio *io, short revents);
 	void *data;

@@ -148,13 +148,14 @@ static void wakedrain(struct loop *l){
 static int kqarm(struct loop *l, struct loopio *io, short events){
 	struct kevent ch[2];
 	int n = 0;
+	unsigned short add = EV_ADD | (io->edge? EV_CLEAR : 0);
 
 	if((events & POLLIN) && !(io->armed & POLLIN))
-		EV_SET(ch + n++, io->fd, EVFILT_READ, EV_ADD, 0, 0, io);
+		EV_SET(ch + n++, io->fd, EVFILT_READ, add, 0, 0, io);
 	else if(!(events & POLLIN) && (io->armed & POLLIN))
 		EV_SET(ch + n++, io->fd, EVFILT_READ, EV_DELETE, 0, 0, io);
 	if((events & POLLOUT) && !(io->armed & POLLOUT))
-		EV_SET(ch + n++, io->fd, EVFILT_WRITE, EV_ADD, 0, 0, io);
+		EV_SET(ch + n++, io->fd, EVFILT_WRITE, add, 0, 0, io);
 	else if(!(events & POLLOUT) && (io->armed & POLLOUT))
 		EV_SET(ch + n++, io->fd, EVFILT_WRITE, EV_DELETE, 0, 0, io);
 	if(n && kevent(l->fd, ch, n, NULL, 0, NULL) && (events & ~io->armed)) return 1;
@@ -172,6 +173,7 @@ static int eparm(struct loop *l, struct loopio *io, short events){
 	ev.data.ptr = io;
 	if(events & POLLIN) ev.events |= EPOLLIN;
 	if(events & POLLOUT) ev.events |= EPOLLOUT;
+	if(io->edge) ev.events |= EPOLLET;
 	/* not registered while nothing is waited for: an error or a hang up
 	   would be reported all the same */
 	if(!events) op = EPOLL_CTL_DEL;
@@ -665,7 +667,10 @@ int looponce(struct loop *l, int maxwait){
 			if(ev[i].flags & EV_ERROR) revents |= POLLERR;
 			else if(ev[i].filter == EVFILT_READ) revents |= POLLIN;
 			else if(ev[i].filter == EVFILT_WRITE) revents |= POLLOUT;
-			if(ev[i].flags & EV_EOF) revents |= POLLHUP;
+			/* The end of either side, the peer's or our own shutdown,
+			   is no hang up, which poll() reports only with both:
+			   readable or writable, the read or the write telling
+			   what it is */
 			readyadd(l, io, revents);
 		}
 	}

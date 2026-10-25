@@ -571,7 +571,7 @@ for(;;){
 	if(res<=0) {
 		RETURN(555);
 	}
-	if((fds[1].revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL))) {
+	if((fds[1].revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL)) && sockreadable(param->remsock)) {
 		if(param->transparent || (!param->redirected && param->redirtype == R_HTTP)) RETURN(555);
 		ckeepalive = 0;
 		param->srv->so._shutdown(param->sostate, param->remsock, SHUT_RDWR);

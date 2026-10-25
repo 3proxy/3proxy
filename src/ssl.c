@@ -144,6 +144,8 @@ static ssize_t  ssl_send(void *state, SOCKET s, const void *msg, size_t len, int
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ){
 				sslq->wwant = (err == SSL_ERROR_WANT_READ)? POLLIN : POLLOUT;
+				/* TLS found the socket not ready, past the socket functions */
+				if(fiberblockfunc) fiberblockfunc(s, sslq->wwant);
 				seterrno3(EAGAIN);
 				return -1;
 			}
@@ -170,6 +172,8 @@ static ssize_t ssl_sendto(void *state, SOCKET s, const void *msg, size_t len, in
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ){
 				sslq->wwant = (err == SSL_ERROR_WANT_READ)? POLLIN : POLLOUT;
+				/* TLS found the socket not ready, past the socket functions */
+				if(fiberblockfunc) fiberblockfunc(s, sslq->wwant);
 				seterrno3(EAGAIN);
 				return -1;
 			}
@@ -195,6 +199,8 @@ static ssize_t  ssl_recvfrom(void *state, SOCKET s, void *msg, size_t len, int f
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
 				sslq->rwant = (err == SSL_ERROR_WANT_WRITE)? POLLOUT : POLLIN;
+				/* TLS found the socket not ready, past the socket functions */
+				if(fiberblockfunc) fiberblockfunc(s, sslq->rwant);
 				seterrno3(EAGAIN);
 				return -1;
 			}
@@ -219,6 +225,8 @@ static ssize_t ssl_recv(void *state, SOCKET s, void *msg, size_t len, int flags)
 			err = SSL_get_error((SSL *)((ssl_conn*)sslq->conn)->ssl, res);
 			if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
 				sslq->rwant = (err == SSL_ERROR_WANT_WRITE)? POLLOUT : POLLIN;
+				/* TLS found the socket not ready, past the socket functions */
+				if(fiberblockfunc) fiberblockfunc(s, sslq->rwant);
 				seterrno3(EAGAIN);
 				return -1;
 			}
@@ -314,10 +322,12 @@ SSL_CONN ssl_handshake_to_server(SOCKET s, char * hostname, SSL_CONFIG *config, 
 	if(sslerr == SSL_ERROR_WANT_READ){
 	    fds[0].fd = s;
 	    fds[0].events = POLLIN;
+	    if(fiberblockfunc) fiberblockfunc(s, POLLIN);
 	}
 	else if(sslerr == SSL_ERROR_WANT_WRITE){
 	    fds[0].fd = s;
 	    fds[0].events = POLLOUT;
+	    if(fiberblockfunc) fiberblockfunc(s, POLLOUT);
 	}
 	else break;
 	if(sockpoll(&sso, sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;
@@ -389,10 +399,12 @@ SSL_CONN ssl_handshake_to_client(SOCKET s, SSL_CONFIG *config, X509 *server_cert
 	if(sslerr == SSL_ERROR_WANT_READ){
 	    fds[0].fd = s;
 	    fds[0].events = POLLIN;
+	    if(fiberblockfunc) fiberblockfunc(s, POLLIN);
 	}
 	else if(sslerr == SSL_ERROR_WANT_WRITE){
 	    fds[0].fd = s;
 	    fds[0].events = POLLOUT;
+	    if(fiberblockfunc) fiberblockfunc(s, POLLOUT);
 	}
 	else break;
 	if(sockpoll(&sso, sso.state, fds, 1, config->timeout*1000) <= 0 ||  !(fds[0].revents & (POLLOUT|POLLIN))) break;

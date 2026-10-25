@@ -332,6 +332,15 @@ int
 #endif
 
 
+/* Set while clients are served by fibers on event loops, which keep their
+   sockets registered and remember what each was found ready for: an
+   operation finding a socket not ready, and a socket about to be closed,
+   are told to its loop. errno is left as it was. */
+void (*fiberblockfunc)(SOCKET s, short events) = NULL;
+void (*fiberclosefunc)(SOCKET s) = NULL;
+#define BLOCKED(s, ev) do { if(fiberblockfunc && (errno == EAGAIN || errno == EWOULDBLOCK)) \
+	fiberblockfunc((s), (ev)); } while(0)
+
 #ifdef _WIN32
     SOCKET WINAPI def_socket(void* state, int domain, int type, int protocol){
         return socket(domain, type, protocol);
@@ -387,7 +396,10 @@ int
         return socket(domain, type, protocol);
     }
     SOCKET def_accept(void* state, SOCKET s, struct sockaddr * addr, socklen_t* addrlen){
-	return accept(s, addr, addrlen);
+	SOCKET r = accept(s, addr, addrlen);
+
+	if(r == INVALID_SOCKET) BLOCKED(s, POLLIN);
+	return r;
     }
     int def_bind(void* state, SOCKET s, const struct sockaddr *addr, socklen_t addrlen){
 	return bind(s, addr, addrlen);
@@ -402,7 +414,10 @@ int
 	return listen(s, backlog);
     }
     int def_connect(void* state, SOCKET s, const struct sockaddr *name, socklen_t namelen){
-	return connect(s, name, namelen);
+	int r = connect(s, name, namelen);
+
+	if(r && errno == EINPROGRESS && fiberblockfunc) fiberblockfunc(s, POLLOUT);
+	return r;
     }
     int def_getsockopt(void* state, SOCKET s, int level, int optname, void * optval, socklen_t * optlen){
 	return getsockopt(s, level, optname, optval, optlen);
@@ -415,6 +430,7 @@ int
 	return 0;
     }
 
+
 /* a peer gone is an error of the send, not SIGPIPE, where the system can
    say so for a call: SIGPIPE is ignored too, for TLS and splice() */
 #ifdef MSG_NOSIGNAL
@@ -423,21 +439,34 @@ int
 #define SENDFLAGS 0
 #endif
     ssize_t def_send(void* state, SOCKET s, const void *msg, size_t len, int flags){
-	return send(s, msg, len, flags | SENDFLAGS);
+	ssize_t r = send(s, msg, len, flags | SENDFLAGS);
+
+	if(r < 0) BLOCKED(s, POLLOUT);
+	return r;
     }
     ssize_t def_sendto(void* state, SOCKET s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen){
-	return sendto(s, msg, len, flags | SENDFLAGS, to, tolen);
+	ssize_t r = sendto(s, msg, len, flags | SENDFLAGS, to, tolen);
+
+	if(r < 0) BLOCKED(s, POLLOUT);
+	return r;
     }
     ssize_t def_recv(void* state, SOCKET s, void *buf, size_t len, int flags){
-	return recv(s, buf, len, flags);
+	ssize_t r = recv(s, buf, len, flags);
+
+	if(r < 0) BLOCKED(s, POLLIN);
+	return r;
     }
     ssize_t def_recvfrom(void* state, SOCKET s, void * buf, size_t len, int flags, struct sockaddr * from, socklen_t* fromlen){
-	return recvfrom(s, buf, len, flags, from, fromlen);
+	ssize_t r = recvfrom(s, buf, len, flags, from, fromlen);
+
+	if(r < 0) BLOCKED(s, POLLIN);
+	return r;
     }
     int def_shutdown(void* state, SOCKET s, int how){
 	return shutdown(s, how);
     }
     int def_closesocket(void* state, SOCKET s){
+	if(fiberclosefunc) fiberclosefunc(s);
 	return close(s);
     }
 #endif
@@ -462,6 +491,22 @@ struct sockfuncs so = {
 	def_shutdown,
 	def_closesocket
 };
+
+/* Whether s, found readable, is: data or its end there. A fiber's wait
+   may answer with what a socket was reported ready for, until an
+   operation finds it not to be: whatever takes readability for an end,
+   rather than reading, asks first. A peek below any layer over the socket,
+   which a TLS read would consume. */
+int sockreadable(SOCKET s){
+	char c;
+
+	if(!fiberblockfunc) return 1;
+	if(recv(s, &c, 1, MSG_PEEK) < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)){
+		fiberblockfunc(s, POLLIN);
+		return 0;
+	}
+	return 1;
+}
 
 /* Waits as poll() does for fds of sockets made with sf, once their layers
    know of nothing ready already. A layer may have a socket waited for

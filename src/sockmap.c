@@ -382,6 +382,8 @@ log("done send to client from buf");
 log("send to server from pipe");
 #endif
 			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			/* from a pipe holding data: the socket is full */
+			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->remsock, POLLOUT);
 #ifdef WITHLOG
 log("server from pipe splice finished\n");
 #if WITHLOG > 1
@@ -419,6 +421,8 @@ log(logbuf);
 log("send to client from pipe");
 #endif
 			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			/* from a pipe holding data: the socket is full */
+			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->clisock, POLLOUT);
 #ifdef WITHLOG
 log("client from pipe splice finished\n");
 #if WITHLOG > 1
