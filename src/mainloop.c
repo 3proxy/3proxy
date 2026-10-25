@@ -404,6 +404,10 @@ struct cbmap {
 	uint64_t timeo, linger;	/* ms */
 	int halfclose;
 	int usesplice;		/* SPLICE_* allowed */
+	/* a reload seen: nothing more read, what the pipes hold written by
+	   reloaded, for sockmap() to take over */
+	int reloading;
+	uint64_t reloaded;
 	int term_r[2], term_w[2], haserror;
 	int res;
 };
@@ -416,7 +420,9 @@ struct cbmap {
 #define CBMIN(a, b) ((a) < (b)? (a) : (b))
 
 static uint64_t cbmapdeadline(struct cbmap *m){
-	return m->last + ((m->term_r[0] || m->term_r[1])? CBMIN(m->timeo, m->linger) : m->timeo);
+	uint64_t d = m->last + ((m->term_r[0] || m->term_r[1])? CBMIN(m->timeo, m->linger) : m->timeo);
+
+	return m->reloading? CBMIN(d, m->reloaded) : d;
 }
 
 /* the buffer of the side a way reads from */
@@ -472,7 +478,9 @@ static int cbway(struct cbmap *m, struct cbway *w){
 	struct sockfuncs *sf = &param->srv->so;
 	struct sockreg *rs = m->reg[w->src], *rd = m->reg[w->dst];
 	SOCKET from = m->sock[w->src], to = m->sock[w->dst];
-	int end = !m->halfclose && (m->term_r[0] || m->term_r[1]), progress = 0;
+	/* nothing more is read once a side has ended without half-close, or
+	   on a reload */
+	int end = (!m->halfclose && (m->term_r[0] || m->term_r[1])) || m->reloading, progress = 0;
 	unsigned char *buf;
 	unsigned *inbuf, *offset, size;
 	uint64_t inb, room;
@@ -595,6 +603,26 @@ static int cbmapend(struct cbmap *m, int res){
 	return 1;
 }
 
+/* A reload: sockmap() takes the connection back, which has it go by the
+   newest configuration's rules, or ends it. It knows nothing of what the
+   pipes hold: nothing more is read, and they are emptied first, within
+   LINGER_TO, or the connection ends as timed out. What is left of a body is
+   what it is to move. 1 once sockmap() is to take over. */
+static int cbmapreload(struct cbmap *m){
+	struct clientparam *param = m->param;
+
+	if(param->version >= runconf->version) return 0;
+	if(!m->reloading){
+		m->reloading = 1;
+		m->reloaded = looptime() + m->linger;
+		if(m->reloaded < m->idle.deadline) looptimerset(&m->lp->l, &m->idle, m->reloaded);
+	}
+	if(m->way[0].inpipe || m->way[1].inpipe) return 0;
+	if(param->waitclient64) param->waitclient64 = m->way[0].left;
+	if(param->waitserver64) param->waitserver64 = m->way[1].left;
+	return cbmapend(m, -2);
+}
+
 /* What the sockets are ready for, moved: 1 once the mapping is over, as
    sockmap() would end it. As sockmap() too, a body of known length
    (waitclient64, waitserver64) is all of what is moved: that way only, as
@@ -603,15 +631,7 @@ static int cbmaprun(struct cbmap *m){
 	struct clientparam *param = m->param;
 	int round, moved = 0;
 
-	/* a reload: sockmap() takes the connection back, which has it go by
-	   the newest configuration's rules, or ends it. It knows nothing of
-	   what the pipes hold: they are emptied first. What is left of a body
-	   is what it is to move. */
-	if(param->version < runconf->version && !m->way[0].inpipe && !m->way[1].inpipe){
-		if(param->waitclient64) param->waitclient64 = m->way[0].left;
-		if(param->waitserver64) param->waitserver64 = m->way[1].left;
-		return cbmapend(m, -2);
-	}
+	if(cbmapreload(m)) return 1;
 	for(round = 0; round < CBROUNDS; round++){
 		int progress = cbway(m, &m->way[0]) | cbway(m, &m->way[1]);
 		int end = !m->halfclose && (m->term_r[0] || m->term_r[1]);
@@ -644,6 +664,8 @@ static int cbmaprun(struct cbmap *m){
 		if(!progress) break;
 		moved = 1;
 	}
+	/* the pipes emptied for a reload: sockmap() takes over at once */
+	if(m->reloading && cbmapreload(m)) return 1;
 	if(moved){
 		uint64_t d;
 
