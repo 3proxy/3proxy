@@ -38,6 +38,9 @@ struct fiberslot {
 	struct fiber f;
 	size_t stacksize;
 	struct fiberslot *next;
+	/* left in the middle of what it runs, never to be resumed: its
+	   client's mapping is the loop's (maptail) */
+	int abandoned;
 };
 
 /* With epoll and kqueue a socket a fiber waits on is registered once, for
@@ -108,6 +111,7 @@ static struct fiberslot *fibertake(struct looper *lp, size_t stacksize){
 		}
 	}
 	if(!(fs = malloc(sizeof(*fs)))) return NULL;
+	fs->abandoned = 0;
 	if(fiberinit(&fs->f, stacksize)){
 		free(fs);
 		return NULL;
@@ -130,7 +134,19 @@ static void fibergive(struct looper *lp, struct fiberslot *fs){
 /* Runs a fiber of this loop until it waits, or gives it back once its
    client is done. */
 static void fiberrun(struct looper *lp, struct fiber *f){
-	if(!fiberresume(f)) fibergive(lp, (struct fiberslot *)f);
+	struct fiberslot *fs = (struct fiberslot *)f;
+
+	if(!fiberresume(f)) fibergive(lp, fs);
+	/* in the middle of its client's code: started over from its stack's
+	   start for the next client, or freed where it cannot be */
+	else if(fs->abandoned){
+		fs->abandoned = 0;
+		if(!fiberreset(&fs->f)) fibergive(lp, fs);
+		else {
+			fiberfree(&fs->f);
+			free(fs);
+		}
+	}
 }
 
 /* A client, on a fiber: as its thread would serve it. */
@@ -424,6 +440,11 @@ struct cbmap {
 	int sleep;		/* ms to pause for: bandwidth, grace */
 	int paused;
 	int stop, stopres;	/* a filter's verdict ends the mapping */
+	/* the client's fiber gave up its stack: the child's end (maptail) is
+	   the loop's once mapping is over */
+	int abandoned;
+	int timeosec, usesplice0;	/* sockmap()'s, for a fiber to go on with
+					   after a reload */
 	int res;
 };
 
@@ -798,13 +819,15 @@ static int cbmaprun(struct cbmap *m){
 	return 0;
 }
 
+static void cbmapdone(struct cbmap *m);
+
 static void cbmapio(void *data){
 	struct cbmap *m = (struct cbmap *)data;
 
 	/* paused: what is ready waits for the pause to end */
 	if(m->paused) return;
-	/* m is on the fiber's stack: not touched once it runs */
-	if(cbmaprun(m)) fiberrun(m->lp, m->f);
+	/* m is not touched once the mapping is over: it may be gone */
+	if(cbmaprun(m)) cbmapdone(m);
 }
 
 static void cbmapagain(struct loop *l, struct looptimer *t){
@@ -822,7 +845,54 @@ static void cbmapidle(struct loop *l, struct looptimer *t){
 		return;
 	}
 	cbmapend(m, 92);
-	fiberrun(m->lp, m->f);
+	cbmapdone(m);
+}
+
+/* What the child of the client does once mapping is over, as its end and
+   that of its fiber would: the result, its tail, the connection released
+   and freed. */
+static void cbmapfinish(struct clientparam *param, int res){
+	param->res = res;
+	if(param->maptail) param->maptail(param, param->maptaildata);
+	releaseparam(param);
+	freeparam(param);
+}
+
+/* a fiber for the client again: sockmap() goes on with the mapping after
+   a reload, then the child's end */
+static void cbmapresume(void *arg){
+	struct cbmap *m = (struct cbmap *)arg;
+	struct clientparam *param = m->param;
+	int timeo = m->timeosec, usesplice = m->usesplice0;
+
+	free(m);
+	cbmapfinish(param, sockmap(param, timeo, usesplice));
+}
+
+/* The mapping is over: its fiber goes on, or, with none, the loop ends it
+   as the child would, or gives it a fiber again for sockmap() to take it
+   over after a reload. m is freed. */
+static void cbmapdone(struct cbmap *m){
+	struct clientparam *param = m->param;
+	struct fiberslot *fs;
+	int res;
+
+	if(!m->abandoned){
+		/* the fiber frees m */
+		fiberrun(m->lp, m->f);
+		return;
+	}
+	if(m->res == -2){
+		if((fs = fibertake(m->lp, param->stacksize))){
+			fiberstart(&fs->f, cbmapresume, m);
+			fiberrun(m->lp, &fs->f);
+			return;
+		}
+		m->res = 21;
+	}
+	res = m->res;
+	free(m);
+	cbmapfinish(param, res);
 }
 
 /* sockmapcbfunc: sockmap() of a fiber, as callbacks, its result; -2 for
@@ -831,8 +901,8 @@ static void cbmapidle(struct loop *l, struct looptimer *t){
    its filters forbid. */
 static int fibermap(struct clientparam *param, int timeo, int usesplice){
 	struct looper *lp = curlooper;
-	struct cbmap m;
-	int i;
+	struct cbmap *m;
+	int i, res, usesplice0 = usesplice;
 
 	if(!lp || !fibercurrent() || param->srv->loopmode != 2) return -2;
 	if(param->clisock == INVALID_SOCKET || param->remsock == INVALID_SOCKET ||
@@ -850,30 +920,33 @@ static int fibermap(struct clientparam *param, int timeo, int usesplice){
 	   socket, data is copied */
 	if(param->srv->so._recvfrom != so._recvfrom || param->srv->so._sendto != so._sendto)
 		usesplice = 0;
-	memset(&m, 0, sizeof(m));
-	m.sock[0] = param->clisock;
-	m.sock[1] = param->remsock;
-	if(!(m.reg[0] = sockreg(lp, m.sock[0])) || !(m.reg[1] = sockreg(lp, m.sock[1]))) return -2;
-	if((param->ctrlsock != INVALID_SOCKET && !(m.ctrl[0] = sockreg(lp, param->ctrlsock))) ||
-	    (param->ctrlsocksrv != INVALID_SOCKET && !(m.ctrl[1] = sockreg(lp, param->ctrlsocksrv))))
+	/* not on the fiber's stack: the fiber may give it up */
+	if(!(m = calloc(1, sizeof(*m)))) return -2;
+	m->sock[0] = param->clisock;
+	m->sock[1] = param->remsock;
+	if(!(m->reg[0] = sockreg(lp, m->sock[0])) || !(m->reg[1] = sockreg(lp, m->sock[1])) ||
+	    (param->ctrlsock != INVALID_SOCKET && !(m->ctrl[0] = sockreg(lp, param->ctrlsock))) ||
+	    (param->ctrlsocksrv != INVALID_SOCKET && !(m->ctrl[1] = sockreg(lp, param->ctrlsocksrv)))){
+		free(m);
 		return -2;
-	m.param = param;
-	m.lp = lp;
-	m.f = fibercurrent();
-	m.halfclose = param->srv->halfclose;
-	m.usesplice = usesplice;
-	m.timeo = (uint64_t)timeo * 1000;
-	m.linger = (uint64_t)param->srv->timeouts[LINGER_TO] * 1000;
-	m.way[0].src = m.way[1].dst = 0;
-	m.way[0].dst = m.way[1].src = 1;
-	m.way[0].left = m.way[1].left = CBALL;
+	}
+	m->param = param;
+	m->lp = lp;
+	m->f = fibercurrent();
+	m->halfclose = param->srv->halfclose;
+	m->usesplice = usesplice;
+	m->timeo = (uint64_t)timeo * 1000;
+	m->linger = (uint64_t)param->srv->timeouts[LINGER_TO] * 1000;
+	m->way[0].src = m->way[1].dst = 0;
+	m->way[0].dst = m->way[1].src = 1;
+	m->way[0].left = m->way[1].left = CBALL;
 	if(param->waitclient64){
-		m.way[0].left = param->waitclient64;
-		m.way[1].left = 0;
+		m->way[0].left = param->waitclient64;
+		m->way[1].left = 0;
 	}
 	if(param->waitserver64){
-		m.way[1].left = param->waitserver64;
-		m.way[0].left = 0;
+		m->way[1].left = param->waitserver64;
+		m->way[0].left = 0;
 	}
 	if(param->srvinbuf == param->srvoffset) param->srvinbuf = param->srvoffset = 0;
 	if(param->cliinbuf == param->clioffset) param->cliinbuf = param->clioffset = 0;
@@ -884,27 +957,41 @@ static int fibermap(struct clientparam *param, int timeo, int usesplice){
 		if(!(usesplice & bit)) continue;
 		/* told to, or a body of known length large enough: spliced from
 		   the start */
-		if(!(usesplice & SPLICE_AUTO) || (m.way[i].left != CBALL &&
-		    m.way[i].left >= (uint64_t)param->srv->splicemin))
-			m.way[i].splice = 1;
+		if(!(usesplice & SPLICE_AUTO) || (m->way[i].left != CBALL &&
+		    m->way[i].left >= (uint64_t)param->srv->splicemin))
+			m->way[i].splice = 1;
 	}
 #endif
-	m.last = looptime();
-	m.idle.func = cbmapidle;
-	m.idle.data = &m;
-	m.again.func = cbmapagain;
-	m.again.data = &m;
-	m.reg[0]->cb = m.reg[1]->cb = cbmapio;
-	m.reg[0]->cbdata = m.reg[1]->cbdata = &m;
-	for(i = 0; i < 2; i++) if(m.ctrl[i]){
-		m.ctrl[i]->cb = cbmapio;
-		m.ctrl[i]->cbdata = &m;
+	m->timeosec = timeo;
+	m->usesplice0 = usesplice0;
+	m->last = looptime();
+	m->idle.func = cbmapidle;
+	m->idle.data = m;
+	m->again.func = cbmapagain;
+	m->again.data = m;
+	m->reg[0]->cb = m->reg[1]->cb = cbmapio;
+	m->reg[0]->cbdata = m->reg[1]->cbdata = m;
+	for(i = 0; i < 2; i++) if(m->ctrl[i]){
+		m->ctrl[i]->cb = cbmapio;
+		m->ctrl[i]->cbdata = m;
 	}
-	looptimerset(&lp->l, &m.idle, cbmapdeadline(&m));
+	looptimerset(&lp->l, &m->idle, cbmapdeadline(m));
 	/* what is ready already is moved at once, on the fiber's stack */
-	if(cbmaprun(&m)) return m.res;
-	fiberyield();
-	return m.res;
+	if(!cbmaprun(m)){
+		/* mapping the child's last thing, its end is the loop's then,
+		   and its stack given back; not while a reload is pending,
+		   which sockmap() is to see to on this fiber */
+		if(param->maptail && param->version >= runconf->version){
+			m->abandoned = 1;
+			((struct fiberslot *)m->f)->abandoned = 1;
+			m->f = NULL;
+		}
+		fiberyield();
+		/* resumed only if not abandoned */
+	}
+	res = m->res;
+	free(m);
+	return res;
 }
 #endif
 

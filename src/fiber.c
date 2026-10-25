@@ -30,6 +30,7 @@
 #endif
 #ifdef FIBER_ASAN
 #include <sanitizer/common_interface_defs.h>
+#include <sanitizer/asan_interface.h>
 #endif
 
 #ifdef _MSC_VER
@@ -348,8 +349,30 @@ void fiberfree(struct fiber *f){
 	memset(f, 0, sizeof(*f));
 }
 
+/* f, left in the middle of func, to be started again from the start of
+   its stack: whatever its stack held is forgotten. 0, or 1 if it cannot
+   be (Windows), and is to be freed instead. */
+int fiberreset(struct fiber *f){
+#ifdef FIBER_WINDOWS
+	return 1;
+#else
+	f->func = NULL;
+	f->started = 0;
+	f->fake = NULL;
+#ifdef FIBER_ASAN
+	/* what AddressSanitizer knew of the frames left there */
+	{
+		size_t page = (size_t)sysconf(_SC_PAGESIZE);
+
+		__asan_unpoison_memory_region(f->map + page, f->mapped - page);
+	}
+#endif
+	return 0;
+#endif
+}
+
 /* func(arg) is what f runs once resumed: f is new, or func of its last
-   start returned. */
+   start returned, or it was reset. */
 void fiberstart(struct fiber *f, void (*func)(void *arg), void *arg){
 	f->func = func;
 	f->arg = arg;

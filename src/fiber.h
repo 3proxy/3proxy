@@ -52,6 +52,7 @@ int fiberusable(void);
 int fiberinit(struct fiber *f, size_t stacksize);
 void fiberfree(struct fiber *f);
 void fiberstart(struct fiber *f, void (*func)(void *arg), void *arg);
+int fiberreset(struct fiber *f);
 int fiberresume(struct fiber *f);
 void fiberyield(void);
 struct fiber *fibercurrent(void);

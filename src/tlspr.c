@@ -293,6 +293,11 @@ static int tlstobuf(struct clientparam *param, DIRECTION which){
     return (int)len;
 }
 
+/* as the end below, once mapping is over: its log line, made before */
+static void tlsprtail(struct clientparam *param, void *data){
+ dolog(param, (unsigned char *)data);
+}
+
 void * tlsprchild(struct clientparam* param) {
  int res;
  char sni[SNILEN];
@@ -417,6 +422,8 @@ void * tlsprchild(struct clientparam* param) {
     }
  }
 
+ sprintf(req, "%sv%d.%d %s %s", lv<0?"NONE":lv?"TLS":"SSL", lv<0?0:lv?1:3, lv<0?0:lv?lv-1:0, *param->hostname?(char *)param->hostname:"-", proto);
+ if((param->maptaildata = strdup(req))) param->maptail = tlsprtail;
  RETURN (mapsocket(param, param->srv->timeouts[CONNECTION_L]));
 CLEANRET:
  

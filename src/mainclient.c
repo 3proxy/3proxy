@@ -385,6 +385,11 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
    what was freed. After this the service may be gone at any moment, so
    param->srv is cleared and nothing here touches it again. */
 void releaseparam(struct clientparam * param) {
+	param->maptail = NULL;
+	if(param->maptaildata){
+		free(param->maptaildata);
+		param->maptaildata = NULL;
+	}
 	if(param->srv){
 		if(param->srv->so.freefunc) param->srv->so.freefunc(param->sostate);
 	}

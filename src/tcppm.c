@@ -13,6 +13,11 @@
 #endif
 #define RETURN(xxx) { param->res = xxx; goto CLEANRET; }
 
+/* as the end below, once mapping is over */
+static void tcppmtail(struct clientparam *param, void *data){
+ dolog(param, *param->hostname? param->hostname : NULL);
+}
+
 void * tcppmchild(struct clientparam* param) {
  int res;
 
@@ -43,6 +48,7 @@ void * tcppmchild(struct clientparam* param) {
     return (void *)param->redirectfunc;
  }
 
+ param->maptail = tcppmtail;
  RETURN (mapsocket(param, param->srv->timeouts[CONNECTION_L]));
 CLEANRET:
  

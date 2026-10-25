@@ -937,6 +937,12 @@ struct clientparam {
 			password[USERNAMELEN],
 			extusername[USERNAMELEN],
 			extpassword[USERNAMELEN];
+	/* Set by a child for which mapping is the last thing it does: what it
+	   does once mapping returns, as its own end would, given its result in
+	   res, for a loop to end it so with no fiber of its own meanwhile.
+	   maptaildata is malloc()'d or NULL, freed with the connection. */
+	void (*maptail)(struct clientparam *param, void *data);
+	void *maptaildata;
 	/* The filters this connection runs, which a new connection makes for
 	   itself: the service's are not copied to it. Ordered for each stage. */
 	struct filterp	filters[MAX_FILTERS],
