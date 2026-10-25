@@ -388,9 +388,14 @@ struct cbway {
 	int src, dst;		/* 0 the client, 1 the server */
 	uint64_t left;		/* what is left to move: a body's length */
 	int splice;		/* splicing: what is read goes to the pipe */
-	int streak;		/* reads in a row as large as splicemin */
+	int wantbuf;		/* back to copying once the pipe is empty */
+	int streak;		/* copying, reads in a row as large as splicemin;
+				   splicing, as small as splicesmall */
 	uint64_t inpipe;	/* what the pipe holds */
 };
+
+/* left of a way with no length to keep to */
+#define CBALL 0x7fffffffffffffffULL
 
 struct cbmap {
 	struct clientparam *param;
@@ -398,6 +403,8 @@ struct cbmap {
 	struct fiber *f;
 	struct sockreg *reg[2];		/* the client's, the server's */
 	SOCKET sock[2];
+	struct sockreg *ctrl[2];	/* ctrlsock, ctrlsocksrv: their end, or
+					   anything from them, ends the mapping */
 	struct cbway way[2];		/* the client's data, the server's */
 	struct looptimer idle, again;
 	uint64_t last;		/* looptime() of the last data moved */
@@ -409,6 +416,14 @@ struct cbmap {
 	int reloading;
 	uint64_t reloaded;
 	int term_r[2], term_w[2], haserror;
+	/* sockmap()'s grace: reads of either side this second, and their
+	   size, the other side's set back by each */
+	uint64_t gracesec;
+	unsigned gracenum[2];
+	uint64_t gracetraf[2];
+	int sleep;		/* ms to pause for: bandwidth, grace */
+	int paused;
+	int stop, stopres;	/* a filter's verdict ends the mapping */
 	int res;
 };
 
@@ -459,17 +474,43 @@ static void cbfail(struct cbmap *m, int side, int writing){
 	if(writing) m->haserror |= side? 2 : 1;
 }
 
-/* Statistics of what went through a way, as sockmap() counts them: the
-   client's data once written to the server, the server's once read. */
-static void cbcount(struct clientparam *param, struct cbway *w, int written, ssize_t n){
+/* Statistics of what went through a way, as sockmap() counts them, and
+   the bandwidth limits' pause: the client's data once written to the
+   server, the server's once read. A read counts for the grace. */
+static void cbcount(struct cbmap *m, struct cbway *w, int written, ssize_t n){
+	struct clientparam *param = m->param;
+	int sl = 0;
+
+	if(!written){
+		m->gracenum[w->src]++;
+		m->gracetraf[w->src] += n;
+		m->gracenum[w->dst] = 0;
+		m->gracetraf[w->dst] = 0;
+	}
 	if(!w->src && written){
 		param->nwrites++;
 		param->statscli64 += n;
+		if(param->bandlimfunc) sl = (*param->bandlimfunc)(param, 0, (unsigned)n);
 	}
 	else if(w->src && !written){
 		param->nreads++;
 		param->statssrv64 += n;
+		if(param->bandlimfunc) sl = (*param->bandlimfunc)(param, (unsigned)n, 0);
 	}
+	if(sl > m->sleep) m->sleep = sl;
+}
+
+/* Whether TLS, or what else is between the socket functions and the
+   socket, has the side's data already: read whatever the socket says. */
+static int cbpending(struct cbmap *m, int side){
+	struct sockfuncs *sf = &m->param->srv->so;
+	struct pollfd p;
+
+	if(sf->_prepoll == so._prepoll) return 0;
+	p.fd = m->sock[side];
+	p.events = POLLIN;
+	p.revents = 0;
+	return sf->_prepoll(m->param->sostate, &p, 1) > 0 && (p.revents & POLLIN);
 }
 
 /* A read and a write of a way: whether anything moved. */
@@ -491,12 +532,16 @@ static int cbway(struct cbmap *m, struct cbway *w){
 	inb = *inbuf - *offset;
 	room = CBROOM(size, *inbuf);
 #ifdef WITHSPLICE
+	/* small reads in a row: copied again, once the pipe is through */
+	if(w->splice && w->wantbuf && !w->inpipe){
+		w->splice = w->wantbuf = w->streak = 0;
+	}
 	if(w->splice){
 		int *pipe = w->src? param->pipesrv : param->pipecli;
 
 		/* what was buffered goes first: the pipe is read once it is
 		   through */
-		if(!inb && w->left > w->inpipe && !m->term_r[w->src] && !end && w->inpipe < CBSPLICE &&
+		if(!inb && !w->wantbuf && w->left > w->inpipe && !m->term_r[w->src] && !end && w->inpipe < CBSPLICE &&
 		    (rs->ready & (POLLIN | POLLHUP | POLLERR))){
 			if(pipe[0] < 0 && pipe2(pipe, O_NONBLOCK) < 0){
 				w->splice = 0;
@@ -506,7 +551,11 @@ static int cbway(struct cbmap *m, struct cbway *w){
 				w->left - w->inpipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 			if(n > 0){
 				w->inpipe += n;
-				cbcount(param, w, 0, n);
+				cbcount(m, w, 0, n);
+				if((m->usesplice & SPLICE_AUTO) && w->left == CBALL){
+					if(n >= param->srv->splicesmall) w->streak = 0;
+					else if(++w->streak > param->srv->splicestreak) w->wantbuf = 1;
+				}
 				progress = 1;
 			}
 			else if(!n){
@@ -534,7 +583,7 @@ static int cbway(struct cbmap *m, struct cbway *w){
 			if(n > 0){
 				w->inpipe -= n;
 				w->left -= n;
-				cbcount(param, w, 1, n);
+				cbcount(m, w, 1, n);
 				progress = 1;
 			}
 			else if(n < 0 && CBAGAIN(errno)){
@@ -548,18 +597,23 @@ static int cbway(struct cbmap *m, struct cbway *w){
 	}
 	else
 #endif
-	if(w->left > inb && !m->term_r[w->src] && !end && room > 0 && (rs->ready & (POLLIN | POLLHUP | POLLERR))){
+	if(w->left > inb && !m->term_r[w->src] && !end && room > 0 &&
+	    ((rs->ready & (POLLIN | POLLHUP | POLLERR)) || cbpending(m, w->src))){
 		n = sf->_recvfrom(param->sostate, from, (char *)buf + *inbuf, (int)CBMIN(room, w->left - inb), 0, NULL, NULL);
 		if(n > 0){
 			*inbuf += n;
 			inb += n;
-			cbcount(param, w, 0, n);
+			cbcount(m, w, 0, n);
 #ifdef WITHSPLICE
 			/* a stream of large reads is spliced from now on, once
 			   what is buffered is through */
-			if((m->usesplice & SPLICE_AUTO) && (m->usesplice & (w->src? SPLICE_DOWNLOAD : SPLICE_UPLOAD))){
+			if((m->usesplice & SPLICE_AUTO) && (m->usesplice & (w->src? SPLICE_DOWNLOAD : SPLICE_UPLOAD)) &&
+			    w->left == CBALL){
 				if(n >= param->srv->splicemin){
-					if(++w->streak >= param->srv->splicestreak) w->splice = 1;
+					if(++w->streak >= param->srv->splicestreak){
+						w->splice = 1;
+						w->streak = 0;
+					}
 				}
 				else w->streak = 0;
 			}
@@ -573,12 +627,30 @@ static int cbway(struct cbmap *m, struct cbway *w){
 		}
 	}
 	if(inb && !m->term_w[w->dst] && (rd->ready & (POLLOUT | POLLHUP | POLLERR))){
+		/* the data filters see what is to be sent, as with sockmap(),
+		   which may take another buffer for it */
+		if(!param->nolongdatfilter && (w->src? param->ndatfilterssrv : param->ndatfilterscli)){
+			FILTER_ACTION action = w->src?
+				handledatfltsrv(param, &param->srvbuf, (int *)&param->srvbufsize, param->srvoffset, (int *)&param->srvinbuf) :
+				handledatfltcli(param, &param->clibuf, (int *)&param->clibufsize, param->clioffset, (int *)&param->cliinbuf);
+
+			if(action != PASS){
+				m->stop = 1;
+				m->stopres = (action == HANDLED)? 0 : 19;
+				return 1;
+			}
+			cbbuf(param, w->src, &buf, &inbuf, &offset, &size);
+			inb = *inbuf - *offset;
+			if(!inb) bufrelease(param, w->src? SERVER : CLIENT);
+		}
+	}
+	if(inb && !m->term_w[w->dst] && (rd->ready & (POLLOUT | POLLHUP | POLLERR))){
 		n = sf->_sendto(param->sostate, to, (char *)buf + *offset, (int)CBMIN(inb, w->left), 0, NULL, 0);
 		if(n > 0){
 			*offset += n;
 			w->left -= n;
-			cbcount(param, w, 1, n);
-			if(*offset == *inbuf) *offset = *inbuf = 0;
+			cbcount(m, w, 1, n);
+			bufrelease(param, w->src? SERVER : CLIENT);
 			progress = 1;
 		}
 		else if(!CBAGAIN(errno)){
@@ -596,8 +668,25 @@ static int cbway(struct cbmap *m, struct cbway *w){
 
 /* Ends the mapping: 1, the result in m->res, once it is over. */
 static int cbmapend(struct cbmap *m, int res){
+	struct clientparam *param = m->param;
+	int i;
+
+#ifdef WITHSPLICE
+	/* a pipe still holding data cannot be used again */
+	if(m->way[0].inpipe && param->pipecli[0] >= 0){
+		fdclose(param->pipecli[0]);
+		fdclose(param->pipecli[1]);
+		param->pipecli[0] = param->pipecli[1] = -1;
+	}
+	if(m->way[1].inpipe && param->pipesrv[0] >= 0){
+		fdclose(param->pipesrv[0]);
+		fdclose(param->pipesrv[1]);
+		param->pipesrv[0] = param->pipesrv[1] = -1;
+	}
+#endif
 	m->res = res;
 	m->reg[0]->cb = m->reg[1]->cb = NULL;
+	for(i = 0; i < 2; i++) if(m->ctrl[i]) m->ctrl[i]->cb = NULL;
 	looptimerdel(&m->lp->l, &m->idle);
 	looptimerdel(&m->lp->l, &m->again);
 	return 1;
@@ -632,8 +721,24 @@ static int cbmaprun(struct cbmap *m){
 	int round, moved = 0;
 
 	if(cbmapreload(m)) return 1;
+	/* anything from a control socket, or its end: the mapping ends */
+	for(round = 0; round < 2; round++){
+		if(m->ctrl[round] && (m->ctrl[round]->ready & (POLLIN | POLLHUP | POLLERR)) &&
+		    sockreadable(round? param->ctrlsocksrv : param->ctrlsock)){
+			m->term_r[0] = m->term_w[0] = m->term_r[1] = m->term_w[1] = 1;
+		}
+	}
 	for(round = 0; round < CBROUNDS; round++){
-		int progress = cbway(m, &m->way[0]) | cbway(m, &m->way[1]);
+		int progress;
+
+		if((param->srv->logdumpsrv && param->statssrv64 > param->srv->logdumpsrv) ||
+		    (param->srv->logdumpcli && param->statscli64 > param->srv->logdumpcli))
+			dolog(param, NULL);
+		if((param->maxtrafin64 && param->statssrv64 >= param->maxtrafin64) ||
+		    (param->maxtrafout64 && param->statscli64 >= param->maxtrafout64))
+			return cbmapend(m, 10);
+		progress = cbway(m, &m->way[0]) | cbway(m, &m->way[1]);
+		if(m->stop) return cbmapend(m, m->stopres);
 		int end = !m->halfclose && (m->term_r[0] || m->term_r[1]);
 		uint64_t held0 = cbheld(m, &m->way[0]), held1 = cbheld(m, &m->way[1]);
 
@@ -646,26 +751,39 @@ static int cbmaprun(struct cbmap *m){
 			else if(!m->way[0].left && param->waitclient64) res = 99;
 			else if(m->haserror) res = 94 + m->haserror;
 			else res = (held0 || held1)? 94 : 0;
-#ifdef WITHSPLICE
-			/* a pipe still holding data cannot be used again */
-			if(m->way[0].inpipe && param->pipecli[0] >= 0){
-				fdclose(param->pipecli[0]);
-				fdclose(param->pipecli[1]);
-				param->pipecli[0] = param->pipecli[1] = -1;
-			}
-			if(m->way[1].inpipe && param->pipesrv[0] >= 0){
-				fdclose(param->pipesrv[0]);
-				fdclose(param->pipesrv[1]);
-				param->pipesrv[0] = param->pipesrv[1] = -1;
-			}
-#endif
 			return cbmapend(m, res);
 		}
 		if(!progress) break;
 		moved = 1;
+		/* a pause the bandwidth limits ask for comes before more */
+		if(m->sleep) break;
 	}
 	/* the pipes emptied for a reload: sockmap() takes over at once */
 	if(m->reloading && cbmapreload(m)) return 1;
+	/* sockmap()'s grace: reads small and many this second, each way, have
+	   it wait before it looks again, for more of them at once */
+	if(!m->sleep && param->srv->gracedelay){
+		uint64_t sec = looptime() / 1000;
+		int i;
+
+		if(m->gracesec != sec){
+			m->gracesec = sec;
+			m->gracenum[0] = m->gracenum[1] = 0;
+			m->gracetraf[0] = m->gracetraf[1] = 0;
+		}
+		else for(i = 0; i < 2; i++){
+			if(m->gracenum[i] && m->gracetraf[i] && m->gracenum[i] >= (unsigned)param->srv->gracenum &&
+			    (!param->srv->gracetraf || m->gracetraf[i] / m->gracenum[i] <= (uint64_t)param->srv->gracetraf))
+				m->sleep = param->srv->gracedelay;
+		}
+	}
+	if(m->sleep > 0){
+		m->paused = 1;
+		looptimerset(&m->lp->l, &m->again, looptime() + (uint64_t)m->sleep);
+		m->sleep = 0;
+		if(moved) m->last = looptime();
+		return 0;
+	}
 	if(moved){
 		uint64_t d;
 
@@ -683,12 +801,17 @@ static int cbmaprun(struct cbmap *m){
 static void cbmapio(void *data){
 	struct cbmap *m = (struct cbmap *)data;
 
+	/* paused: what is ready waits for the pause to end */
+	if(m->paused) return;
 	/* m is on the fiber's stack: not touched once it runs */
 	if(cbmaprun(m)) fiberrun(m->lp, m->f);
 }
 
 static void cbmapagain(struct loop *l, struct looptimer *t){
-	cbmapio(t->data);
+	struct cbmap *m = (struct cbmap *)t->data;
+
+	m->paused = 0;
+	cbmapio(m);
 }
 
 static void cbmapidle(struct loop *l, struct looptimer *t){
@@ -712,20 +835,28 @@ static int fibermap(struct clientparam *param, int timeo, int usesplice){
 	int i;
 
 	if(!lp || !fibercurrent() || param->srv->loopmode != 2) return -2;
-	if(param->bandlimfunc ||
-	    param->ctrlsock != INVALID_SOCKET || param->ctrlsocksrv != INVALID_SOCKET ||
-	    param->npredatfilters || param->ndatfilterscli || param->ndatfilterssrv ||
-	    param->maxtrafin64 || param->maxtrafout64 || param->srv->gracedelay ||
-	    param->srv->logdumpsrv || param->srv->logdumpcli ||
-	    param->srv->so._recvfrom != so._recvfrom || param->srv->so._sendto != so._sendto ||
-	    param->srv->so._shutdown != so._shutdown ||
-	    param->clisock == INVALID_SOCKET || param->remsock == INVALID_SOCKET ||
+	if(param->clisock == INVALID_SOCKET || param->remsock == INVALID_SOCKET ||
 	    param->clisock == param->remsock)
 		return -2;
+	/* the filters before the data, as sockmap() has them, once: TLS begins
+	   there, waiting on the fiber */
+	if(param->npredatfilters){
+		FILTER_ACTION action = handlepredatflt(param);
+
+		if(action == HANDLED) return 0;
+		if(action != PASS) return 19;
+	}
+	/* through TLS, or anything else between the socket functions and the
+	   socket, data is copied */
+	if(param->srv->so._recvfrom != so._recvfrom || param->srv->so._sendto != so._sendto)
+		usesplice = 0;
 	memset(&m, 0, sizeof(m));
 	m.sock[0] = param->clisock;
 	m.sock[1] = param->remsock;
 	if(!(m.reg[0] = sockreg(lp, m.sock[0])) || !(m.reg[1] = sockreg(lp, m.sock[1]))) return -2;
+	if((param->ctrlsock != INVALID_SOCKET && !(m.ctrl[0] = sockreg(lp, param->ctrlsock))) ||
+	    (param->ctrlsocksrv != INVALID_SOCKET && !(m.ctrl[1] = sockreg(lp, param->ctrlsocksrv))))
+		return -2;
 	m.param = param;
 	m.lp = lp;
 	m.f = fibercurrent();
@@ -735,7 +866,7 @@ static int fibermap(struct clientparam *param, int timeo, int usesplice){
 	m.linger = (uint64_t)param->srv->timeouts[LINGER_TO] * 1000;
 	m.way[0].src = m.way[1].dst = 0;
 	m.way[0].dst = m.way[1].src = 1;
-	m.way[0].left = m.way[1].left = 0x7fffffffffffffffULL;
+	m.way[0].left = m.way[1].left = CBALL;
 	if(param->waitclient64){
 		m.way[0].left = param->waitclient64;
 		m.way[1].left = 0;
@@ -753,12 +884,10 @@ static int fibermap(struct clientparam *param, int timeo, int usesplice){
 		if(!(usesplice & bit)) continue;
 		/* told to, or a body of known length large enough: spliced from
 		   the start */
-		if(!(usesplice & SPLICE_AUTO) || (m.way[i].left != 0x7fffffffffffffffULL &&
+		if(!(usesplice & SPLICE_AUTO) || (m.way[i].left != CBALL &&
 		    m.way[i].left >= (uint64_t)param->srv->splicemin))
 			m.way[i].splice = 1;
 	}
-#else
-	(void)i;
 #endif
 	m.last = looptime();
 	m.idle.func = cbmapidle;
@@ -767,6 +896,10 @@ static int fibermap(struct clientparam *param, int timeo, int usesplice){
 	m.again.data = &m;
 	m.reg[0]->cb = m.reg[1]->cb = cbmapio;
 	m.reg[0]->cbdata = m.reg[1]->cbdata = &m;
+	for(i = 0; i < 2; i++) if(m.ctrl[i]){
+		m.ctrl[i]->cb = cbmapio;
+		m.ctrl[i]->cbdata = &m;
+	}
 	looptimerset(&lp->l, &m.idle, cbmapdeadline(&m));
 	/* what is ready already is moved at once, on the fiber's stack */
 	if(cbmaprun(&m)) return m.res;
