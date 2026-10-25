@@ -1009,13 +1009,13 @@ CLEANRET:
  /* empty pipes stay with the connection for its next mapping; one still
     holding data, left by an error or a timeout, cannot be used again */
  if(inclientpipe && pipecli[0] >= 0){
-	close(pipecli[0]);
-	close(pipecli[1]);
+	fdclose(pipecli[0]);
+	fdclose(pipecli[1]);
 	pipecli[0] = pipecli[1] = -1;
  }
  if(inserverpipe && pipesrv[0] >= 0){
-	close(pipesrv[0]);
-	close(pipesrv[1]);
+	fdclose(pipesrv[0]);
+	fdclose(pipesrv[1]);
 	pipesrv[0] = pipesrv[1] = -1;
  }
 #endif

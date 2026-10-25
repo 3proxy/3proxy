@@ -393,10 +393,10 @@ void releaseparam(struct clientparam * param) {
 	param->clibuf = param->clibufdata;
 	param->srvbuf = param->srvbufdata;
 #ifdef WITHSPLICE
-	if(param->pipecli[0] >= 0) close(param->pipecli[0]);
-	if(param->pipecli[1] >= 0) close(param->pipecli[1]);
-	if(param->pipesrv[0] >= 0) close(param->pipesrv[0]);
-	if(param->pipesrv[1] >= 0) close(param->pipesrv[1]);
+	if(param->pipecli[0] >= 0) fdclose(param->pipecli[0]);
+	if(param->pipecli[1] >= 0) fdclose(param->pipecli[1]);
+	if(param->pipesrv[0] >= 0) fdclose(param->pipesrv[0]);
+	if(param->pipesrv[1] >= 0) fdclose(param->pipesrv[1]);
 	param->pipecli[0] = param->pipecli[1] = param->pipesrv[0] = param->pipesrv[1] = -1;
 #endif
 	/* Not shut down on Windows: there shutting down receiving resets the

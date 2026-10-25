@@ -492,6 +492,16 @@ struct sockfuncs so = {
 	def_closesocket
 };
 
+#ifndef _WIN32
+/* close() of a descriptor a fiber may have waited on, a pipe of splice():
+   its loop forgets it first, or a socket given the same number later would
+   be taken for it, and never registered. */
+int fdclose(int fd){
+	if(fiberclosefunc) fiberclosefunc(fd);
+	return close(fd);
+}
+#endif
+
 /* Whether s, found readable, is: data or its end there. A fiber's wait
    may answer with what a socket was reported ready for, until an
    operation finds it not to be: whatever takes readability for an end,
