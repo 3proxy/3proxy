@@ -780,6 +780,22 @@ int doconnect(struct clientparam * param){
 	param->srv->so._setsockopt(param->sostate, param->remsock, SOL_SOCKET, SO_LINGER, (char *)&lg, sizeof(lg));
 #endif
 	if(extbindtodevice(param, param->remsock)) return 12;
+#ifdef IP_BIND_ADDRESS_NO_PORT
+	/* A port the kernel chooses is chosen by connect(), for the pair with
+	   the destination: one in use towards another destination, or closing
+	   from an earlier connection, does as well. bind() would take one of
+	   its own, and with many connections find none left, or search long
+	   for it. */
+	if((param->operation >= 256 || (param->operation & CONNECT) || param->redirected)
+# ifdef WITH_UN
+	    && *SAFAMILY(&param->sinsl) != AF_UNIX
+# endif
+	    ){
+		int one = 1;
+
+		param->srv->so._setsockopt(param->sostate, param->remsock, IPPROTO_IP, IP_BIND_ADDRESS_NO_PORT, (char *)&one, sizeof(one));
+	}
+#endif
 #ifdef WITH_UN
 	if(*SAFAMILY(&param->sinsl) != AF_UNIX)
 #endif
