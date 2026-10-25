@@ -604,8 +604,14 @@ static int cbmaprun(struct cbmap *m){
 	int round, moved = 0;
 
 	/* a reload: sockmap() takes the connection back, which has it go by
-	   the newest configuration's rules, or ends it */
-	if(param->version < runconf->version) return cbmapend(m, -2);
+	   the newest configuration's rules, or ends it. It knows nothing of
+	   what the pipes hold: they are emptied first. What is left of a body
+	   is what it is to move. */
+	if(param->version < runconf->version && !m->way[0].inpipe && !m->way[1].inpipe){
+		if(param->waitclient64) param->waitclient64 = m->way[0].left;
+		if(param->waitserver64) param->waitserver64 = m->way[1].left;
+		return cbmapend(m, -2);
+	}
 	for(round = 0; round < CBROUNDS; round++){
 		int progress = cbway(m, &m->way[0]) | cbway(m, &m->way[1]);
 		int end = !m->halfclose && (m->term_r[0] || m->term_r[1]);
