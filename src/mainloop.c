@@ -410,6 +410,9 @@ static int cbmaprun(struct cbmap *m){
 	int round, moved = 0;
 	ssize_t n;
 
+	/* a reload: sockmap() takes the connection back, which has it go by
+	   the newest configuration's rules, or ends it */
+	if(param->version < runconf->version) return cbmapend(m, -2);
 	for(round = 0; round < CBROUNDS; round++){
 		int progress = 0, end = !m->halfclose && (m->cterm_r || m->sterm_r);
 
@@ -532,7 +535,8 @@ static void cbmapidle(struct loop *l, struct looptimer *t){
 }
 
 /* sockmapcbfunc: sockmap() of a fiber, as callbacks, its result; -2 for
-   sockmap() to map it itself. */
+   sockmap() to map it itself, from the start or from where the callbacks
+   left it after a reload. */
 static int fibermap(struct clientparam *param, int timeo){
 	struct looper *lp = curlooper;
 	struct cbmap m;
