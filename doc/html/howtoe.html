@@ -648,16 +648,16 @@ see <a href="#DNSPR">How to set up a DNS proxy (dnspr)</a>.
 <br>tlspr can be used as a parent with the "tls" type to implement SNI splitting for DPI bypass (similar to NoDPI/GoodByeDPI).
 The client sends the first part of the TLS ClientHello, tlspr splits it at the SNI extension and sends it in two TCP packets,
 which can bypass some DPI systems that look for blocked hostnames in TLS handshakes.
-<br>To enable SNI break, use <code>parent ... tls 0.0.0.0 0</code> and the <code>-s</code> option on the listening service with TCP_NODELAY:
+<br>To enable SNI break, use <code>parent ... tls 0.0.0.0 0</code> and the <code>-B</code> option on the listening service:
 </p><pre>
 auth iponly
 allow *
 parent 1000 tls 0.0.0.0 0
 allow *
-proxy -s -i127.0.0.1 -ocTCP_NODELAY -osTCP_NODELAY -p1443
+proxy -B -i127.0.0.1 -p1443
 </pre>
 <p>
-TCP_NODELAY is required to prevent the kernel from merging the split packets.
+TCP_NODELAY, set by default, is required to prevent the kernel from merging the split packets: do not turn it off with -ocTCP_NODELAY=0 or -osTCP_NODELAY=0.
 </p>
 <p>
 <b>Configuration examples:</b>
