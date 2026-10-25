@@ -55,7 +55,8 @@ struct sockreg {
 	struct loopio io;	/* edge-triggered, for reading and writing */
 	short ready;		/* reported ready for, not found not to be since */
 	short want;		/* what the fiber waiting on it waits for */
-	unsigned char spins;	/* waits answered at once since it was reported */
+	short stale;		/* of ready, what a wait was answered with and
+				   nothing reported since */
 	struct fiberwait *w;	/* the wait of the fiber waiting on it */
 };
 
@@ -214,7 +215,7 @@ static void sockregio(struct loop *l, struct loopio *io, short revents){
 	struct fiberwait *w = r->w;
 
 	r->ready |= revents;
-	r->spins = 0;
+	r->stale &= ~revents;
 	/* nothing of r is touched after the fiber runs: it may close it */
 	if(w && !w->woken && (revents & (r->want | POLLERR | POLLHUP))){
 		w->woken = 1;
@@ -257,7 +258,7 @@ static void fiberblocked(SOCKET s, short events){
 
 	if(lp && (unsigned)s < lp->nregs && lp->regs[s]){
 		lp->regs[s]->ready &= ~events;
-		lp->regs[s]->spins = 0;
+		lp->regs[s]->stale &= ~events;
 	}
 }
 
@@ -300,21 +301,27 @@ static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, i
 			goto DONE;
 		}
 		have = regs[i]->ready & (want | POLLERR | POLLHUP);
-		if(have && regs[i]->spins){
+		if(have & regs[i]->stale){
 			struct pollfd p;
 
 			p.fd = fds[i].fd;
 			p.events = POLLIN | POLLOUT;
 			p.revents = 0;
 			if(poll(&p, 1, 0) >= 0) regs[i]->ready = p.revents & READYBITS;
-			regs[i]->spins = 0;
+#ifdef LOOP_KQUEUE
+			/* poll() there tells a socket shut down for sending, by us,
+			   as hung up, the loop does not: its end of reading is
+			   readable */
+			regs[i]->ready &= ~POLLHUP;
+#endif
+			regs[i]->stale = 0;
 			have = regs[i]->ready & (want | POLLERR | POLLHUP);
 		}
 		fds[i].revents = have;
 		if(have) res++;
 	}
 	if(res){
-		for(i = 0; i < nfds; i++) if(fds[i].revents) regs[i]->spins++;
+		for(i = 0; i < nfds; i++) if(regs[i]) regs[i]->stale |= fds[i].revents;
 		goto DONE;
 	}
 	memset(&w, 0, sizeof(w));
@@ -333,8 +340,8 @@ static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, i
 	if(timeout > 0) looptimerdel(&lp->l, &w.t);
 	for(i = 0; i < nfds; i++) if(regs[i]){
 		regs[i]->w = NULL;
-		regs[i]->spins = 0;
 		fds[i].revents = regs[i]->ready & (fds[i].events & (POLLIN | POLLOUT) | POLLERR | POLLHUP);
+		regs[i]->stale |= fds[i].revents;
 		if(fds[i].revents) res++;
 	}
 DONE:
