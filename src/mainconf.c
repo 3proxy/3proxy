@@ -480,7 +480,8 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			srv->stacksize = atoi(argv[i]+2);
 			break;
 		 case 'L':
-			srv->loopmode = argv[i][2] != '0';
+			/* -L2: and their data relayed by the loop (a draft) */
+			srv->loopmode = argv[i][2]? atoi(argv[i]+2) : 1;
 			break;
 		case 'a':
 			srv->anonymous = 1 + atoi(argv[i]+2);

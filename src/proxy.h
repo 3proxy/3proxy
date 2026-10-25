@@ -250,6 +250,9 @@ extern struct extparam confboot;
 #define SPLICE_STREAK 2
 #define SPLICE_SMALL 4096
 int sockmap(struct clientparam * param, int timeo, int usesplice);
+/* set by the event loops: sockmap() of a client of a loop as callbacks, its
+   result, or -2 if sockmap() is to map it itself */
+extern int (*sockmapcbfunc)(struct clientparam *param, int timeo);
 int udpsockmap(struct clientparam * param, int timeo);
 int udpbind(struct clientparam * param);
 int socks5_udp_skip_hdr(unsigned char *buf, int len);

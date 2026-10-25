@@ -427,6 +427,8 @@ static int h_loops(int argc, unsigned char **argv){
 static int h_loopmode(int argc, unsigned char **argv){
 	if(!strcmp((char *)argv[1], "on")) conf->loopmode = 1;
 	else if(!strcmp((char *)argv[1], "off")) conf->loopmode = 0;
+	/* and their data relayed by the loop (a draft) */
+	else if(!strcmp((char *)argv[1], "cb")) conf->loopmode = 2;
 	else return 1;
 	return 0;
 }

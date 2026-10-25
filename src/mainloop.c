@@ -58,6 +58,9 @@ struct sockreg {
 	short stale;		/* of ready, what a wait was answered with and
 				   nothing reported since */
 	struct fiberwait *w;	/* the wait of the fiber waiting on it */
+	/* or, relayed by sockmap() as callbacks, called for its events */
+	void (*cb)(void *data);
+	void *cbdata;
 };
 
 struct looper {
@@ -216,7 +219,12 @@ static void sockregio(struct loop *l, struct loopio *io, short revents){
 
 	r->ready |= revents;
 	r->stale &= ~revents;
-	/* nothing of r is touched after the fiber runs: it may close it */
+	/* nothing of r is touched after the callback or the fiber runs: they
+	   may close it */
+	if(r->cb){
+		r->cb(r->cbdata);
+		return;
+	}
 	if(w && !w->woken && (revents & (r->want | POLLERR | POLLHUP))){
 		w->woken = 1;
 		fiberrun(w->lp, w->f);
@@ -347,6 +355,221 @@ static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, i
 DONE:
 	if(regs != ownregs) free(regs);
 	return res;
+}
+
+
+/* ---- sockmap() as callbacks (-L2, a draft) ------------------------------- */
+
+/* The data of a connection mapped by a fiber of a loop with neither filters,
+   limits, nor anything but the socket functions of the system between the
+   sides, is relayed by the loop itself: the sockets call it back, on the
+   loop's own stack, and the fiber, parked meanwhile, is resumed only once
+   the mapping is over. No splice() yet: data is copied. */
+
+/* rounds of a read and a write each way at most in a callback, before what
+   is still ready waits for the next turn of the loop */
+#define CBROUNDS 16
+
+struct cbmap {
+	struct clientparam *param;
+	struct looper *lp;
+	struct fiber *f;
+	struct sockreg *cr, *sr;
+	struct looptimer idle, again;
+	uint64_t last;		/* looptime() of the last data moved */
+	uint64_t timeo, linger;	/* ms */
+	int halfclose;
+	int cterm_r, cterm_w, sterm_r, sterm_w, haserror;
+	int res;
+};
+
+/* as sockmap()'s ROOM() */
+#define CBROOM(size, inbuf) ((((size) == CLIENTBUFSIZE && (inbuf) <= CLIENTBUFSIZE - 64)? \
+	(uint64_t)(CLIENTBUFSIZE - 64) : (uint64_t)(size)) - (inbuf))
+
+#define CBAGAIN(e) ((e) == EAGAIN || (e) == EWOULDBLOCK || (e) == EINTR)
+
+static uint64_t cbmapdeadline(struct cbmap *m){
+	return m->last + ((m->cterm_r || m->sterm_r)? (m->timeo < m->linger? m->timeo : m->linger) : m->timeo);
+}
+
+/* Ends the mapping: 1, the result in m->res, once it is over. */
+static int cbmapend(struct cbmap *m, int res){
+	m->res = res;
+	m->cr->cb = m->sr->cb = NULL;
+	looptimerdel(&m->lp->l, &m->idle);
+	looptimerdel(&m->lp->l, &m->again);
+	return 1;
+}
+
+/* What the sockets are ready for, moved: 1 once the mapping is over, as
+   sockmap() would end it. */
+static int cbmaprun(struct cbmap *m){
+	struct clientparam *param = m->param;
+	struct sockfuncs *sf = &param->srv->so;
+	int round, moved = 0;
+	ssize_t n;
+
+	for(round = 0; round < CBROUNDS; round++){
+		int progress = 0, end = !m->halfclose && (m->cterm_r || m->sterm_r);
+
+		/* the client to the server */
+		if(!m->cterm_r && !end && CBROOM(param->clibufsize, param->cliinbuf) > 0 &&
+		    (m->cr->ready & (POLLIN | POLLHUP | POLLERR))){
+			n = sf->_recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf,
+				(int)CBROOM(param->clibufsize, param->cliinbuf), 0, NULL, NULL);
+			if(n > 0){
+				param->cliinbuf += n;
+				progress = 1;
+			}
+			else if(!n || !CBAGAIN(errno)){
+				m->cterm_r = 1;
+				if(n) m->cterm_w = 1;
+				progress = 1;
+			}
+		}
+		if(param->cliinbuf > param->clioffset && !m->sterm_w && (m->sr->ready & (POLLOUT | POLLHUP | POLLERR))){
+			n = sf->_sendto(param->sostate, param->remsock, (char *)param->clibuf + param->clioffset,
+				(int)(param->cliinbuf - param->clioffset), 0, NULL, 0);
+			if(n > 0){
+				param->nwrites++;
+				param->statscli64 += n;
+				param->clioffset += n;
+				if(param->clioffset == param->cliinbuf) param->clioffset = param->cliinbuf = 0;
+				progress = 1;
+			}
+			else if(!CBAGAIN(errno)){
+				m->sterm_r = m->sterm_w = 1;
+				m->haserror |= 2;
+				progress = 1;
+			}
+		}
+		if(m->cterm_r && param->cliinbuf == param->clioffset && !m->sterm_w){
+			m->sterm_w = 1;
+			sf->_shutdown(param->sostate, param->remsock, SHUT_WR);
+		}
+
+		/* the server to the client */
+		if(!m->sterm_r && !end && CBROOM(param->srvbufsize, param->srvinbuf) > 0 &&
+		    (m->sr->ready & (POLLIN | POLLHUP | POLLERR))){
+			n = sf->_recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf,
+				(int)CBROOM(param->srvbufsize, param->srvinbuf), 0, NULL, NULL);
+			if(n > 0){
+				param->nreads++;
+				param->statssrv64 += n;
+				param->srvinbuf += n;
+				progress = 1;
+			}
+			else if(!n || !CBAGAIN(errno)){
+				m->sterm_r = 1;
+				if(n) m->sterm_w = 1;
+				progress = 1;
+			}
+		}
+		if(param->srvinbuf > param->srvoffset && !m->cterm_w && (m->cr->ready & (POLLOUT | POLLHUP | POLLERR))){
+			n = sf->_sendto(param->sostate, param->clisock, (char *)param->srvbuf + param->srvoffset,
+				(int)(param->srvinbuf - param->srvoffset), 0, NULL, 0);
+			if(n > 0){
+				param->srvoffset += n;
+				if(param->srvoffset == param->srvinbuf) param->srvoffset = param->srvinbuf = 0;
+				progress = 1;
+			}
+			else if(!CBAGAIN(errno)){
+				m->cterm_r = m->cterm_w = 1;
+				m->haserror |= 1;
+				progress = 1;
+			}
+		}
+		if(m->sterm_r && param->srvinbuf == param->srvoffset && !m->cterm_w){
+			m->cterm_w = 1;
+			sf->_shutdown(param->sostate, param->clisock, SHUT_WR);
+		}
+
+		/* sockmap()'s condition to go on */
+		end = !m->halfclose && (m->cterm_r || m->sterm_r);
+		if(!((!m->cterm_w && (param->srvinbuf > param->srvoffset || (!m->sterm_r && !end))) ||
+		     (!m->sterm_w && (param->cliinbuf > param->clioffset || (!m->cterm_r && !end))))){
+			return cbmapend(m, m->haserror? 94 + m->haserror :
+				(param->cliinbuf > param->clioffset || param->srvinbuf > param->srvoffset)? 94 : 0);
+		}
+		if(!progress) break;
+		moved = 1;
+	}
+	if(moved){
+		uint64_t d;
+
+		m->last = looptime();
+		d = cbmapdeadline(m);
+		if(d < m->idle.deadline) looptimerset(&m->lp->l, &m->idle, d);
+		else looptimerlater(&m->lp->l, &m->idle, d);
+	}
+	/* still ready after as many rounds: the rest in the next turn, after
+	   the others' */
+	if(round == CBROUNDS) looptimerset(&m->lp->l, &m->again, looptime());
+	return 0;
+}
+
+static void cbmapio(void *data){
+	struct cbmap *m = (struct cbmap *)data;
+
+	/* m is on the fiber's stack: not touched once it runs */
+	if(cbmaprun(m)) fiberrun(m->lp, m->f);
+}
+
+static void cbmapagain(struct loop *l, struct looptimer *t){
+	cbmapio(t->data);
+}
+
+static void cbmapidle(struct loop *l, struct looptimer *t){
+	struct cbmap *m = (struct cbmap *)t->data;
+
+	if(looptime() < cbmapdeadline(m)){
+		looptimerset(l, t, cbmapdeadline(m));
+		return;
+	}
+	cbmapend(m, 92);
+	fiberrun(m->lp, m->f);
+}
+
+/* sockmapcbfunc: sockmap() of a fiber, as callbacks, its result; -2 for
+   sockmap() to map it itself. */
+static int fibermap(struct clientparam *param, int timeo){
+	struct looper *lp = curlooper;
+	struct cbmap m;
+
+	if(!lp || !fibercurrent() || param->srv->loopmode != 2) return -2;
+	if(param->bandlimfunc || param->waitclient64 || param->waitserver64 ||
+	    param->ctrlsock != INVALID_SOCKET || param->ctrlsocksrv != INVALID_SOCKET ||
+	    param->npredatfilters || param->ndatfilterscli || param->ndatfilterssrv ||
+	    param->maxtrafin64 || param->maxtrafout64 || param->srv->gracedelay ||
+	    param->srv->logdumpsrv || param->srv->logdumpcli ||
+	    param->srv->so._recvfrom != so._recvfrom || param->srv->so._sendto != so._sendto ||
+	    param->srv->so._shutdown != so._shutdown ||
+	    param->clisock == INVALID_SOCKET || param->remsock == INVALID_SOCKET ||
+	    param->clisock == param->remsock)
+		return -2;
+	memset(&m, 0, sizeof(m));
+	if(!(m.cr = sockreg(lp, param->clisock)) || !(m.sr = sockreg(lp, param->remsock))) return -2;
+	m.param = param;
+	m.lp = lp;
+	m.f = fibercurrent();
+	m.halfclose = param->srv->halfclose;
+	m.timeo = (uint64_t)timeo * 1000;
+	m.linger = (uint64_t)param->srv->timeouts[LINGER_TO] * 1000;
+	m.last = looptime();
+	m.idle.func = cbmapidle;
+	m.idle.data = &m;
+	m.again.func = cbmapagain;
+	m.again.data = &m;
+	if(param->srvinbuf == param->srvoffset) param->srvinbuf = param->srvoffset = 0;
+	if(param->cliinbuf == param->clioffset) param->cliinbuf = param->clioffset = 0;
+	m.cr->cb = m.sr->cb = cbmapio;
+	m.cr->cbdata = m.sr->cbdata = &m;
+	looptimerset(&lp->l, &m.idle, cbmapdeadline(&m));
+	/* what is ready already is moved at once, on the fiber's stack */
+	if(cbmaprun(&m)) return m.res;
+	fiberyield();
+	return m.res;
 }
 #endif
 
@@ -485,6 +708,7 @@ static int loopsstart(void){
 #ifdef SOCKREGS
 		fiberblockfunc = fiberblocked;
 		fiberclosefunc = fiberclosed;
+		sockmapcbfunc = fibermap;
 #endif
 		fiberpollfunc = fiberpoll;
 	}
