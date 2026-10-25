@@ -563,6 +563,8 @@ def proxy_conf(kind, work, ncpu, label, opts="", out=PRX_OUT):
     on TCP_PORT, both towards the origin. Returns the argv. opts are added to
     both 3proxy services, e.g. -s0 to keep a version from using splice(). out
     is the address the proxy connects from."""
+    # BENCH_WORKERS: as many workers (envoys, 3proxy's loops) whatever the CPUs
+    ncpu = int(os.environ.get("BENCH_WORKERS", ncpu))
     if kind == "3proxy":
         # ktls among the options is not a service option: kernel TLS for the
         # TLS services (ssl_ktls)
@@ -571,6 +573,9 @@ def proxy_conf(kind, work, ncpu, label, opts="", out=PRX_OUT):
         opts = " ".join(w for w in words if w != "ktls")
         conf = os.path.join(work, f"{label}.cfg")
         with open(conf, "w") as f:
+            # on event loops: as many as the proxy has CPUs, as envoy is given
+            if "-L" in opts.split():
+                f.write(f"loops {ncpu}\n")
             f.write(f"""maxconn 100000
 auth none
 proxy {opts} -i{PRX_IN} -e{out} -p{HTTP_PORT}
@@ -998,7 +1003,7 @@ def run_http(proxy, params, args, work, mark):
     res["rate"] = float(m.group(1)) if m else 0.0
     m = re.search(r"Transfer/sec:\s+([\d.]+)(\w+)", out)
     res["gbit"] = float(m.group(1)) * UNITS[m.group(2)] * 8 / 1e9 if m else 0.0
-    for pct in ("50", "90", "99"):
+    for pct in ("50", "75", "90", "99"):
         m = re.search(rf"^\s+{pct}%\s+(\S+)", out, re.M)
         res[f"p{pct}_ms"] = to_ms(m.group(1)) if m else float("nan")
     errors = 0
@@ -1052,7 +1057,7 @@ def run_stream(proxy, params, args, work, mark):
     finally:
         if wrapper:
             stop(wrapper)
-    res = {"raw": out, "rate": float("nan"), "p50_ms": float("nan"), "p90_ms": float("nan"),
+    res = {"raw": out, "rate": float("nan"), "p50_ms": float("nan"), "p75_ms": float("nan"), "p90_ms": float("nan"),
            "p99_ms": float("nan"), "requests": 0, "errors": 0, "retrans": 0, "timeouts": 0}
     try:
         j = json.loads(out)
@@ -1126,7 +1131,7 @@ def run_mix(proxy, params, args, work, mark):
     res["rate"] = j.get("rate", 0.0)
     res["gbit"] = j.get("gbit", 0.0)
     res["bytes"] = j.get("bytes", 0)
-    for pct in ("50", "90", "99"):
+    for pct in ("50", "75", "90", "99"):
         res[f"p{pct}_ms"] = j.get(f"p{pct}_ms", float("nan"))
     res["timeouts"] = j.get("timeouts", 0)
     # connections of the pool which could not be opened count too
@@ -1190,7 +1195,7 @@ def measure(proxy, scenario, args, work):
 
 # --- main --------------------------------------------------------------------
 
-FIELDS = ["proxy", "scenario", "rep", "gbit", "rate", "p50_ms", "p90_ms", "p99_ms", "errors", "timeouts", "retrans",
+FIELDS = ["proxy", "scenario", "rep", "gbit", "rate", "p50_ms", "p75_ms", "p90_ms", "p99_ms", "errors", "timeouts", "retrans",
           "prx_cpu_s", "prx_task_s", "cpu_s_per_gb", "cpu_us_per_req", "peak_mb",
           "cli_util", "prx_util", "srv_util", "cli_thread", "srv_thread", "bound"]
 

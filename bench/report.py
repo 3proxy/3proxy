@@ -270,8 +270,9 @@ def latency(path, labels, splice, prefix=None):
             rule.append(":-:")
         head += [labels.get(p, p) for p in g]
         rule += ["---:"] * len(g)
-    pcts = ["p50_ms", "p90_ms", "p99_ms"] if any(values(rs, "p90_ms") for rs in by.values()) \
-        else ["p50_ms", "p99_ms"]
+    # the percentiles the results have: older ones only p50 and p99
+    pcts = [c for c in ("p50_ms", "p75_ms", "p90_ms", "p99_ms")
+            if c in ("p50_ms", "p99_ms") or any(values(rs, c) for rs in by.values())]
     out = [f"| scenario, {' / '.join(c[:3] for c in pcts)} ms | " + " | ".join(head) + " |",
            "|---|" + "|".join(rule) + "|"]
     for s in scenarios:
