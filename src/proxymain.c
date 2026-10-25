@@ -364,6 +364,8 @@ int MODULEMAINFUNC (int argc, char** argv){
 	"    association: 1 - log, 2 - authorize, 3 - both (default), 0 (same as -U) -\n"
 	"    neither. The first destination is always authorized and logged\n"
 #endif
+	" -B split the TLS ClientHello passed through tlspr at the SNI (DPI bypass),\n"
+	"    with -ocTCP_NODELAY -osTCP_NODELAY\n"
 	"-g(GRACE_TRAFF,GRACE_NUM,GRACE_DELAY) - delay GRACE_DELAY milliseconds before polling if average polling size below  GRACE_TRAFF bytes and GRACE_NUM read operations in single directions are detected within 1 second to minimize polling\n"
 	" -fFORMAT logging format (see documentation)\n"
 	" -l log to stderr\n"
@@ -638,6 +640,13 @@ int MODULEMAINFUNC (int argc, char** argv){
 			break;
 		case 'U':
 			srv.udpauth = *(argv[i]+2)? atoi(argv[i]+2) : 0;
+			break;
+		case 'B':
+			/* the TLS ClientHello split at the SNI (tlspr), which -s is
+			   where -s is not splice; s_option means something else
+			   for these */
+			if(!isudp && srv.service != S_ADMIN)
+				srv.s_option = 1 + atoi(argv[i]+2);
 			break;
 		case 's':
 #ifdef WITHSPLICE

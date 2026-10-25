@@ -654,13 +654,13 @@ iptables -t nat -A PREROUTING -p tcp -m multiport --dports 443,993,465 -j REDIRE
 <br>tlspr может использоваться как родительский прокси типа "tls" для реализации SNI-фрагментации (аналог NoDPI/GoodByeDPI).
 Клиент отправляет первую часть TLS ClientHello, tlspr разбивает его на расширении SNI и отправляет двумя TCP-пакетами,
 что позволяет обойти некоторые DPI-системы, ищущие заблокированные имена хостов в TLS-рукопожатиях.
-<br>Для включения SNI break используйте <code>parent ... tls 0.0.0.0 0</code> и опцию <code>-s</code> на слушающем сервисе с TCP_NODELAY:
+<br>Для включения SNI break используйте <code>parent ... tls 0.0.0.0 0</code> и опцию <code>-B</code> на слушающем сервисе с TCP_NODELAY:
 </p><pre>
 auth iponly
 allow *
 parent 1000 tls 0.0.0.0 0
 allow *
-proxy -s -i127.0.0.1 -ocTCP_NODELAY -osTCP_NODELAY -p1443
+proxy -B -i127.0.0.1 -ocTCP_NODELAY -osTCP_NODELAY -p1443
 </pre>
 <p>
 TCP_NODELAY необходим, чтобы ядро не объединяло разделенные пакеты.
