@@ -361,7 +361,7 @@ DONE:
 /* ---- sockmap() as callbacks (-L2, a draft) ------------------------------- */
 
 /* The data of a connection mapped by a fiber of a loop with neither filters,
-   limits, nor anything but the socket functions of the system between the
+   limits but that of a body's length, nor anything but the socket functions of the system between the
    sides, is relayed by the loop itself: the sockets call it back, on the
    loop's own stack, and the fiber, parked meanwhile, is resumed only once
    the mapping is over. No splice() yet: data is copied. */
@@ -379,6 +379,7 @@ struct cbmap {
 	uint64_t last;		/* looptime() of the last data moved */
 	uint64_t timeo, linger;	/* ms */
 	int halfclose;
+	uint64_t fromcli, fromsrv;	/* what is left to move each way */
 	int cterm_r, cterm_w, sterm_r, sterm_w, haserror;
 	int res;
 };
@@ -403,11 +404,14 @@ static int cbmapend(struct cbmap *m, int res){
 }
 
 /* What the sockets are ready for, moved: 1 once the mapping is over, as
-   sockmap() would end it. */
+   sockmap() would end it. As sockmap() too, a body of known length
+   (waitclient64, waitserver64) is all of what is moved: that way only, as
+   much as it has left (fromcli, fromsrv), the other way not at all. */
 static int cbmaprun(struct cbmap *m){
 	struct clientparam *param = m->param;
 	struct sockfuncs *sf = &param->srv->so;
 	int round, moved = 0;
+	uint64_t incli, insrv, room;
 	ssize_t n;
 
 	/* a reload: sockmap() takes the connection back, which has it go by
@@ -417,12 +421,15 @@ static int cbmaprun(struct cbmap *m){
 		int progress = 0, end = !m->halfclose && (m->cterm_r || m->sterm_r);
 
 		/* the client to the server */
-		if(!m->cterm_r && !end && CBROOM(param->clibufsize, param->cliinbuf) > 0 &&
+		incli = m->fromcli? param->cliinbuf - param->clioffset : 0;
+		room = CBROOM(param->clibufsize, param->cliinbuf);
+		if(m->fromcli > incli && !m->cterm_r && !end && room > 0 &&
 		    (m->cr->ready & (POLLIN | POLLHUP | POLLERR))){
 			n = sf->_recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf,
-				(int)CBROOM(param->clibufsize, param->cliinbuf), 0, NULL, NULL);
+				(int)(room < m->fromcli - incli? room : m->fromcli - incli), 0, NULL, NULL);
 			if(n > 0){
 				param->cliinbuf += n;
+				incli += n;
 				progress = 1;
 			}
 			else if(!n || !CBAGAIN(errno)){
@@ -431,13 +438,15 @@ static int cbmaprun(struct cbmap *m){
 				progress = 1;
 			}
 		}
-		if(param->cliinbuf > param->clioffset && !m->sterm_w && (m->sr->ready & (POLLOUT | POLLHUP | POLLERR))){
+		if(incli && m->fromcli && !m->sterm_w && (m->sr->ready & (POLLOUT | POLLHUP | POLLERR))){
 			n = sf->_sendto(param->sostate, param->remsock, (char *)param->clibuf + param->clioffset,
-				(int)(param->cliinbuf - param->clioffset), 0, NULL, 0);
+				(int)(incli < m->fromcli? incli : m->fromcli), 0, NULL, 0);
 			if(n > 0){
 				param->nwrites++;
 				param->statscli64 += n;
 				param->clioffset += n;
+				m->fromcli -= n;
+				incli -= n;
 				if(param->clioffset == param->cliinbuf) param->clioffset = param->cliinbuf = 0;
 				progress = 1;
 			}
@@ -447,20 +456,23 @@ static int cbmaprun(struct cbmap *m){
 				progress = 1;
 			}
 		}
-		if(m->cterm_r && param->cliinbuf == param->clioffset && !m->sterm_w){
+		if(m->cterm_r && !incli && !m->sterm_w){
 			m->sterm_w = 1;
 			sf->_shutdown(param->sostate, param->remsock, SHUT_WR);
 		}
 
 		/* the server to the client */
-		if(!m->sterm_r && !end && CBROOM(param->srvbufsize, param->srvinbuf) > 0 &&
+		insrv = m->fromsrv? param->srvinbuf - param->srvoffset : 0;
+		room = CBROOM(param->srvbufsize, param->srvinbuf);
+		if(m->fromsrv > insrv && !m->sterm_r && !end && room > 0 &&
 		    (m->sr->ready & (POLLIN | POLLHUP | POLLERR))){
 			n = sf->_recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf,
-				(int)CBROOM(param->srvbufsize, param->srvinbuf), 0, NULL, NULL);
+				(int)(room < m->fromsrv - insrv? room : m->fromsrv - insrv), 0, NULL, NULL);
 			if(n > 0){
 				param->nreads++;
 				param->statssrv64 += n;
 				param->srvinbuf += n;
+				insrv += n;
 				progress = 1;
 			}
 			else if(!n || !CBAGAIN(errno)){
@@ -469,11 +481,13 @@ static int cbmaprun(struct cbmap *m){
 				progress = 1;
 			}
 		}
-		if(param->srvinbuf > param->srvoffset && !m->cterm_w && (m->cr->ready & (POLLOUT | POLLHUP | POLLERR))){
+		if(insrv && m->fromsrv && !m->cterm_w && (m->cr->ready & (POLLOUT | POLLHUP | POLLERR))){
 			n = sf->_sendto(param->sostate, param->clisock, (char *)param->srvbuf + param->srvoffset,
-				(int)(param->srvinbuf - param->srvoffset), 0, NULL, 0);
+				(int)(insrv < m->fromsrv? insrv : m->fromsrv), 0, NULL, 0);
 			if(n > 0){
 				param->srvoffset += n;
+				m->fromsrv -= n;
+				insrv -= n;
 				if(param->srvoffset == param->srvinbuf) param->srvoffset = param->srvinbuf = 0;
 				progress = 1;
 			}
@@ -483,17 +497,24 @@ static int cbmaprun(struct cbmap *m){
 				progress = 1;
 			}
 		}
-		if(m->sterm_r && param->srvinbuf == param->srvoffset && !m->cterm_w){
+		if(m->sterm_r && !insrv && !m->cterm_w){
 			m->cterm_w = 1;
 			sf->_shutdown(param->sostate, param->clisock, SHUT_WR);
 		}
 
 		/* sockmap()'s condition to go on */
 		end = !m->halfclose && (m->cterm_r || m->sterm_r);
-		if(!((!m->cterm_w && (param->srvinbuf > param->srvoffset || (!m->sterm_r && !end))) ||
-		     (!m->sterm_w && (param->cliinbuf > param->clioffset || (!m->cterm_r && !end))))){
-			return cbmapend(m, m->haserror? 94 + m->haserror :
-				(param->cliinbuf > param->clioffset || param->srvinbuf > param->srvoffset)? 94 : 0);
+		incli = m->fromcli? param->cliinbuf - param->clioffset : 0;
+		insrv = m->fromsrv? param->srvinbuf - param->srvoffset : 0;
+		if(!((!m->cterm_w && m->fromsrv && (insrv || (!m->sterm_r && !end))) ||
+		     (!m->sterm_w && m->fromcli && (incli || (!m->cterm_r && !end))))){
+			int res;
+
+			if(!m->fromsrv && param->waitserver64) res = 98;
+			else if(!m->fromcli && param->waitclient64) res = 99;
+			else if(m->haserror) res = 94 + m->haserror;
+			else res = (incli || insrv)? 94 : 0;
+			return cbmapend(m, res);
 		}
 		if(!progress) break;
 		moved = 1;
@@ -542,7 +563,7 @@ static int fibermap(struct clientparam *param, int timeo){
 	struct cbmap m;
 
 	if(!lp || !fibercurrent() || param->srv->loopmode != 2) return -2;
-	if(param->bandlimfunc || param->waitclient64 || param->waitserver64 ||
+	if(param->bandlimfunc ||
 	    param->ctrlsock != INVALID_SOCKET || param->ctrlsocksrv != INVALID_SOCKET ||
 	    param->npredatfilters || param->ndatfilterscli || param->ndatfilterssrv ||
 	    param->maxtrafin64 || param->maxtrafout64 || param->srv->gracedelay ||
@@ -560,6 +581,15 @@ static int fibermap(struct clientparam *param, int timeo){
 	m.halfclose = param->srv->halfclose;
 	m.timeo = (uint64_t)timeo * 1000;
 	m.linger = (uint64_t)param->srv->timeouts[LINGER_TO] * 1000;
+	m.fromcli = m.fromsrv = 0x7fffffffffffffffULL;
+	if(param->waitclient64){
+		m.fromcli = param->waitclient64;
+		m.fromsrv = 0;
+	}
+	if(param->waitserver64){
+		m.fromsrv = param->waitserver64;
+		m.fromcli = 0;
+	}
 	m.last = looptime();
 	m.idle.func = cbmapidle;
 	m.idle.data = &m;
