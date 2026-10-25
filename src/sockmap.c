@@ -104,7 +104,7 @@ static int hupwrite(SOCKET s, short revents, int timeo){
 int (*splicetls)(struct clientparam *param, SOCKET s) = NULL;
 #endif
 
-int (*sockmapcbfunc)(struct clientparam *param, int timeo) = NULL;
+int (*sockmapcbfunc)(struct clientparam *param, int timeo, int usesplice) = NULL;
 
 int sockmap(struct clientparam * param, int timeo, int usesplice){
  int halfclose = param->srv->halfclose;
@@ -170,7 +170,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 #define drainsrv 0
 #endif
 
- if(sockmapcbfunc && (res = (*sockmapcbfunc)(param, timeo)) != -2) return res;
+ if(sockmapcbfunc && (res = (*sockmapcbfunc)(param, timeo, usesplice)) != -2) return res;
 
  inserverbuf = param->srvinbuf - param->srvoffset;
  inclientbuf = param->cliinbuf - param->clioffset;
