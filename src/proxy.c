@@ -1295,10 +1295,22 @@ for(;;){
 	}
 	hdrfree(&buf, &bufown);
 	/* mapping its last thing, but in a request httpsrv hands over, whose
-	   end is httpsrv's: the rest of the end can be a loop's */
-	if(!param->onerequest && (param->maptaildata = req? (void *)strdup((char *)req) : NULL))
+	   end is httpsrv's: the rest of the end can be a loop's, which this
+	   function's own may then never reach. What it would free is freed
+	   now, and the request line is the tail's, back here if mapping
+	   returns. */
+	if(!param->onerequest && req){
+		freeptr(&ftpbase);
+		param->maptaildata = req;
+		req = NULL;
 		param->maptail = proxytail;
+	}
 	param->res =  mapsocket(param, param->srv->timeouts[CONNECTION_L]);
+	if(param->maptail == proxytail){
+		req = param->maptaildata;
+		param->maptaildata = NULL;
+		param->maptail = NULL;
+	}
 	RETURN(param->res);
  }
 
