@@ -30,6 +30,14 @@ static void printcommand(unsigned char * buf, int command, struct clientparam *p
 
 }
 
+/* the end of a CONNECT, as below, once mapping is over */
+static void sockstail(struct clientparam *param, void *data){
+ unsigned char logline[340];
+
+ printcommand(logline, 1, param);
+ dolog(param, logline);
+}
+
 void * sockschild(struct clientparam* param) {
  int res;
  unsigned i=0;
@@ -347,6 +355,13 @@ fflush(stderr);
 					if(buf != param->tmpbuf) free(buf);
 					return (void *)param->redirectfunc;
 				}
+				/* the request is not needed any more: its end is
+				   the log line, which mapping may leave to a loop */
+				if(buf != param->tmpbuf){
+					free(buf);
+					buf = param->tmpbuf;
+				}
+				param->maptail = sockstail;
 				param->res = mapsocket(param, param->srv->timeouts[CONNECTION_L]);
 				break;
 			case 2:

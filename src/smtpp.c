@@ -114,6 +114,25 @@ int readdata (struct clientparam* param) {
 }
 
 
+/* as the end below, once mapping is over */
+static void smtpptail(struct clientparam *param, void *data){
+ unsigned char buf[320];
+
+ if(*param->hostname&&*param->extusername) {
+	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, *SAPORT(&param->sinsr)==587?0:':',ntohs(*SAPORT(&param->sinsr)));
+	 dolog(param, buf);
+ }
+ else dolog(param, NULL);
+ if(param->clisock != INVALID_SOCKET) {
+	if ((param->res > 0 && param->res < 100) || (param->res > 661 && param->res <700)) socksend(param, param->clisock, (unsigned char *)"571 \r\n", 6,param->srv->timeouts[STRING_S]);
+ }
+}
+
+/* mapping the last thing: what is not needed any more freed, the end left
+   to the tail */
+#define SMTPLASTMAP { if(command){ free(command); command = NULL; } param->maptail = smtpptail; \
+	RETURN (mapsocket(param, 180)); }
+
 void * smtppchild(struct clientparam* param) {
  int i=0, res;
  unsigned char buf[320];
@@ -309,7 +328,7 @@ void * smtppchild(struct clientparam* param) {
 
  if(param->nhdrfilterscli || param->nhdrfilterssrv || param->ndatfilterscli || param->ndatfilterssrv){
 	do {
-		if(res == 22) RETURN (mapsocket(param, 180));
+		if(res == 22) SMTPLASTMAP
 		if(res != 2 && (res = readreply(param)) <= 0) break;
 		if(res == 221) RETURN(0);
 		if(res == 354) res = readdata(param);
@@ -323,7 +342,7 @@ void * smtppchild(struct clientparam* param) {
 
 #endif
  
- 	RETURN (mapsocket(param, 180));
+ 	SMTPLASTMAP
 
 CLEANRET:
 

@@ -25,6 +25,24 @@
 #define NOSTARTTLS param->srv->nostarttls
 #endif
 
+/* as the end below, once mapping is over: data is the tag */
+static void imapptail(struct clientparam *param, void *data){
+ unsigned char buf[320];
+ char *tag = (char *)data;
+
+ if(*param->hostname&&*param->extusername) {
+	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, (*SAPORT(&param->sinsr)==143)?0:':', ntohs(*SAPORT(&param->sinsr)));
+	dolog(param, buf);
+ }
+ else dolog(param, NULL);
+ if(param->clisock != INVALID_SOCKET) {
+	if ((param->res > 0 && param->res < 100) || (param->res > 691 && param->res <700)) {
+		sprintf((char *)buf, "%.60s NO proxy error\r\n", (tag && *tag)? tag : "*");
+		socksend(param, param->clisock, buf, (int)strlen((char *)buf),param->srv->timeouts[STRING_S]);
+	}
+ }
+}
+
 void * imappchild(struct clientparam* param) {
  int i=0, res, method=CL_LOGINCMD, caps=0;
  unsigned char buf[2048];
@@ -224,6 +242,7 @@ void * imappchild(struct clientparam* param) {
  }
  param->statscli64 += (uint64_t)(strlen((char *)tag) + strlen((char *)param->extusername) + strlen((char *)pb) + 11);
  param->nwrites++;
+ if((param->maptaildata = strdup((char *)tag))) param->maptail = imapptail;
  RETURN (mapsocket(param, 180));
 CLEANRET:
 

@@ -18,6 +18,20 @@
 #define NOSTARTTLS param->srv->nostarttls
 #endif
 
+/* as the end below, once mapping is over */
+static void pop3ptail(struct clientparam *param, void *data){
+ unsigned char buf[320];
+
+ if(*param->hostname&&*param->extusername) {
+	sprintf((char *)buf, "%.128s@%.128s%c%hu", param->extusername, param->hostname, (*SAPORT(&param->sinsr)==110)?0:':', ntohs(*SAPORT(&param->sinsr)));
+	dolog(param, buf);
+ }
+ else dolog(param, NULL);
+ if(param->clisock != INVALID_SOCKET) {
+	if ((param->res > 0 && param->res < 100) || (param->res > 611 && param->res <700)) socksend(param, param->clisock, (unsigned char *)"-ERR\r\n", 6,param->srv->timeouts[STRING_S]);
+ }
+}
+
 void * pop3pchild(struct clientparam* param) {
  int i=0, res;
  unsigned char buf[320];
@@ -65,6 +79,7 @@ void * pop3pchild(struct clientparam* param) {
 		{RETURN(623);}
  param->statscli64 += (uint64_t)(strlen((char *)param->extusername) + 7);
  param->nwrites++;
+ param->maptail = pop3ptail;
  RETURN (mapsocket(param, 180));
 CLEANRET:
 

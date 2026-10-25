@@ -848,51 +848,51 @@ static void cbmapidle(struct loop *l, struct looptimer *t){
 	cbmapdone(m);
 }
 
-/* What the child of the client does once mapping is over, as its end and
-   that of its fiber would: the result, its tail, the connection released
-   and freed. */
-static void cbmapfinish(struct clientparam *param, int res){
+/* The end of a client whose fiber gave up its stack while it was relayed,
+   on a fiber again, which the child's end (maptail) may wait on: after a
+   reload sockmap() goes on with the mapping first. Then what the child and
+   its fiber would do: the result, the tail, the connection released and
+   freed. */
+static void cbmapfinish(void *arg){
+	struct cbmap *m = (struct cbmap *)arg;
+	struct clientparam *param = m->param;
+	int res = m->res, timeo = m->timeosec, usesplice = m->usesplice0;
+
+	free(m);
+	if(res == -2) res = sockmap(param, timeo, usesplice);
 	param->res = res;
 	if(param->maptail) param->maptail(param, param->maptaildata);
 	releaseparam(param);
 	freeparam(param);
 }
 
-/* a fiber for the client again: sockmap() goes on with the mapping after
-   a reload, then the child's end */
-static void cbmapresume(void *arg){
-	struct cbmap *m = (struct cbmap *)arg;
-	struct clientparam *param = m->param;
-	int timeo = m->timeosec, usesplice = m->usesplice0;
-
-	free(m);
-	cbmapfinish(param, sockmap(param, timeo, usesplice));
-}
-
-/* The mapping is over: its fiber goes on, or, with none, the loop ends it
-   as the child would, or gives it a fiber again for sockmap() to take it
-   over after a reload. m is freed. */
+/* The mapping is over: its fiber goes on, which frees m, or, with none, a
+   fiber is taken to end the client as the child would. */
 static void cbmapdone(struct cbmap *m){
-	struct clientparam *param = m->param;
 	struct fiberslot *fs;
-	int res;
 
 	if(!m->abandoned){
-		/* the fiber frees m */
 		fiberrun(m->lp, m->f);
 		return;
 	}
-	if(m->res == -2){
-		if((fs = fibertake(m->lp, param->stacksize))){
-			fiberstart(&fs->f, cbmapresume, m);
-			fiberrun(m->lp, &fs->f);
-			return;
-		}
-		m->res = 21;
+	if((fs = fibertake(m->lp, m->param->stacksize))){
+		fiberstart(&fs->f, cbmapfinish, m);
+		fiberrun(m->lp, &fs->f);
+		return;
 	}
-	res = m->res;
-	free(m);
-	cbmapfinish(param, res);
+	/* no stack for it: as it can be, here, with no waits left to its
+	   tail, a reload taken for its end */
+	if(m->res == -2) m->res = 21;
+	{
+		struct clientparam *param = m->param;
+
+		param->res = m->res;
+		free(m);
+		param->maptail = NULL;
+		dolog(param, NULL);
+		releaseparam(param);
+		freeparam(param);
+	}
 }
 
 /* sockmapcbfunc: sockmap() of a fiber, as callbacks, its result; -2 for

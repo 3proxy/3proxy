@@ -493,6 +493,50 @@ void file2url(unsigned char *sb, unsigned char *buf, unsigned bufsize, int * inb
 }
 
 
+/* The status page the client is sent for the result in param->res, where
+   one is: the rest of a request whose headers were not all read is read
+   first. */
+static void proxystatus(struct clientparam *param, int hdrsdone, char *ftpbuf, int inftpbuf){
+ int stidx = -1, i;
+ int r = param->res;
+
+ if(r == 555 || !r || param->clisock == INVALID_SOCKET || !(r < 90 || r >=800 || r == 100 ||(r > 500 && r< 800)))
+	return;
+ if(!hdrsdone && ((r >= 509 && r < 517) || r > 900)) {
+	unsigned char rest[256];
+	int atstart = 1;
+
+	while((i = sockgetlinebuf(param, CLIENT, rest, sizeof(rest) - 1, '\n', param->srv->timeouts[STRING_S])) > 0){
+		if(atstart && i <= 2 && rest[i-1] == '\n') break;
+		atstart = (rest[i-1] == '\n');
+	}
+ }
+ if(r == 10) stidx = 2;
+ else if(r == 700 || r == 701) stidx = 16;
+ else if(r == 100 || (r > 10 && r < 20) || (r > 701 && r <= 705)) stidx = 1;
+ else if(r >= 20 && r < 30) stidx = 6;
+ else if(r >= 30 && r < 80) stidx = 5;
+ else if(r == 1 || (!param->srv->needuser && r < 10)) stidx = 11;
+ else if(r < 10) stidx = 7;
+ else if(r == 999) stidx = 4;
+ else if(r == 519) stidx = 3;
+ else if(r == 517) stidx = 15;
+ else if(r == 780) stidx = 10;
+ else if(r >= 511 && r <= 516) stidx = 0;
+
+ if(stidx >= 0) {
+	send_st(param, stidx);
+	if((r == 700 || r == 701) && ftpbuf) socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, param->srv->timeouts[STRING_S]);
+ }
+}
+
+/* the end of a CONNECT, as proxychild()'s, once mapping is over: data is
+   its request line */
+static void proxytail(struct clientparam *param, void *data){
+ proxystatus(param, 1, NULL, 0);
+ logurl(param, (char *)data, 0);
+}
+
 void * proxychild(struct clientparam* param) {
  int res=0, i=0;
  unsigned char* buf = NULL, *newbuf;
@@ -1250,6 +1294,10 @@ for(;;){
 		return (void *)param->redirectfunc;
 	}
 	hdrfree(&buf, &bufown);
+	/* mapping its last thing, but in a request httpsrv hands over, whose
+	   end is httpsrv's: the rest of the end can be a loop's */
+	if(!param->onerequest && (param->maptaildata = req? (void *)strdup((char *)req) : NULL))
+		param->maptail = proxytail;
 	param->res =  mapsocket(param, param->srv->timeouts[CONNECTION_L]);
 	RETURN(param->res);
  }
@@ -1617,38 +1665,7 @@ REQUESTEND:
 
 CLEANRET:
 
- if(param->res != 555 && param->res && param->clisock != INVALID_SOCKET && (param->res < 90 || param->res >=800 || param->res == 100 ||(param->res > 500 && param->res< 800))) {
-	int stidx = -1;
-	int r = param->res;
-
-	/* the rest of a request whose headers were not all read */
-	if(!hdrsdone && ((r >= 509 && r < 517) || r > 900)) {
-		unsigned char rest[256];
-		int atstart = 1;
-
-		while((i = sockgetlinebuf(param, CLIENT, rest, sizeof(rest) - 1, '\n', param->srv->timeouts[STRING_S])) > 0){
-			if(atstart && i <= 2 && rest[i-1] == '\n') break;
-			atstart = (rest[i-1] == '\n');
-		}
-	}
-	if(r == 10) stidx = 2;
-	else if(r == 700 || r == 701) stidx = 16;
-	else if(r == 100 || (r > 10 && r < 20) || (r > 701 && r <= 705)) stidx = 1;
-	else if(r >= 20 && r < 30) stidx = 6;
-	else if(r >= 30 && r < 80) stidx = 5;
-	else if(r == 1 || (!param->srv->needuser && r < 10)) stidx = 11;
-	else if(r < 10) stidx = 7;
-	else if(r == 999) stidx = 4;
-	else if(r == 519) stidx = 3;
-	else if(r == 517) stidx = 15;
-	else if(r == 780) stidx = 10;
-	else if(r >= 511 && r <= 516) stidx = 0;
-
-	if(stidx >= 0) {
-		send_st(param, stidx);
-		if(r == 700 || r == 701) socksend(param, param->clisock, (unsigned char *)ftpbuf, inftpbuf, param->srv->timeouts[STRING_S]);
-	}
- }
+ proxystatus(param, hdrsdone, ftpbuf, inftpbuf);
  logurl(param, (char *)req, ftp);
  freeptr(&req); hdrfree(&buf, &bufown); freeptr(&ftpbase);
  return (NULL);
