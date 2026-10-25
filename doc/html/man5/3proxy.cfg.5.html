@@ -245,6 +245,14 @@ delay GRACE_DELAY milliseconds before polling if average
 polling size is below GRACE_TRAFF bytes and GRACE_NUM read
 operations in a single direction are detected within 1
 second. Useful to minimize polling <b><br>
+-B</b> (for TCP services) split the TLS ClientHello across
+two TCP segments in the middle of the server name (SNI) when
+it is passed through tlspr, as with <b>parent ... tls
+0.0.0.0 0</b>: some DPI systems looking for blocked host
+names do not reassemble it. TCP_NODELAY, set by default,
+must not be turned off, or the kernel may join the segments
+again. In builds without splice() <b>-s</b> does the same.
+<b><br>
 -s</b> <br>
 (for admin) secure, allow only secure operations, currently
 only traffic counters view without ability to reset. <br>
