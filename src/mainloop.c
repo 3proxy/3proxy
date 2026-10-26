@@ -478,6 +478,19 @@ static void cbbuf(struct clientparam *param, int side, unsigned char **buf, unsi
 	}
 }
 
+/* The side's own buffer given back while it is empty, once nothing but the
+   relay can use it: the client's fiber gave up its stack. The next read
+   makes it again. */
+static void cbbufdrop(struct cbmap *m, int side){
+	struct clientparam *param = m->param;
+	unsigned char **own = side? &param->srvbufdata : &param->clibufdata;
+	unsigned char **buf = side? &param->srvbuf : &param->clibuf;
+
+	if(!m->abandoned || !*own || *buf != *own || (side? param->srvinbuf : param->cliinbuf)) return;
+	free(*own);
+	*own = *buf = NULL;
+}
+
 /* what a way has buffered and in its pipe: none once it is not moving */
 static uint64_t cbheld(struct cbmap *m, struct cbway *w){
 	unsigned char *buf;
@@ -620,6 +633,15 @@ static int cbway(struct cbmap *m, struct cbway *w){
 #endif
 	if(w->left > inb && !m->term_r[w->src] && !end && room > 0 &&
 	    ((rs->ready & (POLLIN | POLLHUP | POLLERR)) || cbpending(m, w->src))){
+		/* given back while empty: made again */
+		if(!buf){
+			if(bufget(param, w->src? SERVER : CLIENT)){
+				m->stop = 1;
+				m->stopres = 21;
+				return 1;
+			}
+			cbbuf(param, w->src, &buf, &inbuf, &offset, &size);
+		}
 		n = sf->_recvfrom(param->sostate, from, (char *)buf + *inbuf, (int)CBMIN(room, w->left - inb), 0, NULL, NULL);
 		if(n > 0){
 			*inbuf += n;
@@ -684,6 +706,7 @@ static int cbway(struct cbmap *m, struct cbway *w){
 		m->term_w[w->dst] = 1;
 		sf->_shutdown(param->sostate, to, SHUT_WR);
 	}
+	cbbufdrop(m, w->src);
 	return progress;
 }
 
@@ -859,6 +882,16 @@ static void cbmapfinish(void *arg){
 	int res = m->res, timeo = m->timeosec, usesplice = m->usesplice0;
 
 	free(m);
+	/* the buffers given back while relayed are the child's again: without
+	   them only the end is logged */
+	if(bufalloc(param)){
+		param->res = (res == -2)? 21 : res;
+		param->maptail = NULL;
+		dolog(param, NULL);
+		releaseparam(param);
+		freeparam(param);
+		return;
+	}
 	if(res == -2) res = sockmap(param, timeo, usesplice);
 	param->res = res;
 	if(param->maptail) param->maptail(param, param->maptaildata);
@@ -985,6 +1018,8 @@ static int fibermap(struct clientparam *param, int timeo, int usesplice){
 			m->abandoned = 1;
 			((struct fiberslot *)m->f)->abandoned = 1;
 			m->f = NULL;
+			cbbufdrop(m, 0);
+			cbbufdrop(m, 1);
 		}
 		fiberyield();
 		/* resumed only if not abandoned */

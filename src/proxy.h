@@ -359,6 +359,9 @@ int paramstr(unsigned char *field, size_t size, const unsigned char *s);
 /* sets one of a connection's names or credentials; 1 if it is too long */
 #define PARAMSTR(p, f, s) paramstr((p)->f, sizeof((p)->f), (const unsigned char *)(s))
 void bufrelease(struct clientparam * param, DIRECTION which);
+int bufget(struct clientparam * param, DIRECTION which);
+int bufalloc(struct clientparam * param);
+void buffree(struct clientparam * param);
 
 int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
 int getmultiline(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, const char *cap, int *found);

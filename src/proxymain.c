@@ -260,11 +260,19 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	if(! (newparam = malloc (sizeof(s.defparam)))){
 		return 2;
 	};
+	newparam->clibufdata = newparam->srvbufdata = NULL;
+	newparam->clibuf = newparam->srvbuf = NULL;
+	if(bufalloc(newparam)){
+		buffree(newparam);
+		free(newparam);
+		return 2;
+	}
 	memcpy(newparam, &s.defparam, offsetof(struct clientparam, filters));
 	newparam->clibuf = newparam->clibufdata;
 	newparam->srvbuf = newparam->srvbufdata;
 	newparam->clibufsize = newparam->srvbufsize = SRVBUFSIZE(&s.srv);
 	childfunc(newparam);
+	buffree(newparam);
 	free(newparam);
 	return 0;
 	

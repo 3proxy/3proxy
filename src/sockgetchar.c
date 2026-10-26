@@ -77,6 +77,31 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 	}
 }
 
+/* The side's own buffer, made if it is not there, and the one used if
+   none is. 1 if it cannot be had. */
+int bufget(struct clientparam * param, DIRECTION which){
+	unsigned char **own = which? &param->srvbufdata : &param->clibufdata;
+	unsigned char **buf = which? &param->srvbuf : &param->clibuf;
+
+	if(!*own && !(*own = malloc(CLIENTBUFSIZE))) return 1;
+	if(!*buf) *buf = *own;
+	return 0;
+}
+
+/* Both sides' buffers, as bufget(). */
+int bufalloc(struct clientparam * param){
+	return bufget(param, CLIENT) || bufget(param, SERVER);
+}
+
+/* The own buffers freed, with the structure. */
+void buffree(struct clientparam * param){
+	if(param->clibuf == param->clibufdata) param->clibuf = NULL;
+	if(param->srvbuf == param->srvbufdata) param->srvbuf = NULL;
+	free(param->clibufdata);
+	free(param->srvbufdata);
+	param->clibufdata = param->srvbufdata = NULL;
+}
+
 /* Starts an empty buffer over from its beginning, and goes back to the
    connection's own buffer if a filter needed a bigger one. Does nothing
    while anything is left unread. */

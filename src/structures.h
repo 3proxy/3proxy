@@ -963,10 +963,12 @@ struct clientparam {
 	   something done at once, never for what has to outlive a call into
 	   anything that could log. */
 	unsigned char	tmpbuf[CLIENTTMPBUFSIZE];
-	/* Each side's data buffer, which clibuf and srvbuf point to unless a
-	   filter needed a bigger one. */
-	unsigned char	clibufdata[CLIENTBUFSIZE],
-			srvbufdata[CLIENTBUFSIZE];
+	/* Each side's data buffer, CLIENTBUFSIZE of malloc's, which clibuf and
+	   srvbuf point to unless a filter needed a bigger one. Made with the
+	   connection (bufalloc()); a loop's relay gives an empty one back while
+	   nothing but the relay can use it, and makes it again to read. */
+	unsigned char	*clibufdata,
+			*srvbufdata;
 };
 
 /* Threads whose connections have ended wait here for the next one, with

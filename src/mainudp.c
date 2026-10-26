@@ -145,6 +145,13 @@ static struct udpsession *udpnew(struct udpstate *st){
 	return NULL;
  }
  memset(param, 0, sizeof(*param));
+ if(bufalloc(param)){
+	buffree(param);
+	free(param);
+	free(ss);
+	_3proxy_sem_unlock(srv->childslots);
+	return NULL;
+ }
  memcpy(param, st->u.defparam, offsetof(struct clientparam, filters));
  param->clibuf = param->clibufdata;
  param->srvbuf = param->srvbufdata;

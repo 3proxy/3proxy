@@ -161,6 +161,7 @@ static void serveparam(struct clientparam *param){
 static void freeworker(struct clientparam *param){
  releaseparam(param);
  _3proxy_sem_destroy(param->wake);
+ buffree(param);
  free(param);
 }
 
@@ -286,8 +287,16 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
  }
  _3proxy_mutex_unlock(&tpool.mutex);
  reused = newparam != NULL;
- if(!reused && (!(newparam = malloc (sizeof(*defparam))) || (!job && _3proxy_sem_init_timed(newparam->wake, 0, 1)))){
-	if(newparam) free(newparam);
+ if(!reused && (newparam = malloc (sizeof(*defparam)))){
+	newparam->clibufdata = newparam->srvbufdata = NULL;
+	newparam->clibuf = newparam->srvbuf = NULL;
+	if(bufalloc(newparam) || (!job && _3proxy_sem_init_timed(newparam->wake, 0, 1))){
+		buffree(newparam);
+		free(newparam);
+		newparam = NULL;
+	}
+ }
+ if(!newparam){
 	if(job) free(job);
 	srv->so._closesocket(srv->so.state, client_sock);
 	defparam->res = 21;
@@ -480,6 +489,7 @@ void releaseparam(struct clientparam * param) {
 
 void freeparam(struct clientparam * param) {
 	releaseparam(param);
+	buffree(param);
 	free(param);
 }
 
