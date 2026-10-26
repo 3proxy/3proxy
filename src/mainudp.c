@@ -440,7 +440,9 @@ static void udpadopt(struct udpstate *st){
 		if(param->filters[param->nfilters].filter->filter_clear)
 			(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
 	}
+	/* counted again by the new service's authorization */
 	if(param->connlim) stopconnlims(param);
+	param->connlim = 0;
 	param->bandlimfunc = NULL;
 	param->bandlims[0] = param->bandlimsout[0] = NULL;
 	param->trafcountfunc = NULL;
