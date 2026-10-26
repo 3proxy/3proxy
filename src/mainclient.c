@@ -419,7 +419,9 @@ void releaseparam(struct clientparam * param) {
 		if(param->filters[param->nfilters].filter->filter_clear)
 			(*param->filters[param->nfilters].filter->filter_clear)(param->filters[param->nfilters].data);
 	}
+	/* once: a second release must not give the slot back again */
 	if(param->connlim) stopconnlims(param);
+	param->connlim = 0;
 	/* a slot held in the newest service on the listener after a reload */
 	if(param->newsrv){
 		slotrelease(param->newsrv);
