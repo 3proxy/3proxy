@@ -38,7 +38,7 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 	if(i < 3) return 706;
 	buf[i] = 0;
 	if(atoi(buf)/100 != 2) {
-		*innbuf = i;
+		if(innbuf)*innbuf = i;
 		return 702;
 	}
 	sprintf(buf, "USER %.128s\r\n", *param->extusername?param->extusername:(unsigned char *)"anonymous");
@@ -74,6 +74,9 @@ int ftplogin(struct clientparam *param, char *nbuf, int *innbuf) {
 			return 701;
 		}
 	}
+	/* USER answered at once, logged in (230) or refused: that answer is
+	   the client's, waiting for one to its PASS */
+	else if(innbuf)*innbuf = i;
 	if(res != 2) {
 		return 700;
 	}
