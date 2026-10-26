@@ -410,7 +410,7 @@ struct cbway {
 	uint64_t inpipe;	/* what the pipe holds */
 };
 
-/* left of a way with no length to keep to */
+/* left of a way with no length to keep to: not counted down */
 #define CBALL 0x7fffffffffffffffULL
 
 struct cbmap {
@@ -603,7 +603,7 @@ static int cbway(struct cbmap *m, struct cbway *w){
 				SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 			if(n > 0){
 				w->inpipe -= n;
-				w->left -= n;
+				if(w->left != CBALL) w->left -= n;
 				cbcount(m, w, 1, n);
 				progress = 1;
 			}
@@ -669,7 +669,7 @@ static int cbway(struct cbmap *m, struct cbway *w){
 		n = sf->_sendto(param->sostate, to, (char *)buf + *offset, (int)CBMIN(inb, w->left), 0, NULL, 0);
 		if(n > 0){
 			*offset += n;
-			w->left -= n;
+			if(w->left != CBALL) w->left -= n;
 			cbcount(m, w, 1, n);
 			bufrelease(param, w->src? SERVER : CLIENT);
 			progress = 1;
