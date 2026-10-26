@@ -888,14 +888,12 @@ static void cbmapfinish(void *arg){
 		param->res = (res == -2)? 21 : res;
 		param->maptail = NULL;
 		dolog(param, NULL);
-		releaseparam(param);
 		freeparam(param);
 		return;
 	}
 	if(res == -2) res = sockmap(param, timeo, usesplice);
 	param->res = res;
 	if(param->maptail) param->maptail(param, param->maptaildata);
-	releaseparam(param);
 	freeparam(param);
 }
 
@@ -923,7 +921,6 @@ static void cbmapdone(struct cbmap *m){
 		free(m);
 		param->maptail = NULL;
 		dolog(param, NULL);
-		releaseparam(param);
 		freeparam(param);
 	}
 }
