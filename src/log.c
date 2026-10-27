@@ -1049,6 +1049,14 @@ static void logdirect(struct logger *lg, struct clientparam *param, const unsign
 	unsigned msec, n = 0, lost = 0;
 	int res = 0, reopened = 0;
 
+	/* a loop's thread does not wait for a log whose thread could not be
+	   started, a database's or a server's: the line is dropped, counted */
+	if(onloopfunc && onloopfunc()){
+		_3proxy_mutex_lock(&lg->mutex);
+		lg->faildropped++;
+		_3proxy_mutex_unlock(&lg->mutex);
+		return;
+	}
 	lognow(&sec, &msec);
 	_3proxy_mutex_lock(&lg->mutex);
 	if(lg->failed && sec - lg->failtime >= LOGRETRY){

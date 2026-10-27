@@ -338,6 +338,8 @@ int
    are told to its loop. errno is left as it was. */
 void (*fiberblockfunc)(SOCKET s, short events) = NULL;
 void (*fiberclosefunc)(SOCKET s) = NULL;
+/* set as well: whether this thread is a loop's, which is not to wait */
+int (*onloopfunc)(void) = NULL;
 #define BLOCKED(s, ev) do { if(fiberblockfunc && (errno == EAGAIN || errno == EWOULDBLOCK)) \
 	fiberblockfunc((s), (ev)); } while(0)
 

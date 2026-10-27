@@ -1177,6 +1177,7 @@ static int loopsstart(void){
 		sockmapcbfunc = fibermap;
 #endif
 		fiberpollfunc = fiberpoll;
+		onloopfunc = onlooper;
 	}
 	_3proxy_mutex_unlock(&loops_mutex);
 	return !i;
