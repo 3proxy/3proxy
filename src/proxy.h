@@ -282,11 +282,10 @@ struct udpsession {
 	int keyed;		/* found by its client's address */
 	int done;		/* to be ended, param->res saying how */
 	short events;		/* polled for on remsock, 0: POLLIN */
-	/* the sockets as the loop watches them (epoll): a handler which
-	   replaces param->remsock sets regsock to INVALID_SOCKET, as the number
-	   of the one closed may come back for the new one */
-	SOCKET regsock, regctrl;
-	short regevents;
+	/* remsock as the loop watches it: a handler which replaces
+	   param->remsock sets regsock to INVALID_SOCKET, as the number of the
+	   one closed may come back for the new one */
+	SOCKET regsock;
 	void *data;		/* the service's own, freed by it in end() */
 };
 struct udpservice {

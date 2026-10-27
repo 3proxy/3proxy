@@ -772,7 +772,7 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
     endif()
 
     if(PROXY_NAME STREQUAL "udppm")
-        target_sources(${PROXY_NAME} PRIVATE src/hash.c)
+        target_sources(${PROXY_NAME} PRIVATE src/hash.c src/loop.c)
     endif()
 
     if(PROXY_NAME STREQUAL "socks" OR PROXY_NAME STREQUAL "udppm")
