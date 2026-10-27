@@ -318,30 +318,46 @@ static void fiberclosed(SOCKET s){
    operation past the socket functions, and the system is asked. */
 static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, int timeout){
 	struct sockreg *ownregs[FIBERWAITS], **regs = ownregs;
+	struct pollfd ownask[FIBERWAITS], *ask = ownask;
+	unsigned char ownasked[FIBERWAITS], *asked = ownasked;
 	struct fiberwait w;
-	unsigned i;
+	unsigned i, nask = 0;
 	int res = 0;
 
-	if(nfds > FIBERWAITS && !(regs = malloc(nfds * sizeof(*regs)))) return -1;
+	if(nfds > FIBERWAITS && (!(regs = malloc(nfds * sizeof(*regs))) ||
+	    !(ask = malloc(nfds * sizeof(*ask))) || !(asked = malloc(nfds)))){
+		res = -1;
+		goto DONE;
+	}
 	for(i = 0; i < nfds; i++){
-		short want = fds[i].events & (POLLIN | POLLOUT), have;
+		short want = fds[i].events & (POLLIN | POLLOUT);
 
 		fds[i].revents = 0;
 		regs[i] = NULL;
+		asked[i] = 0;
 		if(fds[i].fd == INVALID_SOCKET || (int)fds[i].fd < 0) continue;
 		if(!(regs[i] = sockreg(lp, fds[i].fd))){
 			res = -1;
 			goto DONE;
 		}
-		have = regs[i]->ready & (want | POLLERR | POLLHUP);
-		if(have & regs[i]->stale){
-			struct pollfd p;
+		/* to be asked of the system: all of them at once */
+		if(regs[i]->ready & (want | POLLERR | POLLHUP) & regs[i]->stale){
+			ask[nask].fd = fds[i].fd;
+			ask[nask].events = POLLIN | POLLOUT;
+			ask[nask].revents = 0;
+			nask++;
+			asked[i] = 1;
+		}
+	}
+	/* failing, what was known stays */
+	if(nask && poll(ask, nask, 0) < 0) memset(asked, 0, nfds);
+	for(i = 0, nask = 0; i < nfds; i++) if(regs[i]){
+		short have;
+
+		if(asked[i]){
 			short was = regs[i]->ready;
 
-			p.fd = fds[i].fd;
-			p.events = POLLIN | POLLOUT;
-			p.revents = 0;
-			if(poll(&p, 1, 0) >= 0) regs[i]->ready = p.revents & READYBITS;
+			regs[i]->ready = ask[nask++].revents & READYBITS;
 #if defined LOOP_KQUEUE || defined LOOP_AFD
 			/* poll() there tells a socket shut down for sending, by us,
 			   as hung up, the loop does not: its end of reading is
@@ -354,8 +370,8 @@ static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, i
 			if(was & ~regs[i]->ready)
 				loopagain(&lp->l, &regs[i]->io, was & ~regs[i]->ready);
 			regs[i]->stale = 0;
-			have = regs[i]->ready & (want | POLLERR | POLLHUP);
 		}
+		have = regs[i]->ready & ((fds[i].events & (POLLIN | POLLOUT)) | POLLERR | POLLHUP);
 		fds[i].revents = have;
 		if(have) res++;
 	}
@@ -385,6 +401,8 @@ static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, i
 	}
 DONE:
 	if(regs != ownregs) free(regs);
+	if(ask != ownask) free(ask);
+	if(asked != ownasked) free(asked);
 	return res;
 }
 
