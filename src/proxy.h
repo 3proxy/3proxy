@@ -340,6 +340,7 @@ extern int (*fiberpollfunc)(struct pollfd *fds, unsigned nfds, int timeout);
 extern void (*fiberblockfunc)(SOCKET s, short events);
 extern void (*fiberclosefunc)(SOCKET s);
 extern int (*onloopfunc)(void);
+extern void (*onthreadstackfunc)(void (*func)(void *arg), void *arg);
 int sockreadable(SOCKET s);
 #ifndef _WIN32
 int fdclose(int fd);

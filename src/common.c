@@ -340,6 +340,8 @@ void (*fiberblockfunc)(SOCKET s, short events) = NULL;
 void (*fiberclosefunc)(SOCKET s) = NULL;
 /* set as well: whether this thread is a loop's, which is not to wait */
 int (*onloopfunc)(void) = NULL;
+/* and what runs func(arg) on the thread's own stack, not a fiber's */
+void (*onthreadstackfunc)(void (*func)(void *arg), void *arg) = NULL;
 #define BLOCKED(s, ev) do { if(fiberblockfunc && (errno == EAGAIN || errno == EWOULDBLOCK)) \
 	fiberblockfunc((s), (ev)); } while(0)
 
@@ -1174,12 +1176,45 @@ int afdetect(unsigned char *name){
 }
 
 /* A name resolved the way a mode says: a service's names with its own */
+#if !defined(NOIPV6) && !defined(NOSTDRESOLVE)
+/* What the C library's resolver is asked, and its answer */
+struct stdresolve {
+	unsigned char *name;
+	int family;
+	struct sockaddr *sa;
+	uint32_t res;
+};
+
+/* getaddrinfo(): run on a thread's own stack, which glibc may take much of,
+   for IPv6 most (alloca() sized by the thread's stack, not a fiber's) */
+static void stdresolve46(void *arg){
+	struct stdresolve *r = (struct stdresolve *)arg;
+	struct addrinfo *ai, hint;
+
+	r->res = 0;
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_family = (r->family == 6 || r->family == 64)?AF_INET6:AF_INET;
+	if (getaddrinfo((char *)r->name, NULL, &hint, &ai)) {
+		if(r->family == 64 || r->family == 46){
+			hint.ai_family = (r->family == 64)?AF_INET:AF_INET6;
+			if (getaddrinfo((char *)r->name, NULL, &hint, &ai)) return;
+		}
+		else return;
+	}
+	if(ai){
+		if(ai->ai_addr->sa_family == AF_INET || ai->ai_addr->sa_family == AF_INET6){
+			*SAFAMILY(r->sa)=ai->ai_addr->sa_family;
+			memcpy(SAADDR(r->sa), SAADDR(ai->ai_addr), SAADDRLEN(ai->ai_addr));
+			r->res = *SAFAMILY(r->sa);
+		}
+		freeaddrinfo(ai);
+	}
+}
+#endif
+
 uint32_t getip46m(int mode, int family, unsigned char *name,  struct sockaddr *sa){
 #ifndef NOIPV6
 	int detect;
-#ifndef NOSTDRESOLVE
-	struct addrinfo *ai, hint;
-#endif
         RESOLVFUNC tmpresolv;
 
 	if(!sa) return 0;
@@ -1210,23 +1245,16 @@ uint32_t getip46m(int mode, int family, unsigned char *name,  struct sockaddr *s
 		return 0;
 	}
 #ifndef NOSTDRESOLVE
-	memset(&hint, 0, sizeof(hint));
-	hint.ai_family = (family == 6 || family == 64)?AF_INET6:AF_INET;
-	if (getaddrinfo((char *)name, NULL, &hint, &ai)) {
-		if(family == 64 || family == 46){
-			hint.ai_family = (family == 64)?AF_INET:AF_INET6;
-			if (getaddrinfo((char *)name, NULL, &hint, &ai)) return 0;
-		}
-		else return 0;
-	}
-	if(ai){
-		if(ai->ai_addr->sa_family == AF_INET || ai->ai_addr->sa_family == AF_INET6){
-			*SAFAMILY(sa)=ai->ai_addr->sa_family;
-			memcpy(SAADDR(sa), SAADDR(ai->ai_addr), SAADDRLEN(ai->ai_addr));
-			freeaddrinfo(ai);
-			return *SAFAMILY(sa);
-		}
-		freeaddrinfo(ai);
+	{
+		struct stdresolve r;
+
+		r.name = name;
+		r.family = family;
+		r.sa = sa;
+		/* a fiber's stack is not one to give it */
+		if(onthreadstackfunc) (*onthreadstackfunc)(stdresolve46, &r);
+		else stdresolve46(&r);
+		return r.res;
 	}
 #endif
 	return 0;

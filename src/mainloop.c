@@ -81,6 +81,9 @@ struct looper {
 	unsigned nidle;
 	struct sockreg **regs;		/* by descriptor, the loop's thread only */
 	unsigned nregs;
+	/* what a fiber yielded to have run on the thread's stack */
+	void (*stackcall)(void *arg);
+	void *stackarg;
 };
 
 /* what srvspawn() posts to a loop */
@@ -141,8 +144,16 @@ static void fibergive(struct looper *lp, struct fiberslot *fs){
    client is done. */
 static void fiberrun(struct looper *lp, struct fiber *f){
 	struct fiberslot *fs = (struct fiberslot *)f;
+	int alive;
 
-	if(!fiberresume(f)) fibergive(lp, fs);
+	/* a call it asked for on the thread's stack made, and it goes on */
+	while((alive = fiberresume(f)) && lp->stackcall){
+		void (*call)(void *arg) = lp->stackcall;
+
+		lp->stackcall = NULL;
+		call(lp->stackarg);
+	}
+	if(!alive) fibergive(lp, fs);
 	/* in the middle of its client's code: started over from its stack's
 	   start for the next client, or freed where it cannot be */
 	else if(fs->abandoned){
@@ -1132,6 +1143,20 @@ static unsigned ncpus(void){
 #endif
 }
 
+/* onthreadstackfunc: func(arg) on the loop thread's own stack, for a fiber
+   calling what wants a big one: the loop waits as long as it takes. */
+static void onthreadstack(void (*func)(void *arg), void *arg){
+	struct looper *lp = curlooper;
+
+	if(!lp || !fibercurrent()){
+		func(arg);
+		return;
+	}
+	lp->stackcall = func;
+	lp->stackarg = arg;
+	fiberyield();
+}
+
 /* The loops, started the first time a client is to be served on one, for
    the life of the process: as many as loops said then. 0 if they run. */
 static int loopsstart(void){
@@ -1191,6 +1216,7 @@ static int loopsstart(void){
 #endif
 		fiberpollfunc = fiberpoll;
 		onloopfunc = onlooper;
+		onthreadstackfunc = onthreadstack;
 	}
 	_3proxy_mutex_unlock(&loops_mutex);
 	return !i;
