@@ -132,7 +132,7 @@ static void odbcclose(struct logger *lg){
 }
 
 const struct logtype logtype_odbc = {
-    "odbc", odbcmatch, odbcinit, odbcformat, odbcwrite, odbcclose, NULL, LOGSTACKSIZE, 0, 0, 1, 1
+    "odbc", odbcmatch, odbcinit, odbcformat, odbcwrite, odbcclose, NULL, LOGSTACKSIZE, 0, 0, 1
 };
 
 #endif

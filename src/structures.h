@@ -668,7 +668,6 @@ struct logtype {
 	int standard;	/* kept open for the life of the process */
 	int text;	/* writes a line of text: errors can go there */
 	int params;	/* the string after a comma is parameters */
-	int blocks;	/* waits for its writes other than in sockpoll() */
 };
 
 /* What a log's queue holds: a line (log.c's struct logslot, of which this
