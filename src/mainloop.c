@@ -43,13 +43,21 @@ struct fiberslot {
 	int abandoned;
 };
 
-/* With epoll and kqueue a socket a fiber waits on is registered once, for
-   as long as it is open, and the loop remembers what it was reported ready
-   for until an operation finds it not to be: a wait for what a socket is
-   ready for costs nothing, as a read or write which can go on is not
-   preceded by any. */
-#if defined LOOP_EPOLL || defined LOOP_KQUEUE
+/* With epoll, kqueue and AFD a socket a fiber waits on is registered once,
+   for as long as it is open, and the loop remembers what it was reported
+   ready for until an operation finds it not to be: a wait for what a socket
+   is ready for costs nothing, as a read or write which can go on is not
+   preceded by any. AFD reports it once, until the loop is told so. */
+#if defined LOOP_EPOLL || defined LOOP_KQUEUE || defined LOOP_AFD
 #define SOCKREGS
+#endif
+
+/* where a socket's registration is kept: Windows' sockets are handles,
+   multiples of 4 */
+#ifdef _WIN32
+#define REGIDX(s) ((unsigned)((s) >> 2))
+#else
+#define REGIDX(s) ((unsigned)(s))
 #endif
 
 struct fiberwait;
@@ -248,18 +256,19 @@ static void sockregio(struct loop *l, struct loopio *io, short revents){
 /* The registration of a socket of this loop, made the first time. */
 static struct sockreg *sockreg(struct looper *lp, SOCKET s){
 	struct sockreg *r;
+	unsigned x = REGIDX(s);
 
-	if((unsigned)s >= lp->nregs){
+	if(x >= lp->nregs){
 		unsigned n = lp->nregs? lp->nregs : 1024;
 		struct sockreg **regs;
 
-		while(n <= (unsigned)s) n *= 2;
+		while(n <= x) n *= 2;
 		if(!(regs = realloc(lp->regs, n * sizeof(*regs)))) return NULL;
 		memset(regs + lp->nregs, 0, (n - lp->nregs) * sizeof(*regs));
 		lp->regs = regs;
 		lp->nregs = n;
 	}
-	if((r = lp->regs[s])) return r;
+	if((r = lp->regs[x])) return r;
 	if(!(r = malloc(sizeof(*r)))) return NULL;
 	memset(r, 0, sizeof(*r));
 	r->io.fd = s;
@@ -271,16 +280,18 @@ static struct sockreg *sockreg(struct looper *lp, SOCKET s){
 		free(r);
 		return NULL;
 	}
-	return lp->regs[s] = r;
+	return lp->regs[x] = r;
 }
 
 /* fiberblockfunc: an operation found s not ready for events */
 static void fiberblocked(SOCKET s, short events){
 	struct looper *lp = curlooper;
+	struct sockreg *r;
 
-	if(lp && (unsigned)s < lp->nregs && lp->regs[s]){
-		lp->regs[s]->ready &= ~events;
-		lp->regs[s]->stale &= ~events;
+	if(lp && REGIDX(s) < lp->nregs && (r = lp->regs[REGIDX(s)])){
+		r->ready &= ~events;
+		r->stale &= ~events;
+		loopagain(&lp->l, &r->io, events);
 	}
 }
 
@@ -289,13 +300,13 @@ static void fiberclosed(SOCKET s){
 	struct looper *lp = curlooper;
 	struct sockreg *r;
 
-	if(lp && (unsigned)s < lp->nregs && (r = lp->regs[s])){
+	if(lp && REGIDX(s) < lp->nregs && (r = lp->regs[REGIDX(s)])){
 		int e = errno;
 
 		loopdel(&lp->l, &r->io);
-		lp->regs[s] = NULL;
+		lp->regs[REGIDX(s)] = NULL;
 		free(r);
-		errno = e;
+		seterrno3(e);
 	}
 }
 
@@ -325,17 +336,23 @@ static int fiberpollregs(struct looper *lp, struct pollfd *fds, unsigned nfds, i
 		have = regs[i]->ready & (want | POLLERR | POLLHUP);
 		if(have & regs[i]->stale){
 			struct pollfd p;
+			short was = regs[i]->ready;
 
 			p.fd = fds[i].fd;
 			p.events = POLLIN | POLLOUT;
 			p.revents = 0;
 			if(poll(&p, 1, 0) >= 0) regs[i]->ready = p.revents & READYBITS;
-#ifdef LOOP_KQUEUE
+#if defined LOOP_KQUEUE || defined LOOP_AFD
 			/* poll() there tells a socket shut down for sending, by us,
 			   as hung up, the loop does not: its end of reading is
-			   readable */
+			   readable. WSAPoll() tells the peer's end so too, which
+			   AFD reports readable once asked again */
 			regs[i]->ready &= ~POLLHUP;
 #endif
+			/* found not ready for what was reported, waited for or
+			   not */
+			if(was & ~regs[i]->ready)
+				loopagain(&lp->l, &regs[i]->io, was & ~regs[i]->ready);
 			regs[i]->stale = 0;
 			have = regs[i]->ready & (want | POLLERR | POLLHUP);
 		}

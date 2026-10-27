@@ -346,7 +346,10 @@ void (*fiberclosefunc)(SOCKET s) = NULL;
         return socket(domain, type, protocol);
     }
     SOCKET WINAPI def_accept(void* state, SOCKET s, struct sockaddr * addr, int * addrlen){
-	return accept(s, addr, addrlen);
+	SOCKET r = accept(s, addr, addrlen);
+
+	if(r == INVALID_SOCKET) BLOCKED(s, POLLIN);
+	return r;
     }
     int WINAPI def_bind(void* state, SOCKET s, const struct sockaddr *addr, int addrlen){
 	return bind(s, addr, addrlen);
@@ -355,7 +358,10 @@ void (*fiberclosefunc)(SOCKET s) = NULL;
 	return listen(s, backlog);
     }
     int WINAPI def_connect(void* state, SOCKET s, const struct sockaddr *name, int namelen){
-	return connect(s, name, namelen);
+	int r = connect(s, name, namelen);
+
+	if(r) BLOCKED(s, POLLOUT);
+	return r;
     }
     int WINAPI def_getpeername(void* state, SOCKET s, struct sockaddr * name, int * namelen){
 	return getpeername(s, name, namelen);
@@ -373,22 +379,35 @@ void (*fiberclosefunc)(SOCKET s) = NULL;
 	return 0;
     }
     int WINAPI def_send(void* state, SOCKET s, const char *msg, int len, int flags){
-	return send(s, msg, len, flags);
+	int r = send(s, msg, len, flags);
+
+	if(r < 0) BLOCKED(s, POLLOUT);
+	return r;
     }
     int WINAPI def_sendto(void* state, SOCKET s, const char *msg, int len, int flags, const struct sockaddr *to, int tolen){
-        return sendto(s, msg, len, flags, to, tolen);
+	int r = sendto(s, msg, len, flags, to, tolen);
+
+	if(r < 0) BLOCKED(s, POLLOUT);
+	return r;
     }
         
     int WINAPI def_recv(void* state, SOCKET s, char *buf, int len, int flags){
-	return recv(s, buf, len, flags);
+	int r = recv(s, buf, len, flags);
+
+	if(r < 0) BLOCKED(s, POLLIN);
+	return r;
     }
     int WINAPI def_recvfrom(void* state, SOCKET s, char * buf, int len, int flags, struct sockaddr * from, int * fromlen){
-	return recvfrom(s, buf, len, flags, from, fromlen);
+	int r = recvfrom(s, buf, len, flags, from, fromlen);
+
+	if(r < 0) BLOCKED(s, POLLIN);
+	return r;
     }
     int WINAPI def_shutdown(void* state, SOCKET s, int how){
 	return shutdown(s, how);
     }
     int WINAPI def_closesocket(void* state, SOCKET s){
+	if(fiberclosefunc) fiberclosefunc(s);
 	return closesocket(s);
     }
 #else

@@ -7,9 +7,10 @@
 
 /* An event loop: one thread waiting for many sockets and timers at once,
    calling back what waits for them. Sockets are waited for with epoll on
-   Linux, kqueue on the BSDs and macOS, poll() (WSAPoll() on Windows)
-   elsewhere or with LOOP_POLL. A loop is run by one thread: only
-   looppost() and loopstop() may be called by another. */
+   Linux, kqueue on the BSDs and macOS, the polls of AFD, the driver under
+   Windows' sockets, completed to an I/O completion port on Windows, poll()
+   elsewhere or with LOOP_POLL (WSAPoll() on Windows). A loop is run by one
+   thread: only looppost() and loopstop() may be called by another. */
 
 #ifndef _LOOP_H
 #define _LOOP_H
@@ -18,6 +19,8 @@
 #define LOOP_EPOLL
 #elif !defined LOOP_POLL && (defined __APPLE__ || defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ || defined __DragonFly__)
 #define LOOP_KQUEUE
+#elif !defined LOOP_POLL && defined _WIN32 && !defined __WATCOMC__ && !defined _WINCE
+#define LOOP_AFD
 #elif !defined LOOP_POLL
 #define LOOP_POLL
 #endif
@@ -60,8 +63,12 @@ struct loopio {
 	short events;		/* POLLIN, POLLOUT */
 	short armed;		/* what the system waits for */
 	int edge;		/* called when it becomes ready, not while it is:
-				   epoll and kqueue only */
+				   epoll, kqueue and AFD only; with AFD once
+				   for each readiness, until loopagain() */
 	int idx;		/* poll(): its place in the array, -1 if none */
+#ifdef LOOP_AFD
+	struct afdpoll *afd;	/* its poll, NULL if none */
+#endif
 	void (*func)(struct loop *l, struct loopio *io, short revents);
 	void *data;
 };
@@ -77,13 +84,18 @@ struct loopmsg {
 struct loop {
 #if defined LOOP_EPOLL || defined LOOP_KQUEUE
 	int fd;
+#elif defined LOOP_AFD
+	HANDLE iocp;		/* where the polls complete, and the loop is woken */
+	HANDLE afd;		/* the driver, opened for the polls */
+	unsigned afdpending;	/* polls with the driver */
 #else
 	struct pollfd *pfds;
 	struct loopio **pios;
 	unsigned npfds, maxpfds;
 #endif
 	/* what wakes the loop from another thread: an eventfd, the read end
-	   of a pipe, or on Windows a UDP socket sending to itself */
+	   of a pipe, or on Windows a TCP connection to itself; with AFD a
+	   completion posted instead */
 	SOCKET wakerd, wakewr;
 	_3proxy_mutex_t mutex;
 	struct loopmsg *posted, **postedtail;
@@ -109,6 +121,7 @@ void loopfree(struct loop *l);
 int loopadd(struct loop *l, struct loopio *io);
 int loopmod(struct loop *l, struct loopio *io, short events);
 void loopdel(struct loop *l, struct loopio *io);
+void loopagain(struct loop *l, struct loopio *io, short events);
 void looptimerset(struct loop *l, struct looptimer *t, uint64_t deadline);
 void looptimerlater(struct loop *l, struct looptimer *t, uint64_t deadline);
 void looptimerdel(struct loop *l, struct looptimer *t);

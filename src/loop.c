@@ -38,7 +38,7 @@ uint64_t looptime(void){
 
 /* ---- what wakes the loop ---------------------------------------------- */
 
-#ifndef LOOP_EPOLL
+#if !defined LOOP_EPOLL && !defined LOOP_AFD
 static void setnonblock(SOCKET s){
 #ifdef _WIN32
 	unsigned long ul = 1;
@@ -50,7 +50,10 @@ static void setnonblock(SOCKET s){
 #endif
 
 static int wakeinit(struct loop *l){
-#ifdef LOOP_EPOLL
+#ifdef LOOP_AFD
+	/* a completion posted to the port */
+	l->wakerd = l->wakewr = INVALID_SOCKET;
+#elif defined LOOP_EPOLL
 	int fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 
 	if(fd < 0) return 1;
@@ -111,7 +114,8 @@ static int wakeinit(struct loop *l){
 }
 
 static void wakefree(struct loop *l){
-#ifdef _WIN32
+#ifdef LOOP_AFD
+#elif defined _WIN32
 	closesocket(l->wakerd);
 	closesocket(l->wakewr);
 #else
@@ -121,7 +125,9 @@ static void wakefree(struct loop *l){
 }
 
 static void wake(struct loop *l){
-#ifdef LOOP_EPOLL
+#ifdef LOOP_AFD
+	PostQueuedCompletionStatus(l->iocp, 0, 0, NULL);
+#elif defined LOOP_EPOLL
 	uint64_t one = 1;
 	if(write(l->wakewr, &one, sizeof(one)) != sizeof(one)){}
 #elif defined _WIN32
@@ -132,9 +138,12 @@ static void wake(struct loop *l){
 }
 
 static void wakedrain(struct loop *l){
+#ifndef LOOP_AFD
 	char buf[64];
+#endif
 
-#ifdef _WIN32
+#ifdef LOOP_AFD
+#elif defined _WIN32
 	while(recv(l->wakerd, buf, sizeof(buf), 0) > 0);
 #else
 	while(read(l->wakerd, buf, sizeof(buf)) > 0);
@@ -227,11 +236,191 @@ static int pollarm(struct loop *l, struct loopio *io, short events){
 }
 #endif
 
+#ifdef LOOP_AFD
+/* AFD's own, as the driver has them: not in the SDK */
+#define IOCTL_AFD_POLL 0x00012024
+#define AFD_POLL_RECEIVE 0x0001
+#define AFD_POLL_SEND 0x0004
+#define AFD_POLL_DISCONNECT 0x0008
+#define AFD_POLL_ABORT 0x0010
+#define AFD_POLL_LOCAL_CLOSE 0x0020
+#define AFD_POLL_ACCEPT 0x0080
+#define AFD_POLL_CONNECT_FAIL 0x0100
+#define AFDCANCELLED ((LONG)0xC0000120)
+
+#ifndef SIO_BASE_HANDLE
+#define SIO_BASE_HANDLE 0x48000022
+#endif
+#ifndef SIO_BSP_HANDLE
+#define SIO_BSP_HANDLE 0x4800001B
+#endif
+#ifndef SIO_BSP_HANDLE_SELECT
+#define SIO_BSP_HANDLE_SELECT 0x4800001C
+#endif
+#ifndef SIO_BSP_HANDLE_POLL
+#define SIO_BSP_HANDLE_POLL 0x4800001D
+#endif
+
+struct afdhandle {
+	HANDLE handle;
+	ULONG events;
+	LONG status;
+};
+
+struct afdinfo {
+	LARGE_INTEGER timeout;
+	ULONG n;
+	ULONG exclusive;
+	struct afdhandle h[1];
+};
+
+/* A poll of a socket, the loop's: with the driver until it completes,
+   which may be after the socket is deleted. */
+struct afdpoll {
+	OVERLAPPED ov;		/* what the completion points to */
+	struct afdinfo info;
+	struct loopio *io;	/* NULL once deleted: freed as it completes */
+	HANDLE base;		/* the socket below any layered provider */
+	short polled;		/* what the poll with the driver is for */
+	short reported;		/* edge: reported, not found otherwise since */
+	int pending;		/* with the driver */
+	int cancelled;		/* to be made again for more as it completes */
+	int closed;		/* the socket closed under it */
+};
+
+/* The socket the driver knows, under any layered provider: a provider
+   which hides it may still give it for polls or select(). */
+static HANDLE afdbase(SOCKET s){
+	static const DWORD ioctls[] = {SIO_BASE_HANDLE, SIO_BSP_HANDLE_POLL, SIO_BSP_HANDLE_SELECT, SIO_BSP_HANDLE};
+	SOCKET b;
+	DWORD n;
+	unsigned i;
+
+	for(i = 0; i < sizeof(ioctls)/sizeof(ioctls[0]); i++){
+		b = INVALID_SOCKET;
+		if(WSAIoctl(s, ioctls[i], NULL, 0, &b, sizeof(b), &n, NULL, NULL) != SOCKET_ERROR &&
+		   b != INVALID_SOCKET)
+			return (HANDLE)b;
+	}
+	return (HANDLE)s;
+}
+
+static int afdsubmit(struct loop *l, struct afdpoll *p, short want){
+	ULONG ev = AFD_POLL_LOCAL_CLOSE | AFD_POLL_ABORT | AFD_POLL_CONNECT_FAIL;
+	DWORD n;
+
+	if(want & POLLIN) ev |= AFD_POLL_RECEIVE | AFD_POLL_ACCEPT | AFD_POLL_DISCONNECT;
+	if(want & POLLOUT) ev |= AFD_POLL_SEND;
+	memset(&p->ov, 0, sizeof(p->ov));
+	memset(&p->info, 0, sizeof(p->info));
+	p->info.timeout.QuadPart = 0x7fffffffffffffffLL;
+	p->info.n = 1;
+	p->info.h[0].handle = p->base;
+	p->info.h[0].events = ev;
+	/* completed at once or not, the completion comes to the port */
+	if(!DeviceIoControl(l->afd, IOCTL_AFD_POLL, &p->info, sizeof(p->info),
+	    &p->info, sizeof(p->info), &n, &p->ov) && GetLastError() != ERROR_IO_PENDING)
+		return 1;
+	p->pending = 1;
+	p->polled = want;
+	l->afdpending++;
+	return 0;
+}
+
+/* The poll of io made for what it waits for: edge-triggered, for what
+   was not reported, nothing once it failed. One for less in flight is
+   cancelled, to be made again as it completes. errno is kept. */
+static int afdupdate(struct loop *l, struct loopio *io, short events){
+	struct afdpoll *p = io->afd;
+	short want = events;
+	DWORD e = GetLastError();
+	int res = 0;
+
+	if(p->closed) return 0;
+	if(io->edge) want = (p->reported & (POLLERR | POLLHUP))? 0 : want & ~p->reported;
+	if(p->pending){
+		if((want & ~p->polled) && !p->cancelled){
+			CancelIoEx(l->afd, &p->ov);
+			p->cancelled = 1;
+		}
+	}
+	else if(want) res = afdsubmit(l, p, want);
+	SetLastError(e);
+	return res;
+}
+
+/* io not waited for: its poll freed now, or as it completes */
+static void afddrop(struct loop *l, struct loopio *io){
+	struct afdpoll *p = io->afd;
+	DWORD e = GetLastError();
+
+	if(!p) return;
+	io->afd = NULL;
+	p->io = NULL;
+	if(!p->pending) free(p);
+	else if(!p->cancelled){
+		CancelIoEx(l->afd, &p->ov);
+		p->cancelled = 1;
+	}
+	SetLastError(e);
+}
+
+static int afdarm(struct loop *l, struct loopio *io, short events){
+	struct afdpoll *p;
+
+	if(!events){
+		afddrop(l, io);
+		io->armed = 0;
+		return 0;
+	}
+	if(!io->afd){
+		DWORD e = GetLastError();
+
+		if(!(p = malloc(sizeof(*p)))) return 1;
+		memset(p, 0, sizeof(*p));
+		p->base = afdbase(io->fd);
+		SetLastError(e);
+		p->io = io;
+		io->afd = p;
+	}
+	if(afdupdate(l, io, events)){
+		afddrop(l, io);
+		io->armed = 0;
+		return 1;
+	}
+	io->armed = events;
+	return 0;
+}
+
+/* What a completed poll found, as poll() has it. */
+static short afdrevents(struct afdpoll *p){
+	LONG st = (LONG)p->ov.Internal;
+	ULONG ev;
+	short r = 0;
+
+	if(st == AFDCANCELLED) return 0;
+	if(st < 0) return POLLERR;
+	if(p->info.n < 1) return 0;
+	ev = p->info.h[0].events;
+	if(ev & AFD_POLL_LOCAL_CLOSE){
+		p->closed = 1;
+		return 0;
+	}
+	if(ev & (AFD_POLL_RECEIVE | AFD_POLL_ACCEPT | AFD_POLL_DISCONNECT)) r |= POLLIN;
+	if(ev & AFD_POLL_SEND) r |= POLLOUT;
+	if(ev & AFD_POLL_ABORT) r |= POLLHUP;
+	if(ev & AFD_POLL_CONNECT_FAIL) r |= POLLERR;
+	return r;
+}
+#endif
+
 static int arm(struct loop *l, struct loopio *io, short events){
 #ifdef LOOP_EPOLL
 	return eparm(l, io, events);
 #elif defined LOOP_KQUEUE
 	return kqarm(l, io, events);
+#elif defined LOOP_AFD
+	return afdarm(l, io, events);
 #else
 	return pollarm(l, io, events);
 #endif
@@ -486,6 +675,47 @@ int loopinit(struct loop *l){
 			return 1;
 		}
 	}
+#elif defined LOOP_AFD
+	{
+		typedef struct {
+			USHORT len, max;
+			PWSTR buf;
+		} afdstr;
+		typedef struct {
+			ULONG len;
+			HANDLE root;
+			afdstr *name;
+			ULONG attrs;
+			PVOID sd, sqos;
+		} afdattr;
+		typedef struct {
+			ULONG_PTR status, info;
+		} afdiosb;
+		typedef LONG (NTAPI *ntcreatefile)(HANDLE *, ACCESS_MASK, afdattr *, afdiosb *,
+			PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+		static WCHAR name[] = L"\\Device\\Afd\\3proxy";
+		afdstr str;
+		afdattr attr;
+		afdiosb iosb;
+		ntcreatefile create = (ntcreatefile)(void (*)(void))GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtCreateFile");
+
+		str.len = sizeof(name) - sizeof(WCHAR);
+		str.max = sizeof(name);
+		str.buf = name;
+		memset(&attr, 0, sizeof(attr));
+		attr.len = sizeof(attr);
+		attr.name = &str;
+		l->afd = l->iocp = NULL;
+		if(!create ||
+		   !(l->iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1)) ||
+		   create(&l->afd, SYNCHRONIZE, &attr, &iosb, NULL, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, 1 /* FILE_OPEN */, 0, NULL, 0) < 0 ||
+		   !CreateIoCompletionPort(l->afd, l->iocp, 0, 0) ||
+		   !SetFileCompletionNotificationModes(l->afd, FILE_SKIP_SET_EVENT_ON_HANDLE)){
+			if(l->afd && l->afd != INVALID_HANDLE_VALUE) CloseHandle(l->afd);
+			if(l->iocp) CloseHandle(l->iocp);
+			return 1;
+		}
+	}
 #else
 	if(pollgrow(l)){
 		wakefree(l);
@@ -504,6 +734,20 @@ int loopinit(struct loop *l){
 void loopfree(struct loop *l){
 #if defined LOOP_EPOLL || defined LOOP_KQUEUE
 	close(l->fd);
+#elif defined LOOP_AFD
+	/* the polls of what was deleted, cancelled, freed as they complete */
+	while(l->afdpending){
+		OVERLAPPED_ENTRY ev[LOOPREADY];
+		ULONG n, i;
+
+		if(!GetQueuedCompletionStatusEx(l->iocp, ev, LOOPREADY, &n, 1000, FALSE)) break;
+		for(i = 0; i < n; i++) if(ev[i].lpOverlapped){
+			l->afdpending--;
+			free(ev[i].lpOverlapped);
+		}
+	}
+	CloseHandle(l->afd);
+	CloseHandle(l->iocp);
 #else
 	free(l->pfds);
 	free(l->pios);
@@ -519,6 +763,9 @@ int loopadd(struct loop *l, struct loopio *io){
 
 	io->armed = 0;
 	io->idx = -1;
+#ifdef LOOP_AFD
+	io->afd = NULL;
+#endif
 	io->events = 0;
 	return loopmod(l, io, events);
 }
@@ -538,6 +785,17 @@ void loopdel(struct loop *l, struct loopio *io){
 	arm(l, io, 0);
 	io->events = 0;
 	for(i = 0; i < l->nready; i++) if(l->ready[i] == io) l->ready[i] = NULL;
+}
+
+/* An operation found io not ready for events, waited for edge-triggered:
+   reported again once it is. With epoll and kqueue it is anyway. */
+void loopagain(struct loop *l, struct loopio *io, short events){
+#ifdef LOOP_AFD
+	if(io->afd && (io->afd->reported & events)){
+		io->afd->reported &= ~events;
+		afdupdate(l, io, io->events);
+	}
+#endif
 }
 
 /* m->func is to be called by the loop: from any thread. */
@@ -674,6 +932,39 @@ int looponce(struct loop *l, int maxwait){
 			readyadd(l, io, revents);
 		}
 	}
+#elif defined LOOP_AFD
+	{
+		OVERLAPPED_ENTRY ev[LOOPREADY];
+		ULONG got = 0;
+
+		if(GetQueuedCompletionStatusEx(l->iocp, ev, LOOPREADY, &got, timeo < 0? INFINITE : (DWORD)timeo, FALSE))
+			n = (int)got;
+		else n = (GetLastError() == WAIT_TIMEOUT)? 0 : -1;
+		for(i = 0; i < n; i++){
+			struct afdpoll *p = (struct afdpoll *)ev[i].lpOverlapped;
+			struct loopio *io;
+			short revents;
+
+			if(!p){
+				woken = 1;
+				continue;
+			}
+			p->pending = 0;
+			p->cancelled = 0;
+			l->afdpending--;
+			if(!(io = p->io)){
+				free(p);
+				continue;
+			}
+			revents = afdrevents(p);
+			if(io->edge) p->reported |= revents;
+			revents &= io->events | POLLERR | POLLHUP;
+			/* polled again once called, as poll() would be: now, if
+			   it is not to be */
+			if(revents) readyadd(l, io, revents);
+			else if(afdupdate(l, io, io->events)) readyadd(l, io, POLLERR);
+		}
+	}
 #else
 	{
 		unsigned j;
@@ -707,6 +998,14 @@ int looponce(struct loop *l, int maxwait){
 
 		if(io) io->func(l, io, l->readyev[i]);
 	}
+#ifdef LOOP_AFD
+	/* what was called and is still waited for, polled again */
+	for(i = 0; i < l->nready; i++){
+		struct loopio *io = l->ready[i];
+
+		if(io && io->afd) afdupdate(l, io, io->events);
+	}
+#endif
 	if(n >= 0) n = l->nready;
 	l->nready = 0;
 	timersturn(l);
