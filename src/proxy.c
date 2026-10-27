@@ -417,6 +417,25 @@ static unsigned char * reqpath(unsigned char *line, unsigned char **host, int *h
 
 /* Logs the request: its line, as a copy, cut at its line end and without
    the password of an ftp:// URL. */
+/* The host's name for Forwarded and Via, asked of the system once, and
+   again after a reload: not for each request. Two copies, so that one
+   being read is never the one being written. */
+static const char *hostname(void){
+ static char names[2][256];
+ static volatile int cur = -1;
+ static int version = -1;
+ int i = cur;
+
+ if(i < 0 || version != runconf->version){
+	i = (i + 1) & 1;
+	if(gethostname(names[i], sizeof(names[i]))) names[i][0] = 0;
+	names[i][sizeof(names[i]) - 1] = 0;
+	version = runconf->version;
+	cur = i;
+ }
+ return names[i];
+}
+
 static void logurl(struct clientparam * param, char * req, int ftp){
  char *sb;
  char *se;
@@ -1340,16 +1359,11 @@ for(;;){
 		hlen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + hlen, 128);
 		if(*SAFAMILY(&param->sincr) == AF_INET6) hlen += sprintf((char *)buf + hlen, "]:%d\";by=", (int)ntohs(*SAPORT(&param->sincr)));
 		else hlen += sprintf((char *)buf + hlen, ":%d;by=", (int)ntohs(*SAPORT(&param->sincr)));
-		gethostname((char *)buf + hlen, 256);
-		buf[hlen + 255] = 0;
-		hlen += (int)strlen((char *)buf + hlen);
+		hlen += sprintf((char *)buf + hlen, "%.255s", hostname());
 		hlen += sprintf((char *)buf + hlen, ":%d\r\n", (int)ntohs(*SAPORT(&param->sincl)));
  }
  else if(anonymous>1){
-		hlen += sprintf((char *)buf + hlen, "Via: 1.1 ");
-		gethostname((char *)buf + hlen, 256);
-		buf[hlen + 255] = 0;
-		hlen += (int)strlen((char *)buf + hlen);
+		hlen += sprintf((char *)buf + hlen, "Via: 1.1 %.255s", hostname());
 		hlen += snprintf((char *)buf + hlen, 400, ":%d (%.100s %.100s)\r\nX-Forwarded-For: ", (int)ntohs(*SAPORT(&param->srv->intsa)), runconf->stringtable?(char *)runconf->stringtable[2]:"", runconf->stringtable?(char *)runconf->stringtable[3]:"");
 		if(anonymous != 2)hlen += myinet_ntop(*SAFAMILY(&param->sincr), SAADDR(&param->sincr), (char *)buf + hlen, 128);
 		else {
