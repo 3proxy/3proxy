@@ -85,8 +85,6 @@ struct loopjob {
 static struct looper *loopers;
 static unsigned nloopers, nextlooper;
 static int loopsfailed;
-static _3proxy_mutex_t loopers_mutex;
-static int loopers_mutex_init;
 
 /* the loop of this thread, NULL but in a loop's thread */
 static LTLS struct looper *curlooper;
@@ -1111,20 +1109,17 @@ static int loopsstart(void){
 
 	if(nloopers) return 0;
 	if(loopsfailed) return 1;
-	if(!loopers_mutex_init){
-		/* the first services start from the configuration's thread */
-		_3proxy_mutex_init(&loopers_mutex);
-		loopers_mutex_init = 1;
-	}
-	_3proxy_mutex_lock(&loopers_mutex);
+	/* the first clients of services may come at once, each from the
+	   thread of its service */
+	_3proxy_mutex_lock(&loops_mutex);
 	if(nloopers || loopsfailed){
-		_3proxy_mutex_unlock(&loopers_mutex);
+		_3proxy_mutex_unlock(&loops_mutex);
 		return loopsfailed;
 	}
 	n = runconf->loops? (unsigned)runconf->loops : ncpus();
 	if(!fiberusable() || !(loopers = calloc(n, sizeof(*loopers)))){
 		loopsfailed = 1;
-		_3proxy_mutex_unlock(&loopers_mutex);
+		_3proxy_mutex_unlock(&loops_mutex);
 		return 1;
 	}
 	for(i = 0; i < n; i++){
@@ -1166,7 +1161,7 @@ static int loopsstart(void){
 #endif
 		fiberpollfunc = fiberpoll;
 	}
-	_3proxy_mutex_unlock(&loopers_mutex);
+	_3proxy_mutex_unlock(&loops_mutex);
 	return !i;
 }
 
@@ -1196,9 +1191,9 @@ static struct loopjob *loopjobnew(size_t stacksize){
 static void loopspawn(struct loopjob *job, struct clientparam *param){
 	struct looper *lp;
 
-	_3proxy_mutex_lock(&loopers_mutex);
+	_3proxy_mutex_lock(&loops_mutex);
 	lp = loopers + (nextlooper++ % nloopers);
-	_3proxy_mutex_unlock(&loopers_mutex);
+	_3proxy_mutex_unlock(&loops_mutex);
 	job->param = param;
 	looppost(&lp->l, &job->m);
 }

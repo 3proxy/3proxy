@@ -491,6 +491,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   _3proxy_mutex_init(&bandlim_mutex);
   _3proxy_mutex_init(&connlim_mutex);
   _3proxy_mutex_init(&tc_mutex);
+  _3proxy_mutex_init(&loops_mutex);
   _3proxy_mutex_init(&tpool.mutex);
 #ifndef NORADIUS
   _3proxy_mutex_init(&rad_mutex);

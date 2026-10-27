@@ -611,6 +611,7 @@ extern _3proxy_sem_t serviceexited;
 extern _3proxy_mutex_t bandlim_mutex;
 extern _3proxy_mutex_t connlim_mutex;
 extern _3proxy_mutex_t tc_mutex;
+extern _3proxy_mutex_t loops_mutex;
 extern _3proxy_mutex_t log_mutex;
 extern _3proxy_mutex_t rad_mutex;
 extern struct datatype datatypes[64];

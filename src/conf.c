@@ -37,6 +37,8 @@ void transparent_install(void);
 _3proxy_mutex_t bandlim_mutex;
 _3proxy_mutex_t connlim_mutex;
 _3proxy_mutex_t tc_mutex;
+/* the event loops, started by the first client served on one */
+_3proxy_mutex_t loops_mutex;
 _3proxy_mutex_t config_mutex;
 int runningservices = 0;
 _3proxy_mutex_t runningservices_mutex;
