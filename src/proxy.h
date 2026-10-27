@@ -171,7 +171,8 @@ size_t threadstacksize(int extra);
 #ifndef strncasecmp
 #define strncasecmp strnicmp
 #endif
-#define seterrno3(x) _set_errno(x)
+/* errno is WSAGetLastError() here */
+#define seterrno3(x) WSASetLastError(x)
 #else
 #define seterrno3(x) (errno = x) 
 #endif
