@@ -611,10 +611,18 @@ for(;;){
 	fds[0].events = POLLIN;
 	fds[1].fd = param->remsock;
 	fds[1].events = POLLIN;
+	/* a connection waiting for its next request holds no buffer while it
+	   waits, but for a request kept by httpsrv: they are made again as it
+	   comes */
+	if(param->climark < 0){
+		bufdrop(param, CLIENT);
+		bufdrop(param, SERVER);
+	}
 	res = sockpoll(&param->srv->so, param->sostate, fds, 2, param->srv->timeouts[STRING_S]*1000);
 	if(res<=0) {
 		RETURN(555);
 	}
+	if(bufalloc(param)) RETURN(21);
 	if((fds[1].revents & (POLLIN|POLLHUP|POLLERR|POLLNVAL)) && sockreadable(param->remsock)) {
 		if(param->transparent || (!param->redirected && param->redirtype == R_HTTP)) RETURN(555);
 		ckeepalive = 0;
