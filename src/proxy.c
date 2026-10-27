@@ -1595,8 +1595,35 @@ for(;;){
 		(hascontent && ckeepalive)?"keep-alive":"close");
 	 }
 	 hlen += sprintf((char *)buf + hlen, "\r\n");
-	 if(socksend(param, param->clisock, buf, hlen, param->srv->timeouts[STRING_S]) != hlen) {
-		RETURN(521);
+	 {
+		/* what of the body came with the headers goes with them, in one
+		   piece: the headers, still where hdrread() left them, moved up
+		   against it. Counted as it was read; no filter is to see it. */
+		unsigned char *out = buf;
+		int n = 0;
+
+		if(!param->chunked && hascontent == 1 && contentlength64 > 0 &&
+		   param->operation != HTTP_HEAD && res != 204 && res != 304 &&
+		   (param->nolongdatfilter || !param->ndatfilterssrv) &&
+		   !bufown && buf + bufsize == param->srvbuf + param->srvoffset &&
+		   param->srvinbuf > param->srvoffset){
+			n = (int)((uint64_t)(param->srvinbuf - param->srvoffset) < contentlength64?
+				param->srvinbuf - param->srvoffset : contentlength64);
+			out = param->srvbuf + param->srvoffset - hlen;
+			/* up, over what may be its own end: memmove */
+			memmove(out, buf, hlen);
+			buf = out;
+		}
+		if(socksend(param, param->clisock, out, hlen + n, param->srv->timeouts[STRING_S]) != hlen + n) {
+			RETURN(521);
+		}
+		if(n){
+			param->srvoffset += n;
+			contentlength64 -= n;
+			bufrelease(param, SERVER);
+			/* all of it sent: nothing more to map */
+			if(!contentlength64) goto BODYSENT;
+		}
 	 }
  }
  if((param->chunked || contentlength64 > 0) && param->operation != HTTP_HEAD && res != 204 && res != 304) {
@@ -1648,6 +1675,7 @@ for(;;){
 		}
         } while(param->chunked);
  }
+BODYSENT:
  if(isconnect && res == 200 && param->operation){
 	hdrfree(&buf, &bufown);
 	RETURN (mapsocket(param, param->srv->timeouts[CONNECTION_S]));
