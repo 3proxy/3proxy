@@ -278,7 +278,7 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 
  /* on a loop: what is posted to it made now, so that posting it, done
     once the client is counted, cannot fail */
- if(loopwanted(srv)) job = loopjobnew(need);
+ if(loopwanted(srv)) job = loopjobnew(srv->stacksize);
 
  /* an idle worker if one has the stack this service needs */
  _3proxy_mutex_lock(&tpool.mutex);

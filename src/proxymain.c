@@ -84,7 +84,7 @@ static int poolpark(struct clientparam *param);
 static int srvspawn(struct srvstart *s, SOCKET client_sock);
 struct loopjob;
 static int loopwanted(struct srvparam *srv);
-static struct loopjob *loopjobnew(size_t stacksize);
+static struct loopjob *loopjobnew(int stacksize);
 static void loopspawn(struct loopjob *job, struct clientparam *param);
 static int onlooper(void);
 static void filterswap(struct clientparam *param, unsigned char **cur, unsigned char *now);

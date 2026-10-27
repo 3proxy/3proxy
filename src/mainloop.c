@@ -100,7 +100,15 @@ static int loopsfailed;
 /* the loop of this thread, NULL but in a loop's thread */
 static LTLS struct looper *curlooper;
 
-static size_t fiberstack(size_t need){
+/* A fiber's stack: a thread's, the service's stacksize added, with room
+   kept for wolfSSL (TLSSTACKSIZE), which unless built for a small stack
+   takes much of it in a handshake; reserved only, a page held as it is
+   used. Not PTHREAD_STACK_MIN, which is for a thread's signals: a loop's
+   thread takes none. What the C library would want a big stack for, its
+   resolver, runs on the thread's own (onthreadstack()). */
+static size_t fiberstack(int extra){
+	size_t need = BASESTACKSIZE + TLSSTACKSIZE + (extra > 0? (size_t)extra : 0);
+
 #ifdef _WIN32
 	/* only reserved: Windows commits as it is used, and takes some for
 	   itself */
@@ -1233,7 +1241,7 @@ static int loopwanted(struct srvparam *srv){
 }
 
 /* What srvspawn() hands to a loop, made before: posting cannot fail. */
-static struct loopjob *loopjobnew(size_t stacksize){
+static struct loopjob *loopjobnew(int stacksize){
 	struct loopjob *job = malloc(sizeof(*job));
 
 	if(job){
@@ -1264,7 +1272,7 @@ static int onlooper(void){
 static int loopwanted(struct srvparam *srv){
 	return 0;
 }
-static struct loopjob *loopjobnew(size_t stacksize){
+static struct loopjob *loopjobnew(int stacksize){
 	return NULL;
 }
 static void loopspawn(struct loopjob *job, struct clientparam *param){
