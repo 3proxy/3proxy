@@ -497,13 +497,7 @@ static void cbbuf(struct clientparam *param, int side, unsigned char **buf, unsi
    relay can use it: the client's fiber gave up its stack. The next read
    makes it again. */
 static void cbbufdrop(struct cbmap *m, int side){
-	struct clientparam *param = m->param;
-	unsigned char **own = side? &param->srvbufdata : &param->clibufdata;
-	unsigned char **buf = side? &param->srvbuf : &param->clibuf;
-
-	if(!m->abandoned || !*own || *buf != *own || (side? param->srvinbuf : param->cliinbuf)) return;
-	free(*own);
-	*own = *buf = NULL;
+	if(m->abandoned) bufdrop(m->param, side? SERVER : CLIENT);
 }
 
 /* what a way has buffered and in its pipe: none once it is not moving */

@@ -361,6 +361,7 @@ int paramstr(unsigned char *field, size_t size, const unsigned char *s);
 #define PARAMSTR(p, f, s) paramstr((p)->f, sizeof((p)->f), (const unsigned char *)(s))
 void bufrelease(struct clientparam * param, DIRECTION which);
 int bufget(struct clientparam * param, DIRECTION which);
+void bufdrop(struct clientparam * param, DIRECTION which);
 int bufalloc(struct clientparam * param);
 void buffree(struct clientparam * param);
 

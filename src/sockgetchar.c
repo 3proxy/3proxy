@@ -102,6 +102,20 @@ void buffree(struct clientparam * param){
 	param->clibufdata = param->srvbufdata = NULL;
 }
 
+/* An empty own buffer let go, while the connection's last mapping has
+   no use for it, its direction spliced; bufget() makes it again. */
+void bufdrop(struct clientparam * param, DIRECTION which){
+	unsigned char **own = which? &param->srvbufdata : &param->clibufdata;
+	unsigned char **buf = which? &param->srvbuf : &param->clibuf;
+	unsigned *in = which? &param->srvinbuf : &param->cliinbuf;
+	unsigned *off = which? &param->srvoffset : &param->clioffset;
+
+	if(!*own || *buf != *own || *in != *off) return;
+	free(*own);
+	*own = *buf = NULL;
+	*in = *off = 0;
+}
+
 /* Starts an empty buffer over from its beginning, and goes back to the
    connection's own buffer if a filter needed a bigger one. Does nothing
    while anything is left unread. */

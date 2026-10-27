@@ -378,6 +378,12 @@ log("done send to client from buf");
 		splicesrv = wantbufsrv = streaksrv = 0;
 		if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
 	}
+	/* the connection's last mapping: a direction spliced has no use for
+	   its buffer while it is empty */
+	if(param->maptail){
+		if(splicecli && !wantbufcli && !draincli && !inclientbuf) bufdrop(param, CLIENT);
+		if(splicesrv && !wantbufsrv && !drainsrv && !inserverbuf) bufdrop(param, SERVER);
+	}
 	{
 		/* each direction goes through its pipe if spliced, through its
 		   buffer otherwise; what was in the buffer before is sent first */
@@ -597,6 +603,8 @@ log("done read from server to pipe\n");
 #ifdef WITHLOG
 log("read from client to buf");
 #endif
+			/* let go while spliced: made again */
+			if(!param->clibuf && bufget(param, CLIENT)) RETURN(21);
 			/* no address: it would overwrite the client's with what a
 			   stream socket gives, an empty one for a Unix socket */
 			res = param->srv->so._recvfrom(param->sostate, param->clisock, (char *)param->clibuf + param->cliinbuf, (int)MIN((uint64_t)CLIROOM - param->cliinbuf, fromclient-inclientbuf), 0, NULL, NULL);
@@ -654,6 +662,7 @@ log("done read from client to buf");
 #ifdef WITHLOG
 log("read from server to buf");
 #endif
+			if(!param->srvbuf && bufget(param, SERVER)) RETURN(21);
 			res = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)SRVROOM - param->srvinbuf, fromserver-inserverbuf), 0, NULL, NULL);
 			if(res <= 0) {
 				FROMSERVER = 0;
@@ -1008,6 +1017,9 @@ log("timeout");
 #endif
 
 CLEANRET:
+
+ /* what comes after a mapping finds the buffers there */
+ if(((!param->clibuf && bufget(param, CLIENT)) || (!param->srvbuf && bufget(param, SERVER))) && !res) res = 21;
 
 #ifdef WITHSPLICE
  /* empty pipes stay with the connection for its next mapping; one still
