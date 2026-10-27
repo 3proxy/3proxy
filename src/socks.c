@@ -381,7 +381,7 @@ fflush(stderr);
 						break;
 					}
 					if (!fds[0].revents) {
-						errno = EAGAIN;
+						seterrno3(EAGAIN);
 						continue;
 					}
 					sasize = sizeof(param->sinsr);
