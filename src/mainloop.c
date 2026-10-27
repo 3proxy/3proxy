@@ -909,9 +909,10 @@ static void cbmapfinish(void *arg){
 	int res = m->res, timeo = m->timeosec, usesplice = m->usesplice0;
 
 	free(m);
-	/* the buffers given back while relayed are the child's again: without
-	   them only the end is logged */
-	if(bufalloc(param)){
+	/* the buffers given back while relayed are made again only to map on
+	   after a reload: the end has no use for them. Without them only the
+	   end is logged */
+	if(res == -2 && bufalloc(param)){
 		param->res = (res == -2)? 21 : res;
 		param->maptail = NULL;
 		dolog(param, NULL);

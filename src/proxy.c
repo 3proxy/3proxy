@@ -252,6 +252,7 @@ static int hdrread(struct clientparam *param, DIRECTION which, unsigned front, u
 	unsigned lo, start, pos, hend = 0, tail = 0, rest, linelen;
 	int mark = -1, len;
 
+	if(!*bufp && bufget(param, which)) return -2;
 	/* what was read and not taken yet moves to one byte into the buffer;
 	   a request marked earlier (handed over by httpsrv) is kept from the
 	   mark, which moves with it */
@@ -554,6 +555,29 @@ static void proxystatus(struct clientparam *param, int hdrsdone, char *ftpbuf, i
 static void proxytail(struct clientparam *param, void *data){
  proxystatus(param, 1, NULL, 0);
  logurl(param, (char *)data, 0);
+}
+
+/* The connection's last mapping. Its end, the status and the log line, can
+   be a loop's (proxytail), the request line handed over for them, but for
+   a request httpsrv hands over, whose end is httpsrv's: the rest of the end
+   may then never come back here. What it would free is freed now, and the
+   request line is back if mapping returns. */
+static int maplast(struct clientparam *param, unsigned char **req, unsigned char **ftpbase, int timeo){
+ int res;
+
+ if(!param->onerequest && *req){
+	freeptr(ftpbase);
+	param->maptaildata = *req;
+	*req = NULL;
+	param->maptail = proxytail;
+ }
+ res = mapsocket(param, timeo);
+ if(param->maptail == proxytail){
+	*req = param->maptaildata;
+	param->maptaildata = NULL;
+	param->maptail = NULL;
+ }
+ return res;
 }
 
 void * proxychild(struct clientparam* param) {
@@ -1321,23 +1345,7 @@ for(;;){
 		return (void *)param->redirectfunc;
 	}
 	hdrfree(&buf, &bufown);
-	/* mapping its last thing, but in a request httpsrv hands over, whose
-	   end is httpsrv's: the rest of the end can be a loop's, which this
-	   function's own may then never reach. What it would free is freed
-	   now, and the request line is the tail's, back here if mapping
-	   returns. */
-	if(!param->onerequest && req){
-		freeptr(&ftpbase);
-		param->maptaildata = req;
-		req = NULL;
-		param->maptail = proxytail;
-	}
-	param->res =  mapsocket(param, param->srv->timeouts[CONNECTION_L]);
-	if(param->maptail == proxytail){
-		req = param->maptaildata;
-		param->maptaildata = NULL;
-		param->maptail = NULL;
-	}
+	param->res = maplast(param, &req, &ftpbase, param->srv->timeouts[CONNECTION_L]);
 	RETURN(param->res);
  }
 
@@ -1692,13 +1700,15 @@ for(;;){
 BODYSENT:
  if(isconnect && res == 200 && param->operation){
 	hdrfree(&buf, &bufown);
-	RETURN (mapsocket(param, param->srv->timeouts[CONNECTION_S]));
+	RETURN (maplast(param, &req, &ftpbase, param->srv->timeouts[CONNECTION_S]));
  }
  else if(isconnect){
 	ckeepalive = keepalive = 1;
  }
  else if(!hascontent && !param->chunked) {
-	RETURN(mapsocket(param, param->srv->timeouts[CONNECTION_S]));
+	/* the answer ends as the server's side does: the connection with it */
+	hdrfree(&buf, &bufown);
+	RETURN(maplast(param, &req, &ftpbase, param->srv->timeouts[CONNECTION_S]));
  }
  contentlength64 = 0;
 REQUESTEND:

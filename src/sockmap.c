@@ -1018,8 +1018,10 @@ log("timeout");
 
 CLEANRET:
 
- /* what comes after a mapping finds the buffers there */
- if(((!param->clibuf && bufget(param, CLIENT)) || (!param->srvbuf && bufget(param, SERVER))) && !res) res = 21;
+ /* what comes after a mapping finds the buffers there; after the last
+    one only its end, which has no use for them */
+ if(!param->maptail &&
+    ((!param->clibuf && bufget(param, CLIENT)) || (!param->srvbuf && bufget(param, SERVER))) && !res) res = 21;
 
 #ifdef WITHSPLICE
  /* empty pipes stay with the connection for its next mapping; one still

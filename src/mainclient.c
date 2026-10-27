@@ -240,8 +240,15 @@ void * threadfunc (void *p) {
 #endif
  struct clientparam *param = (struct clientparam *)p;
 
- do serveparam(param);
- while(poolpark(param));
+ do {
+	/* a worker taken from the pool: its buffers may have been let go on
+	   its last connection's last mapping */
+	if(bufalloc(param)){
+		param->res = 21;
+		releaseparam(param);
+	}
+	else serveparam(param);
+ } while(poolpark(param));
  freeworker(param);
 #ifdef _WIN32
  return 0;

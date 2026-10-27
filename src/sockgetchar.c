@@ -173,6 +173,8 @@ int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
 		return (int)param->clibuf[param->clioffset++];
 	}
 	if(param->climark == -2) return EOF;	/* nothing more until it is cleared */
+	/* let go on a connection's last mapping */
+	if(!param->clibuf && bufget(param, CLIENT)) return EOF;
 	if(param->climark >= 0){
 		/* what was read since the mark stays, moved to the start */
 		keep = param->cliinbuf - (unsigned)param->climark;
@@ -197,13 +199,16 @@ int sockgetcharcli(struct clientparam * param, int timeosec, int timeousec){
    buffer, at the end of the stream, or when nothing comes in time; returns
    how much is there, at most size. */
 unsigned long sockfillbuf(struct clientparam * param, DIRECTION which, unsigned long size, int timeosec){
-	unsigned char *buf = which? param->srvbuf : param->clibuf;
+	unsigned char *buf;
 	unsigned *inbuf = which? &param->srvinbuf : &param->cliinbuf;
 	unsigned *offset = which? &param->srvoffset : &param->clioffset;
 	unsigned bufsize = which? param->srvbufsize : param->clibufsize;
 	unsigned want;
 	int len;
 
+	/* let go on a connection's last mapping */
+	if(!(which? param->srvbuf : param->clibuf) && bufget(param, which)) return 0;
+	buf = which? param->srvbuf : param->clibuf;
 	if(*offset){
 		memmove(buf, buf + *offset, *inbuf - *offset);
 		*inbuf -= *offset;
@@ -232,6 +237,7 @@ int sockgetcharsrv(struct clientparam * param, int timeosec, int timeousec){
 		return (int)param->srvbuf[param->srvoffset++];
 	}
 	bufrelease(param, SERVER);
+	if(!param->srvbuf && bufget(param, SERVER)) return EOF;
 	if ((len = sockrecvfrom(param, param->remsock, (struct sockaddr *)&param->sinsr, param->srvbuf, param->srvbufsize, timeosec*1000 + timeousec))<=0) return EOF;
 	param->srvinbuf = len;
 	param->srvoffset = 1;
