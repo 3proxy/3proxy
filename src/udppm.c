@@ -44,11 +44,7 @@ static int udppmfirst(struct udploop *u, struct udpsession *ss, unsigned char *b
 	int res;
 
 	if(parsehostname((char *)param->srv->target, param, ntohs(param->srv->targetport))) return (param->res = 100);
-#ifndef NOIPV6
 	param->sinsl = *SAFAMILY(&param->req) == AF_INET6? param->srv->extsa6 : param->srv->extsa;
-#else
-	param->sinsl = param->srv->extsa;
-#endif
 	*SAPORT(&param->sinsl) = 0;
 	param->sinsr = param->req;
 	param->operation = UDPASSOC;

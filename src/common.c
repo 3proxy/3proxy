@@ -16,16 +16,11 @@ int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADD
 
 	memset(sa, 0, sizeof(*sa));
 	if(atyp == 4){
-#ifdef NOIPV6
-		return 1;
-#else
 		if(family == 4) return 1;
 		len = 16;
 		*SAFAMILY(sa) = AF_INET6;
 		memcpy(SAADDR(sa), addr, 16);
-#endif
 	}
-#ifndef NOIPV6
 	else if(family == 6){
 		unsigned char prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255};
 
@@ -33,7 +28,6 @@ int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADD
 		memcpy(SAADDR(sa), prefix, 12);
 		memcpy(12 + (unsigned char *)SAADDR(sa), addr, 4);
 	}
-#endif
 	else {
 		*SAFAMILY(sa) = AF_INET;
 		memcpy(SAADDR(sa), addr, 4);
@@ -104,14 +98,9 @@ char * copyright = COPYRIGHT;
 # define MYRAND_GETRANDOM 1
 # include <sys/random.h>
 #elif defined(_WIN32)
-# if defined(__WATCOMC__)
-#  define MYRAND_CRYPTGENRANDOM 1
-#  include <wincrypt.h>
-# else
 #  define MYRAND_BCRYPTGENRANDOM 1
 #  include <bcrypt.h>
 #  pragma comment(lib, "bcrypt.lib")
-# endif
 #else
 # define MYRAND_FALLBACK 1
 #endif
@@ -171,21 +160,17 @@ int myinet_ntop(int af, void *src, char *dst, socklen_t size){
 	return (int)strlen(dst);
  }
 #endif
-#ifndef NOIPV6
  if(af != AF_INET6){
-#endif
 	unsigned u = ntohl(((struct in_addr *)src)->s_addr);
  	return sprintf(dst, "%u.%u.%u.%u",
 		((u&0xFF000000)>>24),
 		((u&0x00FF0000)>>16),
 		((u&0x0000FF00)>>8),
 		((u&0x000000FF)));
-#ifndef NOIPV6
  }
  *dst = 0;
  inet_ntop(af, src, dst, size);
  return (int)strlen(dst);
-#endif
 }
 
 char *rotations[] = {
@@ -286,50 +271,6 @@ uint32_t myrand(void){
 #endif
 }
 
-#ifndef WITH_POLL
-#ifndef WITH_WSAPOLL
-int  
-#ifdef _WIN32
- WINAPI
-#endif
-
-    mypoll(struct mypollfd *fds, unsigned int nfds, int timeout){
-	fd_set readfd;
-	fd_set writefd;
-	fd_set oobfd;
-	struct timeval tv;
-	unsigned i;
-	int num;
-	SOCKET maxfd = 0;
-
-	tv.tv_sec = timeout/1000;
-	tv.tv_usec = (timeout%1000)*1000;
-	FD_ZERO(&readfd);
-	FD_ZERO(&writefd);
-	FD_ZERO(&oobfd);
-	for(i=0; i<nfds; i++){
-#ifndef _WIN32
-		if(fds[i].fd >= FD_SETSIZE) continue;
-#endif
-		if((fds[i].events&POLLIN))FD_SET(fds[i].fd, &readfd);
-		if((fds[i].events&POLLOUT))FD_SET(fds[i].fd, &writefd);
-		if((fds[i].events&POLLPRI))FD_SET(fds[i].fd, &oobfd);
-		fds[i].revents = 0;
-		if(fds[i].fd > maxfd) maxfd = fds[i].fd;
-	}
-	if((num = select(((int)(maxfd))+1, &readfd, &writefd, &oobfd, &tv)) < 1) return num;
-	for(i=0; i<nfds; i++){
-#ifndef _WIN32
-		if(fds[i].fd >= FD_SETSIZE) continue;
-#endif
-		if(FD_ISSET(fds[i].fd, &readfd)) fds[i].revents |= POLLIN;
-		if(FD_ISSET(fds[i].fd, &writefd)) fds[i].revents |= POLLOUT;
-		if(FD_ISSET(fds[i].fd, &oobfd)) fds[i].revents |= POLLPRI;
-	}
-	return num;
-}
-#endif
-#endif
 
 
 /* Set while clients are served by fibers on event loops, which keep their
@@ -567,12 +508,8 @@ int sockpoll(struct sockfuncs *sf, void *state, struct pollfd *fds, unsigned nfd
 	if(!(res = sf->_prepoll(state, fds, nfds))){
 		/* a fiber waits in its loop */
 		if(!fiberpollfunc || (res = fiberpollfunc(fds, nfds, timeout)) == -2){
-#ifndef WITH_POLL
-#ifndef WITH_WSAPOLL
-			res = mypoll(fds, nfds, timeout);
-#else
+#ifdef _WIN32
 			res = WSAPoll(fds, nfds, timeout);
-#endif
 #else
 			res = poll(fds, (nfds_t)nfds, timeout);
 #endif
@@ -822,12 +759,10 @@ int bindtodevice(struct sockfuncs *sf, void *state, SOCKET sock, const char *dev
 	    idx = if_nametoindex(device);
 	    if(!idx || (family == AF_INET && sf->_setsockopt(state, sock, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx))))
 			return 1;
-#ifndef NOIPV6
 #ifndef IPV6_BOUND_IF
 #define IPV6_BOUND_IF 125
 #endif
 	    if(family == AF_INET6 && sf->_setsockopt(state, sock, IPPROTO_IPV6, IPV6_BOUND_IF, &idx, sizeof(idx))) return 1;
-#endif
 	}
 #endif
 	return 0;
@@ -889,10 +824,8 @@ int doconnect(struct clientparam * param){
 	    if(*SAFAMILY(&param->sinsr) == AF_UNIX) param->sinsl = param->sinsr;
 	    else 
 #endif
-#ifndef NOIPV6
 		if(*SAFAMILY(&param->sinsr) == AF_INET6) param->sinsl = param->srv->extsa6;
 		else
-#endif
 			param->sinsl = param->srv->extsa;
 	}
 	*SAPORT(&param->sinsl) = 0;
@@ -1086,62 +1019,6 @@ struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
 #endif
 #endif
 
-#ifdef NOIPV6
-static uint32_t getipm(int mode, unsigned char *name){
-	uint32_t retval;
-	int i;
-	int ndots = 0;
-	struct hostent *hp=NULL;
-	RESOLVFUNC tmpresolv;
-
-#ifdef GETHOSTBYNAME_R
-	struct hostent he;
-	char ghbuf[1024];
-#define gethostbyname(NAME) my_gethostbyname(NAME, ghbuf, &he)
-#endif
-
-	if(strlen((char *)name)>255)name[255] = 0;
-	for(i=0; name[i]; i++){
-		if(name[i] == '.'){
-			if(++ndots > 3) break;
-			continue;
-		}
-		if(name[i] <'0' || name[i] >'9') break;
-	}
-	if(!name[i] && ndots == 3){
-		if(scanaddr(name, &retval, NULL) == 4){
-			return retval;
-		}
-	}
-	if((tmpresolv=moderesolver(mode))){
-		return (*tmpresolv)(AF_INET, name, (unsigned char *)&retval)?retval:0;
-	}
-#ifndef NOSTDRESOLVE
-#if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
-	if(!ghbn_init){
-		_3proxy_mutex_init(&gethostbyname_mutex);
-		ghbn_init++;
-	}
-	_3proxy_mutex_lock(&gethostbyname_mutex);
-#endif
-	hp=gethostbyname((char *)name);
-	retval = hp?*(uint32_t *)hp->h_addr:0;
-#if !defined(_WIN32) && !defined(GETHOSTBYNAME_R)
-	_3proxy_mutex_unlock(&gethostbyname_mutex);
-#endif
-#ifdef GETHOSTBYNAME_R
-#undef gethostbyname
-#endif
-#else
-	retval=0;
-#endif
-	return retval;
-}
-
-uint32_t getip(unsigned char *name){
-	return getipm(resolvmode, name);
-}
-#endif
 
 int afdetect(unsigned char *name){
 	int ndots=0, ncols=0, nhex=0;
@@ -1176,7 +1053,7 @@ int afdetect(unsigned char *name){
 }
 
 /* A name resolved the way a mode says: a service's names with its own */
-#if !defined(NOIPV6) && !defined(NOSTDRESOLVE)
+#ifndef NOSTDRESOLVE
 /* What the C library's resolver is asked, and its answer */
 struct stdresolve {
 	unsigned char *name;
@@ -1213,18 +1090,12 @@ static void stdresolve46(void *arg){
 #endif
 
 uint32_t getip46m(int mode, int family, unsigned char *name,  struct sockaddr *sa){
-#ifndef NOIPV6
 	int detect;
         RESOLVFUNC tmpresolv;
 
 	if(!sa) return 0;
 	if(!family) {
 		family = 4;
-#else
-		((struct sockaddr_in *)sa)->sin_family = AF_INET;
-		return (((struct sockaddr_in *)sa)->sin_addr.s_addr = getipm(mode, name))? AF_INET:0;
-#endif
-#ifndef NOIPV6
 	}
 
 	detect = afdetect(name);
@@ -1258,7 +1129,6 @@ uint32_t getip46m(int mode, int family, unsigned char *name,  struct sockaddr *s
 	}
 #endif
 	return 0;
-#endif
 }
 
 uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa){

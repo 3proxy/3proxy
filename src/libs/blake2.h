@@ -18,9 +18,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined(WATCOM)
-#define BLAKE2_PACKED(x) _Packed x
-#elif defined(_MSC_VER)
+#if   defined(_MSC_VER)
 #define BLAKE2_PACKED(x) __pragma(pack(push, 1)) x __pragma(pack(pop))
 #else
 #define BLAKE2_PACKED(x) x __attribute__((packed))

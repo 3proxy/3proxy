@@ -236,11 +236,6 @@ static int h_proxy(int argc, unsigned char ** argv){
 #ifdef WITH_FTP
 		childdef.helpmessage = " -Xftp - fetch ftp:// URLs\n";
 #endif
-#ifdef NOIPV6
-		if(noresolver()){
-			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, proxy may run very slow\n", linenum);
-		}
-#endif
 	}
 	else if(!strcmp((char *)argv[0], "pop3p")) {
 		childdef.pf = pop3pchild;
@@ -275,11 +270,6 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.port = 1080;
 		childdef.isudp = 0;
 		childdef.service = S_SOCKS;
-#ifdef NOIPV6
-		if(noresolver()){
-			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, socks may run very slow\n", linenum);
-		}
-#endif
 	}
 	else if(!strcmp((char *)argv[0], "auto")) {
 		childdef.pf = autochild;
@@ -343,11 +333,9 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 1;
 		childdef.service = S_DNSPR;
 		childdef.helpmessage = " -s - simple DNS forwarding - do not use 3proxy resolver / name cache\n -Fip - fake: answer all A queries with this IP\n";
-#ifndef NOIPV6
 		if(noresolver() || conf->resolvmode == RESOLVE_FAKE){
 			fprintf(stderr, "[line %d] Warning: no nserver/nscache configured, dnspr will not work as expected\n", linenum);
 		}
-#endif
 	}
 	return start_proxy_thread(&ch);
 }
@@ -365,17 +353,12 @@ static int h_internal(int argc, unsigned char ** argv){
 
 static int h_external(int argc, unsigned char ** argv){
 	int res;
-#ifndef NOIPV6
 	PROXYSOCKADDRTYPE sa6;
 	memset(&sa6, 0, sizeof(sa6));
 	res = getip46(46, argv[1], (struct sockaddr *)&sa6);
 	if(!res) return 1;
 	if (*SAFAMILY(&sa6)==AF_INET) conf->extsa = sa6;
 	else conf->extsa6 = sa6;
-#else
-	res = getip46(46, argv[1], (struct sockaddr *)&conf->extsa);
-	if(!res) return 1;
-#endif
 	return 0;
 }
 

@@ -62,14 +62,12 @@ static int transparent_pf(struct clientparam *param)
 	memset(&nl, 0, sizeof(nl));
 	nl.proto = IPPROTO_TCP;
 	nl.direction = PF_OUT;
-#ifndef NOIPV6
 	if(*SAFAMILY(&param->sincr) == AF_INET6){
 		nl.af = AF_INET6;
 		memcpy(&nl.saddr.v6, SAADDR(&param->sincr), 16);
 		memcpy(&nl.daddr.v6, SAADDR(&param->sincl), 16);
 	}
 	else
-#endif
 	{
 		nl.af = AF_INET;
 		memcpy(&nl.saddr.v4, SAADDR(&param->sincr), 4);
@@ -82,10 +80,8 @@ static int transparent_pf(struct clientparam *param)
 
 	memset(&param->req, 0, sizeof(param->req));
 	*SAFAMILY(&param->req) = nl.af;
-#ifndef NOIPV6
 	if(nl.af == AF_INET6) memcpy(SAADDR(&param->req), &nl.rdaddr.v6, 16);
 	else
-#endif
 	memcpy(SAADDR(&param->req), &nl.rdaddr.v4, 4);
 	*SAPORT(&param->req) = nl.rdport;
 	return 0;
@@ -100,10 +96,8 @@ static int transparent_netfilter(struct clientparam *param)
 
 #ifdef SO_ORIGINAL_DST
 	if(getsockopt(param->clisock,
-#ifndef NOIPV6
 #ifdef SOL_IPV6
 		*SAFAMILY(&param->sincr) == AF_INET6?SOL_IPV6:
-#endif
 #endif
 			SOL_IP, SO_ORIGINAL_DST, (struct sockaddr *) &param->req, &len)
 	   || !memcmp((char *)SAADDR(&param->req), "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SAADDRLEN(&param->req))){

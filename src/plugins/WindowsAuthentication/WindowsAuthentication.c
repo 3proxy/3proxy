@@ -57,11 +57,6 @@ extern "C" {
 	return 7;
  }
 
-#ifdef WATCOM
-#pragma aux WindowsAuthentication "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
-#undef PLUGINCALL
-#define PLUGINCALL
-#endif
 
 PLUGINAPI int PLUGINCALL WindowsAuthentication(struct pluginlink * pluginlink, int argc, char** argv){
 	char tmpbuf[4096];

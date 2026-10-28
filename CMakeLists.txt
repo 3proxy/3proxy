@@ -64,8 +64,6 @@ option(3PROXY_USE_PCRE2 "Enable PCRE2 regex filtering" ON)
 option(3PROXY_USE_PAM "Enable PAM/PamAuth" ON)
 option(3PROXY_USE_ODBC "Enable ODBC support (Unix only, always ON on Windows)" OFF)
 option(3PROXY_USE_SPLICE "Build Linux splice() support, used by services given -s (Linux only)" ON)
-option(3PROXY_USE_POLL "Use poll() instead of select() (Unix only)" ON)
-option(3PROXY_USE_WSAPOLL "Use WSAPoll instead of select() (Windows only)" ON)
 option(3PROXY_USE_NETFILTER "Enable Linux netfilter support (Linux only)" ON)
 option(3PROXY_USE_TRANSPARENT "Build transparent proxying support (Linux and BSD only)" ON)
 option(3PROXY_USE_UNIX_SOCKETS "Enable Unix domain socket support (Unix only)" ON)
@@ -158,16 +156,6 @@ if(WIN32)
         # Clang or GCC on Windows (MinGW-like)
         add_compile_definitions(WITH_STD_MALLOC)
         add_compile_options(-fno-strict-aliasing)
-
-    elseif(WATCOM)
-        # OpenWatcom-specific flags
-        add_compile_definitions(
-            WATCOM
-            MSVC
-            NOIPV6
-            NODEBUG
-            NORADIUS
-        )
     endif()
 
     # Windows libraries
@@ -287,23 +275,6 @@ endif()
 # elsewhere, e.g. CFLAGS
 if(NOT 3PROXY_USE_UNIX_SOCKETS)
     add_compile_definitions(NO_UN)
-endif()
-
-# Common definitions
-if(WIN32)
-    # Windows: use WSAPOLL
-    if(3PROXY_USE_WSAPOLL)
-        add_compile_definitions(WITH_WSAPOLL)
-    else()
-        add_compile_definitions(FD_SETSIZE=4096)
-    endif()
-else()
-    # Unix: use poll
-    if(3PROXY_USE_POLL)
-        add_compile_definitions(WITH_POLL)
-    else()
-        add_compile_definitions(FD_SETSIZE=4096)
-    endif()
 endif()
 
 # Find dependencies
@@ -1004,16 +975,12 @@ message(STATUS "    USE_PCRE2:       ${3PROXY_USE_PCRE2}")
 message(STATUS "    TRANSPARENT:     ${3PROXY_TRANSPARENT_BUILT}")
 message(STATUS "    USE_PAM:         ${3PROXY_USE_PAM}")
 message(STATUS "    USE_ODBC:        ${3PROXY_USE_ODBC}")
-message(STATUS "    USE_POLL:        ${3PROXY_USE_POLL}")
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     message(STATUS "    USE_SPLICE:      ${3PROXY_USE_SPLICE}")
     message(STATUS "    USE_NETFILTER:   ${3PROXY_USE_NETFILTER}")
 endif()
 if(NOT WIN32 AND NOT APPLE)
     message(STATUS "    STATIC_LINK:     ${3PROXY_STATIC_LINK}")
-endif()
-if(WIN32)
-    message(STATUS "    USE_WSAPOLL:     ${3PROXY_USE_WSAPOLL}")
 endif()
 message(STATUS "")
 message(STATUS "  Libraries found:")

@@ -17,7 +17,7 @@
 #define _FIBER_H
 
 #if defined _WIN32
-#if !defined __WATCOMC__ && !defined _WINCE
+#ifndef _WINCE
 #define FIBER_WINDOWS
 #endif
 #elif defined __x86_64__ && defined __LP64__

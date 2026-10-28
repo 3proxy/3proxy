@@ -359,7 +359,6 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 ### 7. Compilation
 
 - MSVC (static)
-- OpenWatcom (static)
 - Intel Windows Compiler (msvcrt.dll)
 - Windows/gcc (msvcrt.dll)
 - Cygwin/gcc (cygwin.dll)
@@ -368,7 +367,6 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 - Solaris
 - Mac OS X, iPhone OS
 - Linux and derived systems
-- Lite version for Windows 95/98/NT/2000/XP/2003
 - 32 bit and 64 bit versions for Windows Vista and above, Windows 2008 server and above
 
 ## Executables

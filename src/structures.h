@@ -71,44 +71,10 @@ typedef struct _3proxy_sem_s {
 #define WEIGHTSCALE 1000000000u
 #define WEIGHTFUZZ 1000000u
 
-#ifdef WITH_POLL
-#include <poll.h>
-#else
-#ifdef WITH_WSAPOLL
-
-#define poll(A,B,C) WSAPoll(A,B,C)
-
-#else
-struct mypollfd {
- SOCKET    fd;       /* file descriptor */
- short  events;   /* events to look for */
- short  revents;  /* events returned */
-};
-#define pollfd mypollfd
-int 
 #ifdef _WIN32
-  WINAPI
-#endif
-   mypoll(struct mypollfd *fds, unsigned int nfds, int timeout);
-#ifndef POLLIN
-#define POLLIN 1
-#endif
-#ifndef POLLOUT
-#define POLLOUT 2
-#endif
-#ifndef POLLPRI
-#define POLLPRI 4
-#endif
-#ifndef POLLERR
-#define POLLERR 8
-#endif
-#ifndef POLLHUP
-#define POLLHUP 16
-#endif
-#ifndef POLLNVAL
-#define POLLNVAL 32
-#endif
-#endif
+#define poll(A,B,C) WSAPoll(A,B,C)
+#else
+#include <poll.h>
 #endif
 
 #ifdef WITH_UN
@@ -174,30 +140,17 @@ int
 #define UN_SAISNULL(sa)
 #endif
 
-#ifndef NOIPV6
 #define SAPORT(sa)  ( UN_SAPORT(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? &((struct sockaddr_in6 *)sa)->sin6_port : &((struct sockaddr_in *)sa)->sin_port)
 #define SAADDR(sa)  ( UN_SAADDR(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
 #define SAADDRLEN(sa) ( UN_SAADDRLEN(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4)
 #define SASOCK(sa) ( UN_SASOCK(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? PF_INET6:PF_INET)
 #define SASIZE(sa) ( UN_SASIZE(sa) ((struct sockaddr_in *)sa)->sin_family == AF_INET6? sizeof(struct sockaddr_in6):sizeof(struct sockaddr_in))
 #define SAISNULL(sa) ( UN_SAISNULL(sa) !memcmp(((struct sockaddr_in *)sa)->sin_family == AF_INET6? (unsigned char *)&((struct sockaddr_in6 *)sa)->sin6_addr : (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr, NULLADDR,  (((struct sockaddr_in *)sa)->sin_family == AF_INET6? 16:4))) 
-#else
-#define SAPORT(sa)  ( UN_SAPORT(sa) &((struct sockaddr_in *)sa)->sin_port)
-#define SAADDR(sa)  ( UN_SAADDR(sa) (unsigned char *)&((struct sockaddr_in *)sa)->sin_addr.s_addr)
-#define SAADDRLEN(sa) ( UN_SAADDRLEN(sa) 4)
-#define SASOCK(sa) ( UN_SASOCK(sa) PF_INET)
-#define SASIZE(sa) ( UN_SASIZE(sa) sizeof(struct sockaddr_in))
-#define SAISNULL(sa) ( UN_SAISNULL(sa) ((struct sockaddr_in *)sa)->sin_addr.s_addr == 0) 
-#endif
 
 #ifdef WITH_UN
 #define PROXYSOCKADDRTYPE struct sockaddr_storage
 #else
-#ifndef NOIPV6
 #define PROXYSOCKADDRTYPE struct sockaddr_in6
-#else
-#define PROXYSOCKADDRTYPE struct sockaddr_in
-#endif
 #endif
 
 #define MAX_HASH_SIZE (64)
@@ -777,9 +730,7 @@ struct srvparam {
 	unsigned authcachetype, authcachetime;
 	unsigned logdumpsrv, logdumpcli;
 	PROXYSOCKADDRTYPE intsa, intNat, extNat;
-#ifndef NOIPV6
 	PROXYSOCKADDRTYPE extsa6;
-#endif
 	PROXYSOCKADDRTYPE extsa;
 	_3proxy_mutex_t counter_mutex;
 	_3proxy_sem_t childslots;	/* maxchild of them, one held by each child */
@@ -1017,9 +968,7 @@ struct extparam {
 	ROTATION logtype, countertype;	/* logtype: the rotation of the last log */
 	char * counterfile;
 	PROXYSOCKADDRTYPE intsa;
-#ifndef NOIPV6
 	PROXYSOCKADDRTYPE extsa6;
-#endif
 	PROXYSOCKADDRTYPE extsa;
 	struct passwords *pwl;
 	struct auth * authenticate;
@@ -1120,13 +1069,8 @@ extern const struct hashtable pwl_template;
 
 struct authcache {
         unsigned char username[64];
-#ifndef NOIPV6
         uint8_t sincr_addr[16];
         uint8_t sinsl_addr[16];
-#else
-        uint8_t sincr_addr[4];
-        uint8_t sinsl_addr[4];
-#endif
         uint16_t sincr_family;
         uint16_t sinsl_family;
 };

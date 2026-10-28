@@ -969,12 +969,10 @@ int looponce(struct loop *l, int maxwait){
 	{
 		unsigned j;
 
-#if defined WITH_POLL
-		n = poll(l->pfds, (nfds_t)l->npfds, timeo);
-#elif defined WITH_WSAPOLL
+#ifdef _WIN32
 		n = WSAPoll(l->pfds, l->npfds, timeo);
 #else
-		n = mypoll(l->pfds, l->npfds, timeo);
+		n = poll(l->pfds, (nfds_t)l->npfds, timeo);
 #endif
 		if(n > 0 && l->pfds[0].revents) woken = 1;
 		for(j = 1; n > 0 && j < l->npfds && l->nready < LOOPREADY; j++)

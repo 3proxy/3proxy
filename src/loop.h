@@ -19,7 +19,7 @@
 #define LOOP_EPOLL
 #elif !defined LOOP_POLL && (defined __APPLE__ || defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ || defined __DragonFly__)
 #define LOOP_KQUEUE
-#elif !defined LOOP_POLL && defined _WIN32 && !defined __WATCOMC__ && !defined _WINCE
+#elif !defined LOOP_POLL && defined _WIN32 && !defined _WINCE
 #define LOOP_AFD
 #elif !defined LOOP_POLL
 #define LOOP_POLL

@@ -285,9 +285,7 @@ static int addns(struct nserver *ns, int n, const char *s){
     if(n >= MAXNSERVERS) return n;
     memset(&sa, 0, sizeof(sa));
     if(inet_pton(AF_INET, s, SAADDR(&sa)) > 0) *SAFAMILY(&sa) = AF_INET;
-#ifndef NOIPV6
     else if(inet_pton(AF_INET6, s, SAADDR(&sa)) > 0) *SAFAMILY(&sa) = AF_INET6;
-#endif
     else return n;	/* a link-local one with %scope is not */
     *SAPORT(&sa) = htons(53);
     for(i = 0; i < n; i++)
@@ -363,9 +361,7 @@ static int readsysns(struct nserver *ns){
 	RegCloseKey(k);
     }
     n = regifaces(ns, n, "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces", "NameServer", 1);
-#ifndef NOIPV6
     n = regifaces(ns, n, "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\\Interfaces", "NameServer", 0);
-#endif
     n = regifaces(ns, n, "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces", "DhcpNameServer", 1);
     if(n < MAXNSERVERS && !RegOpenKeyExA(HKEY_LOCAL_MACHINE, tcpip, 0, KEY_READ, &k)){
 	if(regstr(k, "DhcpNameServer", buf, sizeof(buf))) n = addnslist(ns, n, buf);
@@ -475,9 +471,7 @@ static void hostsimport(void){
 	memcpy(name, tok, l);
 	name[l] = 0;
 	if(inet_pton(AF_INET, name, addr) > 0) af = 4;
-#ifndef NOIPV6
 	else if(inet_pton(AF_INET6, name, addr) > 0) af = 6;
-#endif
 	else continue;
 	ht = (af == 6)? &hosts6_table : &hosts_table;
 	/* its names */
@@ -532,9 +526,7 @@ static int sysdnsread(void){
 void sysdnsinit(void){
     _3proxy_mutex_init(&nservers_mutex);
     inithashtable(&hosts_table, 256, 256, 1 << 22);
-#ifndef NOIPV6
     inithashtable(&hosts6_table, 256, 256, 1 << 22);
-#endif
     sysdnsread();
     sysdns.checked = time(NULL);
     if(!sysdns.n) return;

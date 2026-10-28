@@ -62,16 +62,12 @@ static void pr_ip(struct node *node, CBFUNC cbf, void*cb){
 }
 
 static void pr_sa(struct node *node, CBFUNC cbf, void*cb){
-#ifdef NOIPV6
-	if(node->value)pr_ip(node, cbf, cb);
-#else
 	char buf[64];
 	buf[0] = '[';
 	buf[1] = 0;
 	inet_ntop(*SAFAMILY(node->value), SAADDR(node->value), buf+1, sizeof(buf)-10);
 	sprintf(buf + strlen(buf), "]:%hu", (unsigned short)*SAPORT(node->value));
 	if(node->value)(*cbf)(cb, buf, strlen(buf));
-#endif
 }
 
 static void pr_wdays(struct node *node, CBFUNC cbf, void*cb){
@@ -620,11 +616,9 @@ static void * ef_server_extsa(struct node * node){
 	return &((struct srvparam *)node->value) -> extsa;
 }
 
-#ifndef NOIPV6
 static void * ef_server_extsa6(struct node * node){
 	return &((struct srvparam *)node->value) -> extsa6;
 }
-#endif
 
 static void * ef_server_intNat(struct node * node){
 	return &((struct srvparam *)node->value) -> intNat;
@@ -916,9 +910,7 @@ static struct property prop_server[] = {
 	{"extsa", ef_server_extsa, TYPE_SA, "ip address of external interface"},
 	{"intnat", ef_server_intNat, TYPE_SA, "internal NAT address"},
 	{"extnat", ef_server_extNat, TYPE_SA, "external NAT address"},
-#ifndef NOIPV6
 	{"extsa6", ef_server_extsa6, TYPE_SA, "ipv6 address of external interface"},
-#endif
 	{"child", ef_server_child, TYPE_CLIENT, "connected clients"},
 	{"next", ef_server_next, TYPE_SERVER, "next"}
 };

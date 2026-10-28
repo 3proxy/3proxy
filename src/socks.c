@@ -117,10 +117,8 @@ void * sockschild(struct clientparam* param) {
  
  size = 4;
  switch(c) {
-#ifndef NOIPV6
 	case 4:
 		size = 16;
-#endif
 	case 1:
 		for (i = 0; i<size; i++){
 			if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
@@ -180,11 +178,7 @@ void * sockschild(struct clientparam* param) {
  	case 2:
 	case 3:
 
-#ifndef NOIPV6
 	 param->sinsl = *SAFAMILY(&param->req)==AF_INET6? param->srv->extsa6 : param->srv->extsa;
-#else
-	 param->sinsl = param->srv->extsa;
-#endif
 	 param->operation = command == 2?BIND:UDPASSOC;
 	 if(command == 2){
 		if ((param->remsock=nssocket(param->srv, &param->srv->so, param->sostate, NS_OUT, SASOCK(&param->req), SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET) {RETURN (11);}

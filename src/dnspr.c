@@ -253,12 +253,10 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 		ip = 1;
 		*(uint32_t *)q->addr = param->srv->fakeip;
 	}
-#ifndef NOIPV6
 	else if(q->type==0x1c && *(uint32_t *)param->srv->fakeip6){
 		ip = 1;
 		memcpy(q->addr, param->srv->fakeip6, 16);
 	}
-#endif
 	/* the name cache only: what it does not have the name servers are
 	   asked, without waiting here */
 	else if((q->type==0x01 || q->type==0x1c) && !param->srv->s_option){

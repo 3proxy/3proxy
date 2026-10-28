@@ -905,11 +905,6 @@ static struct commands file_commandhandlers[] = {
 
 static int file_loaded=0;
 
-#ifdef WATCOM
-#pragma aux file_plugin "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
-#undef PLUGINCALL
-#define PLUGINCALL
-#endif
 
  PLUGINAPI int PLUGINCALL file_plugin (struct pluginlink * pluginlink, 
 					 int argc, char** argv){

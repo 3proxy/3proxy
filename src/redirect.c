@@ -388,7 +388,6 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 			if(cur->type == R_EXTIP){
 				param->sinsl = cur->addr;
 				if(SAISNULL(&param->sinsl) && (*SAFAMILY(&param->sincr) == AF_INET || *SAFAMILY(&param->sincr) == AF_INET6))param->sinsl = param->sincr;
-#ifndef NOIPV6
 				else if(cur->cidr && *SAFAMILY(&param->sinsl) == AF_INET6){
 					uint16_t c;
 					int i;
@@ -403,7 +402,6 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 						}
 					}
 				}
-#endif
 				if(after)continue;
 				return 0;
 			}

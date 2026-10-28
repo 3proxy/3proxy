@@ -369,7 +369,6 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			break;
 		 case 'e':
 			{
-#ifndef NOIPV6
 				PROXYSOCKADDRTYPE sa6;
 				memset(&sa6, 0, sizeof(sa6));
 				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&sa6);
@@ -377,9 +376,6 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 					if (*SAFAMILY(&sa6)==AF_INET) srv->extsa = sa6;
 					else srv->extsa6 = sa6;
 				}
-#else
-				error = !getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&srv->extsa);
-#endif
 			}
 			break;
 		 case 'N':
@@ -467,9 +463,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 				memset(&fsa, 0, sizeof(fsa));
 				if(!getip46(46, (unsigned char *)argv[i]+2, (struct sockaddr *)&fsa)) error = 1;
 				else if(*SAFAMILY(&fsa) == AF_INET) srv->fakeip = *(uint32_t *)SAADDR(&fsa);
-#ifndef NOIPV6
 				else if(*SAFAMILY(&fsa) == AF_INET6) memcpy(srv->fakeip6, SAADDR(&fsa), 16);
-#endif
 				else error = 1;
 			}
 			break;
@@ -632,9 +626,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
  if(!*SAFAMILY(&srv->intsa)) *SAFAMILY(&srv->intsa) = AF_INET;
  if(!*SAPORT(&srv->intsa)) *SAPORT(&srv->intsa) = htons(childdef.port);
  *SAFAMILY(&srv->extsa) = AF_INET;
-#ifndef NOIPV6
  *SAFAMILY(&srv->extsa6) = AF_INET6;
-#endif
  if(hostname)parsehostname(hostname, defparam, childdef.port);
 
 #ifdef __linux__
@@ -788,9 +780,7 @@ void srvinit(struct srvparam * srv, struct clientparam *param){
  (void)_3proxy_sem_init_timed(srv->childslots, srv->maxchild, srv->maxchild);
  srv->intsa = conf->intsa;
  srv->extsa = conf->extsa;
-#ifndef NOIPV6
  srv->extsa6 = conf->extsa6;
-#endif
  srv->so = so;
  srv->authcachetime = conf->authcachetime;
  srv->authcachetype = conf->authcachetype;
@@ -817,10 +807,8 @@ void srvinit2(struct srvparam * srv, struct clientparam *param){
  *SAFAMILY(&param->sinsr) = AF_INET;
  *SAFAMILY(&param->req) = AF_INET;
  param->sincr = param->sincl = srv->intsa;
-#ifndef NOIPV6
  if (srv->family == 6 || srv->family == 64) param->sinsr = srv->extsa6;
  else 
-#endif
 	param->sinsr = srv->extsa;
 }
 

@@ -87,9 +87,7 @@ int cacheauth(struct clientparam * param){
 	((type & 4) && !*param->password) ||
 	(
 	 (type & 1) && *SAFAMILY(&param->sincr) != AF_INET
-#ifndef NOIPV6
 	    && *SAFAMILY(&param->sincr) != AF_INET6
-#endif
 	) || (!hashresolv(&auth_table, param, &ac, &ttl))) {
 	    return 4;
 	}
@@ -128,18 +126,14 @@ int doauth(struct clientparam * param){
 			    strncpy((char *)ac.username, (char *)param->username, 64);
 			    ac.username[63] = 0;
 			    if(*SAFAMILY(&param->sincr) == AF_INET
-#ifndef NOIPV6
 				 || *SAFAMILY(&param->sincr) == AF_INET6
-#endif
 			    ) {
 				ac.sincr_family = *SAFAMILY(&param->sincr);
 				memcpy(ac.sincr_addr, SAADDR(&param->sincr), SAADDRLEN(&param->sincr));
 			    }
 
 			    if(*SAFAMILY(&param->sinsl) == AF_INET
-#ifndef NOIPV6
 				 || *SAFAMILY(&param->sinsl) == AF_INET6
-#endif
 			    ) {
 				ac.sinsl_family = *SAFAMILY(&param->sinsl);
 				memcpy(ac.sinsl_addr, SAADDR(&param->sinsl), SAADDRLEN(&param->sinsl));

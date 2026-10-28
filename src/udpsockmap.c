@@ -141,11 +141,7 @@ static void udpreset(struct clientparam *param)
 	param->redirected = 0;
 	param->udp_nhops = 0;
 	memset(param->udp_relay, 0, sizeof(param->udp_relay));
-#ifndef NOIPV6
 	param->sinsl = *SAFAMILY(&param->req) == AF_INET6? param->srv->extsa6 : param->srv->extsa;
-#else
-	param->sinsl = param->srv->extsa;
-#endif
 	param->sinsr = param->req;
 }
 
@@ -259,13 +255,11 @@ int udpsockmap(struct clientparam *param, int timeo)
 				if (socks5_setaddr(param->srv->family, 1, base + 4, &dst)) continue;
 				i = 8;
 				break;
-#ifndef NOIPV6
 			case 4:
 				if (len < 22) return 484;
 				if (socks5_setaddr(param->srv->family, 4, base + 4, &dst)) continue;
 				i = 20;
 				break;
-#endif
 			case 3: {
 				int sz = base[4];
 				if (len < 7 + sz) return 485;

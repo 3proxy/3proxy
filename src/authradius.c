@@ -526,15 +526,9 @@ int radsend(struct clientparam * param, int auth, int stop){
 
 
 		saremote = auth?param->srv->config->radiuslist[loop].authaddr : param->srv->config->radiuslist[loop].logaddr;
-#ifdef NOIPV6
-		if(*SAFAMILY(&saremote)!= AF_INET) {
-			continue;
-		}
-#else
 		if(*SAFAMILY(&saremote)!= AF_INET && *SAFAMILY(&saremote)!= AF_INET6){
 			continue;
 		}
-#endif
 
 /*
 		if(auth) {

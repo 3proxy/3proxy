@@ -170,11 +170,6 @@ BOOL WINAPI DllMain( HINSTANCE hModule,
 
 #endif
 
-#ifdef WATCOM
-#pragma aux start "*" parm caller [ ] value struct float struct routine [eax] modify [eax ecx edx]
-#undef PLUGINCALL
-#define PLUGINCALL
-#endif
 
 PLUGINAPI int PLUGINCALL start(struct pluginlink * pluginlink, 
 				 int argc, char** argv)

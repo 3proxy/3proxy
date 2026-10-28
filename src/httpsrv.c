@@ -480,19 +480,9 @@ static int filemeta(const char *path, struct filemeta *m)
 {
 #ifdef _WIN32
 	wchar_t wide[HTTPSRV_LINE];
-#ifdef __WATCOMC__
-	/* Open Watcom has the 64-bit stat under its older name */
-#ifndef _S_IFREG
-#define _S_IFREG S_IFREG
-#endif
-	struct _stati64 st;
-
-	if(widepath(path, wide, HTTPSRV_LINE) || _wstati64(wide, &st)) return 1;
-#else
 	struct _stat64 st;
 
 	if(widepath(path, wide, HTTPSRV_LINE) || _wstat64(wide, &st)) return 1;
-#endif
 	m->size = (uint64_t)st.st_size;
 	m->mtime = st.st_mtime;
 	m->isreg = (st.st_mode & _S_IFREG) != 0;

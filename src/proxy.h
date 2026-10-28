@@ -70,9 +70,6 @@
 #define SHUT_WR SD_SEND
 #define SHUT_RD SD_RECEIVE
 #else
-#ifndef FD_SETSIZE
-#define FD_SETSIZE 4096
-#endif
 #include <signal.h>
 #include <sys/uio.h>
 #include <sys/time.h>
