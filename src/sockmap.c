@@ -35,18 +35,16 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
    and EBADMSG on some kernels */
 #define SPLICEREFUSED(e) ((e) == EINVAL || (e) == EIO || (e) == EBADMSG)
 
-/* A pipe for splice(), nonblocking, of PIPESIZE: -1 if there is none to be
-   had, or not of that size. */
-int pipenew(int p[2]){
+/* A pipe for splice(), nonblocking, holding size: -1 if there is none to
+   be had, or not so large. A pipe holds 64K as it is made. */
+int pipenew(int p[2], unsigned size){
 	if(pipe2(p, O_NONBLOCK) < 0) return -1;
-#if PIPESIZE != 65536
-	if(fcntl(p[0], F_SETPIPE_SZ, PIPESIZE) < 0){
+	if(size != 65536 && fcntl(p[0], F_SETPIPE_SZ, (int)size) < 0){
 		close(p[0]);
 		close(p[1]);
 		p[0] = p[1] = -1;
 		return -1;
 	}
-#endif
 	return 0;
 }
 
@@ -140,6 +138,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 
 #ifdef WITHSPLICE
  uint64_t inclientpipe = 0, inserverpipe = 0;
+ unsigned pipesize = SRVPIPESIZE(param->srv);
  int TOCLIENTPIPE = 0, FROMCLIENTPIPE = 0, TOSERVERPIPE = 0, FROMSERVERPIPE = 0;
  /* The client's data goes through pipecli, the server's through pipesrv.
     They belong to the connection: made when first needed, kept for the
@@ -361,7 +360,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 		/* each direction goes through its pipe if spliced, through its
 		   buffer otherwise; what was in the buffer before is sent first */
 		if(splicecli && inclientpipe && !inclientbuf && FROMCLIENTPIPE && TOSERVER){
-			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(PIPESIZE, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(pipesize, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			/* from a pipe holding data: the socket is full */
 			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->remsock, POLLOUT);
 			if(res >0) {
@@ -388,7 +387,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 			}
 		}
 		if(splicesrv && inserverpipe && !inserverbuf && FROMSERVERPIPE && TOCLIENT){
-			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(PIPESIZE, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(pipesize, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			/* from a pipe holding data: the socket is full */
 			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->clisock, POLLOUT);
 			if(res > 0) {
@@ -408,7 +407,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 			}
 		}
 		if(splicecli && !wantbufcli && fromclient>inclientpipe && FROMCLIENT && TOCLIENTPIPE && !SESSIONEND){
-			if(pipecli[0] < 0 && pipenew(pipecli) < 0){
+			if(pipecli[0] < 0 && pipenew(pipecli, pipesize) < 0){
 				/* no pipe to be had: copy instead */
 				allowcli = splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 0;
 				if(param->cliinbuf < CLIROOM) TOCLIENTBUF = 1;
@@ -425,7 +424,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 				continue;
 			}
 			errno = 0;
-			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)PIPESIZE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)pipesize - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			if(res <= 0) {
 				FROMCLIENT = TOCLIENTPIPE = 0;
 				if(res == 0 && !errno) {
@@ -455,13 +454,13 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 					else if(++streakcli > splicestreak) wantbufcli = 1;
 				}
 				inclientpipe += res;
-				if(inclientpipe >= PIPESIZE) TOCLIENTPIPE = 0;
+				if(inclientpipe >= pipesize) TOCLIENTPIPE = 0;
 				needaction = 0;
 				continue;
 			}
 		}
 		if(splicesrv && !wantbufsrv && fromserver > inserverpipe && FROMSERVER && TOSERVERPIPE && !SESSIONEND){
-			if(pipesrv[0] < 0 && pipenew(pipesrv) < 0){
+			if(pipesrv[0] < 0 && pipenew(pipesrv, pipesize) < 0){
 				allowsrv = splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 0;
 				if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
 				continue;
@@ -475,7 +474,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 				continue;
 			}
 			errno = 0;
-			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(PIPESIZE - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(pipesize - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			if(res <= 0) {
 				FROMSERVER = TOSERVERPIPE = 0;
 				if(res == 0 && !errno) {
@@ -505,7 +504,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 			    	param->nreads++;
 				param->statssrv64 += res;
 				inserverpipe += res;
-				if(inserverpipe >= PIPESIZE) TOSERVERPIPE = 0;
+				if(inserverpipe >= pipesize) TOSERVERPIPE = 0;
 				if(param->bandlimfunc) {
 					int sl1;
 					sl1 = (*param->bandlimfunc)(param, res, 0);
@@ -753,7 +752,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 //		}
 #ifdef WITHSPLICE
 		{
-			if(splicecli && fromclient>inclientpipe && !TOCLIENTPIPE && inclientpipe < PIPESIZE){
+			if(splicecli && fromclient>inclientpipe && !TOCLIENTPIPE && inclientpipe < pipesize){
 				if(!after){
 					fds[fdsc].fd = pipecli[1];
 					fds[fdsc].events |= POLLOUT;
@@ -781,7 +780,7 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
 				}
 				fdsc++;
 			}
-			if(splicesrv && fromserver>inserverpipe && !TOSERVERPIPE && inserverpipe < PIPESIZE){
+			if(splicesrv && fromserver>inserverpipe && !TOSERVERPIPE && inserverpipe < pipesize){
 				if(!after){
 					fds[fdsc].fd = pipesrv[1];
 					fds[fdsc].events |= POLLOUT;

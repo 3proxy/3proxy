@@ -723,6 +723,7 @@ struct srvparam {
 	int usesplice;
 	/* the automatic mode's heuristics, -s[N]:MIN,STREAK,SMALL */
 	int splicemin, splicestreak, splicesmall;
+	unsigned pipesize;	/* -b,SIZE: what a pipe is made to hold, 0 PIPESIZE */
 #endif
 	int halfclose;
 	int udpauth;

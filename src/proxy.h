@@ -614,11 +614,14 @@ extern struct commands commandhandlers[];
 #define SPLICE_TLSPENDING 2
 extern int (*splicetls)(struct clientparam *param, SOCKET s);
 /* what a pipe of splice() is given at most: 64K, what a pipe holds;
-   built with -DPIPESIZE=<bytes>, pipes are made that large */
+   built with -DPIPESIZE=<bytes>, or for a service given -b,<bytes>, pipes
+   are made that large, up to MAXPIPESIZE */
 #ifndef PIPESIZE
 #define PIPESIZE 65536
 #endif
-int pipenew(int p[2]);
+#define MAXPIPESIZE (64 * 1024 * 1024)
+#define SRVPIPESIZE(srv) ((srv)->pipesize? (srv)->pipesize : (unsigned)PIPESIZE)
+int pipenew(int p[2], unsigned size);
 #define mapsocket(a,b) ((a->srv->usesplice && !a->nosplice && !a->ndatfilterssrv && !a->ndatfilterscli)?sockmap(a,b,a->srv->usesplice):sockmap(a,b,0))
 #else
 #define mapsocket(a,b) sockmap(a,b, 0)

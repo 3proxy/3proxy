@@ -229,6 +229,17 @@ the filters see all of the data, nor does one ending or beginning TLS, unless
 the kernel does TLS for it both ways (\fBssl_ktls\fR). Available in builds with
 WITHSPLICE, the default on Linux.
 .br
+.B -b
+\fISIZE\fR[\fB,\fIPIPESIZE\fR] (for TCP services) read at most \fISIZE\fR bytes at
+once into a connection's buffer: less than the 16K it has, never more.
+\fIPIPESIZE\fR (Linux, with \fB-s\fR) makes the pipes of splice() hold that many
+bytes instead of 64K, from 4096 to 67108864, e.g. \fB-b,262144\fR: the
+system rounds it up to a power of 2 pages, and gives an unprivileged process
+no more than /proc/sys/fs/pipe-max-size (1M by default). A pipe that cannot
+be made so large is not used, and the data is copied. Larger pipes move more
+at once and take more kernel memory for each connection; 64K was as fast as
+larger ones in our tests.
+.br
 .B -C
  (for TCP services) a connection closed by any of the sides terminates the
 session, buffered data is delivered before the sockets are closed. By default

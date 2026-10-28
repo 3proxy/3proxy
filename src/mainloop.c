@@ -620,13 +620,13 @@ static int cbway(struct cbmap *m, struct cbway *w){
 
 		/* what was buffered goes first: the pipe is read once it is
 		   through */
-		if(!inb && !w->wantbuf && w->left > w->inpipe && !m->term_r[w->src] && !end && w->inpipe < PIPESIZE &&
+		if(!inb && !w->wantbuf && w->left > w->inpipe && !m->term_r[w->src] && !end && w->inpipe < SRVPIPESIZE(param->srv) &&
 		    (rs->ready & (POLLIN | POLLHUP | POLLERR))){
-			if(pipe[0] < 0 && pipenew(pipe) < 0){
+			if(pipe[0] < 0 && pipenew(pipe, SRVPIPESIZE(param->srv)) < 0){
 				w->splice = 0;
 				return 1;
 			}
-			n = splice(from, NULL, pipe[1], NULL, (size_t)CBMIN((uint64_t)PIPESIZE - w->inpipe,
+			n = splice(from, NULL, pipe[1], NULL, (size_t)CBMIN((uint64_t)SRVPIPESIZE(param->srv) - w->inpipe,
 				w->left - w->inpipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 			if(n > 0){
 				w->inpipe += n;

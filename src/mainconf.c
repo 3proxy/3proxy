@@ -400,7 +400,16 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			srv->family = atoi(argv[i]+1);
 			break;
 		 case 'b':
+			/* -b[SIZE][,PIPESIZE] */
 			srv->bufsize = atoi(argv[i]+2);
+#ifdef WITHSPLICE
+			if(strchr(argv[i]+2, ',')){
+				long n = atol(strchr(argv[i]+2, ',') + 1);
+
+				if(n < 4096 || n > MAXPIPESIZE) error = 1;
+				else srv->pipesize = (unsigned)n;
+			}
+#endif
 			break;
 #ifdef STDMAIN
 #ifndef _WIN32
