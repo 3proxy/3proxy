@@ -70,7 +70,7 @@ ifeq ($(PF_CHECK), true)
 endif
 ifeq ($(STATIC), true)
     LDFLAGS += -static
-    CFLAGS += -DNOPLUGINS -DNOSTDRESOLVE -DNOCRYPT
+    CFLAGS += -DNOPLUGINS -DNOSTDRESOLVE
     ZLIB = -lz -lzstd
     PLUGINS =
     PAM_CHECK = false

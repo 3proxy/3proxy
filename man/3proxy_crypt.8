@@ -15,7 +15,7 @@ configuration. Encrypted passwords allow the system to avoid storing
 passwords in cleartext in configuration files.
 .PP
 When invoked with a single argument, it produces an NT password hash
-(MD4-based, suitable for NTLM authentication). The output is prefixed with
+(MD4-based, as Windows stores passwords). The output is prefixed with
 .BR NT: .
 .PP
 When invoked with two arguments (salt and password), it produces a BLAKE2b

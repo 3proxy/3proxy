@@ -461,9 +461,6 @@ SOCKET ftpcommand(struct clientparam *param, unsigned char * command, unsigned c
 
 int text2unicode(const char * text, char * buf, int buflen);
 void unicode2text(const char *unicode, char * buf, int len);
-void genchallenge(struct clientparam *param, char * challenge, char *buf);
-void mschap(const unsigned char *win_password,
-		 const unsigned char *challenge, unsigned char *response);
 
 void destroyhashtable(struct hashtable *ht);
 int inithashtable(struct hashtable *ht, unsigned tablesize, unsigned poolsize, unsigned growlimit);

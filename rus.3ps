@@ -30,7 +30,8 @@ Content-type: text/html; charset=utf-8\n
 HTTP/1.0 200 OK\n
 Connection: close\n
 Cache-Control: no-cache\n
-Content-type: text/xml; charset=utf-8 \n
+Content-type: text/xml; charset=utf-8\n
+Content-disposition: inline; filename=running.xml\n
 \n
 <?xml version="1.0"?>\n
 <?xml-stylesheet href="/SX" type="text/css"?>\n
@@ -100,11 +101,11 @@ value {\n
 [end]
 <h3>Счетчики</h3>\n
 <table border = '1'>\n
-<tr align='center'><td>Описание</td><td>Активный</td>
+<tr align='center'><td>Действие</td><td>#/Описание</td><td>Активный</td>
 <td>Пользователи</td><td>Адрес источника</td><td>Адрес назначения</td>
 <td>Порты</td>
 <td>Лимит</td><td>Ед.</td><td>Значение</td>
-<td>Дата сброса</td><td>Дата обновения</td><td>Номер</td></tr>\n
+<td>Дата сброса</td><td>Дата обновления</td><td>Номер</td></tr>\n
 [end]
 </table>\n
 [end]
@@ -197,7 +198,7 @@ Content-type: text/html; charset=utf-8\n
 <body><h2>404 Not Found</h2><h3>File not found <br><hr>
 Файл не найден
 </h3></body></html>\n
-[end]	
+[end]
 HTTP/1.0 403 Forbidden\n
 Connection: close\n
 Content-type: text/html; charset=utf-8\n
@@ -208,25 +209,9 @@ Content-type: text/html; charset=utf-8\n
 Если Вы считаете, что это ошибка обратитесь к администратору
 </h3></body></html>\n
 [end]
-HTTP/1.0 407 Proxy Authentication Required\n
-Proxy-Authenticate: NTLM\n
-Proxy-Authenticate: basic realm="proxy", encoding="utf-8"\n
-Connection: close\n
-Content-type: text/html; charset=utf-8\n
-\n
-<html><head><title>407 Proxy Authentication Required</title></head>\n
-<body><h2>407 Proxy Authentication Required</h2><h3>Access to requested resource disallowed by administrator or you need valid username/password to use this resource.<br><hr>
-Доступ запрещен администратором или Вы ввели неправильное имя/пароль.
-</h3></body></html>\n
-[end]
-HTTP/1.0 407 Proxy Authentication Required\n
-Connection: keep-alive\n
-Content-Length: 0\n
-Proxy-Authenticate: NTLM 
-[end]
 HTTP/1.0 403 Forbidden\n
 Connection: close\n
-Content-type: text/html; charset=us-ascii\n
+Content-type: text/html; charset=utf-8\n
 \n
 <pre>
 [end]

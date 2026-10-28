@@ -88,36 +88,20 @@ char * proxy_stringtable[] = {
 	"<html><head><title>403 Access Denied</title></head>\r\n"
 	"<body><h2>403 Access Denied</h2><h3>Access control list denies you to access this resource</body></html>\r\n",
 
-/* 12*/	"HTTP/1.0 407 Proxy Authentication Required\r\n"
-#ifndef NOCRYPT
-	"Proxy-Authenticate: NTLM\r\n"
-#endif
-	"Proxy-Authenticate: Basic realm=\"proxy\"\r\n"
-	"Connection: close\r\n"
-	"Content-type: text/html; charset=utf-8\r\n"
-	"\r\n"
-	"<html><head><title>407 Proxy Authentication Required</title></head>\r\n"
-	"<body><h2>407 Proxy Authentication Required</h2><h3>Access to requested resource disallowed by administrator or you need valid username/password to use this resource</h3></body></html>\r\n",
-
-/* 13*/	"HTTP/1.0 407 Proxy Authentication Required\r\n"
-	"Connection: keep-alive\r\n"
-	"Content-Length: 0\r\n"
-	"Proxy-Authenticate: NTLM ",
-
-/* 14*/	"HTTP/1.0 403 Forbidden\r\n"
+/* 12*/	"HTTP/1.0 403 Forbidden\r\n"
 	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<pre>",
 
-/* 15*/	"HTTP/1.0 503 Service Unavailable\r\n"
+/* 13*/	"HTTP/1.0 503 Service Unavailable\r\n"
 	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
 	"\r\n"
 	"<html><head><title>503 Service Unavailable</title></head>\r\n"
 	"<body><h2>503 Service Unavailable</h2><h3>Your request violates configured policy</h3></body></html>\r\n",
 
-/* 16*/	"HTTP/1.0 401 Authentication Required\r\n"
+/* 14*/	"HTTP/1.0 401 Authentication Required\r\n"
 	"WWW-Authenticate: Basic realm=\"FTP Server\"\r\n"
 	"Connection: close\r\n"
 	"Content-type: text/html; charset=utf-8\r\n"
@@ -125,7 +109,7 @@ char * proxy_stringtable[] = {
 	"<html><head><title>401 FTP Server requires authentication</title></head>\r\n"
 	"<body><h2>401 FTP Server requires authentication</h2><h3>This FTP server rejects anonymous access</h3></body></html>\r\n",
 
-/* 17*/ "HTTP/1.1 100 Continue\r\n"
+/* 15*/ "HTTP/1.1 100 Continue\r\n"
 	"\r\n",
 
 	NULL
@@ -532,7 +516,7 @@ static void proxystatus(struct clientparam *param, int hdrsdone, char *ftpbuf, i
 	}
  }
  if(r == 10) stidx = 2;
- else if(r == 700 || r == 701) stidx = 16;
+ else if(r == 700 || r == 701) stidx = 14;
  else if(r == 100 || (r > 10 && r < 20) || (r > 701 && r <= 705)) stidx = 1;
  else if(r >= 20 && r < 30) stidx = 6;
  else if(r >= 30 && r < 80) stidx = 5;
@@ -540,7 +524,7 @@ static void proxystatus(struct clientparam *param, int hdrsdone, char *ftpbuf, i
  else if(r < 10) stidx = 7;
  else if(r == 999) stidx = 4;
  else if(r == 519) stidx = 3;
- else if(r == 517) stidx = 15;
+ else if(r == 517) stidx = 13;
  else if(r == 780) stidx = 10;
  else if(r >= 511 && r <= 516) stidx = 0;
 
@@ -841,7 +825,7 @@ for(;;){
 	}
 	if( i > 11 && !strncasecmp((char *)(buf+inbuf),  "Expect: 100", 11)){
 		keepalive = 1;
-		send_st(param, 17);
+		send_st(param, 15);
 		continue;
 	}
 	if(param->transparent && i > 6 && !strncasecmp((char *)buf + inbuf, "Host:", 5)){
