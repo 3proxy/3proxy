@@ -61,14 +61,9 @@ char **load_string(FILE *f,int max_count_str, int *countloadstr,
 
      if (strstr(tmpbuf1,"[end]")==NULL)
       {
-         /* find and replace \n  \r*/
-         rstr = tmpbuf1;
-         while (*rstr!='\0')
-           {  
-             if (*rstr=='\r' || *rstr=='\n' )
-              {  *rstr='\0';  rstr++;  }   
-              rstr++;
-           } 
+         /* the line's end cut off: what the file says with \n is what is
+            sent */
+         tmpbuf1[strcspn(tmpbuf1, "\r\n")] = '\0';
 
          while ((rstr=strstr(tmpbuf1,"\\n")))
            {  
