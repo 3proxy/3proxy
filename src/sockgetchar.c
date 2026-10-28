@@ -77,13 +77,311 @@ int sockrecvfrom(struct clientparam *param, SOCKET sock, struct sockaddr * sin, 
 	}
 }
 
+/* The buffer pool: the connections' own buffers, CLIENTBUFSIZE each, from
+   memory mapped for them rather than from the heap, which keeps what it is
+   given back. Mapped in chunks of POOLUNITS units, a chunk aligned to its
+   size so that a buffer's chunk is its address rounded down; the first
+   unit holds the chunk's header. A unit is a page, or CLIENTBUFSIZE if
+   pages are smaller: with pages of 4 or 16 KB a buffer is a unit of its
+   own, with pages of 64 KB a unit holds four. A unit with all its buffers
+   free is hot, kept as it is for the next one asked for, the most recently
+   freed first; more of them than POOLHOT and an eighth of those in use,
+   and the least recently freed are let go, their pages given back to the
+   system, and a chunk all of whose units are let go is unmapped. Without
+   bufpoolinit(), with pages it cannot use or built for AddressSanitizer
+   (unless WITHBUFPOOL is defined), the buffers are malloc()'s. */
+#if defined __has_feature
+#if __has_feature(address_sanitizer)
+#define BUFPOOL_ASAN
+#endif
+#endif
+#if defined __SANITIZE_ADDRESS__ && !defined BUFPOOL_ASAN
+#define BUFPOOL_ASAN
+#endif
+#if defined BUFPOOL_ASAN && !defined WITHBUFPOOL && !defined NOBUFPOOL
+#define NOBUFPOOL
+#endif
+#if defined BUFPOOL_ASAN && defined _WIN32
+#undef BUFPOOL_ASAN
+#endif
+#ifdef BUFPOOL_ASAN
+#include <sanitizer/asan_interface.h>
+#define POOLPOISON(p, size) ASAN_POISON_MEMORY_REGION((p), (size))
+#define POOLUNPOISON(p, size) ASAN_UNPOISON_MEMORY_REGION((p), (size))
+#else
+#define POOLPOISON(p, size)
+#define POOLUNPOISON(p, size)
+#endif
+
+#ifndef NOBUFPOOL
+#ifndef _WIN32
+#include <sys/mman.h>
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+#endif
+
+#define POOLUNITS 64	/* a chunk's units, its header's among them */
+#define POOLHOT 64	/* hot units kept at least */
+#define POOLTRIM 32	/* hot units over the limit before any is let go */
+#define POOLBATCH 64	/* units let go at a time at most */
+
+struct poolunit {
+	struct poolunit *prev, *next;	/* in its list, if it is in one */
+	unsigned freemask;		/* its buffers not in use */
+};
+
+struct poolchunk {
+	unsigned ncold;			/* units let go */
+	struct poolunit unit[POOLUNITS];	/* unit[0] is the header's */
+};
+
+static struct {
+	_3proxy_mutex_t mutex;
+	size_t unit, chunk;	/* bytes; unit 0 while the pool is not used */
+	unsigned all;		/* freemask of a unit with all its buffers free */
+	unsigned nhot, nused;	/* hot units, buffers in use */
+	/* list heads: units with buffers both in use and free, hot units
+	   (the most recently freed first), units let go */
+	struct poolunit partial, hot, cold;
+} pool;
+
+static void unitlink(struct poolunit *head, struct poolunit *u){
+	u->prev = head;
+	u->next = head->next;
+	head->next->prev = u;
+	head->next = u;
+}
+
+static void unitunlink(struct poolunit *u){
+	u->prev->next = u->next;
+	u->next->prev = u->prev;
+}
+
+static struct poolchunk *chunkof(const void *p){
+	return (struct poolchunk *)((uintptr_t)p & ~(uintptr_t)(pool.chunk - 1));
+}
+
+static unsigned char *unitaddr(struct poolunit *u){
+	struct poolchunk *c = chunkof(u);
+
+	return (unsigned char *)c + (size_t)(u - c->unit) * pool.unit;
+}
+
+/* pages given back to the system, their addresses kept, and made ready to
+   be used again */
+static void pagesrelease(void *p, size_t size){
+#ifdef _WIN32
+	VirtualAlloc(p, size, MEM_RESET, PAGE_READWRITE);
+#elif defined __linux__ || !defined MADV_FREE
+	/* MADV_FREE leaves them counted to the process until memory is short */
+	madvise(p, size, MADV_DONTNEED);
+#elif defined MADV_FREE_REUSABLE
+	madvise(p, size, MADV_FREE_REUSABLE);
+#else
+	madvise(p, size, MADV_FREE);
+#endif
+}
+
+static void pagesreuse(void *p, size_t size){
+#if !defined _WIN32 && defined MADV_FREE_REUSE && !defined __linux__
+	madvise(p, size, MADV_FREE_REUSE);
+#endif
+}
+
+static void chunkunmap(struct poolchunk *c){
+	POOLUNPOISON(c, pool.chunk);
+#ifdef _WIN32
+	VirtualFree(c, 0, MEM_RELEASE);
+#else
+	munmap((void *)c, pool.chunk);
+#endif
+}
+
+/* A chunk mapped, its units let go as they are; 1 if it cannot be had. */
+static int chunknew(void){
+	struct poolchunk *c = NULL;
+	unsigned i;
+#ifdef _WIN32
+	/* reserved twice the size to find an aligned place, which is then
+	   taken unless another thread got there first */
+	for(i = 0; i < 16 && !c; i++){
+		unsigned char *p = VirtualAlloc(NULL, pool.chunk * 2, MEM_RESERVE, PAGE_NOACCESS);
+
+		if(!p) return 1;
+		VirtualFree(p, 0, MEM_RELEASE);
+		c = VirtualAlloc((void *)(((uintptr_t)p + pool.chunk - 1) & ~(uintptr_t)(pool.chunk - 1)),
+			pool.chunk, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	}
+	if(!c) return 1;
+#else
+	unsigned char *p, *a;
+
+	p = mmap(NULL, pool.chunk * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if(p == MAP_FAILED) return 1;
+	a = (unsigned char *)(((uintptr_t)p + pool.chunk - 1) & ~(uintptr_t)(pool.chunk - 1));
+	if(a > p) munmap(p, (size_t)(a - p));
+	if(a + pool.chunk < p + pool.chunk * 2) munmap(a + pool.chunk, (size_t)(p + pool.chunk * 2 - (a + pool.chunk)));
+#ifdef MADV_NOHUGEPAGE
+	/* a huge page would be taken whole for the first buffer of it */
+	madvise(a, pool.chunk, MADV_NOHUGEPAGE);
+#endif
+	c = (struct poolchunk *)a;
+#endif
+	POOLPOISON((unsigned char *)c + pool.unit, pool.chunk - pool.unit);
+	c->ncold = POOLUNITS - 1;
+	for(i = 1; i < POOLUNITS; i++){
+		c->unit[i].freemask = pool.all;
+		unitlink(&pool.cold, c->unit + i);
+	}
+	return 0;
+}
+
+/* The pool set up, before any buffer is made. */
+void bufpoolinit(void){
+	size_t page;
+
+	if(pool.unit) return;
+#ifdef _WIN32
+	{
+		SYSTEM_INFO si;
+
+		GetSystemInfo(&si);
+		page = si.dwPageSize;
+	}
+#else
+	page = (size_t)sysconf(_SC_PAGESIZE);
+#endif
+	pool.unit = page > CLIENTBUFSIZE? page : CLIENTBUFSIZE;
+	pool.chunk = pool.unit * POOLUNITS;
+	/* pages it cannot cut into buffers, or more of them in one than the
+	   mask has room for, or a chunk it cannot align to its size */
+	if(!page || pool.unit % page || pool.unit % CLIENTBUFSIZE || pool.unit / CLIENTBUFSIZE > 32 ||
+	    (pool.chunk & (pool.chunk - 1)) || sizeof(struct poolchunk) > pool.unit){
+		pool.unit = 0;
+		return;
+	}
+	pool.all = (pool.unit / CLIENTBUFSIZE == 32)? ~0U : (1U << (pool.unit / CLIENTBUFSIZE)) - 1;
+	_3proxy_mutex_init(&pool.mutex);
+	pool.partial.prev = pool.partial.next = &pool.partial;
+	pool.hot.prev = pool.hot.next = &pool.hot;
+	pool.cold.prev = pool.cold.next = &pool.cold;
+}
+
+/* A buffer of the pool's, NULL if it cannot be had. */
+static unsigned char *poolget(void){
+	struct poolunit *u;
+	unsigned char *p;
+	unsigned i, was;
+	int cold = 0;
+
+	_3proxy_mutex_lock(&pool.mutex);
+	if((u = pool.partial.next) == &pool.partial){
+		if((u = pool.hot.next) != &pool.hot) pool.nhot--;
+		else {
+			if(pool.cold.next == &pool.cold && chunknew()){
+				_3proxy_mutex_unlock(&pool.mutex);
+				return NULL;
+			}
+			u = pool.cold.next;
+			chunkof(u)->ncold--;
+			cold = 1;
+		}
+	}
+	was = u->freemask;
+	for(i = 0; !(was & (1U << i)); i++);
+	u->freemask = was & ~(1U << i);
+	if(was == pool.all){
+		unitunlink(u);
+		if(u->freemask) unitlink(&pool.partial, u);
+	}
+	else if(!u->freemask) unitunlink(u);
+	pool.nused++;
+	_3proxy_mutex_unlock(&pool.mutex);
+	if(cold) pagesreuse(unitaddr(u), pool.unit);
+	p = unitaddr(u) + (size_t)i * CLIENTBUFSIZE;
+	POOLUNPOISON(p, CLIENTBUFSIZE);
+	return p;
+}
+
+/* A buffer given back to the pool, and if too many units are hot, the
+   least recently freed let go. */
+static void poolput(unsigned char *p){
+	struct poolchunk *c = chunkof(p), *gone[POOLBATCH];
+	struct poolunit *u, *let[POOLBATCH];
+	size_t off = (size_t)(p - (unsigned char *)c);
+	unsigned i = (unsigned)(off % pool.unit / CLIENTBUFSIZE), was, limit, n = 0, ngone = 0, j, k;
+
+	POOLPOISON(p, CLIENTBUFSIZE);
+	u = c->unit + off / pool.unit;
+	_3proxy_mutex_lock(&pool.mutex);
+	was = u->freemask;
+	u->freemask = was | (1U << i);
+	pool.nused--;
+	if(u->freemask == pool.all){
+		if(was) unitunlink(u);
+		unitlink(&pool.hot, u);
+		pool.nhot++;
+	}
+	else if(!was) unitlink(&pool.partial, u);
+	limit = POOLHOT + pool.nused / (unsigned)(pool.unit / CLIENTBUFSIZE) / 8;
+	if(pool.nhot > limit + POOLTRIM){
+		/* out of every list while their pages are given back, which is
+		   done unlocked: nothing can take them */
+		while(pool.nhot > limit && n < POOLBATCH){
+			let[n] = pool.hot.prev;
+			unitunlink(let[n++]);
+			pool.nhot--;
+		}
+	}
+	_3proxy_mutex_unlock(&pool.mutex);
+	if(!n) return;
+	for(j = 0; j < n; j++) pagesrelease(unitaddr(let[j]), pool.unit);
+	_3proxy_mutex_lock(&pool.mutex);
+	for(j = 0; j < n; j++){
+		c = chunkof(let[j]);
+		unitlink(&pool.cold, let[j]);
+		/* a chunk all let go is unmapped */
+		if(++c->ncold == POOLUNITS - 1){
+			for(k = 1; k < POOLUNITS; k++) unitunlink(c->unit + k);
+			gone[ngone++] = c;
+		}
+	}
+	_3proxy_mutex_unlock(&pool.mutex);
+	for(j = 0; j < ngone; j++) chunkunmap(gone[j]);
+}
+#else
+void bufpoolinit(void){
+}
+#endif
+
+/* A buffer for a side of a connection, CLIENTBUFSIZE, NULL if it cannot be
+   had. */
+static unsigned char *bufnew(void){
+#ifndef NOBUFPOOL
+	if(pool.unit) return poolget();
+#endif
+	return malloc(CLIENTBUFSIZE);
+}
+
+static void bufgone(unsigned char *p){
+	if(!p) return;
+#ifndef NOBUFPOOL
+	if(pool.unit){
+		poolput(p);
+		return;
+	}
+#endif
+	free(p);
+}
+
 /* The side's own buffer, made if it is not there, and the one used if
    none is. 1 if it cannot be had. */
 int bufget(struct clientparam * param, DIRECTION which){
 	unsigned char **own = which? &param->srvbufdata : &param->clibufdata;
 	unsigned char **buf = which? &param->srvbuf : &param->clibuf;
 
-	if(!*own && !(*own = malloc(CLIENTBUFSIZE))) return 1;
+	if(!*own && !(*own = bufnew())) return 1;
 	if(!*buf) *buf = *own;
 	return 0;
 }
@@ -97,8 +395,8 @@ int bufalloc(struct clientparam * param){
 void buffree(struct clientparam * param){
 	if(param->clibuf == param->clibufdata) param->clibuf = NULL;
 	if(param->srvbuf == param->srvbufdata) param->srvbuf = NULL;
-	free(param->clibufdata);
-	free(param->srvbufdata);
+	bufgone(param->clibufdata);
+	bufgone(param->srvbufdata);
 	param->clibufdata = param->srvbufdata = NULL;
 }
 
@@ -111,7 +409,7 @@ void bufdrop(struct clientparam * param, DIRECTION which){
 	unsigned *off = which? &param->srvoffset : &param->clioffset;
 
 	if(!*own || *buf != *own || *in != *off) return;
-	free(*own);
+	bufgone(*own);
 	*own = *buf = NULL;
 	*in = *off = 0;
 }

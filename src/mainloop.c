@@ -499,9 +499,8 @@ struct cbmap {
 	int res;
 };
 
-/* as sockmap()'s ROOM() */
-#define CBROOM(size, inbuf) ((((size) == CLIENTBUFSIZE && (inbuf) <= CLIENTBUFSIZE - 64)? \
-	(uint64_t)(CLIENTBUFSIZE - 64) : (uint64_t)(size)) - (inbuf))
+/* as sockmap()'s CLIROOM and SRVROOM, what is left of it */
+#define CBROOM(size, inbuf) ((uint64_t)(size) - (inbuf))
 
 #define CBAGAIN(e) ((e) == EAGAIN || (e) == EWOULDBLOCK || (e) == EINTR)
 #define CBMIN(a, b) ((a) < (b)? (a) : (b))

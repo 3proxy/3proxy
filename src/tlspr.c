@@ -266,9 +266,13 @@ int parsehello(int type, unsigned char *hello, unsigned len, char *sni, int * sn
     return snifound;
 }
 
+/* the largest record: TLS 1.2's ciphertext, 2^14 + 2048, and its header */
+#define TLSRECORDMAX (5 + 16384 + 2048)
+
 /* Has one whole TLS record from one side at the start of its buffer, once
-   whatever is still buffered from the other side is passed on. Returns its
-   length, or less than 0; the server's codes are one further on than the
+   whatever is still buffered from the other side is passed on; a buffer
+   too small for it is made larger, given back once it is emptied. Returns
+   its length, or less than 0; the server's codes are one further on than the
    client's, as the log has always had them. */
 static int tlstobuf(struct clientparam *param, DIRECTION which){
     unsigned *oinbuf = which? &param->cliinbuf : &param->srvinbuf;
@@ -288,7 +292,7 @@ static int tlstobuf(struct clientparam *param, DIRECTION which){
     buf = which? param->srvbuf : param->clibuf;
     if(buf[1] != 3) return -3 - e;
     len = 5 + size16(buf + 3);
-    if(len > (which? param->srvbufsize : param->clibufsize)) return -4 - e;
+    if(len > TLSRECORDMAX || bufroom(param, which, len)) return -4 - e;
     if(sockfillbuf(param, which, len, param->srv->timeouts[STRING_S]) < len) return -5 - e;
     return (int)len;
 }

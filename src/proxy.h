@@ -354,6 +354,7 @@ int bufget(struct clientparam * param, DIRECTION which);
 void bufdrop(struct clientparam * param, DIRECTION which);
 int bufalloc(struct clientparam * param);
 void buffree(struct clientparam * param);
+void bufpoolinit(void);
 
 int sockgetlinebuf(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, int delim, int to);
 int getmultiline(struct clientparam * param, DIRECTION which, unsigned char * buf, int bufsize, const char *cap, int *found);

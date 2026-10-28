@@ -426,6 +426,7 @@ int main(int argc, char * argv[]) {
   _3proxy_mutex_init(&tc_mutex);
   _3proxy_mutex_init(&loops_mutex);
   _3proxy_mutex_init(&tpool.mutex);
+  bufpoolinit();
 #ifndef NORADIUS
   _3proxy_mutex_init(&rad_mutex);
 #endif

@@ -71,15 +71,11 @@ int pipenew(int p[2], unsigned size){
    before the sockets are closed. */
 #define SESSIONEND (!halfclose && (CLIENTTERMREAD || SERVERTERMREAD))
 
-/* The fixed buffers have room for a TLS record and its header, which tlspr
-   needs. What is relayed is read into them a record at most: written to a
-   side using TLS, a full buffer then makes one record rather than a record
-   and another of 64 bytes, which costs a third of the throughput. A buffer
-   already holding more, or a larger one taken for a filter, is used whole. */
-#define ROOM(size, inbuf) (((size) == CLIENTBUFSIZE && (inbuf) <= CLIENTBUFSIZE - 64)? \
-	(unsigned)(CLIENTBUFSIZE - 64) : (unsigned)(size))
-#define CLIROOM ROOM(param->clibufsize, param->cliinbuf)
-#define SRVROOM ROOM(param->srvbufsize, param->srvinbuf)
+/* What a side's buffer is read into: the whole of it. The fixed buffers
+   hold a TLS record's data and no more, so written to a side using TLS a
+   full one makes one record, not a record and another of a few bytes. */
+#define CLIROOM ((unsigned)param->clibufsize)
+#define SRVROOM ((unsigned)param->srvbufsize)
 
 /* A hang-up on a socket there is data to write to. With poll() it comes
    once both sides are shut down, and the write tried then fails, which ends

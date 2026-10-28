@@ -155,7 +155,10 @@ typedef struct _3proxy_sem_s {
 
 #define MAX_HASH_SIZE (64)
 #define UDPBUFSIZE 16384
-#define CLIENTBUFSIZE (16384 + 64)
+/* A connection's data buffer, either side's: a page or pages of the buffer
+   pool (bufget()). A TLS record does not always fit: tlspr takes a larger
+   one for it. */
+#define CLIENTBUFSIZE 16384
 #define CLIENTTMPBUFSIZE 8192
 /* The defaults of minlogqueue and maxlogqueue: the lines a log's queue
    keeps slots for, and holds at most; -D at build time sets others. */
@@ -914,8 +917,9 @@ struct clientparam {
 	   something done at once, never for what has to outlive a call into
 	   anything that could log. */
 	unsigned char	tmpbuf[CLIENTTMPBUFSIZE];
-	/* Each side's data buffer, CLIENTBUFSIZE of malloc's, which clibuf and
-	   srvbuf point to unless a filter needed a bigger one. Made with the
+	/* Each side's data buffer, CLIENTBUFSIZE from the buffer pool, which
+	   clibuf and srvbuf point to unless a filter or a TLS record needed a
+	   bigger one. Made with the
 	   connection (bufalloc()); a loop's relay gives an empty one back while
 	   nothing but the relay can use it, and makes it again to read. */
 	unsigned char	*clibufdata,

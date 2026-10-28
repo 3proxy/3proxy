@@ -216,6 +216,7 @@ int main (int argc, char** argv){
 
 #endif
  _3proxy_mutex_init(&tpool.mutex);
+ bufpoolinit();
  loginit();
 #ifndef _WIN32
  /* a client gone while it is written to is an error, not the end */
