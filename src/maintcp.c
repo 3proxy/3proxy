@@ -111,7 +111,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 		case WSAEMFILE:
 		case WSAENOBUFS:
 		case WSAENETDOWN:
-			usleep(SLEEPTIME * 10);
+			srvsleep(srv, 10);
 			break;
 		case WSAEINTR:
 			error = 1;
@@ -135,7 +135,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 #ifdef ENOMEM
 		case ENOMEM:
 #endif
-			usleep(SLEEPTIME * 10);
+			srvsleep(srv, 10);
 			break;
 
 		default:

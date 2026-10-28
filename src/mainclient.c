@@ -259,6 +259,13 @@ void * threadfunc (void *p) {
 
 /* A thread for the client, client_sock for TCP, or a fiber of an event
    loop. 0 once it runs, the slot in hand going with it. */
+/* usleep(SLEEPTIME * n), but on a fiber of a loop (accepting there) a wait
+   in the loop, which a sleep would hold up */
+static void srvsleep(struct srvparam *srv, int n){
+	if(onloopfunc && onloopfunc()) sockpoll(&srv->so, srv->so.state, NULL, 0, n);
+	else usleep(SLEEPTIME * n);
+}
+
 static int srvspawn(struct srvstart *s, SOCKET client_sock){
  struct srvparam *srv = &s->srv;
  struct clientparam *defparam = &s->defparam;
@@ -308,7 +315,7 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
 	srv->so._closesocket(srv->so.state, client_sock);
 	defparam->res = 21;
 	if(!srv->silent)dolog(defparam, (unsigned char *)"Memory Allocation Failed");
-	usleep(SLEEPTIME);
+	srvsleep(srv, 1);
 	return 1;
  };
  if(!reused){
