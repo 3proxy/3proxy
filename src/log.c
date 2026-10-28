@@ -835,11 +835,7 @@ static void logstart(struct logger *lg){
 	}
 	lg->stop = 0;
 #ifdef _WIN32
-#ifndef _WINCE
 	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(65536 + lg->type->stacksize), (void *)logthread, (void *)lg, 0, &thread);
-#else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(65536 + lg->type->stacksize), (void *)logthread, (void *)lg, 0, &thread);
-#endif
 	res = !h;
 	if(h) CloseHandle(h);
 #else

@@ -59,11 +59,7 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <sys/timeb.h>
-#ifndef _WINCE
 #include <io.h>
-#else
-#include <sys/unistd.h>
-#endif
 #include <process.h>
 #define SASIZETYPE int
 #define SHUT_RDWR SD_BOTH
@@ -109,11 +105,7 @@
 #define pthread_self GetCurrentThreadId
 #define getpid GetCurrentProcessId
 #define pthread_t unsigned
-#ifndef _WINCE
 #define daemonize() FreeConsole()
-#else
-#define daemonize()
-#endif
 #define socket(x, y, z) WSASocket(x, y, z, NULL, 0, 0)
 #define accept(x, y, z) WSAAccept(x, y, z, NULL, 0)
 #define ftruncate chsize
@@ -649,14 +641,6 @@ int getopts(const char *s, struct sockoptset *opts);
 void setopts(SOCKET s, const struct sockoptset *opts, int maxseg);
 char * printopts(char *sep);
 
-#ifdef _WINCE
-char * CEToUnicode (const char *str);
-int cesystem(const char *str);
-int ceparseargs(const char *str);
-extern char * ceargv[32];
-
-#define system(S) cesystem(S)
-#endif
 
 #define WEBBANNERS 35
 

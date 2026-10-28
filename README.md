@@ -352,10 +352,6 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 - Support `--remove` as service
 - Support for service START, STOP, PAUSE and CONTINUE commands (on PAUSE no new connection accepted, but active connections still in progress, on CONTINUE configuration is reloaded)
 
-**Windows 95/98/ME:**
-- Support `--install` as service
-- Support `--remove` as service
-
 ### 7. Compilation
 
 - MSVC (static)

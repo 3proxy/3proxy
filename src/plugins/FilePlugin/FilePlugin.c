@@ -17,11 +17,7 @@
 #include <fcntl.h>
 #include <time.h>
 #ifdef _WIN32
-#ifndef _WINCE
 #include <io.h>
-#else
-#include <sys/unistd.h>
-#endif
 #else
 #include <unistd.h>
 #ifndef O_BINARY

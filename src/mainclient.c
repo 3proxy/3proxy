@@ -342,11 +342,7 @@ static int srvspawn(struct srvstart *s, SOCKET client_sock){
     a loop given its client once counted */
  if(!reused && !job){
 #ifdef _WIN32
-#ifndef _WINCE
  h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv->stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
-#else
- h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, (unsigned)(16384 + srv->stacksize), (void *)threadfunc, (void *) newparam, 0, &thread);
-#endif
  if (h) {
 	CloseHandle(h);
  }

@@ -194,11 +194,7 @@ static int startservice(void *service){
 	runningservices++;
 	_3proxy_mutex_unlock(&runningservices_mutex);
 #ifdef _WIN32
-#ifndef _WINCE
 	h = (HANDLE)_beginthreadex((LPSECURITY_ATTRIBUTES )NULL, 16384+conf->stacksize, (void *)startsrv, service, (DWORD)0, &thread);
-#else
-	h = (HANDLE)CreateThread((LPSECURITY_ATTRIBUTES )NULL, 16384+conf->stacksize, (void *)startsrv, service, (DWORD)0, &thread);
-#endif
 	if(h)CloseHandle(h);
 	else {
 #else
@@ -1871,20 +1867,12 @@ static int h_plugin(int argc, unsigned char **argv){
 	HINSTANCE hi;
 	FARPROC fp;
 
-#ifdef _WINCE
-	hi = LoadLibraryW((LPCWSTR)CEToUnicode(argv[1]));
-#else
 	hi = LoadLibrary((char *)argv[1]);
-#endif
 	if(!hi) {
 		fprintf(stderr, "Failed to load %s, code %d\n", argv[1], (int)GetLastError());
 		return 1;
 	}
-#ifdef _WINCE
-	fp = GetProcAddressW(hi, (LPCWSTR)CEToUnicode(argv[2]));
-#else
 	fp = GetProcAddress(hi, (char *)argv[2]);
-#endif
 	if(!fp) {
 		printf("%s not found in %s, code: %d\n", argv[2], argv[1], (int)GetLastError());
 		return 2;

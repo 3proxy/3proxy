@@ -45,11 +45,9 @@ void doschedule(void);
 
 
 #ifdef _WIN32
-OSVERSIONINFO osv;
 int service = 0;
 
 void cyclestep(void);
-#ifndef _WINCE
 SERVICE_STATUS_HANDLE hSrv;
 DWORD dwCurrState;
 int SetStatus( DWORD dwState, DWORD dwExitCode, DWORD dwProgress )
@@ -105,7 +103,6 @@ void __stdcall ServiceMain(int argc, unsigned char* argv[] )
     /* the last thing: the process may be ended once this is reported */
     SetStatus( SERVICE_STOPPED, 0, 0 );
 }
-#endif
 
 #else
 
@@ -297,15 +294,7 @@ void cyclestep(void){
 
 
 
-#ifndef _WINCE
 int main(int argc, char * argv[]) {
-#else
-int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow){
- int argc;
- char ** argv;
- WNDCLASS wc;
- HWND hwnd = 0;
-#endif
 
   int res = 0;
   FILE * fp = NULL;
@@ -315,31 +304,13 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   WSADATA wd;
   unsigned char tmpbuf[8192];
 
-  WSAStartup(MAKEWORD( 1, 1 ), &wd);
-  osv.dwOSVersionInfoSize = sizeof(osv);
-  GetVersionEx(&osv);
+  WSAStartup(MAKEWORD( 2, 2 ), &wd);
 #endif
 
 
-#ifdef _WINCE
-	argc = ceparseargs((char *)lpCmdLine);
-	argv = ceargv;
-	if(FindWindow(L"3proxy", L"3proxy")) return 0;
-	ZeroMemory(&wc,sizeof(wc));
-	wc.hbrBackground=(HBRUSH)GetStockObject(BLACK_BRUSH);
-	wc.hInstance=hInstance;
-	wc.hCursor=LoadCursor(NULL,IDC_ARROW);
-	wc.lpfnWndProc=DefWindowProc;
-	wc.style=CS_HREDRAW|CS_VREDRAW;
-	wc.lpszClassName=L"3proxy";
-	RegisterClass(&wc);
-
-	hwnd = CreateWindowEx(0,L"3proxy",L"3proxy",WS_VISIBLE|WS_POPUP,0,0,0,0,0,0,hInstance,0);
-#endif
 
   conf->stringtable = strings;
 #ifdef _WIN32
-#ifndef _WINCE
   if((argc == 2 || argc == 3)&& !strcmp((char *)argv[1], "--install")) {
 
 	sprintf((char *)tmpbuf, "%s will be installed and started.\n"
@@ -360,7 +331,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 		RETURN(103);
 	}
 	strcat((char *)tmpbuf, "\" --service");
-	if(osv.dwPlatformId  == VER_PLATFORM_WIN32_NT){
+	{
 		SC_HANDLE sch;
 
 		if(!(sch = OpenSCManager(NULL, NULL, GENERIC_WRITE|SERVICE_START ))){
@@ -376,33 +347,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 			RETURN(103);
 		}
 	}
-	else {
-		HKEY runsrv;
-
-		if(RegOpenKeyEx( HKEY_LOCAL_MACHINE, 
-				"Software\\Microsoft\\Windows\\CurrentVersion\\RunServices",
-				0,
-				KEY_ALL_ACCESS,
-				&runsrv) != ERROR_SUCCESS){
-			perror("Failed to open registry");
-			RETURN(104);
-		}
-		if(RegSetValueEx(  runsrv,
-				(LPCSTR)conf->stringtable[1],
-				0,
-				REG_EXPAND_SZ,
-				(BYTE *)tmpbuf,
-				(int)strlen((char *)tmpbuf)+1)!=ERROR_SUCCESS){
-			perror("Failed to set registry value");
-			RETURN(105);
-		}
-
-	}
 	return 0;
   }
   if((argc == 2 || argc == 3)&& !strcmp((char *)argv[1], "--remove")) {
 
-	if(osv.dwPlatformId  == VER_PLATFORM_WIN32_NT){
+	{
 		SC_HANDLE sch;
 
 		if(!(sch = OpenSCManager(NULL, NULL, GENERIC_WRITE))){
@@ -418,28 +367,12 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 			RETURN(108);
 		}
 	}
-	else {
-		HKEY runsrv;
-		if(RegOpenKeyEx( HKEY_LOCAL_MACHINE, 
-				"Software\\Microsoft\\Windows\\CurrentVersion\\RunServices",
-				0,
-				KEY_ALL_ACCESS,
-				&runsrv) != ERROR_SUCCESS){
-			perror("Failed to open registry");
-			RETURN(109);
-		}
-		if(RegDeleteValue(runsrv, (LPCSTR)conf->stringtable[1]) != ERROR_SUCCESS){
-			perror("Failed to clear registry");
-			RETURN(110);
-		}
-	}
 	RETURN(0);
   }
   if(argc==3 && !strcmp(argv[2], "--service")){
 	service = 1;
 	argc = 2;
   }
-#endif
 #endif
   conf->conffile = strdup((argc==2)?argv[1]:(char*)DEFAULTCONFIG);
   if(conf->conffile && *conf->conffile != '-') {
@@ -472,7 +405,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
      written to is an error, not the end */
   signal(SIGPIPE, SIG_IGN);
 #endif
-#if defined _WIN32 && !defined _WINCE
+#ifdef _WIN32
   if(service) logstdclose();
 #endif
   sysdnsinit();	/* the system's name servers and hosts, before a chroot too */
@@ -532,7 +465,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 
 #ifdef _WIN32
   
-#ifndef _WINCE
   if(service){
 	SERVICE_TABLE_ENTRY ste[] = 
 	{
@@ -545,7 +477,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 	}
   }
   else 
-#endif
   {
 	cyclestep();
 	/* what is queued to the logs written */

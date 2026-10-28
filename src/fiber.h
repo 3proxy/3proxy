@@ -17,9 +17,7 @@
 #define _FIBER_H
 
 #if defined _WIN32
-#ifndef _WINCE
 #define FIBER_WINDOWS
-#endif
 #elif defined __x86_64__ && defined __LP64__
 #define FIBER_X86_64
 #elif defined __aarch64__ && defined __LP64__

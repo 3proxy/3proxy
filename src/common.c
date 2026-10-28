@@ -523,52 +523,6 @@ int sockpoll(struct sockfuncs *sf, void *state, struct pollfd *fds, unsigned nfd
 	return res;
 }
 
-#ifdef _WINCE
-
-static char cebuf[1024];
-static char ceargbuf[256];
-char * ceargv[32];
-
-char * CEToUnicode (const char *str){
-	int i;
-
-	for(i=0; i<510 && str[i]; i++){
-		cebuf[(i*2)] = str[i];
-		cebuf[(i*2)+1] = 0;
-	}
-	cebuf[(i*2)] = 0;
-	cebuf[(i*2)+1] = 0;
-	return cebuf;
-};
-
-int cesystem(const char *str){
-	STARTUPINFO startupInfo = {0};
-	startupInfo.cb = sizeof(startupInfo);
-
-	PROCESS_INFORMATION processInformation;
-
-	return CreateProcessW((LPWSTR)CEToUnicode(str), NULL, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS, NULL, NULL, &startupInfo, &processInformation);
-}
-
-int ceparseargs(const char *str){
-	int argc = 0, i;
-	int space = 1;
-
-	for(i=0; i<250 && argc<30 && str[2*i]; i++){
-		ceargbuf[i] = str[2*i];
-		if(space && ceargbuf[i]!=' '&& ceargbuf[i]!='\t'&& ceargbuf[i]!='\r'&& ceargbuf[i]!='\n'){
-			ceargv[argc++] = ceargbuf + i;
-			space = 0;
-		}
-		else if(!space && (ceargbuf[i]==' ' || ceargbuf[i]=='\t' || ceargbuf[i]=='\r' || ceargbuf[i]=='\n')){
-			ceargbuf[i] = 0;
-			space = 1;
-		}
-	}
-	return argc;
-}
-
-#endif
 
 int parsehost(int family, unsigned char *host, struct sockaddr *sa){
 	char *sp=NULL,*se=NULL;
