@@ -480,7 +480,7 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 			srv->stacksize = atoi(argv[i]+2);
 			break;
 		 case 'L':
-			/* -L2: and their data relayed by the loop (a draft) */
+			/* -L2: and their data relayed by the loop (the default) */
 			srv->loopmode = argv[i][2]? atoi(argv[i]+2) : 1;
 			break;
 		case 'a':

@@ -22,6 +22,8 @@
 	.trafcounter = NULL,
 	.services = NULL,
 	.stacksize = 0,
+	/* clients served on event loops, their data relayed by the loops */
+	.loopmode = 2,
 	.poolmax = DEFAULT_POOLMAX,
 	.pooltimeout = DEFAULT_POOLTIMEOUT,
 	.counterd = -1,

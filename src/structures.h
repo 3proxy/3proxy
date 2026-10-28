@@ -1009,7 +1009,8 @@ struct extparam {
 	int filtermaxsize;
 	int poolmax, pooltimeout;	/* threadpool: idle workers kept, -1 automatic */
 	int loops;		/* threads serving clients on event loops, 0: a CPU each */
-	int loopmode;		/* services from here on serve clients on loops */
+	int loopmode;		/* services from here on serve clients on loops: 1, and
+				   relay their data there: 2 */
 	int gracetraf, gracenum, gracedelay;
 	int maxseg;
 	unsigned char **archiver;

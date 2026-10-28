@@ -7,9 +7,10 @@
 */
 
 /* Clients served on event loops: a few threads, a CPU each by default
-   (loops), each running a loop, and each client of a service given -L (or
-   loopmode on) served by a fiber of one of them, with the same code as a
-   client with a thread of its own: its waits in sockpoll() wait in the loop.
+   (loops), each running a loop, and each client of a service (unless given
+   -L0 or loopmode off) served by a fiber of one of them, with the same code
+   as a client with a thread of its own: its waits in sockpoll() wait in the
+   loop.
    A service whose clients cannot share a thread (threadperclient), one
    listening for connections back (-R), all of its clients waiting for the
    same socket, which a loop waits for once, or a build or processor without
@@ -426,13 +427,13 @@ DONE:
 }
 
 
-/* ---- sockmap() as callbacks (-L2, a draft) ------------------------------- */
+/* ---- sockmap() as callbacks (-L2, loopmode cb) --------------------------- */
 
 /* The data of a connection mapped by a fiber of a loop with neither filters,
    limits but that of a body's length, nor anything but the socket functions of the system between the
    sides, is relayed by the loop itself: the sockets call it back, on the
    loop's own stack, and the fiber, parked meanwhile, is resumed only once
-   the mapping is over. No splice() yet: data is copied. */
+   the mapping is over. */
 
 /* rounds of a read and a write each way at most in a callback, before what
    is still ready waits for the next turn of the loop */

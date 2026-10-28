@@ -254,9 +254,10 @@ authorization and to drop the per-destination log records only.
  (for udppm) singlepacket, expect only one packet from both client and server
 .br
 .B -L
- (for TCP services) serve the clients on event loops (see \fBloopmode\fR): a
-few threads each serve many clients, instead of a thread for each.
-\fB-L0\fR gives each client a thread of its own whatever \fBloopmode\fR says.
+ (for TCP services) how the clients are served, whatever \fBloopmode\fR says
+(see there): \fB-L2\fR on event loops, which also relay their data (the
+default), \fB-L\fR on event loops relaying the data as a thread would,
+\fB-L0\fR a thread for each client.
 .br
 .B -u
 Never ask for username/password
@@ -1526,16 +1527,21 @@ many connections were given to a waiting one on its Running Services page.
 
 .br
 .BR loopmode
-\fIon\fR|\fIoff\fR
+\fIcb\fR|\fIon\fR|\fIoff\fR
 .br
  Whether the clients of the TCP services which follow (until the next
 \fBloopmode\fR) are served on event loops: a few threads (see \fBloops\fR)
 each wait for the sockets and timers of many clients and switch between
 them, each client running on a stack of its own as large as its thread's
 would be. A client costs a stack and no thread, and waking it costs no
-switch of threads, so many connections take less memory and CPU. Off by
-default; the \fB-L\fR option of a service overrides it, \fB-L0\fR for a
-thread for each client.
+switch of threads, so many connections take less memory and CPU.
+\fIcb\fR, the default, also has the loop relay a connection's data itself
+once the request is handled, where nothing but the sockets is between the
+sides (no filters, no limits but that of a body's length), without
+switching to the client's stack for each read. \fIon\fR relays the data
+on the client's stack, as a thread of its own would, and \fIoff\fR gives
+each client a thread. The \fB-L\fR option of a service overrides it: \fB-L2\fR,
+\fB-L\fR, \fB-L0\fR.
 .br
  Clients keep a thread each, whatever is asked, where something they use
 would hold up the others sharing their thread: a service with FilePlugin,
