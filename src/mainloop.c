@@ -446,8 +446,6 @@ DONE:
 #define SPLICE_F_NONBLOCK 0x02
 #endif
 ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags);
-/* what a pipe of splice() takes at once, as sockmap()'s MAXSPLICE */
-#define CBSPLICE 65536
 #endif
 
 /* One way of the relay: from the side src to dst, through the buffer of
@@ -621,13 +619,13 @@ static int cbway(struct cbmap *m, struct cbway *w){
 
 		/* what was buffered goes first: the pipe is read once it is
 		   through */
-		if(!inb && !w->wantbuf && w->left > w->inpipe && !m->term_r[w->src] && !end && w->inpipe < CBSPLICE &&
+		if(!inb && !w->wantbuf && w->left > w->inpipe && !m->term_r[w->src] && !end && w->inpipe < PIPESIZE &&
 		    (rs->ready & (POLLIN | POLLHUP | POLLERR))){
-			if(pipe[0] < 0 && pipe2(pipe, O_NONBLOCK) < 0){
+			if(pipe[0] < 0 && pipenew(pipe) < 0){
 				w->splice = 0;
 				return 1;
 			}
-			n = splice(from, NULL, pipe[1], NULL, (size_t)CBMIN((uint64_t)CBSPLICE - w->inpipe,
+			n = splice(from, NULL, pipe[1], NULL, (size_t)CBMIN((uint64_t)PIPESIZE - w->inpipe,
 				w->left - w->inpipe), SPLICE_F_NONBLOCK | SPLICE_F_MOVE);
 			if(n > 0){
 				w->inpipe += n;

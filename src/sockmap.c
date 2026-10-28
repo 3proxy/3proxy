@@ -36,11 +36,28 @@ ssize_t splice(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t le
 #define SPLICE_F_GIFT           0x08
 #endif
 
+#ifndef F_SETPIPE_SZ
+#define F_SETPIPE_SZ 1031
+#endif
 
-#define MAXSPLICE 65536
 /* splice() refuses a kernel TLS record that is not data: EINVAL, or EIO
    and EBADMSG on some kernels */
 #define SPLICEREFUSED(e) ((e) == EINVAL || (e) == EIO || (e) == EBADMSG)
+
+/* A pipe for splice(), nonblocking, of PIPESIZE: -1 if there is none to be
+   had, or not of that size. */
+int pipenew(int p[2]){
+	if(pipe2(p, O_NONBLOCK) < 0) return -1;
+#if PIPESIZE != 65536
+	if(fcntl(p[0], F_SETPIPE_SZ, PIPESIZE) < 0){
+		close(p[0]);
+		close(p[1]);
+		p[0] = p[1] = -1;
+		return -1;
+	}
+#endif
+	return 0;
+}
 
 /* With SPLICE_AUTO, when a direction allowed to splice actually does
    (without it, an allowed direction always does).
@@ -391,7 +408,7 @@ log("done send to client from buf");
 #ifdef WITHLOG
 log("send to server from pipe");
 #endif
-			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(MAXSPLICE, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(PIPESIZE, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			/* from a pipe holding data: the socket is full */
 			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->remsock, POLLOUT);
 #ifdef WITHLOG
@@ -430,7 +447,7 @@ log(logbuf);
 #ifdef WITHLOG
 log("send to client from pipe");
 #endif
-			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(MAXSPLICE, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(PIPESIZE, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			/* from a pipe holding data: the socket is full */
 			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->clisock, POLLOUT);
 #ifdef WITHLOG
@@ -462,7 +479,7 @@ log(logbuf);
 #ifdef WITHLOG
 log("read from client to pipe");
 #endif
-			if(pipecli[0] < 0 && pipe2(pipecli, O_NONBLOCK) < 0){
+			if(pipecli[0] < 0 && pipenew(pipecli) < 0){
 				/* no pipe to be had: copy instead */
 				allowcli = splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 0;
 				if(param->cliinbuf < CLIROOM) TOCLIENTBUF = 1;
@@ -479,7 +496,7 @@ log("read from client to pipe");
 				continue;
 			}
 			errno = 0;
-			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)MAXSPLICE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)PIPESIZE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
 log("client to pipe splice finished\n");
 #if WITHLOG > 1
@@ -521,7 +538,7 @@ log("done read from client to pipe");
 					else if(++streakcli > splicestreak) wantbufcli = 1;
 				}
 				inclientpipe += res;
-				if(inclientpipe >= MAXSPLICE) TOCLIENTPIPE = 0;
+				if(inclientpipe >= PIPESIZE) TOCLIENTPIPE = 0;
 				needaction = 0;
 				continue;
 			}
@@ -530,7 +547,7 @@ log("done read from client to pipe");
 #ifdef WITHLOG
 log("read from server to pipe\n");
 #endif
-			if(pipesrv[0] < 0 && pipe2(pipesrv, O_NONBLOCK) < 0){
+			if(pipesrv[0] < 0 && pipenew(pipesrv) < 0){
 				allowsrv = splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 0;
 				if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
 				continue;
@@ -544,7 +561,7 @@ log("read from server to pipe\n");
 				continue;
 			}
 			errno = 0;
-			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(MAXSPLICE - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
+			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(PIPESIZE - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 #ifdef WITHLOG
 log("server to pipe splice finished\n");
 #if WITHLOG > 1
@@ -586,7 +603,7 @@ log("done read from server to pipe\n");
 			    	param->nreads++;
 				param->statssrv64 += res;
 				inserverpipe += res;
-				if(inserverpipe >= MAXSPLICE) TOSERVERPIPE = 0;
+				if(inserverpipe >= PIPESIZE) TOSERVERPIPE = 0;
 				if(param->bandlimfunc) {
 					int sl1;
 					sl1 = (*param->bandlimfunc)(param, res, 0);
@@ -876,7 +893,7 @@ log("server terminated connection");
 //		}
 #ifdef WITHSPLICE
 		{
-			if(splicecli && fromclient>inclientpipe && !TOCLIENTPIPE && inclientpipe < MAXSPLICE){
+			if(splicecli && fromclient>inclientpipe && !TOCLIENTPIPE && inclientpipe < PIPESIZE){
 				if(!after){
 #ifdef WITHLOG
 log("wait writing to client pipe");
@@ -916,7 +933,7 @@ log("ready reading from client pipe");
 				}
 				fdsc++;
 			}
-			if(splicesrv && fromserver>inserverpipe && !TOSERVERPIPE && inserverpipe < MAXSPLICE){
+			if(splicesrv && fromserver>inserverpipe && !TOSERVERPIPE && inserverpipe < PIPESIZE){
 				if(!after){
 #ifdef WITHLOG
 log("wait writing to server pipe");
