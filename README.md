@@ -360,7 +360,6 @@ sudo launchctl unload /Library/LaunchDaemons/org.3proxy.3proxy.plist
 - Cygwin/gcc (cygwin.dll)
 - Unix/gcc
 - Unix/ccc
-- Solaris
 - Mac OS X, iPhone OS
 - Linux and derived systems
 - 32 bit and 64 bit versions for Windows Vista and above, Windows 2008 server and above

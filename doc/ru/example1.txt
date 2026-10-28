@@ -27,7 +27,7 @@ TCP & UDP маппинг портов;
 # wget http://3proxy.ru/current/3proxy.tgz
 # tar -xvzf 3proxy.tgz
 # cd 3proxy
-# make -f Makefile.unix
+# make -f Makefile.FreeBSD
 # mkdir /usr/local/3proxy
 # mkdir /usr/local/3proxy/logs
 # mkdir /usr/local/3proxy/stat

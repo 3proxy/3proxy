@@ -951,27 +951,6 @@ static RESOLVFUNC moderesolver(int mode){
 	}
 	return resolvfunc;
 }
-#ifndef _WIN32
-_3proxy_mutex_t gethostbyname_mutex;
-int ghbn_init = 0;
-#endif
-
-#ifndef NOSTDRESOLVE
-#ifdef GETHOSTBYNAME_R
-struct hostent * my_gethostbyname(char *name, char *buf, struct hostent *hp){
-	struct hostent *result;
-	int gherrno;
-
-#ifdef _SOLARIS
-	return gethostbyname_r(name, hp, buf, 1024, &gherrno);
-#else
-	if(gethostbyname_r(name, hp, buf, 1024, &result, &gherrno) != 0)
-		return NULL;
-	return result;
-#endif
-}
-#endif
-#endif
 
 
 int afdetect(unsigned char *name){

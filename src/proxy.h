@@ -399,7 +399,6 @@ int handleredirect(struct clientparam * param, struct ace * acentry);
 
 int scanaddr(const unsigned char *s, uint32_t * ip, uint32_t * mask);
 int myinet_ntop(int af, void *src, char *dst, socklen_t size);
-uint32_t getip(unsigned char *name);
 uint32_t getip46(int family, unsigned char *name,  struct sockaddr *sa);
 uint32_t getip46m(int mode, int family, unsigned char *name,  struct sockaddr *sa);
 int afdetect(unsigned char *name);

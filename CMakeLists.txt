@@ -174,7 +174,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # Linux-specific configuration
     add_compile_definitions(
         _GNU_SOURCE
-        GETHOSTBYNAME_R
         _THREAD_SAFE
         _REENTRANT
     )

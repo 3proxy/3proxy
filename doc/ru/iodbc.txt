@@ -88,7 +88,7 @@ l_descr)
 values ('%d-%m-%Y', '%H:%M:%S', '%U', '%N', %I, %O, '%T')"
 ------------------------------------------
 
-Cобрать 3proxy c поддрежкой iODBC, для этого в Makefile.unix поменять
+Cобрать 3proxy c поддрежкой iODBC, для этого в Makefile.FreeBSD поменять
  
 CFLAGS = -Wall -O2 -c -pthread -D_THREAD_SAFE -D_REENTRANT -DWITH_STD_MALLOC -I/usr/local/include
 LIBS = -L /usr/local/lib -lodbc
@@ -96,5 +96,5 @@ LIBS = -L /usr/local/lib -lodbc
 и дать команды
 
 make clean
-make -f Makefile.unix
+make -f Makefile.FreeBSD
 

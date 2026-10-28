@@ -95,11 +95,7 @@ static int dobuf3(struct clientparam * param, unsigned char * buf, const unsigne
 	ftime(&tb);
 	timezone = tm->tm_isdst*60 - tb.timezone;
 #else
-#ifdef _SOLARIS
-	timezone = -altzone / 60;
-#else
 	timezone = tm->tm_gmtoff / 60;
-#endif
 #endif
 
 	delay = param->time_start?((unsigned) ((sec - param->time_start))*1000 + msec) - param->msec_start : 0;
