@@ -14,11 +14,6 @@ unsigned char * commands[] = {(unsigned char *)"UNKNOWN", (unsigned char *)"CONN
 
 #define BUFSIZE 1024
 
-#if SOCKSTRACE > 0
-char tracebuf[256];
-#endif
-
-
 static void printcommand(unsigned char * buf, int command, struct clientparam *param){
     sprintf((char *)buf, "%s ", commands[command]);
     if(*param->hostname){
@@ -223,10 +218,6 @@ void * sockschild(struct clientparam* param) {
 		if(param->extport) RETURN (12);
 		*SAPORT(&param->sinsl) = 0;
 		if(param->srv->so._bind(param->sostate, param->remsock,(struct sockaddr *)&param->sinsl,SASIZE(&param->sinsl)))RETURN (12);
-#if SOCKSTRACE > 0
-fprintf(stderr, "%hu bound to communicate with server\n", *SAPORT(&param->sinsl));
-fflush(stderr);
-#endif
 	}
 	sasize = sizeof(param->sinsl);
 	param->srv->so._getsockname(param->sostate, param->remsock, (struct sockaddr *)&param->sinsl,  &sasize);
@@ -247,12 +238,6 @@ fflush(stderr);
 		if(bindwithrange(param, param->clisock, &sin, param->intport)) {RETURN (12);}
 		sasize = sizeof(sin);
 		param->srv->so._getsockname(param->sostate, param->clisock, (struct sockaddr *)&sin, &sasize);
-#if SOCKSTRACE > 0
-fprintf(stderr, "%hu binded to communicate with client\n",
-			ntohs(*SAPORT(&sin))
-	);
-fflush(stderr);
-#endif
  }
  param->res = 0;
 
@@ -288,16 +273,6 @@ CLEANRET:
 		*SAPORT(&sin) = port;
 	    }
 	}    
-#if SOCKSTRACE > 0
-myinet_ntop(*SAFAMILY(&sin), SAADDR(&sin), tracebuf, SASIZE(&sin));
-fprintf(stderr, "Sending confirmation to client with code %d for %s with %s:%hu\n",
-			param->res,
-			commands[command],
-			tracebuf,
-			ntohs(*SAPORT(&sin))
-	);
-fflush(stderr);
-#endif
 	if(!param->res) repcode = 0;
 	else if(param->res <= 10) repcode = 2;
 	else if (param->res < 20) repcode = 5;
@@ -408,14 +383,6 @@ fflush(stderr);
 #endif
             			}
 
-#if SOCKSTRACE > 0
-fprintf(stderr, "Sending incoming connection to client with code %d for %s with %hu\n",
-			param->res,
-			commands[command],
-			*SAPORT(&param->sinsr)
-	);
-fflush(stderr);
-#endif
 				if(ver == 5){
 					buf[3] = (*SAFAMILY(&param->sinsr) == AF_INET)?1:4;
 					memcpy(buf+4, SAADDR(&param->sinsr), SAADDRLEN(&param->sinsr));

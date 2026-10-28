@@ -10,15 +10,6 @@
 
 #define MAXFAILATTEMPT 10
 
-#ifdef WITHLOG
-#if WITHLOG > 1
-char logbuf[1024];
-#endif
-#define log(X) dolog(param,(const unsigned char *)(X))
-#else
-#define log(X)
-#endif
-
 #ifdef WITHSPLICE
 
 #include <fcntl.h>
@@ -129,9 +120,6 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  uint64_t inclientbuf = 0, inserverbuf = 0;
  int FROMCLIENT = 1, TOCLIENTBUF = 1, TOSERVER = 1, 
 	FROMSERVER = 1, TOSERVERBUF = 1, TOCLIENT = 1;
-#if WITHLOG > 1
- int FROMCLIENTBUF = 1, FROMSERVERBUF = 1;
-#endif
  int HASERROR=0;
  int CLIENTTERMREAD = 0, CLIENTTERMWRITE = 0, SERVERTERMREAD = 0, SERVERTERMWRITE = 0;
  /* the side has hung up: closed by the peer after its own was shut down */
@@ -239,26 +227,6 @@ int sockmap(struct clientparam * param, int timeo, int usesplice){
  ){
 
 
-#if WITHLOG > 1
-sprintf(logbuf, "int FROMCLIENT = %d, TOCLIENTBUF = %d, FROMCLIENTBUF = %d, TOSERVER = %d, "
-	"FROMSERVER = %d, TOSERVERBUF = %d, FROMSERVERBUF = %d, TOCLIENT = %d; inclientbuf=%d; "
-	"inserverbuf=%d, CLIENTTERMREAD=%d CLIENTTERMWRITE=%d SERVERTERMREAD=%d SERVERTERMWRITE=%d fromserver=%u, fromclient=%u"
-#ifdef WITHSPLICE
-	 ", inserverpipe=%d, inclentpipe=%d "
-	"TOCLIENTPIPE=%d FROMCLIENTPIPE==%d TOSERVERPIPE==%d FROMSERVERPIPE=%d"
-#endif
-	,
- FROMCLIENT, TOCLIENTBUF, FROMCLIENTBUF, TOSERVER, 
-	FROMSERVER, TOSERVERBUF, FROMSERVERBUF, TOCLIENT, 
-	(int)inclientbuf, (int)inserverbuf, CLIENTTERMREAD, CLIENTTERMWRITE, SERVERTERMREAD, SERVERTERMWRITE, 
-	(unsigned)fromserver, (unsigned)fromclient
-#ifdef WITHSPLICE
-	,(int)inserverpipe, (int)inclientpipe,
-	TOCLIENTPIPE, FROMCLIENTPIPE, TOSERVERPIPE, FROMSERVERPIPE
-#endif
-	);
-log(logbuf);
-#endif
 
 	if(needaction && param->srv->gracedelay && !sleeptime){
 		if(gracetime != curtime){
@@ -299,9 +267,6 @@ log(logbuf);
 	}
 
 	if(inclientbuf && TOSERVER){
-#ifdef WITHLOG
-log("send to server from buf");
-#endif
 		if(!param->nolongdatfilter){
 			action = handledatfltcli(param,  &param->clibuf, (int *)&param->clibufsize, param->clioffset, (int *)&param->cliinbuf);
 			if(action == HANDLED){
@@ -326,9 +291,6 @@ log("send to server from buf");
 			}
 		}
 		else {
-#ifdef WITHLOG
-log("done send to server from buf");
-#endif
 		    	param->nwrites++;
 			param->statscli64 += res;
 			inclientbuf -= res;
@@ -346,9 +308,6 @@ log("done send to server from buf");
 		}
 	}
 	if(inserverbuf && TOCLIENT){
-#ifdef WITHLOG
-log("send to client from buf");
-#endif
 		if(!param->nolongdatfilter){
 			action = handledatfltsrv(param,  &param->srvbuf, (int *)&param->srvbufsize, param->srvoffset, (int *)&param->srvinbuf);
 			if(action == HANDLED){
@@ -373,9 +332,6 @@ log("send to client from buf");
 
 		}
 		else {
-#ifdef WITHLOG
-log("done send to client from buf");
-#endif
 			inserverbuf -= res;
 			fromserver -= res;
 			param->srvoffset += res;
@@ -405,21 +361,9 @@ log("done send to client from buf");
 		/* each direction goes through its pipe if spliced, through its
 		   buffer otherwise; what was in the buffer before is sent first */
 		if(splicecli && inclientpipe && !inclientbuf && FROMCLIENTPIPE && TOSERVER){
-#ifdef WITHLOG
-log("send to server from pipe");
-#endif
 			res = splice(pipecli[0], NULL, param->remsock, NULL, MIN(PIPESIZE, inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			/* from a pipe holding data: the socket is full */
 			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->remsock, POLLOUT);
-#ifdef WITHLOG
-log("server from pipe splice finished\n");
-#if WITHLOG > 1
-#ifdef WITHSPLICE
-sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
-log(logbuf);
-#endif
-#endif
-#endif
 			if(res >0) {
 			    	param->nwrites++;
 				param->statscli64 += res;
@@ -444,21 +388,9 @@ log(logbuf);
 			}
 		}
 		if(splicesrv && inserverpipe && !inserverbuf && FROMSERVERPIPE && TOCLIENT){
-#ifdef WITHLOG
-log("send to client from pipe");
-#endif
 			res = splice(pipesrv[0], NULL, param->clisock, NULL, MIN(PIPESIZE, inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
 			/* from a pipe holding data: the socket is full */
 			if(res < 0 && errno == EAGAIN && fiberblockfunc) fiberblockfunc(param->clisock, POLLOUT);
-#ifdef WITHLOG
-log("client from pipe splice finished\n");
-#if WITHLOG > 1
-#ifdef WITHSPLICE
-sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
-log(logbuf);
-#endif
-#endif
-#endif
 			if(res > 0) {
 				inserverpipe -= res;
 				fromserver -= res;
@@ -476,9 +408,6 @@ log(logbuf);
 			}
 		}
 		if(splicecli && !wantbufcli && fromclient>inclientpipe && FROMCLIENT && TOCLIENTPIPE && !SESSIONEND){
-#ifdef WITHLOG
-log("read from client to pipe");
-#endif
 			if(pipecli[0] < 0 && pipenew(pipecli) < 0){
 				/* no pipe to be had: copy instead */
 				allowcli = splicecli = TOCLIENTPIPE = FROMCLIENTPIPE = 0;
@@ -497,15 +426,6 @@ log("read from client to pipe");
 			}
 			errno = 0;
 			res = splice(param->clisock, NULL, pipecli[1], NULL, (int)MIN((uint64_t)PIPESIZE - inclientpipe, (uint64_t)fromclient-inclientpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
-#ifdef WITHLOG
-log("client to pipe splice finished\n");
-#if WITHLOG > 1
-#ifdef WITHSPLICE
-sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
-log(logbuf);
-#endif
-#endif
-#endif
 			if(res <= 0) {
 				FROMCLIENT = TOCLIENTPIPE = 0;
 				if(res == 0 && !errno) {
@@ -527,9 +447,6 @@ log(logbuf);
 				}
 			}
 			else {
-#ifdef WITHLOG
-log("done read from client to pipe");
-#endif
 				graceclinum++;
 				graceclitraf += res;
 				gracesrvnum = gracesrvtraf = 0;
@@ -544,9 +461,6 @@ log("done read from client to pipe");
 			}
 		}
 		if(splicesrv && !wantbufsrv && fromserver > inserverpipe && FROMSERVER && TOSERVERPIPE && !SESSIONEND){
-#ifdef WITHLOG
-log("read from server to pipe\n");
-#endif
 			if(pipesrv[0] < 0 && pipenew(pipesrv) < 0){
 				allowsrv = splicesrv = TOSERVERPIPE = FROMSERVERPIPE = 0;
 				if(param->srvinbuf < SRVROOM) TOSERVERBUF = 1;
@@ -562,15 +476,6 @@ log("read from server to pipe\n");
 			}
 			errno = 0;
 			res = splice(param->remsock, NULL, pipesrv[1], NULL, MIN(PIPESIZE - inserverpipe, fromserver - inserverpipe), SPLICE_F_NONBLOCK|SPLICE_F_MOVE);
-#ifdef WITHLOG
-log("server to pipe splice finished\n");
-#if WITHLOG > 1
-#ifdef WITHSPLICE
-sprintf(logbuf, "res: %d, errno: %d", (int)res, (int)errno);
-log(logbuf);
-#endif
-#endif
-#endif
 			if(res <= 0) {
 				FROMSERVER = TOSERVERPIPE = 0;
 				if(res == 0 && !errno) {
@@ -590,9 +495,6 @@ log(logbuf);
 				}
 			}
 			else {
-#ifdef WITHLOG
-log("done read from server to pipe\n");
-#endif
 				gracesrvnum++;
 				gracesrvtraf += res;
 				graceclinum = graceclitraf = 0;
@@ -617,9 +519,6 @@ log("done read from server to pipe\n");
 #endif
 	{
 		if((!splicecli || draincli) && fromclient > inclientbuf && FROMCLIENT && TOCLIENTBUF && !SESSIONEND){
-#ifdef WITHLOG
-log("read from client to buf");
-#endif
 			/* let go while spliced: made again */
 			if(!param->clibuf && bufget(param, CLIENT)) RETURN(21);
 			/* no address: it would overwrite the client's with what a
@@ -638,9 +537,6 @@ log("read from client to buf");
 				}
 			}
 			else {
-#ifdef WITHLOG
-log("done read from client to buf");
-#endif
 				graceclinum++;
 				graceclitraf += res;
 				gracesrvnum = gracesrvtraf = 0;
@@ -676,9 +572,6 @@ log("done read from client to buf");
 		}
 
 		if((!splicesrv || drainsrv) && fromserver > inserverbuf && FROMSERVER && TOSERVERBUF && !SESSIONEND){
-#ifdef WITHLOG
-log("read from server to buf");
-#endif
 			if(!param->srvbuf && bufget(param, SERVER)) RETURN(21);
 			res = param->srv->so._recvfrom(param->sostate, param->remsock, (char *)param->srvbuf + param->srvinbuf, (int)MIN((uint64_t)SRVROOM - param->srvinbuf, fromserver-inserverbuf), 0, NULL, NULL);
 			if(res <= 0) {
@@ -694,9 +587,6 @@ log("read from server to buf");
 				}
 			}
 			else {
-#ifdef WITHLOG
-log("done read from server to buf");
-#endif
 				gracesrvnum++;
 				gracesrvtraf += res;
 				graceclinum = graceclitraf = 0;
@@ -775,12 +665,6 @@ log("done read from server to buf");
 				if(cli_events){
 					fds[fdsc].fd = param->clisock;
 					fds[fdsc].events = cli_events;
-#ifdef WITHLOG
-if(cli_events & POLLIN)
-log("wait reading from client");
-if(cli_events & POLLOUT)
-log("wait writing to client");
-#endif
 				}
 			}
 			else if(!clipolled){
@@ -793,15 +677,9 @@ log("wait writing to client");
 				}
 				else {
 					if(fds[fdsc].revents & POLLIN) {
-#ifdef WITHLOG
-log("ready to read from client");
-#endif
 						FROMCLIENT = 1;
 					}
 					if(fds[fdsc].revents & POLLOUT) {
-#ifdef WITHLOG
-log("ready to write to client");
-#endif
 						TOCLIENT = 1;
 					}
 					if(fds[fdsc].revents &  (POLLHUP)) {
@@ -838,21 +716,12 @@ log("ready to write to client");
 				if(srv_events){
 					fds[fdsc].fd = param->remsock;
 					fds[fdsc].events = srv_events;
-#ifdef WITHLOG
-if(srv_events & POLLIN)
-log("wait reading from server");
-if(srv_events & POLLOUT)
-log("wait writing from server");
-#endif
 				}
 			}
 			else if(!srvpolled){
 			}
 			else if(srv_events){
 				if(fds[fdsc].revents &  (POLLERR|POLLNVAL)) {
-#ifdef WITHLOG
-log("poll from server failed");
-#endif
 
 					SERVERTERMREAD = 1;
 					SERVERTERMWRITE = 1;
@@ -860,21 +729,12 @@ log("poll from server failed");
 				}
 				else {
 					if(fds[fdsc].revents & POLLIN) {
-#ifdef WITHLOG
-log("ready to read from server");
-#endif
 						FROMSERVER = 1;
 					}
 					if(fds[fdsc].revents & POLLOUT) {
-#ifdef WITHLOG
-log("ready to write to server");
-#endif
 						TOSERVER = 1;
 					}
 					if(fds[fdsc].revents &  (POLLHUP)) {
-#ifdef WITHLOG
-log("server terminated connection");
-#endif
 						if(fds[fdsc].events & POLLIN) FROMSERVER = 1;
 						if(fds[fdsc].events & POLLOUT){
 							if(hupwrite(param->remsock, fds[fdsc].revents, timeo)) TOSERVER = 1;
@@ -895,9 +755,6 @@ log("server terminated connection");
 		{
 			if(splicecli && fromclient>inclientpipe && !TOCLIENTPIPE && inclientpipe < PIPESIZE){
 				if(!after){
-#ifdef WITHLOG
-log("wait writing to client pipe");
-#endif
 					fds[fdsc].fd = pipecli[1];
 					fds[fdsc].events |= POLLOUT;
 				}
@@ -906,9 +763,6 @@ log("wait writing to client pipe");
 						RETURN(90);
 					}
 					if(fds[fdsc].revents & POLLOUT) {
-#ifdef WITHLOG
-log("ready to write to client pipe");
-#endif
 						TOCLIENTPIPE = 1;
 					}
 				}
@@ -916,9 +770,6 @@ log("ready to write to client pipe");
 			}
 			if(splicecli && inclientpipe && !FROMCLIENTPIPE){
 				if(!after){
-#ifdef WITHLOG
-log("wait reading from client pipe");
-#endif
 					fds[fdsc].fd = pipecli[0];
 					fds[fdsc].events |= (POLLIN);
 				}
@@ -926,18 +777,12 @@ log("wait reading from client pipe");
 					if(fds[fdsc].revents &  (POLLHUP|POLLERR|POLLNVAL)){
 						RETURN(90);
 					}
-#ifdef WITHLOG
-log("ready reading from client pipe");
-#endif
 					if(fds[fdsc].revents & (POLLIN)) FROMCLIENTPIPE = 1;
 				}
 				fdsc++;
 			}
 			if(splicesrv && fromserver>inserverpipe && !TOSERVERPIPE && inserverpipe < PIPESIZE){
 				if(!after){
-#ifdef WITHLOG
-log("wait writing to server pipe");
-#endif
 					fds[fdsc].fd = pipesrv[1];
 					fds[fdsc].events |= POLLOUT;
 				}
@@ -945,18 +790,12 @@ log("wait writing to server pipe");
 					if(fds[fdsc].revents &  (POLLHUP|POLLERR|POLLNVAL)){
 						RETURN(90);
 					}
-#ifdef WITHLOG
-log("ready writing to server pipe");
-#endif
 					if(fds[fdsc].revents & POLLOUT) TOSERVERPIPE = 1;
 				}
 				fdsc++;
 			}
 			if(splicesrv && inserverpipe && !FROMSERVERPIPE){
 				if(!after){
-#ifdef WITHLOG
-log("wait reading from server pipe");
-#endif
 					fds[fdsc].fd = pipesrv[0];
 					fds[fdsc].events |= (POLLIN);
 				}
@@ -964,9 +803,6 @@ log("wait reading from server pipe");
 					if(fds[fdsc].revents &  (POLLHUP|POLLERR|POLLNVAL)){
 						RETURN(90);
 					}
-#ifdef WITHLOG
-log("ready reading from server pipe");
-#endif
 					if(fds[fdsc].revents & (POLLIN)) FROMSERVERPIPE = 1;
 				}
 				fdsc++;
@@ -997,26 +833,14 @@ log("ready reading from server pipe");
 
 
 
-#ifdef WITHLOG
-log("entering poll");
-#endif
 			res = sockpoll(&param->srv->so, param->sostate, fds, fdsc,
 				((CLIENTTERMREAD || SERVERTERMREAD)?
 					MIN(timeo, param->srv->timeouts[LINGER_TO]) : timeo) * 1000);
-#ifdef WITHLOG
-log("leaving poll");
-#endif
 			if(res < 0){
-#ifdef WITHLOG
-log("poll error");
-#endif
 				if(errno != EINTR) RETURN(91);
 				break;
 			}
 			if(res < 1){
-#ifdef WITHLOG
-log("timeout");
-#endif
 				RETURN (92);
 			}
 		}
