@@ -1262,11 +1262,96 @@ static void loopspawn(struct loopjob *job, struct clientparam *param){
 	looppost(&lp->l, &job->m);
 }
 
+/* what fiberlater() posts: the fiber resumed */
+struct laterjob {
+	struct loopmsg m;
+	struct looper *lp;
+	struct fiber *f;
+};
+
+static void latermsg(struct loop *l, struct loopmsg *m){
+	struct laterjob *job = (struct laterjob *)m;
+
+	fiberrun(job->lp, job->f);
+}
+
+/* The fiber lets what is ready for the others of its loop go first: it is
+   resumed in the loop's next turn. */
+static void fiberlater(void){
+	struct laterjob job;
+
+	if(!curlooper || !fibercurrent()) return;
+	job.m.func = latermsg;
+	job.lp = curlooper;
+	job.f = fibercurrent();
+	looppost(&job.lp->l, &job.m);
+	fiberyield();
+}
+
+/* for tcploopcall(): not on Windows */
+#ifndef _WIN32
+/* what loopcall() posts: func(arg) on a fiber of the first loop */
+struct loopcalljob {
+	struct loopmsg m;
+	void (*func)(void *arg);
+	void *arg;
+	size_t stacksize;
+	int res;
+	_3proxy_sem_t done;
+};
+
+static void loopcallfiber(void *arg){
+	struct loopcalljob *job = (struct loopcalljob *)arg;
+
+	job->func(job->arg);
+	job->res = 0;
+	_3proxy_sem_unlock(job->done);
+}
+
+static void loopcallmsg(struct loop *l, struct loopmsg *m){
+	struct loopcalljob *job = (struct loopcalljob *)m;
+	struct looper *lp = curlooper;
+	struct fiberslot *fs;
+
+	if(!(fs = fibertake(lp, job->stacksize))){
+		_3proxy_sem_unlock(job->done);
+		return;
+	}
+	fiberstart(&fs->f, loopcallfiber, job);
+	fiberrun(lp, &fs->f);
+}
+
+/* func(arg) on a fiber of the first loop, this thread waiting until it
+   returns: 0 once it has, -1 if it could not be run there. */
+static int loopcall(void (*func)(void *arg), void *arg, int stacksize){
+	struct loopcalljob job;
+
+	memset(&job, 0, sizeof(job));
+	if(loopsstart() || _3proxy_sem_init(job.done, 0, 1)) return -1;
+	job.m.func = loopcallmsg;
+	job.func = func;
+	job.arg = arg;
+	job.stacksize = fiberstack(stacksize);
+	job.res = -1;
+	looppost(&loopers[0].l, &job.m);
+	_3proxy_sem_lock(job.done);
+	_3proxy_sem_destroy(job.done);
+	return job.res;
+}
+#endif
+
 #else
 
 struct loopjob;
+#ifndef _WIN32
+static int loopcall(void (*func)(void *arg), void *arg, int stacksize){
+	return -1;
+}
+#endif
 static int onlooper(void){
 	return 0;
+}
+static void fiberlater(void){
 }
 static int loopwanted(struct srvparam *srv){
 	return 0;

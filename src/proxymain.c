@@ -164,7 +164,7 @@ static int srvrun(struct srvstart *s){
  else
 #endif
 #ifndef NOTCPMAIN
- res = tcploop(s, &haveslot);
+ if(tcploopcall(s, &haveslot, &res)) res = tcploop(s, &haveslot);
 #endif
  _3proxy_mutex_lock(&tpool.mutex);
  tpool.services--;

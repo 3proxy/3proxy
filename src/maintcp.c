@@ -104,7 +104,9 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
  else {
 	new_sock = srv->so._accept(srv->so.state, srv->srvsock, (struct sockaddr*)&defparam->sincr, &size);
 	if(new_sock == INVALID_SOCKET){
+		/* on a loop, accepted until there are none */
 #ifdef _WIN32
+		if(WSAGetLastError() == WSAEWOULDBLOCK) return NEXT_RETRY;
 		switch(WSAGetLastError()){
 		case WSAEMFILE:
 		case WSAENOBUFS:
@@ -119,6 +121,7 @@ static int tcpnext(struct srvstart *s, SOCKET *client, int *nlog){
 		}
 
 #else
+		if(errno == EAGAIN || errno == EWOULDBLOCK) return NEXT_RETRY;
 		switch (errno){
 #ifdef EMFILE
 		case EMFILE:
@@ -187,26 +190,38 @@ static int tcploop(struct srvstart *s, int *haveslot){
  unsigned char buf[256];
  /* -r: a TCP service connects out for each client instead of listening */
  int connectback = s->iscbc;
+ /* on a fiber of a loop: the loop is not to block, waiting for a slot; a
+    client accepted, the next one is tried before polling */
+ int onloop = onlooper(), more = 0, inrow = 0;
+ /* polled there through a descriptor of its own: a loop knows a socket by
+    its number, which the listening one, handed over on a reload, would
+    share with the service taking it over */
+ struct pollfd lfd = srv->fds;
 
+#ifndef _WIN32
+ if(onloop && (lfd.fd = dup(srv->srvsock)) < 0) return -1;
+#endif
  for (;;) {
 	for(;;){
 		/* A connection is only taken with a slot of maxchild in hand, which
 		   goes to its child; a slot not handed on is kept for the next one.
 		   The wait is timed to notice a reload. */
 		while(!(*haveslot) && srv->config->paused == srv->paused){
-			if(!_3proxy_sem_timedlock(srv->childslots, 1000)){
+			if(!_3proxy_sem_timedlock(srv->childslots, onloop? 0 : 1000)){
 				(*haveslot) = 1;
 				nfull = 0;
 				break;
 			}
-			if(!srv->silent && !(nfull++ % 5)) {
+			if(onloop) sockpoll(&srv->so, srv->so.state, NULL, 0, 100);
+			if(!srv->silent && !(nfull++ % (onloop? 50 : 5))) {
 				sprintf((char *)buf, "Warning: too many connected clients (%d/%d)", srv->childcount, srv->maxchild);
 				dolog(defparam, buf);
 			}
 		}
 		if (connectback) break;
 		if (srv->config->paused != srv->paused) break;
-		error = sockpoll(&srv->so, srv->so.state, &srv->fds, 1, 1000);
+		if (more) break;
+		error = sockpoll(&srv->so, srv->so.state, onloop? &lfd : &srv->fds, 1, 1000);
 		if (error >= 1) break;
 		if (error == 0) continue;
 		if (errno != EAGAIN &&	errno != EINTR) {
@@ -219,9 +234,56 @@ static int tcploop(struct srvstart *s, int *haveslot){
 	error = 0;
 	next = tcpnext(s, &new_sock, &nlog);
 	if(next == NEXT_STOP) break;
+	/* not too many in a row: the clients given to this loop wait for it */
+	more = onloop && next == NEXT_CLIENT;
+	if(more && ++inrow >= 64){
+		fiberlater();
+		inrow = 0;
+	}
+	if(!more) inrow = 0;
 	if(next == NEXT_RETRY) continue;
 	if(!srvspawn(s, new_sock)) (*haveslot) = 0;
  }
+#ifndef _WIN32
+ if(onloop){
+	if(fiberclosefunc) fiberclosefunc(lfd.fd);
+	close(lfd.fd);
+ }
+#endif
  return 0;
+}
+
+#ifndef _WIN32
+struct tcploopcall {
+	struct srvstart *s;
+	int *haveslot;
+	int res;
+};
+
+static void tcploopfiber(void *arg){
+	struct tcploopcall *c = (struct tcploopcall *)arg;
+
+	c->res = tcploop(c->s, c->haveslot);
+}
+#endif
+
+/* tcploop() on a fiber of the first loop, for a service whose clients are
+   served on loops: accepting there, not in a thread of its own woken for
+   each client. 0 once it has run, *res what it returned. Not on Windows,
+   where a listening socket has no dup() to be polled through. */
+static int tcploopcall(struct srvstart *s, int *haveslot, int *res){
+#ifndef _WIN32
+	struct tcploopcall c;
+
+	if(s->iscbc || !loopwanted(&s->srv)) return -1;
+	c.s = s;
+	c.haveslot = haveslot;
+	c.res = 0;
+	if(loopcall(tcploopfiber, &c, s->srv.stacksize)) return -1;
+	*res = c.res;
+	return 0;
+#else
+	return -1;
+#endif
 }
 #endif
