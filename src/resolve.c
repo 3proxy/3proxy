@@ -188,6 +188,7 @@ static uint32_t udpresolvec(struct extparam *c, int af, unsigned char * name, un
 	k += 4;
 	if(na > 255) na = 255;			/* somebody is very evil */
 	for (j = 0; j < na; j++) {		/* now there should be answers */
+	    if(k >= len) break;
 	    while(buf[k] < 192 && buf[k] !=0 && (k+buf[k]+14) < len) k+= (buf[k] + 1);
 	    if(!buf[k]) k--;
 	    if((k+(af == AF_INET6?28:16)) > len) {
@@ -216,12 +217,14 @@ static uint32_t udpresolvec(struct extparam *c, int af, unsigned char * name, un
 		    k+= (12 + flen);
 		    continue; 		/* we need A PTR */
 		}
-		for (s2 = buf + k + 12; s2 < (buf + k + 12 + len) && *s2; ){
-		    s1 = s2 + ((unsigned)*s2) + 1;
+		s1 = buf + k + 12 + flen;	/* the end of this record's data, inside the answer */
+		for (s2 = buf + k + 12; s2 < s1 && *s2 && *s2 < 64; ){
+		    unsigned char *next = s2 + ((unsigned)*s2) + 1;
 		    *s2 = '.';
-		    s2 = s1;
+		    s2 = next;
 		}
-		*s2 = 0;
+		if(s2 >= s1 || *s2 || s2 == buf + k + 12)
+		    break;	/* the name runs past its data, is compressed or empty */
 		/* a name longer than the field is no name to authenticate */
 		if(PARAMSTR(param, username, buf + k + 13)) return 0;
 
