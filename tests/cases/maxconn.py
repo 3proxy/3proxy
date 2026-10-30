@@ -8,6 +8,8 @@ import time
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     # The origin runs in a process of its own, so the limit only applies to
     # the mapper in front of it.
     origin = t.free_port()

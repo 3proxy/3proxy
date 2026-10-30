@@ -13,6 +13,14 @@ skips itself when that is missing or the build has no TLS support. With no
 `--bin` it looks in `bin/`, then `build/bin/`, then the per-configuration
 directories a multi-configuration CMake generator uses.
 
+The binary reports what it was built with in `3proxy --help` (a `built
+with:` list), and the runner reads that before the first case: a case names
+the features it needs with `if not t.skip_unless("ssl"): return`, and
+skips on a build without them instead of failing. A binary too old to
+report its features skips every case that needs one, and the cases with no
+feature needs still run; some cases also probe at runtime, as a build can
+leave a feature compiled in but unusable.
+
 The proxy under test is also the origin server the tests talk to: the `http`
 command's `echo` operation reports back how a request arrived - method, path,
 query, host, and the source port it came from - and `data` generates a body

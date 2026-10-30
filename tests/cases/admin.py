@@ -4,6 +4,8 @@ import time
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     adm = t.free_port()
     lim = t.free_port()
     server = t.start("admin", f"""

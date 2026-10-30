@@ -20,6 +20,8 @@ def _has_pcre(t):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv", "pcre"):
+        return
     if not _has_pcre(t):
         t.skip("PCRE (this build has no PCRE support)")
         return

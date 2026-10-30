@@ -382,6 +382,21 @@ void cyclestep(void){
 #define RETURN(x) {res = x; goto CLEARRETURN;}
 
 
+static void printusage(struct extparam *cconf, int argc, char * argv[]){
+
+	fprintf(stderr, "Usage: %s [conffile]\n", argv[0]);
+#ifdef _WIN32
+	fprintf(stderr, "\n\t%s --install [conffile]\n\tto install as service\n"
+			"\n\t%s --remove\n\tto remove service\n", argv[0], argv[0]);
+#else
+	fprintf(stderr,	"\n if conffile is missing, configuration is expected from stdin\n");
+#endif
+	fprintf(stderr,	"\n\t%s --help\n\tthis message\n", argv[0]);
+	fprintf(stderr, "available socket options:\n\t%s\n", printopts("\n\t"));
+	fprintf(stderr, "built with:\n\t%s\n", printfeatures("\n\t"));
+	fprintf(stderr, "\n%s %s\n%s\n", cconf->stringtable[2], cconf->stringtable[3], copyright);
+}
+
 
 #ifndef _WINCE
 int main(int argc, char * argv[]) {
@@ -424,6 +439,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
 #endif
 
   conf.stringtable = strings;
+  if(argc == 2 && (!strcmp((char *)argv[1], "--help") || !strcmp((char *)argv[1], "-h"))) {
+	printusage(&conf, argc, argv);
+	return 0;
+  }
 #ifdef _WIN32
 #ifndef _WINCE
   if((argc == 2 || argc == 3)&& !strcmp((char *)argv[1], "--install")) {
@@ -536,18 +555,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int 
   }
   if(argc > 2 || !(fp)) {
 
-	fprintf(stderr, "Usage: %s [conffile]\n", argv[0]);
-#ifdef _WIN32
-	fprintf(stderr, "\n\t%s --install [conffile]\n\tto install as service\n"
-			"\n\t%s --remove\n\tto remove service\n", argv[0], argv[0]);
-#else
-	fprintf(stderr,	"\n if conffile is missing, configuration is expected from stdin\n");
-#endif
-	fprintf(stderr, "available socket options:\n\t%s\n", printopts("\n\t"));
-	fprintf(stderr, "\n%s %s\n%s\n", conf.stringtable[2], conf.stringtable[3], copyright);
-
+	printusage(&conf, argc, argv);
 	return 1;
-  }
+   }
 
 #ifndef _WIN32
   /* before readconfig() starts the services: a client gone while it is

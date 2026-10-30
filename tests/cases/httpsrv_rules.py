@@ -2,6 +2,8 @@
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     srv = t.free_port()
     srv2 = t.free_port()
     t.start("httpsrv_rules", f"""
