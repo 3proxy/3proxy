@@ -909,6 +909,8 @@ class Proxy:
     def start(self, args, work):
         cg_remove("prx")
         cg_make("prx", args.cpus["prx"])
+        if args.prx_mem_mb:
+            cg_write(f"{CG}/prx/memory.max", str(args.prx_mem_mb * 2**20))
         if self.kind == "none":
             return None
         argv = [self.binary] + proxy_conf(self.kind, work, len(cpulist(args.cpus["prx"])),
@@ -1244,6 +1246,7 @@ def main():
     ap.add_argument("--mix-active", type=int, default=2000,
                     help="exchanges going at once at most (%(default)s)")
     ap.add_argument("--seed", type=int, default=1, help="what the mix-* scenarios draw from (%(default)s)")
+    ap.add_argument("--prx-mem-mb", type=int, help="memory.max of the proxy cgroup, MB")
     args = ap.parse_args()
     if os.geteuid():
         sys.exit("needs root")
