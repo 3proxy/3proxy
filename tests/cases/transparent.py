@@ -39,6 +39,8 @@ def _config(t, name, body):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     # --- the command and its modes ------------------------------------
     # These need no redirection, so they run wherever the feature is built.
     out = _config(t, "transparent_probe", "log\ntransparent")

@@ -9,6 +9,8 @@ import time
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     origin = t.free_port()
     proxy = t.free_port()
     adm = t.free_port()

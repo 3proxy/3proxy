@@ -4,6 +4,8 @@ import socket
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     srv = t.free_port()
     sks = t.free_port()
     sauth = t.free_port()

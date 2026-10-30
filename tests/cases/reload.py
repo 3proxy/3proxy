@@ -29,6 +29,8 @@ def config(origin, proxy, adm, user, extra=""):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     origin = t.free_port()
     first = t.free_port()
     second = t.free_port()

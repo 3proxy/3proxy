@@ -46,6 +46,8 @@ UNHONOURED = (1, 99)
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     srv = t.free_port()
     prx = t.free_port()
     sks = t.free_port()

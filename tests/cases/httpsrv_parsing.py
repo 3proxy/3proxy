@@ -6,6 +6,8 @@ most of them away before they ever reached the server.
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     srv = t.free_port()
     t.start("httpsrv_parsing", f"""
         log

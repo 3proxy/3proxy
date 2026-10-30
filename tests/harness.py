@@ -122,10 +122,11 @@ class Failure(Exception):
 class Tester:
     """The API a case runs against: start servers, make requests, assert."""
 
-    def __init__(self, binary, tmpdir, case):
+    def __init__(self, binary, tmpdir, case, features=None):
         self.binary = binary
         self.tmpdir = tmpdir
         self.case = case
+        self.features = features if features is not None else frozenset()
         self.servers = []
         self.checks = []
         self.timeout = 10
@@ -134,6 +135,25 @@ class Tester:
         self._certs = None
         self.logs = []
         self.udp_servers = []
+
+    # ---- build features ----------------------------------------------
+
+    def has(self, *names):
+        """Whether the binary reports every named feature."""
+        return all(name in self.features for name in names)
+
+    def skip_unless(self, *names):
+        """Skip what needs a feature the binary was built without.
+
+        Returns False after recording the skip, so a case says
+        `if not t.skip_unless("ssl"): return` and keeps its checks out of
+        the failed count on a build that cannot pass them.
+        """
+        missing = [name for name in names if name not in self.features]
+        if not missing:
+            return True
+        self.skip("built without: " + ", ".join(missing))
+        return False
 
     # ---- servers -----------------------------------------------------
 

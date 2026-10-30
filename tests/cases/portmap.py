@@ -26,6 +26,8 @@ def halfclose_origin(listener):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     # --- tcppm ---------------------------------------------------------
     origin = t.free_port()
     mapped = t.free_port()

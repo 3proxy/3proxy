@@ -7,6 +7,8 @@ nscache6: nscache holds the IPv4 side and nothing else.
 
 
 def run(t):
+    if not t.skip_unless("httpsrv", "ipv6"):
+        return
     if not t.has_ipv6():
         t.skip("IPv6 (this machine has no IPv6 loopback)")
         return

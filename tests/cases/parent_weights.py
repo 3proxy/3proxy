@@ -37,6 +37,8 @@ def wait_served(server, needle, count, since=0, timeout=5.0):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     adm = t.free_port()
     prx = t.free_port()
     dummy = t.free_port()

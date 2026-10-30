@@ -30,6 +30,8 @@ def wait_served(server, needle, count, since=0, timeout=5.0):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     srv = t.free_port()
     good = t.free_port()
     spare = t.free_port()

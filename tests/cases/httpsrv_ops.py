@@ -4,6 +4,8 @@ import time
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     srv = t.free_port()
     t.start("httpsrv_ops", f"""
         log

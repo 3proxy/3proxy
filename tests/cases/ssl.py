@@ -11,6 +11,8 @@ def _no_tls(t, server):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv", "ssl"):
+        return
     certs = t.certs()
     if not certs:
         t.skip("TLS (openssl is not available to generate certificates)")

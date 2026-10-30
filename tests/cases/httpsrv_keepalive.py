@@ -10,6 +10,8 @@ import os
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     root = os.path.join(t.tmpdir, "ka")
     os.makedirs(root, exist_ok=True)
     with open(os.path.join(root, "a.html"), "w") as fp:

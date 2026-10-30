@@ -60,6 +60,8 @@ def reply(f):
 
 
 def run(t):
+    if not t.skip_unless("ftppr"):
+        return
     servers = {}
     for name, (user, password) in LOGINS.items():
         listener = socket.socket()

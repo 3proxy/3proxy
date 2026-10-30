@@ -130,6 +130,8 @@ def config(origin, p1, p2, p3, adm, main, shared=None):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     origin, p1, p2, p3, adm = (t.free_port() for _ in range(5))
     first = os.path.join(t.tmpdir, "logs-first.log")
     second = os.path.join(t.tmpdir, "logs-second.log")

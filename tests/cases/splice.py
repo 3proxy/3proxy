@@ -61,6 +61,8 @@ def echo_through(port, data):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     origin = t.free_port()
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
