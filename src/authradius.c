@@ -198,12 +198,20 @@ static int calc_replydigest(char *packet, char *original, const char *secret, in
 	int		secretlen;
 	uint8_t		calc_digest[AUTH_VECTOR_LEN];
 	uint8_t         calc_vector[AUTH_VECTOR_LEN];
+	unsigned int	dlen = AUTH_VECTOR_LEN;
+	mdh_ctx		*ctx;
 
 	memcpy(calc_vector, packet + 4, AUTH_VECTOR_LEN);
 	memcpy(packet + 4, original, AUTH_VECTOR_LEN);
 	secretlen = strlen(secret);
-	memcpy(packet + len, secret, secretlen);
-	md5_calc(calc_digest, (u_char *)packet, len + secretlen);
+	/* hash the reply, then the secret: nothing is written past the reply */
+	if(!(ctx = mdh_init(MDH_MD5, 16))) return 2;
+	if(!mdh_update(ctx, packet, len) || !mdh_update(ctx, secret, secretlen) ||
+	    !mdh_final(ctx, calc_digest, &dlen)) {
+		mdh_free(ctx);
+		return 2;
+	}
+	mdh_free(ctx);
 
 	/*
 	 *	Return 0 if OK, 2 if not OK.
@@ -298,6 +306,7 @@ int radsend(struct clientparam * param, int auth, int stop){
 	int total_length;
 	int len;
 	PROXYSOCKADDRTYPE     saremote;
+	PROXYSOCKADDRTYPE     safrom;
 	struct pollfd fds[1];
 	char vector[AUTH_VECTOR_LEN];
 	radius_packet_t packet, rpacket;
@@ -568,13 +577,23 @@ int radsend(struct clientparam * param, int auth, int stop){
 			continue;
 		}
 
-		salen = sizeof(saremote);
-				
+		salen = sizeof(safrom);
+
 		data_len = so._recvfrom(so.state, remsock, (char *)&rpacket, sizeof(packet)-16,
-			0, (struct sockaddr *)&saremote, &salen);
+			0, (struct sockaddr *)&safrom, &salen);
 
 
 		if (data_len < 20) {
+			continue;
+		}
+		/* the reply must come from the server we asked */
+		if(*SAFAMILY(&safrom) != *SAFAMILY(&saremote) ||
+		   memcmp(SAADDR(&safrom), SAADDR(&saremote), SAADDRLEN(&saremote)) ||
+		   *SAPORT(&safrom) != *SAPORT(&saremote)) {
+			continue;
+		}
+		/* and answer this request, and be of its own length */
+		if(data_len != ntohs(rpacket.length) || rpacket.id != packet.id) {
 			continue;
 		}
 
