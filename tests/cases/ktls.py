@@ -8,6 +8,8 @@ data and the report, not that the kernel took it.
 
 
 def run(t):
+    if not t.skip_unless("httpsrv", "ssl"):
+        return
     certs = t.certs()
     if not certs:
         t.skip("kernel TLS (openssl is not available to generate certificates)")

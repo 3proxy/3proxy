@@ -48,6 +48,37 @@ def load_case(path):
     return name, module
 
 
+def built_features(binary):
+    """The features the binary reports in `3proxy --help`, as a set.
+
+    A binary too old to have the list, or one that cannot be run at all,
+    reports nothing: every case that needs a feature then skips, and the
+    ones that need none still run.
+    """
+    import subprocess
+    try:
+        done = subprocess.run([binary, "--help"], stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, timeout=15)
+        text = done.stdout.decode("utf-8", "replace")
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    features = set()
+    collecting = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if line.startswith("built with:"):
+            collecting = True
+            rest = stripped[len("built with:"):].strip()
+            if rest:
+                features.update(rest.split())
+            continue
+        if collecting:
+            if not line[:1].isspace() or not stripped:
+                break
+            features.update(stripped.split())
+    return frozenset(features)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("pattern", nargs="?", default="",
@@ -76,7 +107,9 @@ def main():
         return 2
 
     tmpdir = tempfile.mkdtemp(prefix="3proxy-tests.")
+    features = built_features(binary)
     print(f"3proxy tests: {binary}")
+    print(f"built with:   {' '.join(sorted(features)) or '(nothing reported)'}")
     print(f"working in:   {tmpdir}\n")
 
     passed = failed = skipped = 0
@@ -86,7 +119,7 @@ def main():
         for path in paths:
             name, module = load_case(path)
             print(f"  {name}")
-            tester = Tester(binary, tmpdir, name)
+            tester = Tester(binary, tmpdir, name, features)
             error = None
             try:
                 module.run(tester)

@@ -627,6 +627,7 @@ extern struct socketoptions {
 int getopts(const char *s, struct sockoptset *opts);
 void setopts(SOCKET s, const struct sockoptset *opts, int maxseg);
 char * printopts(char *sep);
+char * printfeatures(char *sep);
 
 #ifdef _WINCE
 char * CEToUnicode (const char *str);

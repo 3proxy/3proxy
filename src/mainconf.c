@@ -86,6 +86,69 @@ char * printopts(char *sep){
 }
 
 
+char featsbuf[1024];
+
+/* The features of this build, by the names the manual and the test suite
+   know them, so a user can see what a binary was made with. */
+char * printfeatures(char *sep){
+	int pos=0;
+
+#define ADDFEATURE(x) pos += sprintf(featsbuf+pos,"%s%s",pos?sep:"",x)
+#ifdef WITH_SSL
+	ADDFEATURE("ssl");
+#ifdef WITH_WOLFSSL
+	ADDFEATURE("wolfssl");
+#else
+	ADDFEATURE("openssl");
+#endif
+#endif
+#ifndef NORADIUS
+	ADDFEATURE("radius");
+#endif
+#ifdef WITH_PCRE
+	ADDFEATURE("pcre");
+#endif
+#ifndef NOIPV6
+	ADDFEATURE("ipv6");
+#endif
+#ifdef WITH_UN
+	ADDFEATURE("unix");
+#endif
+#ifdef WITH_HTTPSRV
+	ADDFEATURE("httpsrv");
+#endif
+#ifdef WITH_TRANSPARENT
+	ADDFEATURE("transparent");
+#endif
+#ifdef WITH_NETFILTER
+	ADDFEATURE("netfilter");
+#endif
+#ifdef WITH_PF
+	ADDFEATURE("pf");
+#endif
+#ifdef WITH_ODBC
+	ADDFEATURE("odbc");
+#endif
+#ifdef WITH_FTP
+	ADDFEATURE("ftppr");
+#endif
+#ifdef WITH_POP3P
+	ADDFEATURE("pop3p");
+#endif
+#ifdef WITH_SMTPP
+	ADDFEATURE("smtpp");
+#endif
+#ifdef WITH_IMAPP
+	ADDFEATURE("imapp");
+#endif
+#ifndef NOPLUGINS
+	ADDFEATURE("plugins");
+#endif
+#undef ADDFEATURE
+	return featsbuf;
+}
+
+
 /* A comma separated list of options, each NAME or NAME=VALUE; a name alone
    stands for 1, or for TCP_MAXSEG for the value of maxseg. Options are added
    to what is already set, so a default is changed only by naming it, and

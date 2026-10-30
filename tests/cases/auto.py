@@ -7,7 +7,9 @@ handshake and the service supplies the port.
 
 
 def run(t):
-    certs = t.certs()
+    if not t.skip_unless("httpsrv"):
+        return
+    certs = t.certs() if t.has("ssl") else None
     plain = t.free_port()
     port = t.free_port()
     secure = t.free_port() if certs else None

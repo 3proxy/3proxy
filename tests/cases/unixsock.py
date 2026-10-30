@@ -37,6 +37,8 @@ def unix_get(path, url, timeout=10):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv", "unix"):
+        return
     if not hasattr(socket, "AF_UNIX") or sys.platform.startswith("win"):
         t.skip("Unix domain sockets (not on this platform)")
         return

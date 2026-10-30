@@ -6,6 +6,8 @@ from a clean list.
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     srv = t.free_port()
     other = t.free_port()
     prx = t.free_port()

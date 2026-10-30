@@ -49,6 +49,8 @@ def wait(t, port, name):
 
 
 def run(t):
+    if not t.skip_unless("httpsrv"):
+        return
     if not hosts_localhost() or not system_nameserver():
         t.skip("no localhost in the hosts file, or no system name server")
         return
