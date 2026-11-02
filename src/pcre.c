@@ -220,6 +220,14 @@ struct pcre_filter_data {
 	struct ace *acl;
 };
 
+/* What a connection matches with: pcre2_match() writes into its match
+   data, so a thread matching on the rule's own one would race every
+   other thread doing the same. */
+struct pcre_client_data {
+	struct pcre_filter_data *pcrefd;
+	pcre2_match_data * match_data;
+};
+
 static void pcre_data_free(struct pcre_filter_data *pcrefd){
 	_3proxy_mutex_lock(&pcre_mutex);
 	pcrefd->users--;
@@ -253,16 +261,30 @@ static void* pcre_filter_open(void * idata, struct srvparam * param){
 static FILTER_ACTION pcre_filter_client(void *fo, struct clientparam * param, void** fc){
 	int res;
 	struct ace tmpace;
+	struct pcre_filter_data *rule = (struct pcre_filter_data *)fo;
+	struct pcre_client_data *pcd;
 
 	*fc = fo;
 	if(!fo) return PASS;
-#define pcrefd ((struct pcre_filter_data *)fo)
-	if(!pcrefd->acl) return CONTINUE;
+	if(!rule->acl) return CONTINUE;
 	memset (&tmpace, 0, sizeof(struct ace));
-	tmpace.src = pcrefd->acl->src;
+	tmpace.src = rule->acl->src;
 	res = pl->ACLMatches(&tmpace, param);
-#undef pcrefd
-	return (res)? CONTINUE:PASS;
+	if(!res) return PASS;
+	/* the connection goes on with a match data of its own */
+	if(!(pcd = pl->mallocfunc(sizeof(struct pcre_client_data)))){
+		*fc = NULL;
+		return rule->action;
+	}
+	pcd->pcrefd = rule;
+	pcd->match_data = NULL;
+	if(rule->re && !(pcd->match_data = pcre2_match_data_create_from_pattern(rule->re, NULL))){
+		pl->freefunc(pcd);
+		*fc = NULL;
+		return rule->action;
+	}
+	*fc = pcd;
+	return CONTINUE;
 }
 
 /* What a rewritten buffer keeps free for its caller to append to. */
@@ -277,7 +299,8 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 	char * replace;
 	char * tmpbuf, *target, *newbuf;
 	int nreplaces=0;
-#define pcrefd ((struct pcre_filter_data *)fc)
+	struct pcre_client_data *pcd = (struct pcre_client_data *)fc;
+#define pcrefd (pcd->pcrefd)
 
 	for(acl = pcrefd->acl; acl; acl=acl->next){
 		if(pl->ACLMatches(acl, param)){
@@ -290,9 +313,9 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 	for(; offset < *length_p; nreplaces++){
 		int repsz;
 
-		count = pcre2_match(pcrefd->re, (PCRE2_SPTR)*buf_p, *length_p, offset, 0, pcrefd->match_data, pcrefd->match_context);
+		count = pcre2_match(pcrefd->re, (PCRE2_SPTR)*buf_p, *length_p, offset, 0, pcd->match_data, pcrefd->match_context);
 		if(count <= 0) break;
-		ovector = pcre2_get_ovector_pointer(pcrefd->match_data);
+		ovector = pcre2_get_ovector_pointer(pcd->match_data);
 		if(ovector[0] > (PCRE2_SIZE)*length_p || ovector[1] > (PCRE2_SIZE)*length_p || ovector[1] < ovector[0]) break;
 		if(!(replace = pcrefd->replace) || param->nooverwritefilter) return pcrefd->action;
 
@@ -376,7 +399,13 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 #undef pcrefd
 }
 
-static void pcre_filter_clear(void *fo){
+static void pcre_filter_clear(void *fc){
+	struct pcre_client_data *pcd = (struct pcre_client_data *)fc;
+
+	if(pcd){
+		if(pcd->match_data) pcre2_match_data_free(pcd->match_data);
+		pl->freefunc(pcd);
+	}
 }
 
 static void pcre_filter_close(void *fo){
