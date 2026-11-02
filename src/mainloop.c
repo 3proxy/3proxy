@@ -555,7 +555,7 @@ static void cbfail(struct cbmap *m, int side, int writing){
 /* Statistics of what went through a way, as sockmap() counts them, and
    the bandwidth limits' pause: the client's data once written to the
    server, the server's once read. A read counts for the grace. */
-static void cbcount(struct cbmap *m, struct cbway *w, int written, ssize_t n){
+static void cbcount(struct cbmap *m, struct cbway *w, int written, SOCKRET n){
 	struct clientparam *param = m->param;
 	int sl = 0;
 
@@ -603,7 +603,7 @@ static int cbway(struct cbmap *m, struct cbway *w){
 	unsigned char *buf;
 	unsigned *inbuf, *offset, size;
 	uint64_t inb, room;
-	ssize_t n;
+	SOCKRET n;
 
 	if(!w->left) return 0;
 	cbbuf(param, w->src, &buf, &inbuf, &offset, &size);

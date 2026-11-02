@@ -35,6 +35,7 @@ extern "C" {
 #include <net/if.h>
 #endif
 #define SASIZETYPE socklen_t
+#define SOCKRET ssize_t		/* what a socket call returns: moved bytes or -1 */
 #define SOCKET int
 #define INVALID_SOCKET  (-1)
 #define _3proxy_mutex_t pthread_mutex_t

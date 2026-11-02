@@ -62,6 +62,7 @@
 #include <io.h>
 #include <process.h>
 #define SASIZETYPE int
+#define SOCKRET int		/* what a socket call returns: moved bytes or -1 */
 #define SHUT_RDWR SD_BOTH
 #define SHUT_WR SD_SEND
 #define SHUT_RD SD_RECEIVE
