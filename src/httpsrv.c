@@ -1463,16 +1463,27 @@ static int httpsrv_request(struct clientparam *param, struct httpreq *r)
 			return 1;
 		}
 	}
-	if(i && i != 10){
+	if(i){
 		/* The body goes before the answer, as for any answer this server
 		   gives: left in the stream it would be read as the next request. */
 		if(!r->drained){
 			if(r->contentlen) httpsrv_drain(param, r->contentlen);
 			r->drained = 1;
 		}
+		/* 10: a limit of the service was exceeded, which the other
+		   services answer with 503. */
+		if(i == 10){
+			static const char body[] = "exceeded your limits\n";
+
+			r->hdrs = NULL;
+			r->maxage = -1;
+			r->keepalive = 0;
+			if(httpsrv_head(r, 503, "text/plain", (int64_t)sizeof(body) - 1, NULL)) return 1;
+			httpsrv_send(r, body, (int)sizeof(body) - 1);
+		}
 		/* 4 no credentials, 5 unknown user, 6 wrong password: all of them
 		   should let the client offer credentials again. */
-		if(i >= 4 && i <= 6) op_authrequired(r);
+		else if(i >= 4 && i <= 6) op_authrequired(r);
 		else op_forbidden(r);
 		RETURN(i);
 	}
