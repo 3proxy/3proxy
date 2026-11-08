@@ -264,13 +264,14 @@ static FILTER_ACTION pcre_filter_client(void *fo, struct clientparam * param, vo
 	struct pcre_filter_data *rule = (struct pcre_filter_data *)fo;
 	struct pcre_client_data *pcd;
 
-	*fc = fo;
+	*fc = NULL;
 	if(!fo) return PASS;
-	if(!rule->acl) return CONTINUE;
-	memset (&tmpace, 0, sizeof(struct ace));
-	tmpace.src = rule->acl->src;
-	res = pl->ACLMatches(&tmpace, param);
-	if(!res) return PASS;
+	if(rule->acl){
+		memset (&tmpace, 0, sizeof(struct ace));
+		tmpace.src = rule->acl->src;
+		res = pl->ACLMatches(&tmpace, param);
+		if(!res) return PASS;
+	}
 	/* the connection goes on with a match data of its own */
 	if(!(pcd = pl->mallocfunc(sizeof(struct pcre_client_data)))){
 		*fc = NULL;
