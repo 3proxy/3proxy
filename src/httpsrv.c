@@ -429,11 +429,12 @@ static int targetunsafe(const char *path)
 #endif
 	}
 	if(!strncmp(path, "./", 2) || !strncmp(path, "../", 3)) return 1;
-	if(strstr(path, "/./") || strstr(path, "/../")) return 1;
-	if(strstr(path, "\\.\\") || strstr(path, "\\..\\")) return 1;
+	/* a dot-dot segment, with either separator, wherever it is in the
+	   path: a walk out of the tree, or a file named to look like one */
+	if(strstr(path, "/..") || strstr(path, "\\..")) return 1;
+	if(strstr(path, "/./") || strstr(path, "\\.\\")) return 1;
 	p = path + strlen(path);
-	if(p - path >= 2 && !strcmp(p - 2, "/.")) return 1;
-	if(p - path >= 3 && !strcmp(p - 3, "/..")) return 1;
+	if(p - path >= 2 && (!strcmp(p - 2, "/.") || !strcmp(p - 2, "\\."))) return 1;
 	return 0;
 }
 
