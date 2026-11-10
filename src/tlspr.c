@@ -224,6 +224,7 @@ int parsehello(int type, unsigned char *hello, unsigned len, char *sni, int * sn
     else if(type == 2){
 	offset += 3;
     }
+    if((offset + 2) > len) return -6;
     elen = size16(hello+offset);
     offset += 2;
     if(elen+offset != len) return -9;
