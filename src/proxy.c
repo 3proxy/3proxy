@@ -561,6 +561,15 @@ for(;;){
  hdrfree(&buf, &bufown);
  hdrsdone = 0;
 
+ /* What the request brought belongs to it alone. A connection can carry
+    a request after another's, so the credentials of an earlier request
+    decide nothing for this one. */
+ *param->username = 0;
+ *param->password = 0;
+ param->pwtype = 0;
+ *param->extusername = 0;
+ *param->extpassword = 0;
+
  if(keepalive && (param->cliinbuf == param->clioffset) && (param->remsock != INVALID_SOCKET)){
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = param->clisock;
