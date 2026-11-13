@@ -1618,6 +1618,23 @@ void * httpsrvchild(struct clientparam *param)
 		r.lasthost = lasthost;
 		param->res = 0;
 
+		/* What the request brought belongs to it alone. A connection
+		   can carry a client's request after another's, as a reverse
+		   proxy reuses its upstreams, so the credentials and the host
+		   of an earlier request decide nothing for this one. */
+		if(param->username){
+			free(param->username);
+			param->username = NULL;
+		}
+		if(param->password){
+			free(param->password);
+			param->password = NULL;
+		}
+		if(param->hostname){
+			free(param->hostname);
+			param->hostname = NULL;
+		}
+
 		answered = httpsrv_request(param, &r);
 		handoff = r.handoff;
 		if(r.raw) free(r.raw);

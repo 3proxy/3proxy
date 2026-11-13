@@ -1,5 +1,7 @@
 """Authentication and access rules in front of the HTTP server."""
 
+import base64
+
 
 def run(t):
     if not t.skip_unless("httpsrv"):
@@ -49,3 +51,19 @@ def run(t):
 
     t.contains(t.http(url + "/echo", auth=("alice", "secret")), "path=/echo",
                "an authenticated request is dispatched")
+
+    # --- credentials do not outlive the request that carried them ------
+    # A kept connection answers a second request without credentials as
+    # unauthenticated: a reverse proxy reuses its upstreams between
+    # clients, so one client's login must not open another's way in.
+    creds = base64.b64encode(b"alice:secret").decode()
+    text, closed = t.raw_session(srv,
+        f"GET /echo HTTP/1.1\r\nHost: t\r\n"
+        f"Authorization: Basic {creds}\r\n\r\n"
+        f"GET /echo HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n")
+    parts = text.split("HTTP/1.")
+    t.eq(3, len(parts), "the kept connection answers both requests")
+    t.eq(True, parts[1].startswith("1 200"),
+         "the request with credentials is allowed")
+    t.eq(True, parts[2].startswith("0 401"),
+         "the request after it, without credentials, is refused")
