@@ -4,6 +4,8 @@ Access rules accumulate until "flush", so each service section here starts
 from a clean list.
 """
 
+import base64
+
 
 def run(t):
     if not t.skip_unless("httpsrv"):
@@ -108,3 +110,18 @@ def run(t):
     t.eq(407, t.http(origin + "/echo", proxy=needs_auth,
                      proxy_auth=("alice", "wrong")).status,
          "wrong proxy credentials are refused")
+
+    # credentials do not outlive the request which carried them: a second
+    # request on the same connection, without them, is asked again
+    creds = base64.b64encode(b"alice:secret").decode()
+    text, closed = t.raw_session(auth,
+        f"GET {origin}/echo HTTP/1.1\r\nHost: 127.0.0.1:{srv}\r\n"
+        f"Proxy-Authorization: Basic {creds}\r\n\r\n"
+        f"GET {origin}/echo HTTP/1.1\r\nHost: 127.0.0.1:{srv}\r\n"
+        f"Connection: close\r\n\r\n")
+    parts = text.split("HTTP/1.")
+    t.eq(3, len(parts), "the kept connection answers both requests")
+    t.eq(True, parts[1].startswith("1 200"),
+         "the request with credentials is allowed")
+    t.eq(True, parts[2].startswith("0 407"),
+         "the request after it, without credentials, is refused")

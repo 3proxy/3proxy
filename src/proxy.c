@@ -340,6 +340,27 @@ for(;;){
  clhdrofs_req = -1;
  param->nolongdatfilter = 0;
 
+ /* What the request brought belongs to it alone. A connection can carry
+    a request after another's, so the credentials of an earlier request
+    decide nothing for this one. */
+ if(param->username){
+	free(param->username);
+	param->username = NULL;
+ }
+ if(param->password){
+	free(param->password);
+	param->password = NULL;
+ }
+ param->pwtype = 0;
+ if(param->extusername){
+	free(param->extusername);
+	param->extusername = NULL;
+ }
+ if(param->extpassword){
+	free(param->extpassword);
+	param->extpassword = NULL;
+ }
+
  /* A connection waiting a while for its next request, or a tunnel, holds
     no buffer: it is taken again once a request starts coming. */
  if(buf && param->cliinbuf == param->clioffset){
