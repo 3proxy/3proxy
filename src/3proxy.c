@@ -29,7 +29,7 @@ void httpsrv_init(void);
 #endif
 
 #ifndef DEFAULTCONFIG
-#define DEFAULTCONFIG conf->stringtable[25]
+#define DEFAULTCONFIG conf->stringtable[27]
 #endif
 
 FILE * confopen();

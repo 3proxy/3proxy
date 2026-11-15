@@ -39,8 +39,10 @@ make clean
 /bin/3proxy_proxy
 /bin/3proxy_socks
 /bin/3proxy_tcppm
+/bin/3proxy_tcptoudp
 /bin/3proxy_tlspr
 /bin/3proxy_udppm
+/bin/3proxy_udptotcp
 /bin/add3proxyuser
 %config(noreplace) /etc/3proxy/3proxy.cfg
 /etc/3proxy/conf

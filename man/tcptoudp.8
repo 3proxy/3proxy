@@ -1,0 +1,99 @@
+.TH tcptoudp "8" "November 2026" "3proxy" "Universal proxy server"
+.SH NAME
+.B tcptoudp
+\- TCP to UDP tunnel
+.SH SYNOPSIS
+.BR "tcptoudp " [ -d ]
+.IB \fR[ -l \fR[ \fR[ @ \fR] logfile \fR]]
+.IB \fR[ -i internal_ip\fR]
+.IB \fR[ -e external_ip\fR]
+.I local_port remote_host remote_port
+.SH DESCRIPTION
+.B tcptoudp
+takes TCP connections on
+.I local_port
+and sends what they carry as datagrams to
+.IR remote_host : remote_port ,
+framing each datagram with its length on the connection. This is the
+server side of udptunnel (the rfc1036 one, started with \fB-s\fR) and of
+ProxyGuard (eduVPN), whose clients it answers: a connection that begins
+with udptunnel's 32 byte handshake has it taken off, one that asks with
+an HTTP Upgrade for UoTLV/1 is told the protocols are switched, and one
+that begins with a length goes to the framing at once. What comes back
+from the target is sent on the connection framed the same way. Each
+connection has a UDP socket of its own to the target; a parent the ACL
+gives is a SOCKS5 UDP relay, as for udppm.
+.SH OPTIONS
+.TP
+.B -I
+Inetd mode. Standalone service only.
+.TP
+.B -d
+Daemonize. Detach service from console and run in the background.
+.TP
+.B -t
+Be silenT. Do not log start/stop/accept error records.
+.TP
+.B -e
+External address. IP address of the interface the proxy should send datagrams
+from.
+By default, the system will decide which address to use in accordance
+with the routing table.
+.TP
+.B \-ni\fIPATH\fR
+(Linux only) Switch to the network namespace identified by
+.I PATH
+before opening the listening socket. The current namespace is saved and restored
+immediately after binding, so outgoing datagrams run in the original namespace
+unless
+.B \-ne
+is also given.
+.TP
+.B \-ne\fIPATH\fR
+(Linux only) Switch to the network namespace identified by
+.I PATH
+after the listening socket has been bound (and after restoring from
+.B \-ni
+if applicable). Both options accept any namespace file path
+(e.g.\& \fI/var/run/netns/myns\fR or \fI/proc/PID/ns/net\fR)
+and require \fBCAP_SYS_ADMIN\fR.
+.TP
+.B -i
+Internal address. IP address the proxy accepts connections to.
+By default, connections to any interface are accepted. It\'s usually unsafe.
+.TP
+.B -l
+Log. By default logging is to stdout. If
+.I logfile
+is specified logging is to file. Under Unix, if
+.RI \' @ \'
+precedes
+.IR logfile ,
+syslog is used for logging.
+.TP
+.B -S
+Increase or decrease stack size. You may want to try something like -S8192 if you experience 3proxy
+crashes.
+.SH ARGUMENTS
+.TP
+.I local_port
+- port tcptoudp accepts connections on
+.TP
+.I remote_host
+- IP address of the host datagrams are sent to
+.TP
+.I remote_port
+- remote port datagrams are sent to
+.SH CLIENTS
+udptunnel's client (without \fB-s\fR), ProxyGuard's client
+(\fBproxyguard-client\fR), or anything that puts datagrams on a TCP
+connection with a two byte length in network order in front of each.
+.SH BUGS
+Report all bugs to
+.BR 3proxy@3proxy.org
+.SH SEE ALSO
+3proxy(8), 3proxy.cfg(5), udptotcp(8), tcppm(8), udppm(8), syslogd(8),
+.br
+https://3proxy.org/
+.SH AUTHORS
+3proxy is designed by Vladimir Dubrovin <vlad@3proxy.org>

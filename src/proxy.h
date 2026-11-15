@@ -318,7 +318,7 @@ struct udploop {
 uint64_t monotime(void);
 int udpanswer(struct udploop *u, struct clientparam *param, unsigned char *buf, int len);
 
-extern const struct udpservice udppmservice, dnsprservice;
+extern const struct udpservice udppmservice, dnsprservice, udptotcpservice;
 int socks5_setaddr(int family, int atyp, const unsigned char *addr, PROXYSOCKADDRTYPE *sa);
 /* which of a service's network namespaces a socket is made in */
 #define NS_IN	0	/* -ni: what faces the clients */
@@ -561,6 +561,7 @@ void * smtppchild(struct clientparam * param);
 void * proxychild(struct clientparam * param);
 void * sockschild(struct clientparam * param);
 void * tcppmchild(struct clientparam * param);
+void * tcptoudpchild(struct clientparam * param);
 void * autochild(struct clientparam * param);
 #ifdef WITH_HTTPSRV
 int op_admin(struct httpreq *r, const unsigned char *params);

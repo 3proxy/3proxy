@@ -80,6 +80,14 @@ Recursion is not allowed.
 [options]
 \fI<SRCPORT>\fR \fI<DSTADDR>\fR \fI<DSTPORT>\fR
 .br
+.B tcptoudp
+[options]
+\fI<SRCPORT>\fR \fI<DSTADDR>\fR \fI<DSTPORT>\fR
+.br
+.B udptotcp
+[options]
+\fI<SRCPORT>\fR \fI<DSTADDR>\fR \fI<DSTPORT>\fR
+.br
  Descriptions:
 .br
 .B proxy
@@ -126,6 +134,25 @@ but must be specified for syntax compatibility.
 .br
 .B udppm
 UDP portmapper
+
+.br
+.B tcptoudp
+TCP to UDP tunnel: connections on SRCPORT carry datagrams, each with a
+two byte length in network order in front of it, sent as UDP datagrams
+to DSTADDR:DSTPORT, the answers framed the same way back. The handshake
+a client speaks \(em udptunnel's (the rfc1036 one) or ProxyGuard's HTTP
+Upgrade for UoTLV/1 (eduVPN) \(em is recognised and answered; a
+connection that begins with a length needs none. Each connection has a
+UDP socket of its own to the target.
+
+.br
+.B udptotcp
+UDP to TCP tunnel: each client sending datagrams to SRCPORT is a session
+of the service with a TCP connection of its own to DSTADDR:DSTPORT, its
+datagrams sent on it with a two byte length in front of each, what comes
+back answered to the client. \fB-m\fR sends udptunnel's handshake to the
+target first, \fB-m2\fR ProxyGuard's (an HTTP Upgrade for UoTLV/1), \fB-m0\fR
+sends none, which is the default.
 
 .br
  Options:
@@ -2029,7 +2056,7 @@ the tree is refused outright.
 Report all bugs to
 .BR 3proxy@3proxy.org
 .SH SEE ALSO
-3proxy(8), 3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8), imapp(8), smtpp(8), tlspr(8), tcppm(8), udppm(8), syslogd(8),
+3proxy(8), 3proxy_crypt(8), proxy(8), ftppr(8), socks(8), pop3p(8), imapp(8), smtpp(8), tlspr(8), tcppm(8), udppm(8), tcptoudp(8), udptotcp(8), syslogd(8),
 .br
  https://3proxy.org/
 .SH AUTHORS
