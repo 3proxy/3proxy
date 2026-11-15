@@ -5,7 +5,7 @@ PROXYMAIN = proxymain.c mainconf.c mainlisten.c mainclient.c maintcp.c mainudp.c
 # 3 proxy common Makefile
 #
 
-all:	$(BUILDDIR)3proxy$(EXESUFFICS) $(BUILDDIR)$(CRYPT_PREFIX)crypt$(EXESUFFICS) $(MAIL_EXES) $(FTP_EXES) $(BUILDDIR)$(PREFIX)tcppm$(EXESUFFICS) $(BUILDDIR)$(PREFIX)udppm$(EXESUFFICS) $(BUILDDIR)$(PREFIX)tlspr$(EXESUFFICS) $(BUILDDIR)$(PREFIX)socks$(EXESUFFICS) $(BUILDDIR)$(PREFIX)proxy$(EXESUFFICS) allplugins
+all:	$(BUILDDIR)3proxy$(EXESUFFICS) $(BUILDDIR)$(CRYPT_PREFIX)crypt$(EXESUFFICS) $(MAIL_EXES) $(FTP_EXES) $(BUILDDIR)$(PREFIX)tcppm$(EXESUFFICS) $(BUILDDIR)$(PREFIX)udppm$(EXESUFFICS) $(BUILDDIR)$(PREFIX)tcptoudp$(EXESUFFICS) $(BUILDDIR)$(PREFIX)udptotcp$(EXESUFFICS) $(BUILDDIR)$(PREFIX)tlspr$(EXESUFFICS) $(BUILDDIR)$(PREFIX)socks$(EXESUFFICS) $(BUILDDIR)$(PREFIX)proxy$(EXESUFFICS) allplugins
 
 sockmap$(OBJSUFFICS): sockmap.c proxy.h structures.h
 	$(CC) $(CFLAGS) sockmap.c
@@ -58,6 +58,12 @@ tcppm$(OBJSUFFICS): tcppm.c proxy.h structures.h $(PROXYMAIN)
 udppm$(OBJSUFFICS): udppm.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOTCPMAIN udppm.c
 
+tcptoudp$(OBJSUFFICS): tcptoudp.c proxy.h structures.h udptunnel.h $(PROXYMAIN)
+	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOUDPMAIN tcptoudp.c
+
+udptotcp$(OBJSUFFICS): udptotcp.c proxy.h structures.h udptunnel.h $(PROXYMAIN)
+	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOTCPMAIN udptotcp.c
+
 tlspr$(OBJSUFFICS): tlspr.c proxy.h structures.h $(PROXYMAIN)
 	$(CC) $(CFLAGS) $(DEFINEOPTION)WITHMAIN $(DEFINEOPTION)PORTMAP $(DEFINEOPTION)NOUDPMAIN tlspr.c
 
@@ -91,6 +97,12 @@ $(BUILDDIR)$(PREFIX)tcppm$(EXESUFFICS): sockmap$(OBJSUFFICS) sockgetchar$(OBJSUF
 
 $(BUILDDIR)$(PREFIX)udppm$(EXESUFFICS): sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) udppm$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) log$(OBJSUFFICS) hash$(OBJSUFFICS) loop$(OBJSUFFICS)
 	$(LN) $(LNOUT)$(BUILDDIR)$(PREFIX)udppm$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) udppm$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) hash$(OBJSUFFICS) loop$(OBJSUFFICS) $(LIBS)
+
+$(BUILDDIR)$(PREFIX)tcptoudp$(EXESUFFICS): sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tcptoudp$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) log$(OBJSUFFICS)
+	$(LN) $(LNOUT)$(BUILDDIR)$(PREFIX)tcptoudp$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tcptoudp$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) $(LIBS)
+
+$(BUILDDIR)$(PREFIX)udptotcp$(EXESUFFICS): sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) udptotcp$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) log$(OBJSUFFICS) hash$(OBJSUFFICS) loop$(OBJSUFFICS)
+	$(LN) $(LNOUT)$(BUILDDIR)$(PREFIX)udptotcp$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) udptotcp$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) hash$(OBJSUFFICS) loop$(OBJSUFFICS) $(LIBS)
 
 $(BUILDDIR)$(PREFIX)tlspr$(EXESUFFICS): sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tlspr$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) log$(OBJSUFFICS)
 	$(LN) $(LNOUT)$(BUILDDIR)$(PREFIX)tlspr$(EXESUFFICS) $(LDFLAGS) sockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) tlspr$(OBJSUFFICS) log$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) $(LIBS)
@@ -136,6 +148,12 @@ srvhttpsrv$(OBJSUFFICS): httpsrv.c proxy.h structures.h
 
 srvudppm$(OBJSUFFICS): udppm.c proxy.h structures.h
 	$(CC) $(COUT)srvudppm$(OBJSUFFICS) $(CFLAGS) udppm.c
+
+srvtcptoudp$(OBJSUFFICS): tcptoudp.c proxy.h structures.h udptunnel.h
+	$(CC) $(COUT)srvtcptoudp$(OBJSUFFICS) $(CFLAGS) tcptoudp.c
+
+srvudptotcp$(OBJSUFFICS): udptotcp.c proxy.h structures.h udptunnel.h
+	$(CC) $(COUT)srvudptotcp$(OBJSUFFICS) $(CFLAGS) udptotcp.c
 
 srvdnspr$(OBJSUFFICS): dnspr.c proxy.h structures.h
 	$(CC) $(COUT)srvdnspr$(OBJSUFFICS) $(CFLAGS) dnspr.c
@@ -206,6 +224,6 @@ ssl$(OBJSUFFICS): ssl.c structures.h proxy.h ssl.h
 pcre$(OBJSUFFICS): pcre.c structures.h
 	$(CC) $(COUT)pcre$(OBJSUFFICS) $(CFLAGS) $(DEFINEOPTION)WITH_PCRE pcre.c
 
-$(BUILDDIR)3proxy$(EXESUFFICS): 3proxy$(OBJSUFFICS) loop$(OBJSUFFICS) fiber$(OBJSUFFICS) mainfunc$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvimapp$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) log$(OBJSUFFICS) datatypes$(OBJSUFFICS) md4$(OBJSUFFICS) md5$(OBJSUFFICS) blake2$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) $(HTTPSRV_OBJS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) mdhash$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(TRANSPARENT_OBJS) $(COMPATLIBS) $(VERSIONDEP)
-	$(LN) $(LNOUT)$(BUILDDIR)3proxy$(EXESUFFICS) $(LDFLAGS) $(VERFILE)  3proxy$(OBJSUFFICS) loop$(OBJSUFFICS) fiber$(OBJSUFFICS) mainfunc$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) datatypes$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvimapp$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvudppm$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) log$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) md4$(OBJSUFFICS) md5$(OBJSUFFICS) blake2$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) $(HTTPSRV_OBJS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) mdhash$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(TRANSPARENT_OBJS) $(COMPATLIBS) $(LIBS) $(PCRE_LIBS)
+$(BUILDDIR)3proxy$(EXESUFFICS): 3proxy$(OBJSUFFICS) loop$(OBJSUFFICS) fiber$(OBJSUFFICS) mainfunc$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvimapp$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvudppm$(OBJSUFFICS) srvtcptoudp$(OBJSUFFICS) srvudptotcp$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) log$(OBJSUFFICS) datatypes$(OBJSUFFICS) md4$(OBJSUFFICS) md5$(OBJSUFFICS) blake2$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) $(HTTPSRV_OBJS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) mdhash$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(TRANSPARENT_OBJS) $(COMPATLIBS) $(VERSIONDEP)
+	$(LN) $(LNOUT)$(BUILDDIR)3proxy$(EXESUFFICS) $(LDFLAGS) $(VERFILE)  3proxy$(OBJSUFFICS) loop$(OBJSUFFICS) fiber$(OBJSUFFICS) mainfunc$(OBJSUFFICS) auth$(OBJSUFFICS) acl$(OBJSUFFICS) limiter$(OBJSUFFICS) redirect$(OBJSUFFICS) authradius$(OBJSUFFICS) hash$(OBJSUFFICS) hashtables$(OBJSUFFICS) resolve$(OBJSUFFICS) sql$(OBJSUFFICS) conf$(OBJSUFFICS) datatypes$(OBJSUFFICS) srvauto$(OBJSUFFICS) srvproxy$(OBJSUFFICS) srvpop3p$(OBJSUFFICS) srvimapp$(OBJSUFFICS) srvsmtpp$(OBJSUFFICS) srvftppr$(OBJSUFFICS) srvsocks$(OBJSUFFICS) srvtcppm$(OBJSUFFICS) srvtlspr$(OBJSUFFICS) srvudppm$(OBJSUFFICS) srvtcptoudp$(OBJSUFFICS) srvudptotcp$(OBJSUFFICS) sockmap$(OBJSUFFICS) udpsockmap$(OBJSUFFICS) sockgetchar$(OBJSUFFICS) common$(OBJSUFFICS) sem$(OBJSUFFICS) log$(OBJSUFFICS) 3proxy_crypt$(OBJSUFFICS) md4$(OBJSUFFICS) md5$(OBJSUFFICS) blake2$(OBJSUFFICS) base64$(OBJSUFFICS) ftp$(OBJSUFFICS) stringtable$(OBJSUFFICS) $(HTTPSRV_OBJS) srvdnspr$(OBJSUFFICS) plugins$(OBJSUFFICS) mdhash$(OBJSUFFICS) $(SSL_OBJS) $(PCRE_OBJS) $(TRANSPARENT_OBJS) $(COMPATLIBS) $(LIBS) $(PCRE_LIBS)
 

@@ -31,7 +31,7 @@ void transparent_install(void);
 #endif
 
 #ifndef DEFAULTCONFIG
-#define DEFAULTCONFIG conf->stringtable[25]
+#define DEFAULTCONFIG conf->stringtable[27]
 #endif
 
 _3proxy_mutex_t bandlim_mutex;
@@ -295,6 +295,21 @@ static int h_proxy(int argc, unsigned char ** argv){
 		childdef.isudp = 1;
 		childdef.service = S_UDPPM;
 		childdef.helpmessage = " -s single packet UDP service for request/reply (DNS-like) services\n";
+	}
+	else if(!strcmp((char *)argv[0], "tcptoudp")) {
+		childdef.pf = tcptoudpchild;
+		childdef.port = 0;
+		childdef.isudp = 0;
+		childdef.service = S_TCPTOUDP;
+		childdef.helpmessage = " the handshake a client speaks, udptunnel's or ProxyGuard's, is answered\n";
+	}
+	else if(!strcmp((char *)argv[0], "udptotcp")) {
+		childdef.pf = NULL;
+		childdef.udp = &udptotcpservice;
+		childdef.port = 0;
+		childdef.isudp = 1;
+		childdef.service = S_UDPTOTCP;
+		childdef.helpmessage = " -m - udptunnel handshake with the target, -m2 - ProxyGuard's, -m0 - none\n";
 	}
 #ifdef WITH_HTTPSRV
 	else if(!strcmp((char *)argv[0], "admin")) {
@@ -2059,6 +2074,8 @@ struct commands commandhandlers[]={
 	{NULL,  "socks", h_proxy, 1, 0},
 	{NULL,  "tcppm", h_proxy, 4, 0},
 	{NULL,  "udppm", h_proxy, 4, 0},
+	{NULL,  "tcptoudp", h_proxy, 4, 0},
+	{NULL,  "udptotcp", h_proxy, 4, 0},
 #ifdef WITH_HTTPSRV
 	{NULL,  "admin", h_proxy, 1, 0},
 #endif

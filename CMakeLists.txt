@@ -92,10 +92,12 @@ option(3PROXY_BUILD_SMTPP  "Build standalone smtpp binary"  OFF)
 option(3PROXY_BUILD_FTPPR  "Build standalone ftppr binary"  OFF)
 option(3PROXY_BUILD_TCPPM  "Build standalone tcppm binary"  ON)
 option(3PROXY_BUILD_UDPPM  "Build standalone udppm binary"  ON)
+option(3PROXY_BUILD_TCPTOUDP  "Build standalone tcptoudp binary"  ON)
+option(3PROXY_BUILD_UDPTOTCP  "Build standalone udptotcp binary"  ON)
 option(3PROXY_BUILD_TLSPR  "Build standalone tlspr binary"  ON)
 
 if(3PROXY_BUILD_NONE)
-    foreach(_M PROXY SOCKS POP3P IMAPP SMTPP FTPPR TCPPM UDPPM TLSPR)
+    foreach(_M PROXY SOCKS POP3P IMAPP SMTPP FTPPR TCPPM UDPPM TCPTOUDP UDPTOTCP TLSPR)
         set(3PROXY_BUILD_${_M} OFF)
     endforeach()
 endif()
@@ -419,6 +421,7 @@ add_library(srv_modules OBJECT
     src/smtpp.c
     src/ftppr.c
     src/tcppm.c
+    src/tcptoudp.c
     src/tlspr.c
     src/auto.c
     src/socks.c
@@ -433,6 +436,12 @@ target_include_directories(srv_modules PRIVATE
 # UDP port mapper server module (without WITHMAIN)
 add_library(srvudppm_obj OBJECT src/udppm.c)
 target_include_directories(srvudppm_obj PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# UDP to TCP tunnel server module (without WITHMAIN)
+add_library(srvudptotcp_obj OBJECT src/udptotcp.c)
+target_include_directories(srvudptotcp_obj PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
@@ -469,6 +478,7 @@ add_executable(3proxy
     ${3PROXY_CORE_SOURCES}
     $<TARGET_OBJECTS:srv_modules>
     $<TARGET_OBJECTS:srvudppm_obj>
+    $<TARGET_OBJECTS:srvudptotcp_obj>
     $<TARGET_OBJECTS:mainfunc>
     $<TARGET_OBJECTS:common_obj>
     $<TARGET_OBJECTS:udpsockmap_obj>
@@ -673,7 +683,7 @@ else()
 endif()
 
 # Build standalone proxy executables
-foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
+foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tcptoudp udptotcp tlspr)
     string(TOUPPER "${PROXY_NAME}" _MODULE_OPT)
     if(NOT 3PROXY_BUILD_${_MODULE_OPT})
         continue()
@@ -712,8 +722,8 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
 
     target_compile_definitions(${PROXY_NAME} PRIVATE WITHMAIN)
 
-    # each takes the main loop of its kind only: udppm UDP, the others TCP
-    if(PROXY_NAME STREQUAL "udppm")
+    # each takes the main loop of its kind only: udppm and udptotcp UDP, the others TCP
+    if(PROXY_NAME STREQUAL "udppm" OR PROXY_NAME STREQUAL "udptotcp")
         target_compile_definitions(${PROXY_NAME} PRIVATE NOTCPMAIN)
     else()
         target_compile_definitions(${PROXY_NAME} PRIVATE NOUDPMAIN)
@@ -727,7 +737,7 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
 
     # port mappers take port, host and port as arguments, the others options
     # only; one of the two is defined, as in src/Makefile.inc
-    if(PROXY_NAME STREQUAL "tcppm" OR PROXY_NAME STREQUAL "udppm" OR PROXY_NAME STREQUAL "tlspr")
+    if(PROXY_NAME STREQUAL "tcppm" OR PROXY_NAME STREQUAL "udppm" OR PROXY_NAME STREQUAL "tcptoudp" OR PROXY_NAME STREQUAL "udptotcp" OR PROXY_NAME STREQUAL "tlspr")
         target_compile_definitions(${PROXY_NAME} PRIVATE PORTMAP)
     else()
         target_compile_definitions(${PROXY_NAME} PRIVATE NOPORTMAP)
@@ -741,11 +751,11 @@ foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
         target_sources(${PROXY_NAME} PRIVATE $<TARGET_OBJECTS:base64_obj>)
     endif()
 
-    if(PROXY_NAME STREQUAL "udppm")
+    if(PROXY_NAME STREQUAL "udppm" OR PROXY_NAME STREQUAL "udptotcp")
         target_sources(${PROXY_NAME} PRIVATE src/hash.c src/loop.c)
     endif()
 
-    if(PROXY_NAME STREQUAL "socks" OR PROXY_NAME STREQUAL "udppm")
+    if(PROXY_NAME STREQUAL "socks" OR PROXY_NAME STREQUAL "udppm" OR PROXY_NAME STREQUAL "tcptoudp")
         target_sources(${PROXY_NAME} PRIVATE src/udpsockmap.c)
     endif()
 endforeach()
@@ -781,7 +791,7 @@ install(TARGETS 3proxy 3proxy_crypt
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tlspr)
+foreach(PROXY_NAME proxy socks pop3p imapp smtpp ftppr tcppm udppm tcptoudp udptotcp tlspr)
     string(TOUPPER "${PROXY_NAME}" _MODULE_OPT)
     if(3PROXY_BUILD_${_MODULE_OPT})
         install(TARGETS ${PROXY_NAME}

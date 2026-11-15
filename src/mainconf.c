@@ -561,6 +561,12 @@ static int srvprepare(struct srvstart *s, int argc, char **argv){
 		case 'U':
 			srv->udpauth = *(argv[i]+2)? atoi(argv[i]+2) : 0;
 			break;
+		case 'm':
+			/* udptotcp: which handshake the target is spoken to with */
+			if(srv->service == S_UDPTOTCP)
+				srv->s_option = argv[i][2]? atoi(argv[i]+2) : 1;
+			else error = 1;
+			break;
 		case 'B':
 			/* the TLS ClientHello split at the SNI (tlspr), which -s is
 			   where -s is not splice; s_option means something else

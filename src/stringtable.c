@@ -32,20 +32,20 @@ unsigned char * strings[] = {
 /* 19 */	(unsigned char *)"TLSPR",
 /* 20 */	(unsigned char *)"IMAPP",
 /* 21 */	(unsigned char *)"HTTPSRV",
-/* 22 */	(unsigned char *)"ZOMBIE",
-/* 23 */	NULL,
-/* 24 */	NULL,
+/* 22 */	(unsigned char *)"TCPTOUDP",
+/* 23 */	(unsigned char *)"UDPTOTCP",
+/* 24 */	(unsigned char *)"ZOMBIE",
+/* 25 */	NULL,
+/* 26 */	NULL,
 #ifndef TPROXY_CONF
 #ifndef _WIN32
-/* 25 */	(unsigned char *)"/usr/local/etc/3proxy/3proxy.cfg",
+/* 27 */	(unsigned char *)"/usr/local/etc/3proxy/3proxy.cfg",
 #else
-/* 25 */	(unsigned char *)"3proxy.cfg",
+/* 27 */	(unsigned char *)"3proxy.cfg",
 #endif
 #else
-/* 25 */       (unsigned char *)TPROXY_CONF,
+/* 27 */       (unsigned char *)TPROXY_CONF,
 #endif
-/* 26 */	NULL,
-/* 27 */	NULL,
 /* 28 */	NULL,
 /* 29 */	NULL,
 /* 30 */	NULL,

@@ -45,6 +45,8 @@ jobs:
        cp -f doc/html/man8/tlspr.8.html         wiki/tlspr.md
        cp -f doc/html/man8/tcppm.8.html         wiki/tcppm.md
        cp -f doc/html/man8/udppm.8.html         wiki/udppm.md
+       cp -f doc/html/man8/tcptoudp.8.html      wiki/tcptoudp.md
+       cp -f doc/html/man8/udptotcp.8.html      wiki/udptotcp.md
        cp -f doc/html/man5/3proxy.cfg.5.html    wiki/3proxy.cfg.md
        cp -f doc/html/highload.html             wiki/High-Load.md
        cp -f doc/html/howtoe.html               wiki/How-To.md
