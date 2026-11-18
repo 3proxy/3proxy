@@ -179,3 +179,52 @@ def run(t):
              "a well-formed name is connected by name over SOCKS4a")
         stop()
 
+    # --- a pre-authorized association decides nothing for later ------------
+    # A UDP ASSOCIATE is allowed without looking at the destination its rules
+    # name, so that verdict may not be kept in the auth cache and returned
+    # for a CONNECT later.
+    scache = t.free_port()
+    allowed = t.free_port()
+    denied = t.free_port()
+    t.start("socks_cacheacl", f"""
+        log
+        authcache user,pass,dstport 60
+        auth cacheacl strong
+        users u:CL:p
+        allow u * * {allowed}
+        deny *
+        socks -p{scache}
+    """, ports=[scache])
+    # both destinations are alive: what decides between them is the rule
+    stop = t.raw_server(allowed, b"from the allowed stand-in\r\n")
+    refuse = t.raw_server(denied, b"from the refused stand-in\r\n")
+
+    def associate_declared():
+        """The reply code of a UDP ASSOCIATE naming the refused destination."""
+        with socket.create_connection(("127.0.0.1", scache), t.timeout) as s:
+            s.settimeout(t.timeout)
+            s.sendall(b"\x05\x01\x02")
+            reply = recvall(s, 2)
+            if len(reply) < 2 or reply[1] != 0x02:
+                return None
+            s.sendall(b"\x01\x01u\x01p")
+            reply = recvall(s, 2)
+            if len(reply) < 2 or reply[1] != 0:
+                return None
+            s.sendall(b"\x05\x03\x00\x01" + socket.inet_aton("127.0.0.1") +
+                      struct.pack("!H", denied))
+            reply = recvall(s, 4)
+            return reply[1] if len(reply) > 1 else None
+
+    guarded = f"127.0.0.1:{scache}"
+    t.eq(None, t.socks_connect(guarded, "127.0.0.1", allowed, auth=("u", "p")),
+         "a CONNECT the rules allow is connected")
+    t.ne(None, t.socks_connect(guarded, "127.0.0.1", denied, auth=("u", "p")),
+         "a CONNECT the rules refuse is refused")
+
+    t.eq(0, associate_declared(),
+         "the association itself is allowed without its destination")
+    t.ne(None, t.socks_connect(guarded, "127.0.0.1", denied, auth=("u", "p")),
+         "a CONNECT after the association is refused all the same")
+    stop()
+    refuse()
