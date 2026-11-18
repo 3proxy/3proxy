@@ -137,6 +137,7 @@ void * sockschild(struct clientparam* param) {
 	default:
 		RETURN(997);
  }
+ if(badhostname((char *)buf)) {RETURN(21);}
  if(param->hostname)free(param->hostname);
  param->hostname = (unsigned char *)strdup((char *)buf);
  if(!param->hostname){RETURN(21);}
@@ -159,6 +160,7 @@ void * sockschild(struct clientparam* param) {
 		param->service = S_SOCKS45;
 		if(sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, conf.timeouts[STRING_S]) < 0) {RETURN(441);}
 		buf[127] = 0;
+		if(badhostname((char *)buf)) {RETURN(21);}
 		if(param->hostname)free(param->hostname);
 		param->hostname = (unsigned char *)strdup((char *)buf);
 		if(!param->hostname){RETURN(21);}
