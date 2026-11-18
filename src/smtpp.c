@@ -197,6 +197,10 @@ void * smtppchild(struct clientparam* param) {
 	}
  }
 
+ /* A login has to end with a host to connect to: what follows reads the
+    host name, and without one there is nowhere to go. */
+ if(!param->hostname || !param->extusername){RETURN(669);}
+
 #ifndef WITHMAIN
  {
 	int action, reqbufsize, reqsize;
