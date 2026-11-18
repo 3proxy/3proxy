@@ -139,6 +139,7 @@ void * sockschild(struct clientparam* param) {
 	default:
 		RETURN(997);
  }
+ if(badhostname((char *)buf)) {RETURN(21);}
  if(PARAMSTR(param, hostname, buf)){RETURN(21);}
  if (ver == 5) {
 	 if ((res = sockgetcharcli(param, param->srv->timeouts[SINGLEBYTE_S], 0)) == EOF) {RETURN(441);}
@@ -158,6 +159,7 @@ void * sockschild(struct clientparam* param) {
 		param->service = S_SOCKS45;
 		if(sockgetlinebuf(param, CLIENT, buf, BUFSIZE - 1, 0, param->srv->timeouts[STRING_S]) < 0) {RETURN(441);}
 		buf[127] = 0;
+		if(badhostname((char *)buf)) {RETURN(21);}
 		if(PARAMSTR(param, hostname, buf)){RETURN(21);}
 		if(!getip46m(param->srv->resolvmode, param->srv->family, buf, (struct sockaddr *) &param->req)) RETURN(100);
 		param->sinsr = param->req;

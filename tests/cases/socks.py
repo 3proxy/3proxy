@@ -1,6 +1,18 @@
 """The SOCKS proxy, reaching the built-in server."""
 
 import socket
+import struct
+
+
+def recvall(sock, count):
+    """Bytes from a socket, fewer only when the peer stops sending."""
+    data = b""
+    while len(data) < count:
+        chunk = sock.recv(count - len(data))
+        if not chunk:
+            break
+        data += chunk
+    return data
 
 
 def run(t):
@@ -131,3 +143,72 @@ def run(t):
          "wrong SOCKS5 credentials are refused")
     t.ne(None, t.socks_connect(guarded, "127.0.0.1", srv),
          "SOCKS5 without credentials is refused")
+
+    # --- names a client may not choose -------------------------------------
+    # A destination name travels into the request lines of parent protocols,
+    # so a control byte or a space in it could end the line early and name
+    # another destination. Such a name is refused where it is read, before
+    # anything is resolved or connected: reply 1, not the reply of a
+    # destination which does not answer.
+    sname = t.free_port()
+    standin = t.free_port()
+    t.start("socks_names", f"""
+        log
+        fakeresolve
+        auth iponly
+        allow *
+        socks -p{sname}
+    """, ports=[sname])
+
+    def socks5_name(name, port):
+        """The reply code of a SOCKS5 CONNECT naming the given name."""
+        with socket.create_connection(("127.0.0.1", sname), t.timeout) as s:
+            s.settimeout(t.timeout)
+            s.sendall(b"\x05\x01\x00")
+            if recvall(s, 2) != b"\x05\x00":
+                return None
+            s.sendall(b"\x05\x01\x00\x03" + bytes([len(name)]) + name +
+                      struct.pack("!H", port))
+            reply = recvall(s, 4)
+            return reply[1] if len(reply) > 1 else None
+
+    def socks4_name(name, port):
+        """The reply code of a SOCKS4a CONNECT naming the given name."""
+        with socket.create_connection(("127.0.0.1", sname), t.timeout) as s:
+            s.settimeout(t.timeout)
+            s.sendall(struct.pack(">BBH", 4, 1, port) +
+                      socket.inet_aton("0.0.0.0") + b"case\x00" + name +
+                      b"\x00")
+            reply = recvall(s, 8)
+            return reply[1] if len(reply) > 1 else None
+
+    t.eq(1, socks5_name(b"127.0.0.1\r\nGET /other HTTP/1.1\r\n\r\nstand-in.example",
+                        standin),
+         "a name with CR LF in it is refused")
+    t.eq(91, socks4_name(b"127.0.0.1\r\nGET /other HTTP/1.1\r\n\r\nstand-in.example",
+                         standin),
+         "SOCKS4a refuses a name with CR LF in it")
+    t.eq(1, socks5_name(b"127.0.0.1 stand-in.example", standin),
+         "a name with a space in it is refused")
+    t.eq(1, socks5_name(b"stand-in\x7f.example", standin),
+         "a name with a control byte in it is refused")
+
+    # a well-formed name is let through, to the 127.0.0.2 fakeresolve maps
+    # every name to; where that address can be served, the tunnel has to be
+    # carried all the way to it
+    probe = socket.socket()
+    try:
+        probe.bind(("127.0.0.2", 0))
+    except OSError:
+        probe.close()
+        t.skip("the stand-in address 127.0.0.2 can not be bound here")
+    else:
+        probe.close()
+        stop = t.raw_server(standin, b"from the stand-in\r\n",
+                           host="127.0.0.2")
+        t.eq(0, socks5_name(b"stand-in.example", standin),
+             "a well-formed name is connected by name")
+        t.eq(90, socks4_name(b"stand-in.example", standin),
+             "a well-formed name is connected by name over SOCKS4a")
+        stop()
+
