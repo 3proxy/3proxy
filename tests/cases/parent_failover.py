@@ -9,7 +9,20 @@ The number of attempts is bounded by parentretries, two by default, so each
 case here needs at most one parent to fail before a working one is reached.
 """
 
+import socket
+import struct
 import time
+
+
+def recvall(sock, count):
+    """Bytes from a socket, fewer only when the peer stops sending."""
+    data = b""
+    while len(data) < count:
+        chunk = sock.recv(count - len(data))
+        if not chunk:
+            break
+        data += chunk
+    return data
 
 
 def served(server, needle, since=0):
@@ -151,6 +164,90 @@ def run(t):
          "a parent of weight 0 alone is used like any other")
     t.eq(1, wait_served(goodp, needle, 1, gmark),
          "through the parent it names")
+
+    # --- UDP: a parent which is down is not replaced by a direct relay -------
+    # The association itself is allowed without its destination, but the
+    # datagram carrying one has to build the chain its rule demands. With
+    # the only parent gone the association has to fail: relaying the next
+    # datagram from the proxy's own address would be a way around the rule.
+    sudp = t.free_port()
+    t.start("failover_udp", f"""
+        log
+        auth iponly
+        allow *
+        parent 1000 socks5 127.0.0.1 {dead}
+        socks -p{sudp}
+    """, ports=[sudp])
+
+    echo1 = t.udp_echo()
+    echo2 = t.udp_echo()
+
+    ctrl = socket.create_connection(("127.0.0.1", sudp), t.timeout)
+    ctrl.settimeout(t.timeout)
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.settimeout(1.0)
+    try:
+        ctrl.sendall(b"\x05\x01\x00")
+        greeted = recvall(ctrl, 2) == b"\x05\x00"
+        ctrl.sendall(b"\x05\x03\x00\x01\x00\x00\x00\x00\x00\x00")
+        reply = recvall(ctrl, 4)
+        bound = None
+        if greeted and len(reply) >= 4 and reply[1] == 0 and reply[3] == 1:
+            addr = recvall(ctrl, 6)
+            if len(addr) == 6:
+                bound = struct.unpack("!H", addr[4:6])[0]
+
+        def datagram(port, payload):
+            header = (b"\x00\x00\x00\x01" + socket.inet_aton("127.0.0.1") +
+                      struct.pack("!H", port))
+            udp.sendto(header + payload, ("127.0.0.1", bound))
+
+        def silence(port, payload):
+            """Whether nothing came back for the datagram sent."""
+            datagram(port, payload)
+            try:
+                udp.recvfrom(65536)
+                return False
+            except OSError:
+                return True
+
+        if bound is None:
+            t.fail("the association is granted", expected="a relay port",
+                   actual=None)
+        else:
+            t.eq(True, silence(echo1, b"first"),
+                 "the datagram to the dead parent is not delivered")
+            try:
+                closed = ctrl.recv(1) == b""
+            except OSError:
+                closed = False
+            t.eq(True, closed,
+                 "the association does not survive its failed parent")
+            t.eq(True, silence(echo2, b"second"),
+                 "no datagram after it is relayed direct")
+    finally:
+        ctrl.close()
+        udp.close()
+
+    # a parent which carries UDP is used for UDP: the failover above is the
+    # parent's failure, not the relay's refusal
+    suparent = t.free_port()
+    sup = t.free_port()
+    t.start("failover_udp_parent", f"""
+        log
+        auth iponly
+        allow *
+        socks -p{suparent}
+    """, ports=[suparent])
+    t.start("failover_udp_up", f"""
+        log
+        auth iponly
+        allow *
+        parent 1000 socks5 127.0.0.1 {suparent}
+        socks -p{sup}
+    """, ports=[sup])
+    reply, _ = t.socks_udp(f"127.0.0.1:{sup}", "127.0.0.1", echo1, b"udp")
+    t.eq(b"echo:udp", reply, "a datagram is carried by the working parent")
 
     # --- what the parser still rejects --------------------------------------
     out = t.run_config("failover_badweight", f"""
