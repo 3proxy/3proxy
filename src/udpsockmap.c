@@ -277,6 +277,7 @@ int udpsockmap(struct clientparam *param, int timeo)
 				if (len < 7 + sz) return 485;
 				memcpy(dstnamebuf, base + 5, sz);
 				dstnamebuf[sz] = 0;
+				if (badhostname(dstnamebuf)) continue;
 				dstname = dstnamebuf;
 				i = 5 + sz;
 				if (!getip46(param->srv->family, (unsigned char *)dstnamebuf,
