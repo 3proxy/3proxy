@@ -120,7 +120,10 @@ int doauth(struct clientparam * param){
 			if(authfuncs->authorize &&
 				(res = (*authfuncs->authorize)(param)))
 					return res;
-			if(param->srv->authcachetype && authfuncs->authenticate && authfuncs->authenticate != cacheauth && *param->username && (!(param->srv->authcachetype&4) || (!param->pwtype && *param->password))){
+			/* A UDP ASSOCIATE is pre-authorized without looking at the
+			   destination its rules depend on, so its verdict holds for
+			   that association alone and is not kept for later requests. */
+			if(param->srv->authcachetype && param->preauth != 1 && authfuncs->authenticate && authfuncs->authenticate != cacheauth && *param->username && (!(param->srv->authcachetype&4) || (!param->pwtype && *param->password))){
 			    struct authcache ac={.username=""};
 
 			    strncpy((char *)ac.username, (char *)param->username, 64);
