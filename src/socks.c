@@ -121,7 +121,10 @@ void * sockschild(struct clientparam* param) {
 		}
 		res = socks5_setaddr(param->srv->family, c, buf, &param->req);
 		if(res == 1) {RETURN(997);}
-		if(res == 2 && command == 1) {RETURN(431);}
+		/* The null address is no destination to connect to, except in
+		   SOCKS4a, where it says that the destination is the name which
+		   follows it. */
+		if(res == 2 && ver == 5 && command == 1) {RETURN(431);}
 		param->sinsr = param->req;
 		myinet_ntop(*SAFAMILY(&param->sinsr), SAADDR(&param->sinsr), (char *)buf, 64);
 		break;
