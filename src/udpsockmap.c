@@ -152,8 +152,10 @@ static void udpreset(struct clientparam *param)
 /*
  * Authorize param->req and (re)build the server side of the association:
  * a parent proxy chain and/or an external address may be selected by the ACL.
- * Returns the authorization result. param->remsock is INVALID_SOCKET if the
- * socket can not be created, in this case the association can not continue.
+ * Returns the authorization result. param->remsock is INVALID_SOCKET when
+ * the authorization refused the association or the socket can not be
+ * created; the association can not continue then, so that a parent the
+ * rules demand is never quietly replaced by a direct relay.
  */
 static int udpreconnect(struct clientparam *param)
 {
@@ -179,9 +181,10 @@ static int udpreconnect(struct clientparam *param)
 			param->remsock = INVALID_SOCKET;
 		}
 		udpreset(param);
+		return res;
 	}
-	if (udpbind(param)) return res? res : 11;
-	return res;
+	if (udpbind(param)) return 11;
+	return 0;
 }
 
 int udpsockmap(struct clientparam *param, int timeo)
