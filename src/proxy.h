@@ -467,6 +467,7 @@ void hashdelete(struct hashtable *ht, void* name);
 int hashresolv(struct hashtable *ht, void* name, void* value, uint32_t *ttl);
 
 int parsehost(int family, unsigned char *host, struct sockaddr *sa);
+int badhostname(const char *hostname);
 int parsehostname(char *hostname, struct clientparam *param, uint16_t port);
 int parseusername(char *username, struct clientparam *param, int extpasswd);
 int parseconnusername(char *username, struct clientparam *param, int extpasswd, uint16_t port);
