@@ -587,6 +587,9 @@ int parsehostname(char *hostname, struct clientparam *param, uint16_t port){
 			port = atoi(sp+1);
 			*sp = ':';
 		}
+		/* A port alone overrides the port of a host already set; without
+		   one it names no destination to connect to. */
+		if(!param->hostname || !*param->hostname) return 1;
 		*SAPORT(&param->req) = htons(port);
 		return 0;
 	}
