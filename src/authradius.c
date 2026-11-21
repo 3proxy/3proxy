@@ -349,6 +349,13 @@ int radsend(struct clientparam * param, int auth, int stop){
 	ptr+=len;
 	total_length+=len+2;
 
+	/* Event-Timestamp */
+	*ptr++ =  PW_EVENT_TIMESTAMP;
+	*ptr++ = 6;
+	(*(uint32_t *)ptr)=htonl((uint32_t)time(0));
+	ptr+=4;
+	total_length+=6;
+
 	/* NAS-Port-Type */
 	*ptr++ =  PW_NAS_PORT_TYPE;
 	*ptr++ = 6;
