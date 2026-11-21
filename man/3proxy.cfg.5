@@ -610,7 +610,10 @@ Use \fBauthcache\fR to speedup authentication. RADIUS feature is currently exper
 .BR nserver
 \fI<ipaddr>\fR[:\fIport\fR][/\fItcp\fR]
 .br
- Nameserver to use for name resolutions; up to 3, asked in order.
+ Nameserver to use for name resolutions; up to 3, asked in order; a
+server that answers with an error (FORMERR, SERVFAIL, REFUSED and the
+like) is passed over for the next one, while a name answered with no
+data, or as not there, ends the search.
 Optional port number may be specified.
 If optional /tcp is added to IP address, name resolution is
 performed over TCP.
