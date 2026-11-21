@@ -1,0 +1,11 @@
+! Fix: socks: a SOCKS4a request was refused as a connect to the null address, although in SOCKS4a the null address means that the destination is the name which follows it
+! Fix: auth: a UDP ASSOCIATE is pre-authorized without looking at the destination its rules depend on, so its verdict holds for that association alone and is not kept for later requests
+! Fix: socks: a UDP association was relayed direct when its parent failed, although the rules demanded the parent; it is refused now
+! Fix: socks: a host name with control bytes or spaces in it was taken as it stood; it is refused where it is read now
+! Fix: smtpp: a login name of a port alone, without a host, set the port but named no destination to connect to; such a login is refused now
+! Fix: proxy: the credentials of an earlier request on a kept-alive connection decided for the requests after it; every request is authorized by its own credentials now
+! Fix: the built-in http server (httpsrv): the credentials of an earlier request on a kept-alive connection decided for the requests after it; every request is authorized by its own credentials now
+! Fix: tlspr: a TLS ServerHello too short for the extensions length it declared was read past its end; it is refused now (#1286)
+! Fix: httpsrv: a request which a limit of the service exceeded was answered anyway, the 503 every other service answers with taken for success; it is answered with 503 now, after the body of the request is drained
+! Fix: httpsrv: a path ending in a backslashed dot-dot, or carrying one in a form the checks did not name, was taken as it stood; any dot-dot segment is refused wherever it is and whichever separator carries it, and a path ending in a bare dot of either kind
+! Fix: pcre: a rule with no ACL was handed to the filters as the connection's data, which they read as a match data block and freed: a pointer into the configuration, dereferenced as another type and given back to malloc; a rule without an ACL now skips the check and goes on with a block of its own
