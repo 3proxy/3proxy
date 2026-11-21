@@ -607,7 +607,10 @@ network conditions. Applies to the services started after it.
 \fI<NAS_SECRET>\fR \fI<radius_server_1\fR[:\fIport\fR][/\fIlocal_address_1\fR]\fR \fI<radius_server_2\fR[:\fIport\fR][/\fIlocal_address_2\fR]\fR
 .br
  Configures RADIUS servers to be used for logging and authentication (log and auth types
-must be set to radius). port and local address to use with given server may be specified.
+must be set to radius). A server is a name or an address, resolved when the
+configuration is read. port and local address to use with given server may be specified:
+the port named is the one authentication is asked on, and the accounting requests of
+the same server go to the port after it (1812 and 1813 by default).
 .br
  Attributes within request: User-Name, Password: (username and password if presented by client),
 Service Type: Authenticate-Only,
