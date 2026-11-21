@@ -758,6 +758,25 @@ int intbindtodevice(struct clientparam *param, SOCKET sock){
 #endif
 }
 
+/* The mark the matched rule gave the connection, set on its outgoing
+   sockets where the system has one: SO_MARK of Linux, SO_USER_COOKIE of
+   FreeBSD. Nowhere else it is silently nothing. */
+void setmark(struct clientparam *param, SOCKET sock){
+#if defined SO_MARK || defined SO_USER_COOKIE
+	if(param->mark)
+		so._setsockopt(so.state, sock, SOL_SOCKET,
+#ifdef SO_MARK
+			SO_MARK,
+#else
+			SO_USER_COOKIE,
+#endif
+			(char *)&param->mark, sizeof(param->mark));
+#else
+	(void)param;
+	(void)sock;
+#endif
+}
+
 int doconnect(struct clientparam * param){
  SASIZETYPE size;
 
@@ -802,6 +821,7 @@ int doconnect(struct clientparam * param){
 	}
 	*SAPORT(&param->sinsl) = 0;
 	setopts(param->remsock, &param->srv->srvsockopts, param->srv->maxseg);
+	setmark(param, param->remsock);
 
 	if(extbindtodevice(param, param->remsock)) return 12;
 #ifdef IP_BIND_ADDRESS_NO_PORT

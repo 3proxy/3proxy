@@ -1305,15 +1305,35 @@ static int h_http(int argc, unsigned char **argv){
 static int h_nolog(int argc, unsigned char **argv){
   struct ace *acl = NULL;
 
-	acl = conf->acl;
-	if(!acl) {
-		fprintf(stderr, "Chaining error: last ACL entry was not \"allow/deny\" on line %d\n", linenum);
-		return(1);
-	}
-	while(acl->next) acl = acl->next;
-	if(argc == 1) acl->nolog = 1;
-	else acl->weight = atoi((char*)argv[1]);
-	return 0;
+  acl = conf->acl;
+  if(!acl) {
+    fprintf(stderr, "Chaining error: last ACL entry was not \"allow/deny\" on line %d\n", linenum);
+    return(1);
+  }
+  while(acl->next) acl = acl->next;
+  if(argc == 1) acl->nolog = 1;
+  else acl->weight = atoi((char*)argv[1]);
+  return 0;
+}
+
+/* mark <number>: the rule above sends with this mark, on its sockets
+   towards the destination and the parents, where the system has one */
+static int h_mark(int argc, unsigned char **argv){
+  struct ace *acl = NULL;
+  char *end;
+
+  acl = conf->acl;
+  if(!acl) {
+    fprintf(stderr, "Chaining error: last ACL entry was not \"allow/deny\" on line %d\n", linenum);
+    return(1);
+  }
+  while(acl->next) acl = acl->next;
+  acl->mark = (int)strtol((char *)argv[1], &end, 0);
+  if(end == (char *)argv[1] || *end) {
+    fprintf(stderr, "Wrong mark, line %d\n", linenum);
+    return(1);
+  }
+  return 0;
 }
 
 int scanipl(unsigned char *arg, struct iplist *dst){
@@ -2172,6 +2192,7 @@ struct commands commandhandlers[]={
 	{NULL, "filtermaxsize", h_filtermaxsize, 2, 2},
 	{NULL, "nolog", h_nolog, 1, 1},
 	{NULL, "weight", h_nolog, 2, 2},
+	{NULL, "mark", h_mark, 2, 2},
 	{NULL, "authcache", h_authcache, 2, 4},
 	{NULL, "smtpp", h_proxy, 1, 0},
 	{NULL, "delimchar",h_delimchar, 2, 2},

@@ -1270,6 +1270,24 @@ nolog
 
 
 .br
+.BR mark
+\fI<number>\fR
+.br
+ extends last allow or deny command to set a mark for this request: the
+sockets it goes out on, towards the destination and towards the parents,
+carry the mark (SO_MARK of Linux, SO_USER_COOKIE of FreeBSD), so that
+the packets of the request can be told apart by it in policy routing and
+firewall rules. A number is written as in C. UDP is marked the same: the
+sockets towards a destination, and the SOCKS UDP ASSOCIATE relays. On a
+system with no mark the command sets it to nothing. The mark of a kept
+alive request follows the rule which allowed the request (#846).
+.br
+ allow * * 192.168.1.0/24
+.br
+ mark 20
+
+
+.br
 .B force
 .br
 .B noforce

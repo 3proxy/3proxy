@@ -407,6 +407,7 @@ struct ace {
 	int wdays;
 	int weight;
 	int nolog;
+	int mark;
 	struct period *periods;
 	struct userlist *users;
 	struct iplist *src, *dst;
@@ -819,6 +820,7 @@ struct clientparam {
 	int	pwtype,
 		weight,
 		nolog,
+		mark,
 		nolongdatfilter,
 		nosplice,	/* a TLS socket of the connection is not in the kernel */
 		nooverwritefilter,
