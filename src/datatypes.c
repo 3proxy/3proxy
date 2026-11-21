@@ -442,6 +442,10 @@ static void * ef_ace_nolog(struct node * node){
 	return &((struct ace *)node->value) -> nolog;
 }
 
+static void * ef_ace_mark(struct node * node){
+	return &((struct ace *)node->value) -> mark;
+}
+
 static void * ef_bandlimit_next(struct node * node){
 	return ((struct bandlim *)node->value) -> next;
 }
@@ -858,6 +862,7 @@ static struct property prop_ace[] = {
 	{"periods", ef_ace_period, TYPE_PERIOD, "time of the day"},
 	{"weight", ef_ace_weight, TYPE_INTEGER, "ace weight"},
 	{"nolog", ef_ace_nolog, TYPE_INTEGER, "do not log"},
+	{"mark", ef_ace_mark, TYPE_INTEGER, "mark the outgoing sockets with"},
 	{"next", ef_ace_next, TYPE_ACE, "next"}
 };
 

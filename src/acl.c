@@ -364,6 +364,7 @@ int checkACL(struct clientparam * param){
 		if(ACLmatches(acentry, param)) {
 			param->nolog = acentry->nolog;
 			param->weight = acentry->weight;
+			param->mark = acentry->mark;
 			if(acentry->action == 2) {
 				struct ace dup;
 				int res=60,i=0;

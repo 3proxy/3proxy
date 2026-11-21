@@ -105,6 +105,7 @@ int udpbind(struct clientparam *param)
 
 	s = nssocket(param->srv, &param->srv->so, param->sostate, NS_OUT, SASOCK(&param->sinsl), SOCK_DGRAM, IPPROTO_UDP);
 	if (s == INVALID_SOCKET) return 11;
+	setmark(param, s);
 #ifdef _WIN32
 	{ unsigned long ul = 1; ioctlsocket(s, FIONBIO, &ul); }
 #else

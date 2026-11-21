@@ -632,6 +632,7 @@ char * printopts(char *sep);
 char * printfeatures(char *sep);
 void * mainreserve(int isudp, PROXYSOCKADDRTYPE *sa, const struct sockoptset *opts, int maxseg);
 void maindropreserved(void *listener);
+void setmark(struct clientparam *param, SOCKET sock);
 
 #ifdef _WINCE
 char * CEToUnicode (const char *str);
