@@ -156,7 +156,13 @@ uint32_t udpresolve(int af, unsigned char * name, unsigned char * value, uint32_
 	    continue;			/* question does not match the query */
 	}
 	if((na = buf[7] + (((unsigned short)buf[6])<<8)) < 1) {
-	    return 0;
+	    switch(buf[3] & 0x0F){
+	    case 0:				/* the name has no address */
+	    case 3:				/* the name is not there */
+		return 0;
+	    default:				/* the server failed: ask the next one */
+		continue;
+	    }
 	}
 	for(k = 13; k<len && buf[k]; k++) {
 	}
