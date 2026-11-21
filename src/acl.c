@@ -310,6 +310,17 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	 }
 	 if(!ipentry && !hstentry) return 0;
 	}
+	/* the service the request came through, by the port it listens on:
+	   what the part after the slash of a port in a rule names */
+	if(acentry->viaports) {
+	 int viaport = ntohs(*SAPORT(&param->srv->intsa));
+
+	 for (portentry = acentry->viaports; portentry; portentry = portentry->next)
+		if(viaport >= portentry->startport && viaport <= portentry->endport) {
+			break;
+		}
+	 if(!portentry) return 0;
+	}
 	if(preauth && acentry->ports) {
 	 dstdep = 1;
 	}

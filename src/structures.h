@@ -455,6 +455,7 @@ struct ace {
 	struct iplist *src, *dst;
 	struct hostname *dstnames;
 	struct portlist *ports;
+	struct portlist *viaports;
 	struct chain *chains;
 };
 

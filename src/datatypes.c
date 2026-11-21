@@ -422,6 +422,10 @@ static void * ef_ace_ports(struct node * node){
 	return ((struct ace *)node->value) -> ports;
 }
 
+static void * ef_ace_viaports(struct node * node){
+	return ((struct ace *)node->value) -> viaports;
+}
+
 static void * ef_ace_chain(struct node * node){
 	return ((struct ace *)node->value) -> chains;
 }
@@ -857,6 +861,7 @@ static struct property prop_ace[] = {
 	{"dst", ef_ace_dst, TYPE_IPLIST, "list of destination ips"},
 	{"dstnames", ef_ace_dstnames, TYPE_HOSTNAME, "list of destination hostnames"},
 	{"ports", ef_ace_ports, TYPE_PORTLIST, "list of destination ports"},
+	{"viaports", ef_ace_viaports, TYPE_PORTLIST, "list of the services' ports it matches"},
 	{"chain", ef_ace_chain, TYPE_CHAIN, "redirect to parent(s)"},
 	{"wdays", ef_ace_weekdays, TYPE_WEEKDAYS, "days of week"},
 	{"periods", ef_ace_period, TYPE_PERIOD, "time of the day"},
