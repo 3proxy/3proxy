@@ -36,13 +36,15 @@ def run(t):
 
     # a service after the reservation takes the socket over
     reserved = t.free_port()
+    adm = t.free_port()
     server = t.start("port_taken", f"""
         log
         port tcp 127.0.0.1:{reserved}
         auth iponly
         allow *
         proxy -p{reserved} -i127.0.0.1
-    """, ports=[reserved])
+        admin -p{adm}
+    """, ports=[reserved, adm])
 
     out = t.wait_output(server, "taken over")
     t.contains(out, "taken over",
@@ -51,6 +53,42 @@ def run(t):
     t.eq(200, t.http(f"http://127.0.0.1:{origin}/data",
                      proxy=f"127.0.0.1:{reserved}").status,
          "a request through the taken-over port is served")
+
+    # --- after chroot no reservation can be made again: a reload with
+    # the service alone, the port line left out, keeps the port -------
+    taken_before = server.output().count("taken over")
+    t.write_config("port_taken", f"""
+        log
+        auth iponly
+        allow *
+        proxy -p{reserved} -i127.0.0.1
+        admin -p{adm}
+    """)
+    t.http(f"http://127.0.0.1:{adm}/R")
+    out = t.wait_output(server, "taken over", since=len(server.output()))
+    t.ok("a reload with the service alone keeps the reserved port") \
+        if server.output().count("taken over") > taken_before else \
+        t.fail("a reload with the service alone keeps the reserved port",
+               "the socket taken over again", out)
+    t.eq(200, t.http(f"http://127.0.0.1:{origin}/data",
+                     proxy=f"127.0.0.1:{reserved}").status,
+         "and it is served as before")
+
+    # a reload with neither the reservation nor a service drops the port
+    t.write_config("port_taken", f"""
+        log
+        auth iponly
+        allow *
+        admin -p{adm}
+    """)
+    t.http(f"http://127.0.0.1:{adm}/R")
+    deadline = time.time() + 5
+    while time.time() < deadline and t.wait_port(reserved, timeout=0.2):
+        time.sleep(0.2)
+    t.ok("a reload without the reservation and without a service drops it") \
+        if not t.wait_port(reserved, timeout=0.2) else \
+        t.fail("a reload without the reservation and without a service drops it",
+               f"port {reserved} closed", "open")
 
     # a reserved UDP port is taken over the same way: bound by the
     # reservation, answered by the service

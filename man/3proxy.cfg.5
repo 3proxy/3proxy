@@ -1535,11 +1535,14 @@ privileged port can be opened before \fBsetuid\fR and \fBchroot\fR take the
 rights to open it away, the \fBport\fR line placed above them and the
 service below. A service of the configuration on the same address, of
 the same type, takes the socket over when it starts, instead of opening
-one of its own; a port no service takes stays reserved until the
-configuration is left. The address is an IPv4 one by default, an IPv6
-one in brackets. The socket options are written as for \fB-o\fR, and are
-what the socket has: those which act only before bind() cannot be
-changed on a socket the service takes over.
+one of its own; a port no service takes stays reserved. After chroot no
+reservation can be made again, so a reload keeps a port only while the
+configuration coming in force reserves it anew or has a service on it:
+the port line can be left out of what is read there, the service on
+the socket that is already open keeping it. The address is an IPv4 one
+by default, an IPv6 one in brackets. The socket options are written as
+for \fB-o\fR, and are what the socket has: those which act only before
+bind() cannot be changed on a socket the service takes over.
 .br
  port tcp 443
 .br
