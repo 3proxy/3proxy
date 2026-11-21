@@ -1385,6 +1385,23 @@ int scanipl(unsigned char *arg, struct iplist *dst){
 	return 0;
 }
 
+/* Appends a port or a port range to a list: 0, or 1 for one that is
+   neither, or for want of memory. */
+static int portadd(struct portlist **head, const char *s){
+	struct portlist **tail;
+	uint16_t start = 0, end = 0;
+	int res;
+
+	for(tail = head; *tail; tail = &(*tail)->next);
+	res = sscanf(s, "%hu-%hu", &start, &end);
+	if(res < 1) return 1;
+	if(!(*tail = malloc(sizeof(struct portlist)))) return 1;
+	(*tail)->next = NULL;
+	(*tail)->startport = start;
+	(*tail)->endport = (res == 1)? start : end;
+	return 0;
+}
+
 struct ace * make_ace (int argc, unsigned char ** argv){
 	struct ace * acl;
 	unsigned char *arg;
@@ -1484,24 +1501,29 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		if(argc > 3 && strcmp("*", (char *)argv[3])) {
 			arg = (unsigned char *)strtok((char *)argv[3], ",");
 			if(arg) do {
-				if(!acl->ports) {
-					acl->ports = portl = malloc(sizeof(struct portlist));
+				unsigned char *via = (unsigned char *)strchr((char *)arg, '/');
+
+				if(via) {
+					*via++ = 0;
+					if(!*via || !*arg) {
+						fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
+						return(NULL);
+					}
 				}
-				else {
-					portl->next = malloc(sizeof(struct portlist));
-					portl = portl -> next;
+				if(strcmp((char *)arg, "*")) {
+					if(portadd(&acl->ports, (char *)arg)) {
+						fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
+						return(NULL);
+					}
 				}
-				if(!portl) {
-					fprintf(stderr, "No memory for ACL entry, line %d\n", linenum);
-					return(NULL);
-				}
-				memset(portl, 0, sizeof(struct portlist));
-				res = sscanf((char *)arg, "%hu-%hu", &portl->startport, &portl->endport);
-				if(res < 1) {
+				else if(!via) {
 					fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
 					return(NULL);
 				}
-				if (res == 1) portl->endport = portl->startport;
+				if(via && portadd(&acl->viaports, (char *)via)) {
+					fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
+					return(NULL);
+				}
 			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
 		}
 		if(argc > 4 && strcmp("*", (char *)argv[4])) {

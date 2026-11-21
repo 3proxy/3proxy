@@ -936,7 +936,17 @@ quoted or written \fB$$\fR, since a lone dollar outside quotes begins the name
 of a file to include. The same patterns, and the same prefix, are used by the
 \fBhttp\fR command, see BUILT IN HTTP SERVER. Regular expressions are matched
 per request and cost more than a wildmask, which is enough for most rules.
-Targetportlist may contain ports (X) or port ranges lists (X-Y). For any field *
+Targetportlist may contain ports (X) or port ranges lists (X-Y). A port may
+carry a service port after a slash, as X-Y/S or, for any destination, */S:
+the rule matches only requests that came through the service listening on
+the port S — the port of the proxy or socks it connected to — whatever
+their destination. The limiters are shared by all the services, so this is
+how a limit is given to one service's connections alone, e.g.
+.br
+ connlim 5 60 * * * */1080
+.br
+denies the sixth concurrent connection of the service on port 1080,
+whatever it connects to. For any field *
 sign means ANY. If access list is empty it\'s assumed to be
 .br
  allow *
