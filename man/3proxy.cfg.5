@@ -1508,6 +1508,27 @@ and
 configuration within one minute. Any number of files may be monitored.
 
 .br
+.BR port
+\fItcp|udp\fR \fI[<ip>:]<port>\fR [\fIsocket_options\fR]
+.br
+ Reserves a listening socket at the time the configuration is read: a
+privileged port can be opened before \fBsetuid\fR and \fBchroot\fR take the
+rights to open it away, the \fBport\fR line placed above them and the
+service below. A service of the configuration on the same address, of
+the same type, takes the socket over when it starts, instead of opening
+one of its own; a port no service takes stays reserved until the
+configuration is left. The address is an IPv4 one by default, an IPv6
+one in brackets. The socket options are written as for \fB-o\fR, and are
+what the socket has: those which act only before bind() cannot be
+changed on a socket the service takes over.
+.br
+ port tcp 443
+.br
+ port tcp [::]:80 TCP_FASTOPEN
+.br
+ port udp 53
+
+.br
 .BR setuid
 \fI<uid>\fR
 .br

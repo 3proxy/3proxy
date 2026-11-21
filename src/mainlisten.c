@@ -289,26 +289,30 @@ static int bindtimeopt(const char *name){
 	!strcmp(name, "TCP_FASTOPEN");
 }
 
-/* Whether a socket with the options of l can be made one with those of srv:
+/* Whether a socket with the options of l can be made one with those of b:
    the same bind-time ones, with the same values; TCP_MAXSEG, whose default
    is not 0, cannot be turned off again. */
-static int sameopts(struct listener *l, struct srvparam *srv){
- const struct sockoptset *a = &l->opts, *b = &srv->lissockopts;
+static int sameoptset(struct listener *l, const struct sockoptset *b){
+ const struct sockoptset *a = &l->opts;
  int i;
 
- for(i = 0; sockopts[i].optname && i < MAXSOCKOPTS; i++){
-	unsigned bit = 1u << i;
+	for(i = 0; sockopts[i].optname && i < MAXSOCKOPTS; i++){
+		unsigned bit = 1u << i;
 
-	if(bindtimeopt(sockopts[i].optname)){
-		if((a->set & bit) != (b->set & bit)) return 0;
-		if((a->set & bit) && a->value[i] != b->value[i]) return 0;
-	}
+		if(bindtimeopt(sockopts[i].optname)){
+			if((a->set & bit) != (b->set & bit)) return 0;
+			if((a->set & bit) && a->value[i] != b->value[i]) return 0;
+		}
 #ifdef TCP_MAXSEG
-	else if(sockopts[i].opt == TCP_MAXSEG && *sockopts[i].optname == 'T' &&
-		(a->set & bit) && !(b->set & bit)) return 0;
+		else if(sockopts[i].opt == TCP_MAXSEG && *sockopts[i].optname == 'T' &&
+			(a->set & bit) && !(b->set & bit)) return 0;
 #endif
- }
- return 1;
+	}
+	return 1;
+}
+
+static int sameopts(struct listener *l, struct srvparam *srv){
+	return sameoptset(l, &srv->lissockopts);
 }
 
 /* Sets the options of srv on the socket of l taken over: those given, and
@@ -343,6 +347,32 @@ static int samelistener(struct listener *l, struct srvparam *srv, int isudp){
  return SASIZE(&l->sa) == SASIZE(&srv->intsa) &&
 	!memcmp(&l->sa, &srv->intsa, SASIZE(&srv->intsa)) &&
 	sameopts(l, srv);
+}
+
+/* samelistener without the options: the address, and what else makes a
+   socket of a place. */
+static int samelistener_noopts(struct listener *l, struct srvparam *srv, int isudp){
+ if(l->isudp != isudp || l->cbdest) return 0;
+#ifdef __linux__
+ if(!samestr(l->netns, srv->inetns)) return 0;
+#endif
+#if defined SO_BINDTODEVICE || defined IP_BOUND_IF
+ if(!samestr(l->device, srv->ibindtodevice)) return 0;
+#endif
+ return SASIZE(&l->sa) == SASIZE(&srv->intsa) &&
+	!memcmp(&l->sa, &srv->intsa, SASIZE(&srv->intsa));
+}
+
+/* Whether a service takes over a reserved port: the socket is bound
+   already, so the options which act only before bind() cannot follow the
+   service's wishes — it must name them the same, or not name them at all.
+   The rest of its options are set on the socket when it is taken. */
+/* Whether a service takes over a reserved port: the socket is bound
+   already, so it is what the reservation made of it — the options which
+   act only before bind() can follow neither's wishes but their author's,
+   and the service's other options are set on it when it is taken. */
+static int samereservation(struct listener *l, struct srvparam *srv, int isudp){
+	return samelistener_noopts(l, srv, isudp);
 }
 
 /* Whether s goes on listener l: one connecting back (-r) on the
@@ -410,14 +440,24 @@ void mainclaim(void *service){
  }
  _3proxy_mutex_lock(&listener_mutex);
  for(l = listeners; l; l = l->next){
-	if(!l->owners || !listenerfor(l, s)) continue;
-	if(listenerhas(l, srv->config)){
-		found = l;
-		break;
+		/* a reserved port: no service of it, its socket open; a service
+		   of the address takes it over. A listener whose services are
+		   gone, their last clients draining, has no socket to give */
+		if(!l->owners){
+			if(l->sock != INVALID_SOCKET && samereservation(l, srv, s->isudp)){
+				found = l;
+				break;
+			}
+			continue;
+		}
+		if(!listenerfor(l, s)) continue;
+		if(listenerhas(l, srv->config)){
+			found = l;
+			break;
+		}
+		if(!found || (l->owners->service == srv->service && found->owners->service != srv->service))
+			found = l;
 	}
-	if(!found || (l->owners->service == srv->service && found->owners->service != srv->service))
-		found = l;
- }
  if(!found && (found = newl)){
 	newl = NULL;
 	found->next = listeners;
@@ -500,6 +540,109 @@ static void slotrelease(struct srvparam *srv){
  _3proxy_mutex_lock(&srv->counter_mutex);
  _3proxy_sem_unlock(srv->childslots);
  _3proxy_mutex_unlock(&srv->counter_mutex);
+}
+
+/* The port command: the listening socket opened here, at the time the
+   configuration is read, while the rights to open a privileged port may
+   still be had — before setuid and chroot. A service of the configuration
+   on the same address, with the same bind-time options, takes the socket
+   over when it starts; a reservation no service takes keeps the port until
+   the configuration is left. A reservation of the configuration before
+   already holds the port: its socket is shared, both reservations dropping
+   their hold with the configuration that made them. NULL if the socket
+   cannot be opened. */
+void * mainreserve(int isudp, PROXYSOCKADDRTYPE *sa, const struct sockoptset *opts, int maxseg){
+ struct listener *l, *nl;
+ SOCKET sock;
+
+	if(!(nl = malloc(sizeof(*nl)))) return NULL;
+	memset(nl, 0, sizeof(*nl));
+	nl->isudp = isudp;
+	nl->sa = *sa;
+	nl->opts = *opts;
+	nl->maxseg = maxseg;
+	/* older than the configuration being read: a service taking the
+	   socket over applies its own options to it, as one of a
+	   configuration before does */
+	nl->optversion = conf->version - 1;
+	nl->sock = INVALID_SOCKET;
+	_3proxy_mutex_lock(&listener_mutex);
+	for(l = listeners; l; l = l->next){
+		if(l->isudp != isudp || l->cbdest || l->sock == INVALID_SOCKET) continue;
+		if(SASIZE(&l->sa) != SASIZE(sa) || memcmp(&l->sa, sa, SASIZE(sa))) continue;
+		if(!sameoptset(l, opts)) continue;
+		l->users++;			/* this reservation's hold with it */
+		_3proxy_mutex_unlock(&listener_mutex);
+		free(nl);
+		return l;
+	}
+	sock = so._socket(so.state, SASOCK(sa), isudp? SOCK_DGRAM: SOCK_STREAM,
+		isudp? IPPROTO_UDP: IPPROTO_TCP);
+	if(sock == INVALID_SOCKET){
+		_3proxy_mutex_unlock(&listener_mutex);
+		free(nl);
+		return NULL;
+	}
+	setopts(sock, opts, maxseg);
+#ifndef _WIN32
+	fcntl(sock, F_SETFL, O_NONBLOCK | fcntl(sock, F_GETFL));
+#else
+	{
+	unsigned long ul = 1;
+	ioctlsocket(sock, FIONBIO, &ul);
+	}
+#endif
+	if(so._bind(so.state, sock, (struct sockaddr *)sa, SASIZE(sa)) == -1 ||
+	   (!isudp && so._listen(so.state, sock, 1+(conf->maxchild>>3)) == -1)){
+		so._closesocket(so.state, sock);
+		_3proxy_mutex_unlock(&listener_mutex);
+		free(nl);
+		return NULL;
+	}
+	nl->sock = sock;
+	nl->users = 1;			/* the reservation's hold */
+	_3proxy_mutex_init(&nl->open_mutex);
+	_3proxy_mutex_init(&nl->count_mutex);
+	nl->next = listeners;
+	listeners = nl;
+	_3proxy_mutex_unlock(&listener_mutex);
+	return nl;
+}
+
+/* The configuration which made the reservation is left: its hold on the
+   listener is given back, the socket closed and the listener freed by
+   whoever lets go of it last, a reservation or the clients of a service. */
+void maindropreserved(void *v){
+ struct listener *l = (struct listener *)v, **lp;
+ SOCKET sock = INVALID_SOCKET;
+ struct udpsession *hand = NULL;
+ int last;
+
+	_3proxy_mutex_lock(&listener_mutex);
+	last = !--l->users;
+	if(last) for(lp = &listeners; *lp; lp = &(*lp)->next) if(*lp == l){
+		*lp = l->next;
+		sock = l->sock;
+		l->sock = INVALID_SOCKET;
+		hand = l->udphand;
+		l->udphand = NULL;
+		break;
+	}
+	_3proxy_mutex_unlock(&listener_mutex);
+#ifndef NOUDPMAIN
+	udpendall(hand, 26);
+#endif
+	if(sock != INVALID_SOCKET) so._closesocket(so.state, sock);
+	if(!last) return;
+#ifdef WITH_UN
+	ununlink(&l->sa, l->undev, l->unino);
+#endif
+	_3proxy_mutex_destroy(&l->open_mutex);
+	_3proxy_mutex_destroy(&l->count_mutex);
+	if(l->netns) free(l->netns);
+	if(l->device) free(l->device);
+	if(l->cbdest) free(l->cbdest);
+	free(l);
 }
 
 /* After a reload, unless noforce: a client goes by the rules of a newest

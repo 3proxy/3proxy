@@ -965,9 +965,16 @@ struct threadpool {
 extern struct threadpool tpool;
 
 struct filemon {
-	char * path;
-	struct stat sb;
-	struct filemon *next;
+ char * path;
+ struct stat sb;
+ struct filemon *next;
+};
+
+/* A port the configuration reserved with the port command: its listener,
+   opaque here, held until the configuration is left */
+struct portreservation {
+	struct portreservation *next;
+	void *listener;
 };
 
 
@@ -1022,6 +1029,7 @@ struct extparam {
 	int refs;
 	struct hashtable pwl_table;	/* users */
 	int resolvmode;		/* RESOLVE_*: the last read, each service taking the one read before it */
+	struct portreservation *reservations;	/* the port command's, dropped with the configuration */
 };
 
 struct property {
