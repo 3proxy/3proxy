@@ -947,7 +947,9 @@ one service's connections alone, e.g.
  connlim 5 60 * * * @1080
 .br
 denies the sixth concurrent connection of the service on port 1080,
-whatever it connects to. For any field *
+whatever it connects to. A comma ends an entry, so several services are
+listed by repeating it: *@1080,*@1090 names the two, and a bare
+@1080,1090 would leave 1090 a destination port. For any field *
 sign means ANY. If access list is empty it\'s assumed to be
 .br
  allow *

@@ -97,3 +97,19 @@ def run(t):
                        "log\nallow * * * 443@\nnot_a_command\n")
     t.contains(out, "Invalid port or port range",
                "a service with nothing after the @ is refused")
+
+    # several services in one rule: the entry repeated with each
+    sev1, sev2 = t.free_port(), t.free_port()
+    t.start("viaport_both", f"""
+        log
+        auth iponly
+        deny * * * @{sev1},@{sev2}
+        allow *
+        proxy -p{sev1}
+        proxy -p{sev2}
+    """, ports=[sev1, sev2])
+
+    t.ne(200, t.http(url, proxy=f"127.0.0.1:{sev1}").status,
+         "the first service a repeated entry names is refused")
+    t.ne(200, t.http(url, proxy=f"127.0.0.1:{sev2}").status,
+         "and so is the second")
