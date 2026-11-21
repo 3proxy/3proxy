@@ -5,7 +5,7 @@
 
 */
 
-#include "structures.h"
+#include "proxy.h"
 #include <string.h>
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE2_STATIC
@@ -216,6 +216,7 @@ struct pcre_filter_data {
 	pcre2_match_data * match_data;
 	pcre2_match_context * match_context;
 	int action;
+	int log;
 	char * replace;
 	struct ace *acl;
 };
@@ -300,6 +301,7 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 	char * replace;
 	char * tmpbuf, *target, *newbuf;
 	unsigned char *given = *buf_p;
+	unsigned char *matched;
 	int nreplaces=0;
 	struct pcre_client_data *pcd = (struct pcre_client_data *)fc;
 #define pcrefd (pcd->pcrefd)
@@ -319,6 +321,14 @@ static FILTER_ACTION pcre_filter_buffer(void *fc, struct clientparam *param, uns
 		if(count <= 0) break;
 		ovector = pcre2_get_ovector_pointer(pcd->match_data);
 		if(ovector[0] > (PCRE2_SIZE)*length_p || ovector[1] > (PCRE2_SIZE)*length_p || ovector[1] < ovector[0]) break;
+		/* What the pattern matched, one record per match: with dunno,log
+		   it is the whole point of the rule */
+		if(pcrefd->log && (matched = malloc(ovector[1] - ovector[0] + 1))){
+			memcpy(matched, *buf_p + ovector[0], ovector[1] - ovector[0]);
+			matched[ovector[1] - ovector[0]] = 0;
+			dolog(param, matched);
+			free(matched);
+		}
 		if(!(replace = pcrefd->replace) || param->nooverwritefilter) return pcrefd->action;
 
 		replen = *length_p - ovector[1];
@@ -494,6 +504,7 @@ int h_pcre(int argc, unsigned char **argv){
 	memset(flt, 0, sizeof(struct pcre_filter_data));
 	memset(newf, 0, sizeof(struct filter));
 	flt->action = action;
+	flt->log = (strstr((char *)argv[2],"log") != 0);
 	flt->re = re;
 	flt->match_data = match_data;
 	flt->acl = acl;
@@ -608,6 +619,7 @@ int h_pcre_rewrite(int argc, unsigned char **argv){
 	memset(flt, 0, sizeof(struct pcre_filter_data));
 	memset(newf, 0, sizeof(struct filter));
 	flt->action = action;
+	flt->log = (strstr((char *)argv[2],"log") != 0);
 	flt->re = re;
 	flt->match_data = match_data;
 	flt->acl = acl;
