@@ -1399,6 +1399,59 @@ static int portadd(struct portlist **head, const char *s){
 	return 0;
 }
 
+/* Appends an IP, an IP range or a CIDR to a list: 0, or 1 for one that
+   is none of them, or for want of memory. */
+static int ipadd(struct iplist **head, const char *s){
+	struct iplist **tail, tmp;
+
+	for(tail = head; *tail; tail = &(*tail)->next);
+	memset(&tmp, 0, sizeof(tmp));
+	if(scanipl((unsigned char *)s, &tmp)) return 1;
+	if(!(*tail = malloc(sizeof(struct iplist)))) return 1;
+	**tail = tmp;
+	(*tail)->next = NULL;
+	return 0;
+}
+
+/* The part after the @ of a port in a rule: the service the request
+   came through, by its port, its address, or both, the address in
+   brackets when IPv6 — 1080, 10.0.0.1, 10.0.0.1:1080, [::1]:1080.
+   Digits alone, or with a dash, are a port or a port range; anything
+   else is an address, with a port behind a colon. 0, or 1 for what is
+   none of these. *ip and *port point into s, or stay NULL. */
+static int viasplit(unsigned char *s, unsigned char **ip, unsigned char **port){
+	unsigned char *close;
+
+	*ip = *port = NULL;
+	if(!*s) return 1;
+	if(*s == '['){
+		close = (unsigned char *)strchr((char *)s, ']');
+		if(!close || close == s + 1) return 1;
+		*ip = s + 1;
+		*close = 0;
+		s = close + 1;
+		if(!*s) return 0;
+		if(*s != ':') return 1;
+		s++;
+		if(!*s) return 1;
+		*port = s;
+		return 0;
+	}
+	if(*s != '-' && strspn((char *)s, "0123456789-") == strlen((char *)s)){
+		*port = s;
+		return 0;
+	}
+	close = (unsigned char *)strchr((char *)s, ':');
+	if(close && isnumber(*(close+1))){
+		*close = 0;
+		*ip = s;
+		*port = close + 1;
+		return 0;
+	}
+	*ip = s;
+	return 0;
+}
+
 struct ace * make_ace (int argc, unsigned char ** argv){
 	struct ace * acl;
 	unsigned char *arg;
@@ -1498,16 +1551,10 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 		if(argc > 3 && strcmp("*", (char *)argv[3])) {
 			arg = (unsigned char *)strtok((char *)argv[3], ",");
 			if(arg) do {
-				unsigned char *via = (unsigned char *)strchr((char *)arg, '/');
+				unsigned char *via = (unsigned char *)strchr((char *)arg, '@');
 
-				if(via) {
-					*via++ = 0;
-					if(!*via || !*arg) {
-						fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
-						return(NULL);
-					}
-				}
-				if(strcmp((char *)arg, "*")) {
+				if(via) *via++ = 0;
+				if(*arg && strcmp((char *)arg, "*")) {
 					if(portadd(&acl->ports, (char *)arg)) {
 						fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
 						return(NULL);
@@ -1517,9 +1564,21 @@ struct ace * make_ace (int argc, unsigned char ** argv){
 					fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
 					return(NULL);
 				}
-				if(via && portadd(&acl->viaports, (char *)via)) {
-					fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
-					return(NULL);
+				if(via) {
+					unsigned char *ip, *port;
+
+					if(viasplit(via, &ip, &port)) {
+						fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
+						return(NULL);
+					}
+					if(ip && ipadd(&acl->viasrc, (char *)ip)) {
+						fprintf(stderr, "Invalid IP, IP range or CIDR, line %d\n", linenum);
+						return(NULL);
+					}
+					if(port && portadd(&acl->viaports, (char *)port)) {
+						fprintf(stderr, "Invalid port or port range, line %d\n", linenum);
+						return(NULL);
+					}
 				}
 			} while((arg = (unsigned char *)strtok((char *)NULL, ",")));
 		}

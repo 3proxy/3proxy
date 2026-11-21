@@ -1210,6 +1210,7 @@ void freeacl(struct ace *ac){
 		for(ipl = ac->dst; ipl; ipl = (struct iplist *)itfree(ipl,ipl->next));
 		for(pl = ac->ports; pl; pl = (struct portlist *)itfree(pl, pl->next));
 		for(pl = ac->viaports; pl; pl = (struct portlist *)itfree(pl, pl->next));
+		for(ipl = ac->viasrc; ipl; ipl = (struct iplist *)itfree(ipl, ipl->next));
 		for(pel = ac->periods; pel; pel = (struct period *)itfree(pel, pel->next));
 		for(ul = ac->users; ul; ul = (struct userlist *)itfree(ul, ul->next)){
 			if(ul->user)free(ul->user);
