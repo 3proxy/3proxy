@@ -1801,6 +1801,20 @@ FILTER_ACTION - action on match:
  deny - deny this request without checking the rest of the rules
 .br
  dunno - continue with the rest of the rules (useful with pcre_rewrite)
+.br
+ An action may be followed by ,log (as in allow,log or dunno,log): what
+the pattern matched is written to the log as a record of its own, one
+per match, in addition to the connection's own record. Put %T in
+logformat to have the matched text in the line. The options apply to the
+pattern as to any other, so for example
+.br
+ pcre_options PCRE2_CASELESS PCRE2_MULTILINE
+.br
+ pcre cliheader dunno,log "^user-agent:.*$"
+.br
+watches the User-Agent: header whatever its case, with the ^ and $
+anchors holding for every line of the headers, wherever the header
+comes, and decides nothing about the request.
 
 REGEXP - PCRE (Perl) regular expression. Use * if no regexp matching is required.
 
