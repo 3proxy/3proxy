@@ -545,12 +545,14 @@ static void slotrelease(struct srvparam *srv){
 /* The port command: the listening socket opened here, at the time the
    configuration is read, while the rights to open a privileged port may
    still be had — before setuid and chroot. A service of the configuration
-   on the same address, with the same bind-time options, takes the socket
-   over when it starts; a reservation no service takes keeps the port until
-   the configuration is left. A reservation of the configuration before
-   already holds the port: its socket is shared, both reservations dropping
-   their hold with the configuration that made them. NULL if the socket
-   cannot be opened. */
+   on the same address, of the same type, takes the socket over when it
+   starts; a port no service takes stays reserved while the configuration
+   in force has it: a reload drops it unless the new configuration
+   reserves it anew or a service of it claims it — after chroot only the
+   usage of the socket keeps it. A reservation of the configuration
+   before already holds the port: its socket is shared, the holds dropped
+   when the configurations that made them are left or a reload without
+   a claim on it comes. NULL if the socket cannot be opened. */
 void * mainreserve(int isudp, PROXYSOCKADDRTYPE *sa, const struct sockoptset *opts, int maxseg){
  struct listener *l, *nl;
  SOCKET sock;

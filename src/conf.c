@@ -442,7 +442,9 @@ static int h_threadpool(int argc, unsigned char **argv){
 /* Reserves a listening socket while the configuration is read: a
    privileged port is opened before setuid and chroot take the rights
    away, and a service of the configuration on the same address takes
-   the socket over when it starts. */
+   the socket over when it starts. After chroot no reservation can be
+   made again: a reload keeps the port only while the configuration in
+   force reserves it anew or has a service on it. */
 static int h_port(int argc, unsigned char **argv){
 	struct portreservation *r;
 	PROXYSOCKADDRTYPE sa;
@@ -2461,7 +2463,9 @@ void freeconf(struct extparam *confp){
  while(confp->reservations){
 	pr = confp->reservations;
 	confp->reservations = pr->next;
-	maindropreserved(pr->listener);
+	/* dropped already at the reload, the configuration after it neither
+	   reserving the port nor using it */
+	if(pr->listener) maindropreserved(pr->listener);
 	free(pr);
  }
 
@@ -2610,6 +2614,7 @@ int reload (void){
 	int error = -2;
 	struct extparam *old = conf, *new;
 	struct deferred *d;
+	struct portreservation *pr;
 
 	if(!(new = malloc(sizeof(*new)))) return -1;
 	*new = confdefaults;
@@ -2677,6 +2682,18 @@ int reload (void){
 	/* the new services take over the listening sockets of the old ones on
 	   the same addresses, which then stop accepting, and start */
 	for(d = deferred; d; d = d->next) mainclaim(d->service);
+	/* A port reserved before setuid and chroot is dropped now, unless the
+	   configuration in force reserves it anew or has a service on it:
+	   after chroot no reservation can be made again, only the usage of
+	   the socket a service takes over keeps it */
+	for(pr = old->reservations; pr; pr = pr->next){
+		struct portreservation *pn;
+
+		for(pn = new->reservations; pn; pn = pn->next) if(pn->listener == pr->listener) break;
+		if(pn) continue;
+		maindropreserved(pr->listener);
+		pr->listener = NULL;
+	}
 	old->paused++;
 	while((d = deferred)){
 		deferred = d->next;
