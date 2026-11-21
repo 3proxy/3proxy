@@ -1818,8 +1818,8 @@ static int h_radius(int argc, unsigned char **argv){
 			*s = 0;
 			s++;
 		}
-		if( !getip46(46, argv[conf->nradservers + 2], (struct sockaddr *)&conf->radiuslist[conf->nradservers].authaddr)) return 1;
-		if( s && !getip46(46, (unsigned char *)s, (struct sockaddr *)&conf->radiuslist[conf->nradservers].localaddr)) return 2;
+		if(parsehost(46, argv[conf->nradservers + 2], (struct sockaddr *)&conf->radiuslist[conf->nradservers].authaddr)) return 1;
+		if(s && parsehost(46, (unsigned char *)s, (struct sockaddr *)&conf->radiuslist[conf->nradservers].localaddr)) return 2;
 		if(!*SAPORT(&conf->radiuslist[conf->nradservers].authaddr))*SAPORT(&conf->radiuslist[conf->nradservers].authaddr) = htons(1812);
 		port = ntohs(*SAPORT(&conf->radiuslist[conf->nradservers].authaddr));
 		conf->radiuslist[conf->nradservers].logaddr = conf->radiuslist[conf->nradservers].authaddr;
