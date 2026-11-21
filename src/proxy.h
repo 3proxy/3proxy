@@ -644,6 +644,8 @@ int getopts(const char *s, struct sockoptset *opts);
 void setopts(SOCKET s, const struct sockoptset *opts, int maxseg);
 char * printopts(char *sep);
 char * printfeatures(char *sep);
+void * mainreserve(int isudp, PROXYSOCKADDRTYPE *sa, const struct sockoptset *opts, int maxseg);
+void maindropreserved(void *listener);
 
 
 #define WEBBANNERS 35

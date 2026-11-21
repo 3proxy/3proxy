@@ -435,6 +435,43 @@ static int h_threadpool(int argc, unsigned char **argv){
 	return 0;
 }
 
+/* Reserves a listening socket while the configuration is read: a
+   privileged port is opened before setuid and chroot take the rights
+   away, and a service of the configuration on the same address takes
+   the socket over when it starts. */
+static int h_port(int argc, unsigned char **argv){
+	struct portreservation *r;
+	PROXYSOCKADDRTYPE sa;
+	struct sockoptset opts;
+	int isudp;
+
+	if(!strcmp((char *)argv[1], "udp")) isudp = 1;
+	else if(!strcmp((char *)argv[1], "tcp")) isudp = 0;
+	else return 1;
+	memset(&opts, 0, sizeof(opts));
+	if(argc > 3 && getopts((char *)argv[3], &opts)) return 2;
+	/* as a service's address: from the defaults, so the same in every
+	   byte a listener is matched by */
+	sa = conf->intsa;
+	if(strchr((char *)argv[2], ':') || *argv[2] == '['){
+		if(parsehost(46, argv[2], (struct sockaddr *)&sa)) return 3;
+	}
+	else {
+		*SAFAMILY(&sa) = AF_INET;
+		*SAPORT(&sa) = htons((uint16_t)atoi((char *)argv[2]));
+	}
+	if(!*SAPORT(&sa)) return 3;
+	if(!(r = malloc(sizeof(*r)))) return 4;
+	if(!(r->listener = mainreserve(isudp, &sa, &opts, 0))){
+		free(r);
+		fprintf(stderr, "Unable to reserve port, line %d\n", linenum);
+		return 5;
+	}
+	r->next = conf->reservations;
+	conf->reservations = r;
+	return 0;
+}
+
 
 static int h_force(int argc, unsigned char **argv){
 	conf->noforce = 0;
@@ -2143,6 +2180,7 @@ struct commands commandhandlers[]={
 	{NULL, "minlogqueue", h_minlogqueue, 2, 2},
 	{NULL, "maxlogqueue", h_maxlogqueue, 2, 2},
 	{NULL, "threadpool", h_threadpool, 2, 3},
+	{NULL, "port", h_port, 3, 4},
 	{NULL, "force", h_force, 1, 1},
 	{NULL, "noforce", h_noforce, 1, 1},
 	{NULL, "parentretries", h_parentretries, 2, 2},
@@ -2411,10 +2449,18 @@ void freeconf(struct extparam *confp){
  struct trafcount * tc;
  struct ace *acl;
  struct filemon *fm;
+ struct portreservation *pr;
  int counterd, archiverc;
  unsigned char **archiver;
  unsigned char * logformat;
  int i;
+
+ while(confp->reservations){
+	pr = confp->reservations;
+	confp->reservations = pr->next;
+	maindropreserved(pr->listener);
+	free(pr);
+ }
 
  _3proxy_mutex_lock(&tc_mutex);
  confp->trafcountfunc = NULL;
