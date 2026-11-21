@@ -310,8 +310,16 @@ int ACLmatches(struct ace* acentry, struct clientparam * param){
 	 }
 	 if(!ipentry && !hstentry) return 0;
 	}
-	/* the service the request came through, by the port it listens on:
-	   what the part after the slash of a port in a rule names */
+	/* the service the request came through, by the port it listens on
+	   and by its address: what the part after the @ of a port in a
+	   rule names */
+	if(acentry->viasrc) {
+	 for (ipentry = acentry->viasrc; ipentry; ipentry = ipentry->next)
+		if(IPInentry((struct sockaddr *)&param->srv->intsa, ipentry)) {
+			break;
+		}
+	 if(!ipentry) return 0;
+	}
 	if(acentry->viaports) {
 	 int viaport = ntohs(*SAPORT(&param->srv->intsa));
 

@@ -937,13 +937,14 @@ of a file to include. The same patterns, and the same prefix, are used by the
 \fBhttp\fR command, see BUILT IN HTTP SERVER. Regular expressions are matched
 per request and cost more than a wildmask, which is enough for most rules.
 Targetportlist may contain ports (X) or port ranges lists (X-Y). A port may
-carry a service port after a slash, as X-Y/S or, for any destination, */S:
-the rule matches only requests that came through the service listening on
-the port S — the port of the proxy or socks it connected to — whatever
-their destination. The limiters are shared by all the services, so this is
-how a limit is given to one service's connections alone, e.g.
+carry the service the request came through after an @, as X-Y@S or, for any
+destination, @S: the rule matches only requests that arrived through the
+service S — the address it listens on, its port, or both, the address in
+brackets when IPv6 (@1080, @10.0.0.1, @10.0.0.1:1080, @[::1]:1080). The
+limiters are shared by all the services, so this is how a limit is given to
+one service's connections alone, e.g.
 .br
- connlim 5 60 * * * */1080
+ connlim 5 60 * * * @1080
 .br
 denies the sixth concurrent connection of the service on port 1080,
 whatever it connects to. For any field *

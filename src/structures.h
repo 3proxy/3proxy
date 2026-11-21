@@ -414,6 +414,7 @@ struct ace {
 	struct hostname *dstnames;
 	struct portlist *ports;
 	struct portlist *viaports;
+	struct iplist *viasrc;
 	struct chain *chains;
 };
 
