@@ -1,10 +1,10 @@
-"""A port in a rule may name the service the request came through.
+"""A rule names, after one @, the service the request came through.
 
 The rules of the limiters are shared by all the services, so there has
-been no way to limit the connections of one service alone. After an @ a
-port in a rule names that service — by its port, by the address it
-listens on, or by both: @1080, @10.0.0.1, @[::1]:1080 — and, with no
-destination written, any destination. A deny so written closes one
+been no way to limit the connections of one service alone. The
+targetlist names the service after its @ by the addresses it listens
+on, the targetportlist by its ports — each side written as any other
+list, a side left out standing for any. A deny so written closes one
 service, a connlim so written caps one service, and neither touches
 another service of the same configuration.
 """
@@ -74,13 +74,13 @@ def run(t):
     t.eq(200, result.get("status", 0),
          "and the request the limit waited for finishes whole")
 
-    # a service named by its address, and by its address and port
+    # a service named by its address, in the targetlist
     if t.has_ipv6():
         fifth, sixth = t.free_port(), t.free_port()
         t.start("viaport_ip", f"""
             log
             auth iponly
-            deny * * * @[::1]
+            deny * * *@::1 *
             allow *
             proxy -p{fifth} -i127.0.0.1
             proxy -p{sixth} -i::1
@@ -92,24 +92,24 @@ def run(t):
         t.ne(200, r.status if r else 0,
              "the service the rule names by its address is refused")
 
-    # an @ with nothing after it is refused
-    out = t.run_config("viaport_bad",
-                       "log\nallow * * * 443@\nnot_a_command\n")
-    t.contains(out, "Invalid port or port range",
-               "a service with nothing after the @ is refused")
-
-    # several services in one rule: the entry repeated with each
+    # several services named by one rule: the list after the @
     sev1, sev2 = t.free_port(), t.free_port()
     t.start("viaport_both", f"""
         log
         auth iponly
-        deny * * * @{sev1},@{sev2}
+        deny * * * @{sev1},{sev2}
         allow *
         proxy -p{sev1}
         proxy -p{sev2}
     """, ports=[sev1, sev2])
 
     t.ne(200, t.http(url, proxy=f"127.0.0.1:{sev1}").status,
-         "the first service a repeated entry names is refused")
+         "the first service the rule names is refused")
     t.ne(200, t.http(url, proxy=f"127.0.0.1:{sev2}").status,
          "and so is the second")
+
+    # an @ with nothing after it is refused
+    out = t.run_config("viaport_bad",
+                       "log\nallow * * * 443@\nnot_a_command\n")
+    t.contains(out, "Invalid port or port range",
+               "a service with nothing after the @ is refused")
