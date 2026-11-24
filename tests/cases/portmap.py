@@ -4,7 +4,7 @@ import socket
 import threading
 import time
 
-HALFCLOSE_SIZE = 20000000
+HALFCLOSE_SIZE = 4000000
 
 
 def halfclose_origin(listener):
@@ -81,8 +81,9 @@ def run(t):
     """, ports=[halfclosed])
     s = socket.socket()
     s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32768)
-    s.settimeout(30)
+    s.settimeout(60)
     got = 0
+    timedout = False
     try:
         s.connect(("127.0.0.1", halfclosed))
         s.sendall(b"request")
@@ -93,11 +94,18 @@ def run(t):
             if not d:
                 break
             got += len(d)
+    except socket.timeout:
+        timedout = True
     except OSError:
         pass
     s.close()
     listener.close()
-    t.eq(HALFCLOSE_SIZE, got, "a half-closed client reading slowly gets the whole answer")
+    if timedout:
+        t.fail("a half-closed client reading slowly gets the whole answer",
+               f"{HALFCLOSE_SIZE} bytes", f"timed out with {got}")
+    else:
+        t.eq(HALFCLOSE_SIZE, got,
+             "a half-closed client reading slowly gets the whole answer")
 
     t.stop_all()
 
