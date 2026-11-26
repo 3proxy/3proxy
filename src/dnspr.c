@@ -117,8 +117,8 @@ static void dnscache(struct clientparam *param, struct dnsquery *q, unsigned cha
 	}
 }
 
-/* An answer from a name server: to the client as it is if it has answers,
-   else as the name not found. 1: the query is done. */
+/* An answer from a name server: to the client as it is, whatever it
+   says. 1: the query is done. */
 static int dnsreply(struct udploop *u, struct udpsession *ss, unsigned char *buf, int len){
 	struct clientparam *param = ss->param;
 	struct dnsquery *q = ss->data;
@@ -131,13 +131,10 @@ static int dnsreply(struct udploop *u, struct udpsession *ss, unsigned char *buf
 	buf[1] = q->cid[1];
 	param->statssrv64 += len;
 	param->nreads++;
-	if(buf[6] || buf[7]){
-		dnscache(param, q, buf, len);
-		param->res = (udpanswer(u, param, buf, len) == len)? 0 : 822;
-		return 1;
-	}
-	q->ip = 0;
-	param->res = dnsanswer(u, param, q, buf, len);
+	/* the answer goes to the client as it is, its code with no records
+	   among them: the name not found is the server's word, not ours */
+	if(buf[6] || buf[7]) dnscache(param, q, buf, len);
+	param->res = (udpanswer(u, param, buf, len) == len)? 0 : 822;
 	return 1;
 }
 
