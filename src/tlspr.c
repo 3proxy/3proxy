@@ -335,6 +335,7 @@ void * tlsprchild(struct clientparam* param) {
  int lv=-1;
  char proto[PROTOLEN]="-";
  int snipos = 0;
+ int snlen = 0;
  PROXYSERVICE stlsproto = param->clientstarttls? param->clientstarttls :
 	(param->starttls? param->starttls : param->srv->srvstarttls);
 
@@ -358,16 +359,7 @@ void * tlsprchild(struct clientparam* param) {
 	}
 	else if (parsehostname(sni, param, param->srv->targetport? ntohs(param->srv->targetport):starttlsport(stlsproto))) RETURN (100);
 	if (!param->hostname)param->hostname = (unsigned char *)strdup(sni);
-	if(param->srv->s_option && snipos && res > 1){
-	    int len;
-	    
-	    len = socksend(param, param->remsock, param->clibuf+param->clioffset,snipos + (res/2), conf.timeouts[STRING_S]);
-	    if(len != snipos + (res/2)){
-		RETURN(310);
-	    }
-	    param->clioffset += snipos + (res/2);
-
-	}
+	snlen = res;
     }
     else if (res < 0 && param->srv->requirecert) RETURN(310-res);
  }
@@ -385,6 +377,17 @@ void * tlsprchild(struct clientparam* param) {
  }
  if(param->redirectfunc && param->redirectfunc != tlsprchild){
     return (void *)param->redirectfunc;
+ }
+
+ if(param->srv->s_option && snipos && snlen > 1){
+    int len;
+
+    len = socksend(param, param->remsock, param->clibuf+param->clioffset,snipos + (snlen/2), conf.timeouts[STRING_S]);
+    if(len != snipos + (snlen/2)){
+	RETURN(310);
+    }
+    param->clioffset += snipos + (snlen/2);
+
  }
 
  if(stlsproto){
