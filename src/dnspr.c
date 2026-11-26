@@ -222,12 +222,12 @@ void * dnsprchild(struct clientparam* param) {
 	}
 	buf[0] = cid[0];
 	buf[1] = cid[1];
-	if(buf[6] || buf[7]){
-		if(socksendto(param, param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
-			RETURN(822);
-		}
-		RETURN(0);
+	/* the answer goes to the client as it is, its code with no records
+	   among them: the name not found is the server's word, not ours */
+	if(socksendto(param, param->clisock, (struct sockaddr *)&param->sincr, buf, len, conf.timeouts[SINGLEBYTE_L]*1000) != len){
+		RETURN(822);
 	}
+	RETURN(0);
 
  }
  if(!ip) {
