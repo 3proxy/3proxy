@@ -362,7 +362,10 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 	struct chain * redir = NULL;
 	int saved = 0;
 
-	if((SAISNULL(&param->req) || !*SAPORT(&param->req)) && param->operation != UDPASSOC) {
+	/* a query has no destination an ACL entry carries: what binds its
+	   outgoing socket is all a chain can set for it */
+	if((SAISNULL(&param->req) || !*SAPORT(&param->req)) &&
+	   param->operation != UDPASSOC && param->operation != DNSRESOLVE) {
 		return 100;
 	}
 
@@ -376,6 +379,10 @@ int handleredirect(struct clientparam * param, struct ace * acentry){
 		if(exhausted) return 13;
 		if(!sel) continue;
 		cur = sel;
+		/* nothing to connect for a name server's query: a parent of
+		   another kind is passed over rather than made to fail it */
+		if(param->operation == DNSRESOLVE && cur->type != R_EXTIP &&
+		   cur->type != R_EXTPORT && cur->type != R_INTPORT) continue;
 		if(cur->type != R_EXTIP && cur->type != R_HA &&
 		   cur->type != R_EXTPORT && cur->type != R_INTPORT) param->redirected++;
 		if(!connected){

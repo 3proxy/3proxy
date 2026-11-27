@@ -171,8 +171,13 @@ static int dnsforward(struct udploop *u, struct udpsession *ss){
 #else
 		fcntl(param->remsock, F_SETFL, O_NONBLOCK | fcntl(param->remsock, F_GETFL));
 #endif
-		memset(&param->sinsl, 0, sizeof(param->sinsl));
-		*SAFAMILY(&param->sinsl) = *SAFAMILY(&ns[q->server].addr);
+		/* the local address of the socket, as a parent's extip set it;
+		   the port is the kernel's to choose */
+		if(SAISNULL(&param->sinsl) || *SAFAMILY(&param->sinsl) != *SAFAMILY(&ns[q->server].addr)){
+			memset(&param->sinsl, 0, sizeof(param->sinsl));
+			*SAFAMILY(&param->sinsl) = *SAFAMILY(&ns[q->server].addr);
+		}
+		*SAPORT(&param->sinsl) = 0;
 		if(bindwithrange(param, param->remsock, &param->sinsl, param->extport)) continue;
 		param->sinsr = ns[q->server].addr;
 		ss->idle = 0;
@@ -223,8 +228,9 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 	buf[BUFSIZE - 1] = 0;
 	param->sincl = param->srv->intsa;
 	param->operation = DNSRESOLVE;
-	if((res = (*param->srv->authfunc)(param))) { free(buf); return (param->res = res); }
 
+	/* the question is read before the rules run, so that a rule can be
+	   written against the name asked about */
 	if(buf[4]!=0 || buf[5]!=1) { free(buf); return (param->res = 816); }
 	for(len = 12; len<i; len+=(c+1)){
 		int k;
@@ -237,6 +243,9 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 	}
 	if(len > (i-4)) { free(buf); return (param->res = 817); }
 	if(!(q->host = strdup((char *)buf+13))) { free(buf); return (param->res = 21); }
+	/* the name of the query, for the rules; one too long for the field
+	   leaves them none to match */
+	if(PARAMSTR(param, hostname, q->host)) *param->hostname = 0;
 	for(s2 = buf + 12; (s1 = (unsigned char *)strchr((char *)s2 + 1, '.')); s2 = s1)*s2 = (unsigned char)((s1 - s2) - 1);
 	*s2 = (len - (int)(s2 - buf)) - 1;
 
@@ -246,6 +255,8 @@ static int dnsprfirst(struct udploop *u, struct udpsession *ss, unsigned char *q
 	q->cid[0] = q->query[2];
 	q->cid[1] = q->query[3];
 	q->ttl = 3600;
+	if((res = (*param->srv->authfunc)(param))) { free(buf); return (param->res = res); }
+
 	if(q->type==0x01 && param->srv->fakeip){
 		ip = 1;
 		*(uint32_t *)q->addr = param->srv->fakeip;
