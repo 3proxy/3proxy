@@ -815,7 +815,12 @@ beginning and at the end of the hostname, e.g. *badsite.com
 or *badcontent*. The hostname is only checked if a hostname
 is present in the request. Targetportlist may contain ports
 (X) or port ranges lists (X-Y). For any field * sign means
-ANY. If access list is empty it&acute;s assumed to be <br>
+ANY. A query to <b>dnspr</b> carries a hostname but no
+destination address and no port: its rules are matched
+against the name asked about, and a rule naming a target
+port never matches a query, since the port of a name server
+is not what the client chose. If access list is empty
+it&acute;s assumed to be <br>
 allow * <br>
 If access list is not empty last item in access list is
 assumed to be <br>
@@ -933,7 +938,11 @@ extip</b> does not actually redirect the request; it sets
 the external address for this request to <i>&lt;ip&gt;</i>.
 It can be chained with another parent type. It&rsquo;s
 useful to set the external IP based on ACL or make it
-random. <b><br>
+random. For <b>dnspr</b>, the address given is the one its
+queries to the name servers leave from, and <b>extport</b>
+limits the port of those queries to a range; a parent of
+another kind, having nowhere to connect a query to, is
+passed over and the resolver goes on without it. <b><br>
 extport</b> does not redirect the request; it sets the range
 the local port of outgoing connections is taken from, given
 as <i>FIRST-LAST</i> inclusive in place of the port

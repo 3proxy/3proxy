@@ -13,6 +13,7 @@
 + -s:MIN,STREAK,SMALL tunes when the automatic splice() mode splices a direction and when it copies again
 + filtermaxsize 0 removes the limit
 + UDP services (udppm, dnspr) run in one thread each, with no thread per client, using epoll on Linux; dnspr waits for name servers without holding a thread
++ dnspr: an access rule's targetlist is matched against the name asked about, as for the other services; parent extip is the address a query to a name server leaves from, and extport limits the port of those queries to a range, while a parent of another kind, having nowhere to connect a query to, is passed over
 + tcptoudp / udptotcp: tunnels between TCP and UDP: datagrams on a TCP connection, each with a two byte length in front of it, as udptunnel and ProxyGuard (eduVPN) put them, the framing alone or after their handshake; -m sends udptunnel's handshake to the target, -m2 ProxyGuard's, -m0 (the default) none; a parent the ACL gives tcptoudp is a SOCKS5 UDP relay, as for udppm
 + Connection buffers are allocated with the connection structure, together with the thread pool fewer allocations per connection
 + Build-time defaults: -DLOGQUEUEMIN, -DLOGQUEUEMAX, -DDEFAULT_POOLMAX, -DPOOLPERSERVICE, -DDEFAULT_POOLTIMEOUT, -DDEFAULT_MAXCHILD
